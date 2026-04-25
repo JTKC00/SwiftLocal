@@ -64,6 +64,27 @@ async def ocr_images(input_paths: list[Path], output_dir: Path, language: str) -
     return outputs, logs
 
 
+async def convert_pdf_to_docx(input_paths: list[Path], output_dir: Path) -> tuple[list[Path], list[str]]:
+    logs: list[str] = []
+    outputs: list[Path] = []
+
+    for input_path in input_paths:
+        output_path = output_dir / f"{input_path.stem}.docx"
+        try:
+            from pdf2docx import Converter  # lazy import
+            converter = Converter(str(input_path))
+            converter.convert(str(output_path))
+            converter.close()
+        except Exception as error:
+            raise RuntimeError(f"PDF to DOCX failed: {error}") from error
+        if not output_path.exists():
+            raise RuntimeError("PDF to DOCX finished but output file was not created")
+        logs.append(f"converted: {input_path.name} -> {output_path.name}")
+        outputs.append(output_path)
+
+    return outputs, logs
+
+
 async def run_process(executable: str, args: list[str], timeout: int = 300) -> str:
     result = await asyncio.to_thread(
         subprocess.run,

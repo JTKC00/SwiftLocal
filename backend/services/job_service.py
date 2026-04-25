@@ -7,13 +7,13 @@ from pathlib import Path
 
 from fastapi import UploadFile
 
-from .conversion_service import convert_media, convert_office_to_pdf, ocr_images, sanitize_extension
+from .conversion_service import convert_media, convert_office_to_pdf, convert_pdf_to_docx, ocr_images, sanitize_extension
 
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 TEMP_DIR = ROOT_DIR / "temp"
 JOBS_DIR = TEMP_DIR / "jobs"
-SUPPORTED_JOB_TYPES = {"office-to-pdf", "media-convert", "ocr-image"}
+SUPPORTED_JOB_TYPES = {"office-to-pdf", "media-convert", "ocr-image", "pdf-to-docx"}
 
 
 @dataclass
@@ -129,6 +129,8 @@ class JobService:
                 outputs, logs = await convert_media(job.input_paths, job.output_dir, job.options["extension"])
             elif job.type == "ocr-image":
                 outputs, logs = await ocr_images(job.input_paths, job.output_dir, job.options["language"])
+            elif job.type == "pdf-to-docx":
+                outputs, logs = await convert_pdf_to_docx(job.input_paths, job.output_dir)
             else:
                 raise RuntimeError(f"Unsupported job type: {job.type}")
 
@@ -175,6 +177,8 @@ class JobService:
         if job_type == "ocr-image":
             language = (options.get("language") or "eng").strip()
             return {"language": language or "eng"}
+        if job_type == "pdf-to-docx":
+            return {}
         return {}
 
 

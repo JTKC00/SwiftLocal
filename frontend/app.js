@@ -1632,6 +1632,9 @@
     if (type === "office-to-pdf") {
       return ".doc,.docx,.xls,.xlsx,.ppt,.pptx,.odt,.ods,.odp";
     }
+    if (type === "pdf-to-docx") {
+      return ".pdf";
+    }
     if (type === "media-convert") {
       return ".mp3,.wav,.m4a,.flac,.aac,.ogg,.mp4,.mov,.mkv,.avi,.webm";
     }
@@ -1764,6 +1767,9 @@
   function jobTypeLabel(type) {
     if (type === "office-to-pdf") {
       return "Office → PDF";
+    }
+    if (type === "pdf-to-docx") {
+      return "PDF → DOCX";
     }
     if (type === "media-convert") {
       return "音訊 / 影片轉換";
