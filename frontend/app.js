@@ -12,6 +12,9 @@
     diffText: "",
     splitDownloads: [],
     backendFiles: [],
+    pdfBackendFiles: [],
+    imgBackendFiles: [],
+    mediaBackendFiles: [],
     backendConfig: { toolPaths: {} },
     backendConnected: false,
     backendPollTimer: null,
@@ -29,8 +32,13 @@
     "diff-panel": "文字比對",
     "split-panel": "檔案切割",
     "rename-panel": "批量改名",
-    "backend-panel": "本地後端"
+    "media-panel": "影音轉換",
+    "backend-panel": "後端設定"
   };
+
+  const PDF_BACKEND_JOB_TYPES = new Set(["office-to-pdf", "pdf-to-docx", "pdf-to-office", "pdf-merge", "pdf-split", "pdf-rotate"]);
+  const IMG_BACKEND_JOB_TYPES = new Set(["image-convert", "ocr-image"]);
+  const MEDIA_BACKEND_JOB_TYPES = new Set(["media-convert"]);
 
   const $ = (selector) => document.querySelector(selector);
   const $$ = (selector) => Array.from(document.querySelectorAll(selector));
@@ -143,11 +151,17 @@
       $("#download-rename-script").disabled = true;
     }
     if (panelId === "backend-panel") {
-      state.backendFiles = [];
-      $("#backend-files").value = "";
-      renderBackendSelectedFiles();
       renderBackendJobs([]);
       setStatus("#backend-status", state.backendConnected ? "已連線" : "FastAPI 未連線");
+    }
+    if (panelId === "media-panel") {
+      state.mediaBackendFiles = [];
+      $("#media-files").value = "";
+      const c = $("#media-selected-files");
+      c.classList.add("empty");
+      c.textContent = "尚未選擇檔案";
+      renderPanelBackendJobs("#media-backend-jobs", "#media-backend-status", [], MEDIA_BACKEND_JOB_TYPES);
+      setStatus("#media-backend-status", state.backendConnected ? "已連線" : "FastAPI 未連線");
     }
   }
 
@@ -1465,11 +1479,55 @@
 
   function bindBackendTool() {
     $("#detect-backend-tools").addEventListener("click", detectBackendTools);
-    $("#backend-job-type").addEventListener("change", updateBackendJobControls);
-    $("#backend-pick-files").addEventListener("click", pickBackendFiles);
-    $("#backend-files").addEventListener("change", updateBackendFilesFromInput);
     $("#refresh-backend-jobs").addEventListener("click", refreshBackendJobs);
-    $("#backend-form").addEventListener("submit", enqueueBackendJob);
+
+    // 影音面板後端表單
+    $("#media-pick-files").addEventListener("click", () => $("#media-files").click());
+    $("#media-files").addEventListener("change", () => {
+      state.mediaBackendFiles = Array.from($("#media-files").files || []);
+      const container = $("#media-selected-files");
+      if (!state.mediaBackendFiles.length) {
+        container.classList.add("empty");
+        container.textContent = "尚未選擇檔案";
+      } else {
+        container.classList.remove("empty");
+        container.innerHTML = state.mediaBackendFiles.map((f) => `<span>${escapeHtml(f.name)} · ${formatBytes(f.size)}</span>`).join("");
+      }
+    });
+    $("#media-backend-form").addEventListener("submit", enqueueMediaBackendJob);
+
+    // PDF 面板後端表單
+    $("#pdf-backend-job-type").addEventListener("change", updatePdfBackendJobControls);
+    $("#pdf-backend-pick-files").addEventListener("click", () => $("#pdf-backend-files").click());
+    $("#pdf-backend-files").addEventListener("change", () => {
+      state.pdfBackendFiles = Array.from($("#pdf-backend-files").files || []);
+      const container = $("#pdf-backend-selected-files");
+      if (!state.pdfBackendFiles.length) {
+        container.classList.add("empty");
+        container.textContent = "尚未選擇檔案";
+      } else {
+        container.classList.remove("empty");
+        container.innerHTML = state.pdfBackendFiles.map((f) => `<span>${escapeHtml(f.name)} · ${formatBytes(f.size)}</span>`).join("");
+      }
+    });
+    $("#pdf-backend-form").addEventListener("submit", enqueuePdfBackendJob);
+
+    // 圖片面板後端表單
+    $("#img-backend-job-type").addEventListener("change", updateImgBackendJobControls);
+    $("#img-backend-pick-files").addEventListener("click", () => $("#img-backend-files").click());
+    $("#img-backend-files").addEventListener("change", () => {
+      state.imgBackendFiles = Array.from($("#img-backend-files").files || []);
+      const container = $("#img-backend-selected-files");
+      if (!state.imgBackendFiles.length) {
+        container.classList.add("empty");
+        container.textContent = "尚未選擇檔案";
+      } else {
+        container.classList.remove("empty");
+        container.innerHTML = state.imgBackendFiles.map((f) => `<span>${escapeHtml(f.name)} · ${formatBytes(f.size)}</span>`).join("");
+      }
+    });
+    $("#img-backend-form").addEventListener("submit", enqueueImgBackendJob);
+
     $$("[data-tool-pick]").forEach((button) => {
       button.addEventListener("click", () => pickBackendToolPath(button.dataset.toolPick));
     });
@@ -1482,7 +1540,8 @@
     });
 
     checkBackendHealth();
-    updateBackendJobControls();
+    updatePdfBackendJobControls();
+    updateImgBackendJobControls();
   }
 
   function backendApiAvailable() {
@@ -1495,19 +1554,30 @@
 
   async function checkBackendHealth() {
     setStatus("#backend-status", "連線中");
+    setStatus("#pdf-backend-status", "連線中");
+    setStatus("#img-backend-status", "連線中");
     try {
       await backendFetch("/health");
       state.backendConnected = true;
       $("#backend-mode").textContent = "FastAPI 已連線";
       setStatus("#backend-status", "已連線");
+      setStatus("#pdf-backend-status", "已連線");
+      setStatus("#img-backend-status", "已連線");
+      setStatus("#media-backend-status", "已連線");
       await detectBackendTools();
       await refreshBackendJobs();
     } catch (error) {
       state.backendConnected = false;
       $("#backend-mode").textContent = "FastAPI 未連線";
       setStatus("#backend-status", "FastAPI 未連線");
+      setStatus("#pdf-backend-status", "FastAPI 未連線");
+      setStatus("#img-backend-status", "FastAPI 未連線");
+      setStatus("#media-backend-status", "FastAPI 未連線");
       renderBackendTools(null);
       renderBackendJobs([]);
+      renderPanelBackendJobs("#pdf-backend-jobs", "#pdf-backend-status", [], PDF_BACKEND_JOB_TYPES);
+      renderPanelBackendJobs("#img-backend-jobs", "#img-backend-status", [], IMG_BACKEND_JOB_TYPES);
+      renderPanelBackendJobs("#media-backend-jobs", "#media-backend-status", [], MEDIA_BACKEND_JOB_TYPES);
     }
   }
 
@@ -1575,22 +1645,31 @@
   }
 
   function updateBackendJobControls() {
-    const type = $("#backend-job-type").value;
-    const extensionField = $(".backend-extension-field");
-    const languageRow = $(".backend-language-row");
-    const pdfPagesRow = $(".backend-pdf-pages-row");
-    const pdfAngleRow = $(".backend-pdf-angle-row");
-    const imageFormatRow = $(".backend-image-format-row");
-    const officeFormatRow = $(".backend-office-format-row");
-    extensionField.style.display = type === "media-convert" ? "" : "none";
-    languageRow.style.display = type === "ocr-image" ? "" : "none";
-    pdfPagesRow.style.display = type === "pdf-split" ? "" : "none";
-    pdfAngleRow.style.display = type === "pdf-rotate" ? "" : "none";
-    imageFormatRow.style.display = type === "image-convert" ? "" : "none";
-    officeFormatRow.style.display = type === "pdf-to-office" ? "" : "none";
-    const filesInput = $("#backend-files");
+    // backend panel now only contains tool config; no file inputs
+  }
+
+  function updatePdfBackendJobControls() {
+    const type = $("#pdf-backend-job-type").value;
+    $(".pdf-backend-office-format-row").style.display = type === "pdf-to-office" ? "" : "none";
+    $(".pdf-backend-pages-row").style.display = type === "pdf-split" ? "" : "none";
+    $(".pdf-backend-angle-row").style.display = type === "pdf-rotate" ? "" : "none";
+    const filesInput = $("#pdf-backend-files");
     if (filesInput) {
-      filesInput.accept = backendFileAccept(type);
+      filesInput.accept = type === "office-to-pdf"
+        ? ".doc,.docx,.xls,.xlsx,.ppt,.pptx,.odt,.ods,.odp"
+        : ".pdf";
+    }
+  }
+
+  function updateImgBackendJobControls() {
+    const type = $("#img-backend-job-type").value;
+    $(".img-backend-image-format-row").style.display = type === "image-convert" ? "" : "none";
+    $(".img-backend-language-row").style.display = type === "ocr-image" ? "" : "none";
+    const filesInput = $("#img-backend-files");
+    if (filesInput) {
+      filesInput.accept = type === "ocr-image"
+        ? ".png,.jpg,.jpeg,.tif,.tiff,.bmp,.webp"
+        : ".jpg,.jpeg,.png,.webp,.tiff,.tif,.bmp,.gif";
     }
   }
 
@@ -1679,30 +1758,10 @@
       alert("請先選擇輸入檔案");
       return;
     }
-
-    const type = $("#backend-job-type").value;
     const payload = new FormData();
-    payload.append("type", type);
+    payload.append("type", "media-convert");
     state.backendFiles.forEach((file) => payload.append("files", file, file.name));
-    if (type === "media-convert") {
-      payload.append("extension", $("#backend-output-extension").value);
-    }
-    if (type === "ocr-image") {
-      payload.append("language", $("#backend-ocr-language").value.trim() || "eng");
-    }
-    if (type === "pdf-split") {
-      payload.append("pages", $("#backend-pdf-pages").value.trim());
-    }
-    if (type === "pdf-rotate") {
-      payload.append("angle", $("#backend-pdf-angle").value);
-    }
-    if (type === "pdf-to-office") {
-      payload.append("extension", $("#backend-office-format").value);
-    }
-    if (type === "image-convert") {
-      payload.append("extension", $("#backend-image-format").value);
-    }
-
+    payload.append("extension", $("#backend-output-extension").value);
     try {
       await backendFetch("/jobs", {
         method: "POST",
@@ -1710,6 +1769,65 @@
       });
       await refreshBackendJobs();
       setStatus("#backend-status", "已加入佇列");
+    } catch (error) {
+      alert(readableError(error));
+    }
+  }
+
+  async function enqueuePdfBackendJob(event) {
+    event.preventDefault();
+    if (!backendApiAvailable()) await checkBackendHealth();
+    if (!backendApiAvailable()) { alert("請先啟動 FastAPI 後端"); return; }
+    if (!state.pdfBackendFiles.length) { alert("請先選擇輸入檔案"); return; }
+    const type = $("#pdf-backend-job-type").value;
+    const payload = new FormData();
+    payload.append("type", type);
+    state.pdfBackendFiles.forEach((file) => payload.append("files", file, file.name));
+    if (type === "pdf-split") payload.append("pages", $("#pdf-backend-pages").value.trim());
+    if (type === "pdf-rotate") payload.append("angle", $("#pdf-backend-angle").value);
+    if (type === "pdf-to-office") payload.append("extension", $("#pdf-backend-office-format").value);
+    try {
+      await backendFetch("/jobs", { method: "POST", body: payload });
+      await refreshBackendJobs();
+      setStatus("#pdf-backend-status", "已加入佇列");
+    } catch (error) {
+      alert(readableError(error));
+    }
+  }
+
+  async function enqueueImgBackendJob(event) {
+    event.preventDefault();
+    if (!backendApiAvailable()) await checkBackendHealth();
+    if (!backendApiAvailable()) { alert("請先啟動 FastAPI 後端"); return; }
+    if (!state.imgBackendFiles.length) { alert("請先選擇輸入檔案"); return; }
+    const type = $("#img-backend-job-type").value;
+    const payload = new FormData();
+    payload.append("type", type);
+    state.imgBackendFiles.forEach((file) => payload.append("files", file, file.name));
+    if (type === "image-convert") payload.append("extension", $("#img-backend-image-format").value);
+    if (type === "ocr-image") payload.append("language", $("#img-backend-ocr-language").value.trim() || "eng");
+    try {
+      await backendFetch("/jobs", { method: "POST", body: payload });
+      await refreshBackendJobs();
+      setStatus("#img-backend-status", "已加入佇列");
+    } catch (error) {
+      alert(readableError(error));
+    }
+  }
+
+  async function enqueueMediaBackendJob(event) {
+    event.preventDefault();
+    if (!backendApiAvailable()) await checkBackendHealth();
+    if (!backendApiAvailable()) { alert("請先啟動 FastAPI 後端"); return; }
+    if (!state.mediaBackendFiles.length) { alert("請先選擇音訊 / 影片檔案"); return; }
+    const payload = new FormData();
+    payload.append("type", "media-convert");
+    state.mediaBackendFiles.forEach((file) => payload.append("files", file, file.name));
+    payload.append("extension", $("#media-output-extension").value);
+    try {
+      await backendFetch("/jobs", { method: "POST", body: payload });
+      await refreshBackendJobs();
+      setStatus("#media-backend-status", "已加入佇列");
     } catch (error) {
       alert(readableError(error));
     }
@@ -1723,12 +1841,46 @@
     try {
       const jobs = await backendFetch("/jobs");
       renderBackendJobs(jobs);
+      renderPanelBackendJobs("#pdf-backend-jobs", "#pdf-backend-status", jobs, PDF_BACKEND_JOB_TYPES);
+      renderPanelBackendJobs("#img-backend-jobs", "#img-backend-status", jobs, IMG_BACKEND_JOB_TYPES);
+      renderPanelBackendJobs("#media-backend-jobs", "#media-backend-status", jobs, MEDIA_BACKEND_JOB_TYPES);
       scheduleBackendPolling(jobs);
     } catch (error) {
       state.backendConnected = false;
       setStatus("#backend-status", "FastAPI 未連線");
       renderBackendJobs([]);
+      renderPanelBackendJobs("#pdf-backend-jobs", "#pdf-backend-status", [], PDF_BACKEND_JOB_TYPES);
+      renderPanelBackendJobs("#img-backend-jobs", "#img-backend-status", [], IMG_BACKEND_JOB_TYPES);
+      renderPanelBackendJobs("#media-backend-jobs", "#media-backend-status", [], MEDIA_BACKEND_JOB_TYPES);
     }
+  }
+
+  function renderPanelBackendJobs(containerSel, statusSel, allJobs, typeSet) {
+    const jobs = allJobs.filter((j) => typeSet.has(j.type));
+    const container = $(containerSel);
+    if (!container) return;
+    if (!jobs.length) {
+      container.classList.add("empty");
+      container.textContent = "尚未建立任務";
+      return;
+    }
+    container.classList.remove("empty");
+    container.innerHTML = jobs.map((job) => {
+      const outputs = job.outputPaths && job.outputPaths.length
+        ? job.outputPaths.map((item) => renderBackendOutputLink(item)).join("")
+        : "<span>尚未產生輸出</span>";
+      const log = job.error || (job.log && job.log.length ? job.log[job.log.length - 1] : "");
+      return [
+        `<div class="backend-job ${escapeHtml(job.status)}">`,
+        `<div><strong>${escapeHtml(jobTypeLabel(job.type))}</strong><span>${escapeHtml(job.status)}</span></div>`,
+        `<small>${job.inputPaths.map((item) => escapeHtml(item)).join("<br>")}</small>`,
+        `<div class="backend-output-paths">${outputs}</div>`,
+        log ? `<pre>${escapeHtml(log)}</pre>` : "",
+        "</div>"
+      ].join("");
+    }).join("");
+    const hasActive = jobs.some((j) => j.status === "queued" || j.status === "running");
+    if (hasActive) setStatus(statusSel, "處理中…");
   }
 
   function renderBackendJobs(jobs) {

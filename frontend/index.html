@@ -26,7 +26,8 @@
         <button class="nav-item" type="button" data-panel="diff-panel">比對</button>
         <button class="nav-item" type="button" data-panel="split-panel">切割</button>
         <button class="nav-item" type="button" data-panel="rename-panel">改名</button>
-        <button class="nav-item" type="button" data-panel="backend-panel">本地後端</button>
+        <button class="nav-item" type="button" data-panel="media-panel">影音</button>
+        <button class="nav-item" type="button" data-panel="backend-panel">後端</button>
       </nav>
       <div class="privacy-note">
         <strong>Your Local All-in-One File Converter</strong>
@@ -139,6 +140,59 @@
             </div>
             <div id="image-results" class="result-list empty">尚未產生檔案</div>
           </div>
+
+          <form id="img-backend-form" class="tool-surface">
+            <div class="surface-heading">
+              <h3>後端圖片處理</h3>
+              <span class="badge">Pillow · Tesseract</span>
+            </div>
+            <div class="control-row">
+              <label>
+                <span>處理類型</span>
+                <select id="img-backend-job-type">
+                  <option value="image-convert">圖片格式轉換</option>
+                  <option value="ocr-image">圖片 OCR → TXT</option>
+                </select>
+              </label>
+              <div></div>
+            </div>
+            <div class="control-row img-backend-image-format-row">
+              <label>
+                <span>輸出格式</span>
+                <select id="img-backend-image-format">
+                  <option value="jpg">JPG</option>
+                  <option value="png">PNG</option>
+                  <option value="webp">WebP</option>
+                  <option value="tiff">TIFF</option>
+                  <option value="bmp">BMP</option>
+                </select>
+              </label>
+              <div></div>
+            </div>
+            <div class="control-row img-backend-language-row">
+              <label>
+                <span>OCR 語言</span>
+                <input id="img-backend-ocr-language" type="text" value="eng">
+              </label>
+              <div></div>
+            </div>
+            <div class="path-picker">
+              <button class="secondary-button" type="button" id="img-backend-pick-files">選擇輸入檔案</button>
+              <input id="img-backend-files" class="visually-hidden" type="file" multiple>
+              <div id="img-backend-selected-files" class="path-list empty">尚未選擇檔案</div>
+            </div>
+            <div class="actions">
+              <button class="primary-button" type="submit">加入後端佇列</button>
+            </div>
+          </form>
+
+          <div class="result-surface" aria-live="polite">
+            <div class="surface-heading">
+              <h3>圖片處理結果</h3>
+              <span id="img-backend-status" class="status-pill">待偵測</span>
+            </div>
+            <div id="img-backend-jobs" class="backend-jobs empty">尚未建立任務</div>
+          </div>
         </div>
       </section>
 
@@ -232,6 +286,73 @@
               <button id="download-all-pdfs" class="secondary-button compact" type="button" disabled>全部下載</button>
             </div>
             <div id="pdf-results" class="result-list empty">尚未產生 PDF</div>
+          </div>
+
+          <form id="pdf-backend-form" class="tool-surface">
+            <div class="surface-heading">
+              <h3>後端文件轉換</h3>
+              <span class="badge">LibreOffice</span>
+            </div>
+            <div class="control-row">
+              <label>
+                <span>轉換類型</span>
+                <select id="pdf-backend-job-type">
+                  <option value="office-to-pdf">Office → PDF</option>
+                  <option value="pdf-to-docx">PDF → DOCX</option>
+                  <option value="pdf-to-office">PDF → Office 格式</option>
+                  <option value="pdf-merge">PDF 合併（後端）</option>
+                  <option value="pdf-split">PDF 分割（後端）</option>
+                  <option value="pdf-rotate">PDF 旋轉（後端）</option>
+                </select>
+              </label>
+              <div></div>
+            </div>
+            <div class="control-row pdf-backend-office-format-row">
+              <label>
+                <span>Office 輸出格式</span>
+                <select id="pdf-backend-office-format">
+                  <option value="docx">DOCX（Word）</option>
+                  <option value="xlsx">XLSX（Excel）</option>
+                  <option value="pptx">PPTX（PowerPoint）</option>
+                  <option value="odt">ODT（OpenDocument）</option>
+                </select>
+              </label>
+              <div></div>
+            </div>
+            <div class="control-row pdf-backend-pages-row">
+              <label>
+                <span>頁碼範圍</span>
+                <input id="pdf-backend-pages" type="text" placeholder="例：1-3,5,7-9">
+              </label>
+              <div></div>
+            </div>
+            <div class="control-row pdf-backend-angle-row">
+              <label>
+                <span>旋轉角度</span>
+                <select id="pdf-backend-angle">
+                  <option value="90">90°（順時针）</option>
+                  <option value="180">180°（翻轉）</option>
+                  <option value="270">270°（逆時针）</option>
+                </select>
+              </label>
+              <div></div>
+            </div>
+            <div class="path-picker">
+              <button class="secondary-button" type="button" id="pdf-backend-pick-files">選擇輸入檔案</button>
+              <input id="pdf-backend-files" class="visually-hidden" type="file" multiple>
+              <div id="pdf-backend-selected-files" class="path-list empty">尚未選擇檔案</div>
+            </div>
+            <div class="actions">
+              <button class="primary-button" type="submit">加入後端佇列</button>
+            </div>
+          </form>
+
+          <div class="result-surface" aria-live="polite">
+            <div class="surface-heading">
+              <h3>文件轉換結果</h3>
+              <span id="pdf-backend-status" class="status-pill">待偵測</span>
+            </div>
+            <div id="pdf-backend-jobs" class="backend-jobs empty">尚未建立任務</div>
           </div>
         </div>
       </section>
@@ -503,6 +624,49 @@
         </div>
       </section>
 
+      <section id="media-panel" class="panel" aria-labelledby="media-title">
+        <div class="tool-grid">
+          <form id="media-backend-form" class="tool-surface">
+            <div class="surface-heading">
+              <h3 id="media-title">音訊 / 影片轉換</h3>
+              <span class="badge">FFmpeg</span>
+            </div>
+            <div class="control-row">
+              <label>
+                <span>輸出格式</span>
+                <select id="media-output-extension">
+                  <option value="mp3">MP3</option>
+                  <option value="wav">WAV</option>
+                  <option value="mp4">MP4</option>
+                  <option value="webm">WebM</option>
+                  <option value="gif">GIF</option>
+                  <option value="m4a">M4A</option>
+                  <option value="flac">FLAC</option>
+                  <option value="aac">AAC</option>
+                </select>
+              </label>
+              <div></div>
+            </div>
+            <div class="path-picker">
+              <button class="secondary-button" type="button" id="media-pick-files">選擇音訊 / 影片</button>
+              <input id="media-files" class="visually-hidden" type="file" multiple accept=".mp3,.wav,.m4a,.flac,.aac,.ogg,.mp4,.mov,.mkv,.avi,.webm">
+              <div id="media-selected-files" class="path-list empty">尚未選擇檔案</div>
+            </div>
+            <div class="actions">
+              <button class="primary-button" type="submit">加入佇列</button>
+            </div>
+          </form>
+
+          <div class="result-surface" aria-live="polite">
+            <div class="surface-heading">
+              <h3>轉換結果</h3>
+              <span id="media-backend-status" class="status-pill">待偵測</span>
+            </div>
+            <div id="media-backend-jobs" class="backend-jobs empty">尚未建立任務</div>
+          </div>
+        </div>
+      </section>
+
       <section id="backend-panel" class="panel" aria-labelledby="backend-title">
         <div class="tool-grid">
           <form id="backend-form" class="tool-surface">
@@ -556,97 +720,10 @@
               </div>
             </div>
 
-            <div class="control-row">
-              <label>
-                <span>任務類型</span>
-                <select id="backend-job-type">
-                  <option value="office-to-pdf">Office → PDF</option>
-                  <option value="pdf-to-docx">PDF → DOCX</option>
-                  <option value="pdf-to-office">PDF → Office 格式</option>
-                  <option value="pdf-merge">PDF 合併</option>
-                  <option value="pdf-split">PDF 分割</option>
-                  <option value="pdf-rotate">PDF 旋轉</option>
-                  <option value="image-convert">圖片格式轉換</option>
-                  <option value="media-convert">音訊 / 影片轉換</option>
-                  <option value="ocr-image">圖片 OCR → TXT</option>
-                </select>
-              </label>
-              <label class="backend-extension-field">
-                <span>輸出格式</span>
-                <select id="backend-output-extension">
-                  <option value="pdf">PDF</option>
-                  <option value="mp3">MP3</option>
-                  <option value="wav">WAV</option>
-                  <option value="mp4">MP4</option>
-                  <option value="webm">WebM</option>
-                  <option value="gif">GIF</option>
-                </select>
-              </label>
+            <div class="surface-heading" style="margin-top:16px;padding-top:16px;border-top:1px solid var(--line)">
+              <h3>後端工具診斷</h3>
             </div>
-
-            <div class="control-row backend-office-format-row">
-              <label>
-                <span>Office 輸出格式</span>
-                <select id="backend-office-format">
-                  <option value="docx">DOCX（Word）</option>
-                  <option value="xlsx">XLSX（Excel）</option>
-                  <option value="pptx">PPTX（PowerPoint）</option>
-                  <option value="odt">ODT（OpenDocument）</option>
-                </select>
-              </label>
-              <div></div>
-            </div>
-
-            <div class="control-row backend-image-format-row">
-              <label>
-                <span>圖片輸出格式</span>
-                <select id="backend-image-format">
-                  <option value="jpg">JPG</option>
-                  <option value="png">PNG</option>
-                  <option value="webp">WebP</option>
-                  <option value="tiff">TIFF</option>
-                  <option value="bmp">BMP</option>
-                </select>
-              </label>
-              <div></div>
-            </div>
-
-            <div class="control-row backend-language-row">
-              <label>
-                <span>OCR 語言</span>
-                <input id="backend-ocr-language" type="text" value="eng">
-              </label>
-              <div></div>
-            </div>
-
-            <div class="control-row backend-pdf-pages-row">
-              <label>
-                <span>頁碼範圍</span>
-                <input id="backend-pdf-pages" type="text" placeholder="例：1-3,5,7-9">
-              </label>
-              <div></div>
-            </div>
-
-            <div class="control-row backend-pdf-angle-row">
-              <label>
-                <span>旋轉角度</span>
-                <select id="backend-pdf-angle">
-                  <option value="90">90°（順時针）</option>
-                  <option value="180">180°（翻轉）</option>
-                  <option value="270">270°（逆時针）</option>
-                </select>
-              </label>
-              <div></div>
-            </div>
-
-            <div class="path-picker">
-              <button class="secondary-button" type="button" id="backend-pick-files">選擇輸入檔案</button>
-              <input id="backend-files" class="visually-hidden" type="file" multiple>
-              <div id="backend-selected-files" class="path-list empty">尚未選擇檔案</div>
-            </div>
-
-            <div class="actions">
-              <button class="primary-button" type="submit">加入佇列</button>
+            <div class="path-picker" style="margin-top:8px">
               <button class="secondary-button" type="button" id="refresh-backend-jobs">刷新佇列</button>
             </div>
           </form>
