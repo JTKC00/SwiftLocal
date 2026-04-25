@@ -526,6 +526,145 @@ td.code-cell {
   color: var(--accent-dark);
 }
 
+.backend-tools {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.tool-status {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.tool-status strong {
+  color: var(--ink);
+}
+
+.tool-status span,
+.tool-status small {
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.tool-status.available {
+  border-color: #9fcab7;
+  background: #eff8f3;
+}
+
+.tool-status.missing {
+  border-color: #e5c0b8;
+  background: #fff6f4;
+}
+
+.backend-actions {
+  margin-bottom: 16px;
+}
+
+.backend-path-config {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.path-config-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 8px;
+  align-items: end;
+}
+
+.path-picker {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.path-list {
+  display: grid;
+  gap: 6px;
+  min-height: 42px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.path-list span {
+  overflow-wrap: anywhere;
+}
+
+.path-list.empty,
+.backend-jobs.empty {
+  display: grid;
+  place-items: center;
+}
+
+.backend-jobs {
+  display: grid;
+  gap: 10px;
+  min-height: 414px;
+}
+
+.backend-job {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.backend-job > div:first-child {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.backend-job span,
+.backend-job small {
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.backend-job.running {
+  border-color: #d6b56d;
+  background: #fffaf0;
+}
+
+.backend-job.done {
+  border-color: #9fcab7;
+  background: #eff8f3;
+}
+
+.backend-job.failed {
+  border-color: #e5c0b8;
+  background: #fff6f4;
+}
+
+.backend-output-paths {
+  display: grid;
+  gap: 4px;
+}
+
+.backend-job pre {
+  max-height: 150px;
+  overflow: auto;
+  margin: 0;
+  padding: 8px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.04);
+  white-space: pre-wrap;
+  font-family: Consolas, "Cascadia Mono", monospace;
+  font-size: 12px;
+}
+
 .backend-note {
   margin: 16px 0 0;
   color: var(--muted);
@@ -619,7 +758,8 @@ td.code-cell {
 
   .tool-grid,
   .control-row,
-  .capability-row {
+  .capability-row,
+  .path-config-row {
     grid-template-columns: 1fr;
   }
 

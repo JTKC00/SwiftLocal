@@ -26,7 +26,7 @@
         <button class="nav-item" type="button" data-panel="diff-panel">比對</button>
         <button class="nav-item" type="button" data-panel="split-panel">切割</button>
         <button class="nav-item" type="button" data-panel="rename-panel">改名</button>
-        <button class="nav-item" type="button" data-panel="backend-panel">PDF / Office</button>
+        <button class="nav-item" type="button" data-panel="backend-panel">本地後端</button>
       </nav>
       <div class="privacy-note">
         <strong>Your Local All-in-One File Converter</strong>
@@ -504,31 +504,111 @@
       </section>
 
       <section id="backend-panel" class="panel" aria-labelledby="backend-title">
-        <div class="tool-grid single">
-          <div class="tool-surface wide">
+        <div class="tool-grid">
+          <form id="backend-form" class="tool-surface">
             <div class="surface-heading">
-              <h3 id="backend-title">PDF / Office 擴充入口</h3>
-              <span class="badge muted">待接後端</span>
+              <h3 id="backend-title">本地後端佇列</h3>
+              <span id="backend-mode" class="badge muted">Electron</span>
             </div>
-            <div class="capability-grid">
-              <div class="capability-row">
-                <span>PDF 合併 / 分割 / 旋轉</span>
-                <strong>建議 pypdf</strong>
+            <div class="backend-tools" id="backend-tools">
+              <div class="tool-status pending">
+                <strong>LibreOffice</strong>
+                <span>未偵測</span>
               </div>
-              <div class="capability-row">
-                <span>PDF → Word / TXT / 圖片</span>
-                <strong>建議 pdf2docx、pdfplumber、pdf2image</strong>
+              <div class="tool-status pending">
+                <strong>FFmpeg</strong>
+                <span>未偵測</span>
               </div>
-              <div class="capability-row">
-                <span>Office → PDF</span>
-                <strong>建議 LibreOffice CLI</strong>
-              </div>
-              <div class="capability-row">
-                <span>音訊 / 影片轉換</span>
-                <strong>建議 FFmpeg</strong>
+              <div class="tool-status pending">
+                <strong>Tesseract</strong>
+                <span>未偵測</span>
               </div>
             </div>
-            <p class="backend-note">目前這台環境未找到 Python，已先完成純瀏覽器本地工具；後端可依 README 的目錄規劃接上。</p>
+
+            <div class="actions backend-actions">
+              <button class="secondary-button" type="button" id="detect-backend-tools">偵測工具</button>
+            </div>
+
+            <div class="backend-path-config" aria-label="工具路徑設定">
+              <div class="path-config-row">
+                <label>
+                  <span>LibreOffice 路徑</span>
+                  <input id="tool-path-libreOffice" type="text" readonly placeholder="自動偵測或手動指定 soffice.exe">
+                </label>
+                <button class="secondary-button compact" type="button" data-tool-pick="libreOffice">選擇</button>
+                <button class="secondary-button compact" type="button" data-tool-clear="libreOffice">清除</button>
+              </div>
+              <div class="path-config-row">
+                <label>
+                  <span>FFmpeg 路徑</span>
+                  <input id="tool-path-ffmpeg" type="text" readonly placeholder="自動偵測或手動指定 ffmpeg.exe">
+                </label>
+                <button class="secondary-button compact" type="button" data-tool-pick="ffmpeg">選擇</button>
+                <button class="secondary-button compact" type="button" data-tool-clear="ffmpeg">清除</button>
+              </div>
+              <div class="path-config-row">
+                <label>
+                  <span>Tesseract 路徑</span>
+                  <input id="tool-path-tesseract" type="text" readonly placeholder="自動偵測或手動指定 tesseract.exe">
+                </label>
+                <button class="secondary-button compact" type="button" data-tool-pick="tesseract">選擇</button>
+                <button class="secondary-button compact" type="button" data-tool-clear="tesseract">清除</button>
+              </div>
+            </div>
+
+            <div class="control-row">
+              <label>
+                <span>任務類型</span>
+                <select id="backend-job-type">
+                  <option value="office-to-pdf">Office → PDF</option>
+                  <option value="media-convert">音訊 / 影片轉換</option>
+                  <option value="ocr-image">圖片 OCR → TXT</option>
+                </select>
+              </label>
+              <label class="backend-extension-field">
+                <span>輸出格式</span>
+                <select id="backend-output-extension">
+                  <option value="pdf">PDF</option>
+                  <option value="mp3">MP3</option>
+                  <option value="wav">WAV</option>
+                  <option value="mp4">MP4</option>
+                  <option value="webm">WebM</option>
+                  <option value="gif">GIF</option>
+                </select>
+              </label>
+            </div>
+
+            <div class="control-row backend-language-row">
+              <label>
+                <span>OCR 語言</span>
+                <input id="backend-ocr-language" type="text" value="eng">
+              </label>
+              <div></div>
+            </div>
+
+            <div class="path-picker">
+              <button class="secondary-button" type="button" id="backend-pick-files">選擇輸入檔案</button>
+              <div id="backend-selected-files" class="path-list empty">尚未選擇檔案</div>
+            </div>
+
+            <div class="path-picker">
+              <button class="secondary-button" type="button" id="backend-pick-output">選擇輸出資料夾</button>
+              <div id="backend-output-dir" class="path-list empty">尚未選擇輸出資料夾</div>
+            </div>
+
+            <div class="actions">
+              <button class="primary-button" type="submit">加入佇列</button>
+              <button class="secondary-button" type="button" id="refresh-backend-jobs">刷新佇列</button>
+              <button class="secondary-button" type="button" id="open-backend-output">開啟輸出資料夾</button>
+            </div>
+          </form>
+
+          <div class="result-surface">
+            <div class="surface-heading">
+              <h3>任務佇列</h3>
+              <span id="backend-status" class="status-pill">待偵測</span>
+            </div>
+            <div id="backend-jobs" class="backend-jobs empty">尚未建立任務</div>
           </div>
         </div>
       </section>

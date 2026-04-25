@@ -1,9 +1,22 @@
 "use strict";
 
 const path = require("node:path");
-const { app, BrowserWindow, Menu, shell } = require("electron");
+const { app, BrowserWindow, Menu, shell, ipcMain, dialog } = require("electron");
+const { BackendService } = require("./backend");
 
 const isDev = !app.isPackaged;
+let backend = null;
+
+function createBackend() {
+  backend = new BackendService({
+    configPath: path.join(app.getPath("userData"), "tools.json"),
+    onJobsUpdated: (jobs) => {
+      BrowserWindow.getAllWindows().forEach((window) => {
+        window.webContents.send("backend:jobs-updated", jobs);
+      });
+    }
+  });
+}
 
 function createMainWindow() {
   const window = new BrowserWindow({
@@ -16,6 +29,7 @@ function createMainWindow() {
     show: false,
     autoHideMenuBar: true,
     webPreferences: {
+      preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
@@ -75,7 +89,46 @@ function installMenu() {
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
+function installBackendIpc() {
+  ipcMain.handle("backend:detect-tools", () => backend.detectTools());
+  ipcMain.handle("backend:get-config", () => backend.getConfig());
+  ipcMain.handle("backend:set-tool-path", (_event, key, toolPath) => backend.setToolPath(key, toolPath));
+  ipcMain.handle("backend:get-jobs", () => backend.getJobs());
+  ipcMain.handle("backend:enqueue-job", (_event, payload) => backend.enqueue(payload));
+  ipcMain.handle("backend:choose-executable", async (_event, options = {}) => {
+    const result = await dialog.showOpenDialog({
+      title: options.title || "選擇工具執行檔",
+      properties: ["openFile"],
+      filters: options.filters || [{ name: "Executable", extensions: process.platform === "win32" ? ["exe"] : ["*"] }]
+    });
+    return result.canceled ? "" : result.filePaths[0];
+  });
+  ipcMain.handle("backend:choose-files", async (_event, options = {}) => {
+    const result = await dialog.showOpenDialog({
+      title: options.title || "選擇檔案",
+      properties: ["openFile", "multiSelections"],
+      filters: options.filters || [{ name: "All Files", extensions: ["*"] }]
+    });
+    return result.canceled ? [] : result.filePaths;
+  });
+  ipcMain.handle("backend:choose-directory", async () => {
+    const result = await dialog.showOpenDialog({
+      title: "選擇輸出資料夾",
+      properties: ["openDirectory", "createDirectory"]
+    });
+    return result.canceled ? "" : result.filePaths[0];
+  });
+  ipcMain.handle("backend:open-path", async (_event, targetPath) => {
+    if (!targetPath) {
+      return "No path provided";
+    }
+    return shell.openPath(targetPath);
+  });
+}
+
 app.whenReady().then(() => {
+  createBackend();
+  installBackendIpc();
   installMenu();
   createMainWindow();
 
