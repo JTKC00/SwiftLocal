@@ -11,7 +11,6 @@
     zipName: "",
     diffText: "",
     splitDownloads: [],
-    backendFiles: [],
     pdfBackendFiles: [],
     imgBackendFiles: [],
     mediaBackendFiles: [],
@@ -1557,6 +1556,7 @@
     setStatus("#backend-status", "連線中");
     setStatus("#pdf-backend-status", "連線中");
     setStatus("#img-backend-status", "連線中");
+    setStatus("#media-backend-status", "連線中");
     try {
       await backendFetch("/health");
       state.backendConnected = true;
@@ -1702,74 +1702,6 @@
       $(`#tool-path-${key}`).value = "";
       renderBackendTools(tools);
       setStatus("#backend-status", "路徑已清除");
-    } catch (error) {
-      alert(readableError(error));
-    }
-  }
-
-  function pickBackendFiles() {
-    $("#backend-files").click();
-  }
-
-  function updateBackendFilesFromInput() {
-    state.backendFiles = Array.from($("#backend-files").files || []);
-    renderBackendSelectedFiles();
-  }
-
-  function backendFileAccept(type) {
-    if (type === "office-to-pdf") {
-      return ".doc,.docx,.xls,.xlsx,.ppt,.pptx,.odt,.ods,.odp";
-    }
-    if (type === "pdf-to-docx" || type === "pdf-to-office" || type === "pdf-merge" || type === "pdf-split" || type === "pdf-rotate") {
-      return ".pdf";
-    }
-    if (type === "image-convert") {
-      return ".jpg,.jpeg,.png,.webp,.tiff,.tif,.bmp,.gif";
-    }
-    if (type === "media-convert") {
-      return ".mp3,.wav,.m4a,.flac,.aac,.ogg,.mp4,.mov,.mkv,.avi,.webm";
-    }
-    if (type === "ocr-image") {
-      return ".png,.jpg,.jpeg,.tif,.tiff,.bmp,.webp";
-    }
-    return "";
-  }
-
-  function renderBackendSelectedFiles() {
-    const container = $("#backend-selected-files");
-    if (!state.backendFiles.length) {
-      container.classList.add("empty");
-      container.textContent = "尚未選擇檔案";
-      return;
-    }
-    container.classList.remove("empty");
-    container.innerHTML = state.backendFiles.map((file) => `<span>${escapeHtml(file.name)} · ${formatBytes(file.size)}</span>`).join("");
-  }
-
-  async function enqueueBackendJob(event) {
-    event.preventDefault();
-    if (!backendApiAvailable()) {
-      await checkBackendHealth();
-    }
-    if (!backendApiAvailable()) {
-      alert("請先啟動 FastAPI 後端");
-      return;
-    }
-    if (!state.backendFiles.length) {
-      alert("請先選擇輸入檔案");
-      return;
-    }
-    const payload = new FormData();
-    payload.append("type", "media-convert");
-    state.backendFiles.forEach((file) => payload.append("files", file, file.name));
-    payload.append("extension", $("#backend-output-extension").value);
-    try {
-      await backendFetch("/jobs", {
-        method: "POST",
-        body: payload
-      });
-      await refreshBackendJobs();
-      setStatus("#backend-status", "已加入佇列");
     } catch (error) {
       alert(readableError(error));
     }

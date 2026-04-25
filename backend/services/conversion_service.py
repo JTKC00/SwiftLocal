@@ -109,11 +109,6 @@ async def ocr_images(input_paths: list[Path], output_dir: Path, language: str) -
 
 
 async def convert_image(input_paths: list[Path], output_dir: Path, extension: str) -> tuple[list[Path], list[str]]:
-    try:
-        from PIL import Image  # lazy import
-    except ImportError as error:
-        raise RuntimeError("Image convert failed: Pillow is not installed") from error
-
     fmt_map = {
         "jpg": "JPEG",
         "jpeg": "JPEG",
@@ -134,11 +129,7 @@ async def convert_image(input_paths: list[Path], output_dir: Path, extension: st
     for input_path in input_paths:
         output_path = output_dir / f"{input_path.stem}.{clean_ext}"
         try:
-            with Image.open(input_path) as img:
-                # JPEG does not support alpha channel
-                if pil_format == "JPEG" and img.mode in ("RGBA", "LA", "P"):
-                    img = img.convert("RGB")
-                img.save(output_path, format=pil_format)
+            await asyncio.to_thread(_convert_image_sync, input_path, output_path, pil_format)
         except Exception as error:
             raise RuntimeError(f"Image convert failed for {input_path.name}: {error}") from error
         if not output_path.exists():
@@ -148,21 +139,35 @@ async def convert_image(input_paths: list[Path], output_dir: Path, extension: st
     return outputs, logs
 
 
+def _convert_image_sync(input_path: Path, output_path: Path, pil_format: str) -> None:
+    try:
+        from PIL import Image  # lazy import
+    except ImportError as error:
+        raise RuntimeError("Pillow is not installed") from error
+    with Image.open(input_path) as img:
+        if pil_format == "JPEG" and img.mode in ("RGBA", "LA", "P"):
+            img = img.convert("RGB")
+        img.save(output_path, format=pil_format)
+
+
 async def merge_pdfs(input_paths: list[Path], output_dir: Path) -> tuple[list[Path], list[str]]:
+    output_path = output_dir / "merged.pdf"
+    await asyncio.to_thread(_merge_pdfs_sync, input_paths, output_path)
+    if not output_path.exists():
+        raise RuntimeError("PDF merge finished but output file was not created")
+    return [output_path], [f"merged {len(input_paths)} file(s) -> {output_path.name}"]
+
+
+def _merge_pdfs_sync(input_paths: list[Path], output_path: Path) -> None:
     try:
         from pypdf import PdfWriter  # lazy import
     except ImportError as error:
         raise RuntimeError("PDF merge failed: pypdf is not installed") from error
-
     writer = PdfWriter()
     for input_path in input_paths:
         writer.append(str(input_path))
-    output_path = output_dir / "merged.pdf"
     with open(output_path, "wb") as f:
         writer.write(f)
-    if not output_path.exists():
-        raise RuntimeError("PDF merge finished but output file was not created")
-    return [output_path], [f"merged {len(input_paths)} file(s) -> {output_path.name}"]
 
 
 def _parse_page_ranges(pages: str) -> list[tuple[int, int]]:
@@ -192,16 +197,18 @@ def _parse_page_ranges(pages: str) -> list[tuple[int, int]]:
 async def split_pdf(input_paths: list[Path], output_dir: Path, pages: str) -> tuple[list[Path], list[str]]:
     if len(input_paths) != 1:
         raise ValueError("PDF split requires exactly one input file")
-    try:
-        from pypdf import PdfReader, PdfWriter  # lazy import
-    except ImportError as error:
-        raise RuntimeError("PDF split failed: pypdf is not installed") from error
-
     input_path = input_paths[0]
     ranges = _parse_page_ranges(pages)
     if not ranges:
         raise ValueError("No valid page ranges provided (example: 1-3,5,7-9)")
+    return await asyncio.to_thread(_split_pdf_sync, input_path, output_dir, ranges)
 
+
+def _split_pdf_sync(input_path: Path, output_dir: Path, ranges: list[tuple[int, int]]) -> tuple[list[Path], list[str]]:
+    try:
+        from pypdf import PdfReader, PdfWriter  # lazy import
+    except ImportError as error:
+        raise RuntimeError("PDF split failed: pypdf is not installed") from error
     reader = PdfReader(str(input_path))
     total = len(reader.pages)
     outputs: list[Path] = []
@@ -221,27 +228,30 @@ async def split_pdf(input_paths: list[Path], output_dir: Path, pages: str) -> tu
 
 
 async def rotate_pdf(input_paths: list[Path], output_dir: Path, angle: int) -> tuple[list[Path], list[str]]:
-    try:
-        from pypdf import PdfReader, PdfWriter  # lazy import
-    except ImportError as error:
-        raise RuntimeError("PDF rotate failed: pypdf is not installed") from error
-
     outputs: list[Path] = []
     logs: list[str] = []
     for input_path in input_paths:
-        reader = PdfReader(str(input_path))
-        writer = PdfWriter()
-        for page in reader.pages:
-            page.rotate(angle)
-            writer.add_page(page)
         output_path = output_dir / f"{input_path.stem}_rotated.pdf"
-        with open(output_path, "wb") as f:
-            writer.write(f)
+        await asyncio.to_thread(_rotate_pdf_sync, input_path, output_path, angle)
         if not output_path.exists():
             raise RuntimeError(f"PDF rotate finished but output was not created for {input_path.name}")
         outputs.append(output_path)
         logs.append(f"rotated {input_path.name} by {angle}° -> {output_path.name}")
     return outputs, logs
+
+
+def _rotate_pdf_sync(input_path: Path, output_path: Path, angle: int) -> None:
+    try:
+        from pypdf import PdfReader, PdfWriter  # lazy import
+    except ImportError as error:
+        raise RuntimeError("PDF rotate failed: pypdf is not installed") from error
+    reader = PdfReader(str(input_path))
+    writer = PdfWriter()
+    for page in reader.pages:
+        page.rotate(angle)
+        writer.add_page(page)
+    with open(output_path, "wb") as f:
+        writer.write(f)
 
 
 async def convert_pdf_to_docx(input_paths: list[Path], output_dir: Path) -> tuple[list[Path], list[str]]:
@@ -251,10 +261,7 @@ async def convert_pdf_to_docx(input_paths: list[Path], output_dir: Path) -> tupl
     for input_path in input_paths:
         output_path = output_dir / f"{input_path.stem}.docx"
         try:
-            from pdf2docx import Converter  # lazy import
-            converter = Converter(str(input_path))
-            converter.convert(str(output_path))
-            converter.close()
+            await asyncio.to_thread(_pdf_to_docx_sync, input_path, output_path)
         except Exception as error:
             raise RuntimeError(f"PDF to DOCX failed: {error}") from error
         if not output_path.exists():
@@ -263,6 +270,13 @@ async def convert_pdf_to_docx(input_paths: list[Path], output_dir: Path) -> tupl
         outputs.append(output_path)
 
     return outputs, logs
+
+
+def _pdf_to_docx_sync(input_path: Path, output_path: Path) -> None:
+    from pdf2docx import Converter  # lazy import
+    converter = Converter(str(input_path))
+    converter.convert(str(output_path))
+    converter.close()
 
 
 async def run_process(executable: str, args: list[str], timeout: int = 300) -> str:

@@ -8,6 +8,7 @@ from pathlib import Path
 from fastapi import UploadFile
 
 from .conversion_service import (
+    ALLOWED_PDF_TO_OFFICE_EXTENSIONS,
     convert_image,
     convert_media,
     convert_office_to_pdf,
@@ -207,7 +208,6 @@ class JobService:
         if job_type == "pdf-to-docx":
             return {}
         if job_type == "pdf-to-office":
-            from .conversion_service import ALLOWED_PDF_TO_OFFICE_EXTENSIONS
             ext = sanitize_extension(options.get("extension") or "docx")
             if ext not in ALLOWED_PDF_TO_OFFICE_EXTENSIONS:
                 raise ValueError(f"Unsupported Office format: {ext}. Allowed: docx, xlsx, pptx, odt")
