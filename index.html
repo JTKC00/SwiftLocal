@@ -1,0 +1,541 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>快轉通 SwiftLocal</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="工具分類">
+      <div class="brand">
+        <span class="brand-mark">LC</span>
+        <div>
+          <h1>快轉通 SwiftLocal</h1>
+          <p>本地全能格式轉換工具箱</p>
+        </div>
+      </div>
+      <nav class="tool-nav" aria-label="工具選單">
+        <button class="nav-item is-active" type="button" data-panel="image-panel">圖片</button>
+        <button class="nav-item" type="button" data-panel="pdf-panel">PDF</button>
+        <button class="nav-item" type="button" data-panel="data-panel">資料</button>
+        <button class="nav-item" type="button" data-panel="text-panel">文字</button>
+        <button class="nav-item" type="button" data-panel="hash-panel">雜湊</button>
+        <button class="nav-item" type="button" data-panel="zip-panel">壓縮</button>
+        <button class="nav-item" type="button" data-panel="diff-panel">比對</button>
+        <button class="nav-item" type="button" data-panel="split-panel">切割</button>
+        <button class="nav-item" type="button" data-panel="rename-panel">改名</button>
+        <button class="nav-item" type="button" data-panel="backend-panel">PDF / Office</button>
+      </nav>
+      <div class="privacy-note">
+        <strong>Your Local All-in-One File Converter</strong>
+        <span>檔案只在瀏覽器記憶體內處理。</span>
+      </div>
+    </aside>
+
+    <main class="workspace">
+      <section class="topbar" aria-label="狀態列">
+        <div>
+          <p class="eyebrow">本地全能格式轉換工具箱 · Your Local All-in-One File Converter</p>
+          <h2 id="panel-title">圖片轉換</h2>
+        </div>
+        <button id="clear-all" class="ghost-button" type="button">清除目前工具</button>
+      </section>
+
+      <section id="image-panel" class="panel is-active" aria-labelledby="image-title">
+        <div class="tool-grid">
+          <form id="image-form" class="tool-surface">
+            <div class="surface-heading">
+              <h3 id="image-title">圖片轉檔與壓縮</h3>
+              <span class="badge">Canvas</span>
+            </div>
+            <label class="file-zone" for="image-files">
+              <input id="image-files" type="file" accept="image/*" multiple>
+              <span>選擇圖片</span>
+              <small>JPG、PNG、WebP 等瀏覽器可讀格式</small>
+            </label>
+
+            <div class="control-row">
+              <label>
+                <span>輸出格式</span>
+                <select id="image-format">
+                  <option value="image/jpeg">JPEG</option>
+                  <option value="image/png">PNG</option>
+                  <option value="image/webp">WebP</option>
+                </select>
+              </label>
+              <label>
+                <span>品質</span>
+                <input id="image-quality" type="range" min="0.3" max="1" step="0.05" value="0.85">
+                <output id="quality-output">85%</output>
+              </label>
+            </div>
+
+            <div class="control-row">
+              <label>
+                <span>最大寬度</span>
+                <input id="image-width" type="number" min="1" step="1" placeholder="原尺寸">
+              </label>
+              <label>
+                <span>最大高度</span>
+                <input id="image-height" type="number" min="1" step="1" placeholder="原尺寸">
+              </label>
+            </div>
+
+            <label class="check-row">
+              <input id="image-keep-ratio" type="checkbox" checked>
+              <span>保持比例</span>
+            </label>
+
+            <div class="control-row">
+              <label>
+                <span>旋轉</span>
+                <select id="image-rotate">
+                  <option value="0">0°</option>
+                  <option value="90">90°</option>
+                  <option value="180">180°</option>
+                  <option value="270">270°</option>
+                </select>
+              </label>
+              <label>
+                <span>翻轉</span>
+                <select id="image-flip">
+                  <option value="none">不翻轉</option>
+                  <option value="horizontal">水平</option>
+                  <option value="vertical">垂直</option>
+                  <option value="both">水平 + 垂直</option>
+                </select>
+              </label>
+            </div>
+
+            <div class="control-row">
+              <label>
+                <span>浮水印文字</span>
+                <input id="image-watermark" type="text" placeholder="可留空">
+              </label>
+              <label>
+                <span>浮水印位置</span>
+                <select id="image-watermark-position">
+                  <option value="se">右下</option>
+                  <option value="sw">左下</option>
+                  <option value="ne">右上</option>
+                  <option value="nw">左上</option>
+                  <option value="center">中央</option>
+                </select>
+              </label>
+            </div>
+
+            <div class="actions">
+              <button class="primary-button" type="submit">轉換圖片</button>
+              <button class="secondary-button" type="button" data-clear-panel="image-panel">重設</button>
+            </div>
+          </form>
+
+          <div class="result-surface" aria-live="polite">
+            <div class="surface-heading">
+              <h3>輸出</h3>
+              <button id="download-all-images" class="secondary-button compact" type="button" disabled>全部下載</button>
+            </div>
+            <div id="image-results" class="result-list empty">尚未產生檔案</div>
+          </div>
+        </div>
+      </section>
+
+      <section id="pdf-panel" class="panel" aria-labelledby="pdf-title">
+        <div class="tool-grid">
+          <form id="pdf-form" class="tool-surface">
+            <div class="surface-heading">
+              <h3 id="pdf-title">PDF 基礎處理</h3>
+              <span class="badge">pdf-lib</span>
+            </div>
+            <label class="file-zone" for="pdf-files">
+              <input id="pdf-files" type="file" accept="application/pdf,.pdf" multiple>
+              <span>選擇 PDF</span>
+              <small>合併可多選；其他模式使用第一個 PDF</small>
+            </label>
+
+            <div class="control-row">
+              <label>
+                <span>處理模式</span>
+                <select id="pdf-mode">
+                  <option value="merge">合併 PDF</option>
+                  <option value="split">逐頁分割</option>
+                  <option value="extract">抽出頁面</option>
+                  <option value="rotate">旋轉頁面</option>
+                  <option value="watermark">加文字浮水印</option>
+                  <option value="text">PDF → TXT</option>
+                  <option value="images">PDF → 圖片</option>
+                </select>
+              </label>
+              <label>
+                <span>輸出檔名</span>
+                <input id="pdf-output-name" type="text" value="swiftlocal-output.pdf">
+              </label>
+            </div>
+
+            <div class="control-row pdf-range-controls">
+              <label>
+                <span>頁碼範圍</span>
+                <input id="pdf-pages" type="text" placeholder="全部，或 1-3,5,8">
+              </label>
+              <label>
+                <span>旋轉角度</span>
+                <select id="pdf-rotation">
+                  <option value="90">90°</option>
+                  <option value="180">180°</option>
+                  <option value="270">270°</option>
+                </select>
+              </label>
+            </div>
+
+            <div class="control-row pdf-watermark-controls">
+              <label>
+                <span>浮水印文字</span>
+                <input id="pdf-watermark-text" type="text" value="SwiftLocal">
+              </label>
+              <label>
+                <span>透明度</span>
+                <input id="pdf-watermark-opacity" type="range" min="0.1" max="0.8" step="0.05" value="0.25">
+                <output id="pdf-watermark-opacity-output">25%</output>
+              </label>
+            </div>
+
+            <div class="control-row pdf-image-controls">
+              <label>
+                <span>圖片格式</span>
+                <select id="pdf-image-format">
+                  <option value="image/png">PNG</option>
+                  <option value="image/jpeg">JPEG</option>
+                </select>
+              </label>
+              <label>
+                <span>渲染倍率</span>
+                <select id="pdf-image-scale">
+                  <option value="1">1×</option>
+                  <option value="1.5" selected>1.5×</option>
+                  <option value="2">2×</option>
+                  <option value="3">3×</option>
+                </select>
+              </label>
+            </div>
+
+            <div class="actions">
+              <button class="primary-button" type="submit">處理 PDF</button>
+              <button class="secondary-button" type="button" data-clear-panel="pdf-panel">重設</button>
+            </div>
+          </form>
+
+          <div class="result-surface" aria-live="polite">
+            <div class="surface-heading">
+              <h3>輸出</h3>
+              <button id="download-all-pdfs" class="secondary-button compact" type="button" disabled>全部下載</button>
+            </div>
+            <div id="pdf-results" class="result-list empty">尚未產生 PDF</div>
+          </div>
+        </div>
+      </section>
+
+      <section id="data-panel" class="panel" aria-labelledby="data-title">
+        <div class="tool-grid">
+          <form id="data-form" class="tool-surface">
+            <div class="surface-heading">
+              <h3 id="data-title">JSON / CSV</h3>
+              <span class="badge">文字資料</span>
+            </div>
+            <div class="segmented" role="tablist" aria-label="資料模式">
+              <button type="button" class="segment is-active" data-data-mode="json-format">JSON 美化</button>
+              <button type="button" class="segment" data-data-mode="json-minify">JSON 壓縮</button>
+              <button type="button" class="segment" data-data-mode="csv-json">CSV → JSON</button>
+              <button type="button" class="segment" data-data-mode="json-csv">JSON → CSV</button>
+              <button type="button" class="segment" data-data-mode="xml-json">XML → JSON</button>
+              <button type="button" class="segment" data-data-mode="json-xml">JSON → XML</button>
+            </div>
+            <label>
+              <span>輸入</span>
+              <textarea id="data-input" spellcheck="false" placeholder='{"name":"Ada","role":"Ops"}'></textarea>
+            </label>
+            <div class="control-row">
+              <label>
+                <span>CSV 分隔符</span>
+                <select id="csv-delimiter">
+                  <option value="auto">自動</option>
+                  <option value=",">逗號</option>
+                  <option value=";">分號</option>
+                  <option value="	">Tab</option>
+                </select>
+              </label>
+              <label>
+                <span>縮排</span>
+                <input id="json-indent" type="number" min="0" max="8" value="2">
+              </label>
+            </div>
+            <div class="actions">
+              <button class="primary-button" type="submit">執行</button>
+              <button class="secondary-button" type="button" id="copy-data-output">複製輸出</button>
+              <button class="secondary-button" type="button" id="download-data-output">下載文字</button>
+            </div>
+          </form>
+
+          <div class="result-surface">
+            <div class="surface-heading">
+              <h3>輸出</h3>
+              <span id="data-status" class="status-pill">待處理</span>
+            </div>
+            <textarea id="data-output" class="output-area" spellcheck="false" readonly></textarea>
+          </div>
+        </div>
+      </section>
+
+      <section id="text-panel" class="panel" aria-labelledby="text-title">
+        <div class="tool-grid">
+          <form id="text-form" class="tool-surface">
+            <div class="surface-heading">
+              <h3 id="text-title">文字編碼</h3>
+              <span class="badge">Base64 / URL / HTML</span>
+            </div>
+            <div class="segmented compact-segments" role="tablist" aria-label="文字模式">
+              <button type="button" class="segment is-active" data-text-mode="base64-encode">Base64 編碼</button>
+              <button type="button" class="segment" data-text-mode="base64-decode">Base64 解碼</button>
+              <button type="button" class="segment" data-text-mode="url-encode">URL 編碼</button>
+              <button type="button" class="segment" data-text-mode="url-decode">URL 解碼</button>
+              <button type="button" class="segment" data-text-mode="html-encode">HTML 編碼</button>
+              <button type="button" class="segment" data-text-mode="html-decode">HTML 解碼</button>
+              <button type="button" class="segment" data-text-mode="trim-lines">清理行尾</button>
+              <button type="button" class="segment" data-text-mode="remove-empty-lines">移除空行</button>
+              <button type="button" class="segment" data-text-mode="dedupe-lines">去除重複行</button>
+              <button type="button" class="segment" data-text-mode="sort-lines">排序行</button>
+              <button type="button" class="segment" data-text-mode="text-stats">文字統計</button>
+            </div>
+            <label>
+              <span>輸入</span>
+              <textarea id="text-input" spellcheck="false"></textarea>
+            </label>
+            <div class="actions">
+              <button class="primary-button" type="submit">轉換文字</button>
+              <button class="secondary-button" type="button" id="copy-text-output">複製輸出</button>
+            </div>
+          </form>
+
+          <div class="result-surface">
+            <div class="surface-heading">
+              <h3>輸出</h3>
+              <span id="text-count" class="status-pill">0 字元</span>
+            </div>
+            <textarea id="text-output" class="output-area" spellcheck="false" readonly></textarea>
+          </div>
+        </div>
+      </section>
+
+      <section id="hash-panel" class="panel" aria-labelledby="hash-title">
+        <div class="tool-grid single">
+          <form id="hash-form" class="tool-surface wide">
+            <div class="surface-heading">
+              <h3 id="hash-title">檔案雜湊</h3>
+              <span class="badge">SHA</span>
+            </div>
+            <label class="file-zone" for="hash-files">
+              <input id="hash-files" type="file" multiple>
+              <span>選擇檔案</span>
+              <small>SHA-256、SHA-1、SHA-512</small>
+            </label>
+            <div class="control-row">
+              <label>
+                <span>演算法</span>
+                <select id="hash-algorithm">
+                  <option value="SHA-256">SHA-256</option>
+                  <option value="SHA-1">SHA-1</option>
+                  <option value="SHA-512">SHA-512</option>
+                </select>
+              </label>
+              <div class="actions inline-actions">
+                <button class="primary-button" type="submit">計算</button>
+                <button class="secondary-button" id="download-hash-csv" type="button" disabled>下載 CSV</button>
+              </div>
+            </div>
+          </form>
+          <div id="hash-results" class="table-surface empty">尚未計算</div>
+        </div>
+      </section>
+
+      <section id="zip-panel" class="panel" aria-labelledby="zip-title">
+        <div class="tool-grid">
+          <form id="zip-form" class="tool-surface">
+            <div class="surface-heading">
+              <h3 id="zip-title">ZIP 打包</h3>
+              <span class="badge">本地封裝</span>
+            </div>
+            <label class="file-zone" for="zip-files">
+              <input id="zip-files" type="file" multiple>
+              <span>選擇檔案</span>
+              <small>產生標準 ZIP 檔案</small>
+            </label>
+            <label>
+              <span>壓縮檔名稱</span>
+              <input id="zip-name" type="text" value="swiftlocal-files.zip">
+            </label>
+            <div class="actions zip-actions">
+              <button class="primary-button" type="submit">建立 ZIP</button>
+              <button class="secondary-button" type="button" id="download-zip" disabled>下載 ZIP</button>
+            </div>
+          </form>
+
+          <div class="result-surface">
+            <div class="surface-heading">
+              <h3>輸出</h3>
+              <span id="zip-status" class="status-pill">待處理</span>
+            </div>
+            <div id="zip-results" class="result-list empty">尚未建立壓縮檔</div>
+          </div>
+        </div>
+      </section>
+
+      <section id="diff-panel" class="panel" aria-labelledby="diff-title">
+        <div class="tool-grid">
+          <form id="diff-form" class="tool-surface">
+            <div class="surface-heading">
+              <h3 id="diff-title">文字差異比對</h3>
+              <span class="badge">Line Diff</span>
+            </div>
+            <label>
+              <span>原文字</span>
+              <textarea id="diff-left" spellcheck="false"></textarea>
+            </label>
+            <label>
+              <span>新文字</span>
+              <textarea id="diff-right" spellcheck="false"></textarea>
+            </label>
+            <label class="check-row">
+              <input id="diff-ignore-space" type="checkbox">
+              <span>比對時忽略行首行尾空白</span>
+            </label>
+            <div class="actions">
+              <button class="primary-button" type="submit">開始比對</button>
+              <button class="secondary-button" type="button" id="download-diff-output" disabled>下載差異</button>
+            </div>
+          </form>
+
+          <div class="result-surface">
+            <div class="surface-heading">
+              <h3>輸出</h3>
+              <span id="diff-status" class="status-pill">待處理</span>
+            </div>
+            <div id="diff-output" class="diff-output empty">尚未比對</div>
+          </div>
+        </div>
+      </section>
+
+      <section id="split-panel" class="panel" aria-labelledby="split-title">
+        <div class="tool-grid">
+          <form id="split-form" class="tool-surface">
+            <div class="surface-heading">
+              <h3 id="split-title">檔案切割</h3>
+              <span class="badge">Blob</span>
+            </div>
+            <label class="file-zone" for="split-file">
+              <input id="split-file" type="file">
+              <span>選擇檔案</span>
+              <small>將大檔切成多個 part 檔</small>
+            </label>
+            <div class="control-row">
+              <label>
+                <span>每份大小</span>
+                <input id="split-size" type="number" min="1" value="10">
+              </label>
+              <label>
+                <span>單位</span>
+                <select id="split-unit">
+                  <option value="1048576">MB</option>
+                  <option value="1024">KB</option>
+                </select>
+              </label>
+            </div>
+            <div class="actions">
+              <button class="primary-button" type="submit">產生分割檔</button>
+              <button class="secondary-button" type="button" id="download-all-parts" disabled>全部下載</button>
+            </div>
+          </form>
+
+          <div class="result-surface">
+            <div class="surface-heading">
+              <h3>輸出</h3>
+              <span id="split-status" class="status-pill">待處理</span>
+            </div>
+            <div id="split-results" class="result-list empty">尚未產生分割檔</div>
+          </div>
+        </div>
+      </section>
+
+      <section id="rename-panel" class="panel" aria-labelledby="rename-title">
+        <div class="tool-grid single">
+          <form id="rename-form" class="tool-surface wide">
+            <div class="surface-heading">
+              <h3 id="rename-title">批量改名方案</h3>
+              <span class="badge">預覽 / 腳本</span>
+            </div>
+            <label class="file-zone" for="rename-files">
+              <input id="rename-files" type="file" multiple>
+              <span>選擇檔案</span>
+              <small>{name}、{ext}、{n}、{date}</small>
+            </label>
+            <div class="control-row">
+              <label>
+                <span>命名格式</span>
+                <input id="rename-pattern" type="text" value="{name}_{n}.{ext}">
+              </label>
+              <label>
+                <span>起始編號</span>
+                <input id="rename-start" type="number" value="1" min="0">
+              </label>
+            </div>
+            <div class="control-row">
+              <label>
+                <span>補零位數</span>
+                <input id="rename-pad" type="number" value="3" min="1" max="10">
+              </label>
+              <div class="actions inline-actions">
+                <button class="primary-button" type="submit">產生預覽</button>
+                <button class="secondary-button" id="download-rename-script" type="button" disabled>下載 PowerShell</button>
+              </div>
+            </div>
+          </form>
+          <div id="rename-results" class="table-surface empty">尚未產生預覽</div>
+        </div>
+      </section>
+
+      <section id="backend-panel" class="panel" aria-labelledby="backend-title">
+        <div class="tool-grid single">
+          <div class="tool-surface wide">
+            <div class="surface-heading">
+              <h3 id="backend-title">PDF / Office 擴充入口</h3>
+              <span class="badge muted">待接後端</span>
+            </div>
+            <div class="capability-grid">
+              <div class="capability-row">
+                <span>PDF 合併 / 分割 / 旋轉</span>
+                <strong>建議 pypdf</strong>
+              </div>
+              <div class="capability-row">
+                <span>PDF → Word / TXT / 圖片</span>
+                <strong>建議 pdf2docx、pdfplumber、pdf2image</strong>
+              </div>
+              <div class="capability-row">
+                <span>Office → PDF</span>
+                <strong>建議 LibreOffice CLI</strong>
+              </div>
+              <div class="capability-row">
+                <span>音訊 / 影片轉換</span>
+                <strong>建議 FFmpeg</strong>
+              </div>
+            </div>
+            <p class="backend-note">目前這台環境未找到 Python，已先完成純瀏覽器本地工具；後端可依 README 的目錄規劃接上。</p>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="vendor/pdf-lib.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,37 @@
+{
+  "name": "swiftlocal",
+  "version": "0.1.0",
+  "private": true,
+  "description": "快轉通 SwiftLocal - Your Local All-in-One File Converter",
+  "main": "desktop/main.js",
+  "scripts": {
+    "start": "node serve.js",
+    "desktop": "electron .",
+    "pack:win": "electron-builder --win --dir",
+    "pack:win:portable": "electron-builder --win portable"
+  },
+  "devDependencies": {
+    "electron": "latest",
+    "electron-builder": "latest"
+  },
+  "build": {
+    "appId": "com.swiftlocal.converter",
+    "productName": "快轉通 SwiftLocal",
+    "files": [
+      "index.html",
+      "styles.css",
+      "app.js",
+      "vendor/**/*",
+      "desktop/**/*",
+      "README.md",
+      "package.json"
+    ],
+    "win": {
+      "signAndEditExecutable": false
+    }
+  },
+  "dependencies": {
+    "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "^5.6.205"
+  }
+}
