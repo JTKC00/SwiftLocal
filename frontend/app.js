@@ -89,6 +89,14 @@
       $("#quality-output").textContent = "85%";
       setEmpty("#image-results", "尚未產生檔案");
       $("#download-all-images").disabled = true;
+      // 後端子表單
+      state.imgBackendFiles = [];
+      $("#img-backend-form").reset();
+      const imgList = $("#img-backend-selected-files");
+      imgList.classList.add("empty");
+      imgList.textContent = "尚未選擇檔案";
+      setEmpty("#img-backend-jobs", "尚未建立任務");
+      updateImgBackendJobControls();
     }
     if (panelId === "pdf-panel") {
       revokePdfUrls();
@@ -99,6 +107,14 @@
       setEmpty("#pdf-results", "尚未產生 PDF");
       $("#download-all-pdfs").disabled = true;
       updatePdfControls();
+      // 後端子表單
+      state.pdfBackendFiles = [];
+      $("#pdf-backend-form").reset();
+      const pdfList = $("#pdf-backend-selected-files");
+      pdfList.classList.add("empty");
+      pdfList.textContent = "尚未選擇檔案";
+      setEmpty("#pdf-backend-jobs", "尚未建立任務");
+      updatePdfBackendJobControls();
     }
     if (panelId === "data-panel") {
       $("#data-input").value = "";
