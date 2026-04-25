@@ -12,6 +12,7 @@ from .conversion_service import (
     convert_media,
     convert_office_to_pdf,
     convert_pdf_to_docx,
+    convert_pdf_to_office,
     merge_pdfs,
     ocr_images,
     rotate_pdf,
@@ -24,7 +25,7 @@ ROOT_DIR = Path(__file__).resolve().parents[1]
 TEMP_DIR = ROOT_DIR / "temp"
 JOBS_DIR = TEMP_DIR / "jobs"
 SUPPORTED_JOB_TYPES = {
-    "office-to-pdf", "media-convert", "ocr-image",
+    "office-to-pdf", "pdf-to-office", "media-convert", "ocr-image",
     "pdf-to-docx", "pdf-merge", "pdf-split", "pdf-rotate",
     "image-convert",
 }
@@ -151,6 +152,8 @@ class JobService:
                 outputs, logs = await split_pdf(job.input_paths, job.output_dir, job.options["pages"])
             elif job.type == "pdf-rotate":
                 outputs, logs = await rotate_pdf(job.input_paths, job.output_dir, int(job.options["angle"]))
+            elif job.type == "pdf-to-office":
+                outputs, logs = await convert_pdf_to_office(job.input_paths, job.output_dir, job.options["extension"])
             elif job.type == "image-convert":
                 outputs, logs = await convert_image(job.input_paths, job.output_dir, job.options["extension"])
             else:
@@ -203,6 +206,12 @@ class JobService:
             return {"language": language or "eng"}
         if job_type == "pdf-to-docx":
             return {}
+        if job_type == "pdf-to-office":
+            from .conversion_service import ALLOWED_PDF_TO_OFFICE_EXTENSIONS
+            ext = sanitize_extension(options.get("extension") or "docx")
+            if ext not in ALLOWED_PDF_TO_OFFICE_EXTENSIONS:
+                raise ValueError(f"Unsupported Office format: {ext}. Allowed: docx, xlsx, pptx, odt")
+            return {"extension": ext}
         if job_type == "pdf-merge":
             return {}
         if job_type == "pdf-split":

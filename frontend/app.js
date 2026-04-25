@@ -1581,11 +1581,13 @@
     const pdfPagesRow = $(".backend-pdf-pages-row");
     const pdfAngleRow = $(".backend-pdf-angle-row");
     const imageFormatRow = $(".backend-image-format-row");
+    const officeFormatRow = $(".backend-office-format-row");
     extensionField.style.display = type === "media-convert" ? "" : "none";
     languageRow.style.display = type === "ocr-image" ? "" : "none";
     pdfPagesRow.style.display = type === "pdf-split" ? "" : "none";
     pdfAngleRow.style.display = type === "pdf-rotate" ? "" : "none";
     imageFormatRow.style.display = type === "image-convert" ? "" : "none";
+    officeFormatRow.style.display = type === "pdf-to-office" ? "" : "none";
     const filesInput = $("#backend-files");
     if (filesInput) {
       filesInput.accept = backendFileAccept(type);
@@ -1638,7 +1640,7 @@
     if (type === "office-to-pdf") {
       return ".doc,.docx,.xls,.xlsx,.ppt,.pptx,.odt,.ods,.odp";
     }
-    if (type === "pdf-to-docx" || type === "pdf-merge" || type === "pdf-split" || type === "pdf-rotate") {
+    if (type === "pdf-to-docx" || type === "pdf-to-office" || type === "pdf-merge" || type === "pdf-split" || type === "pdf-rotate") {
       return ".pdf";
     }
     if (type === "image-convert") {
@@ -1693,6 +1695,9 @@
     }
     if (type === "pdf-rotate") {
       payload.append("angle", $("#backend-pdf-angle").value);
+    }
+    if (type === "pdf-to-office") {
+      payload.append("extension", $("#backend-office-format").value);
     }
     if (type === "image-convert") {
       payload.append("extension", $("#backend-image-format").value);
@@ -1788,6 +1793,9 @@
     }
     if (type === "pdf-to-docx") {
       return "PDF → DOCX";
+    }
+    if (type === "pdf-to-office") {
+      return "PDF → Office 格式";
     }
     if (type === "pdf-merge") {
       return "PDF 合併";

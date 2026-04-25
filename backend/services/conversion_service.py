@@ -34,6 +34,50 @@ async def convert_office_to_pdf(input_paths: list[Path], output_dir: Path) -> tu
     return outputs, logs
 
 
+_OFFICE_FILTER_MAP: dict[str, str] = {
+    "docx": "MS Word 2007 XML",
+    "xlsx": "Calc MS Excel 2007 XML",
+    "pptx": "Impress MS PowerPoint 2007 XML",
+    "odt": "writer8",
+}
+
+ALLOWED_PDF_TO_OFFICE_EXTENSIONS = frozenset(_OFFICE_FILTER_MAP.keys())
+
+
+async def convert_pdf_to_office(input_paths: list[Path], output_dir: Path, extension: str) -> tuple[list[Path], list[str]]:
+    tool = await tools_service.require_tool("libreOffice")
+    clean_extension = sanitize_extension(extension or "docx")
+    if clean_extension not in ALLOWED_PDF_TO_OFFICE_EXTENSIONS:
+        raise ValueError(f"Unsupported Office extension: {clean_extension}. Allowed: {sorted(ALLOWED_PDF_TO_OFFICE_EXTENSIONS)}")
+    filter_name = _OFFICE_FILTER_MAP[clean_extension]
+    convert_to = f"{clean_extension}:{filter_name}"
+    logs: list[str] = []
+    outputs: list[Path] = []
+
+    for input_path in input_paths:
+        profile_dir = output_dir / f"{input_path.stem}_lo_profile"
+        profile_dir.mkdir(parents=True, exist_ok=True)
+        profile_uri = profile_dir.resolve().as_posix()
+        args = [
+            "--headless",
+            "--nologo",
+            "--nodefault",
+            "--norestore",
+            "--nolockcheck",
+            f"-env:UserInstallation=file:///{profile_uri}",
+            "--convert-to",
+            convert_to,
+            "--outdir",
+            str(output_dir),
+            str(input_path),
+        ]
+        log = await run_process(str(tool["path"]), args, timeout=180)
+        logs.append(log)
+        outputs.append(output_dir / f"{input_path.stem}.{clean_extension}")
+
+    return outputs, logs
+
+
 async def convert_media(input_paths: list[Path], output_dir: Path, extension: str) -> tuple[list[Path], list[str]]:
     tool = await tools_service.require_tool("ffmpeg")
     clean_extension = sanitize_extension(extension or "mp4")
