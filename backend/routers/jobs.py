@@ -10,14 +10,14 @@ router = APIRouter(tags=["jobs"])
 @router.post("/jobs")
 async def create_job(
     type: str = Form(...),
-    files: list[UploadFile] = File(...),
+    files: list[UploadFile] | None = File(None),
     extension: str = Form(""),
     language: str = Form(""),
 ):
     try:
         return await job_service.create_job(
             job_type=type,
-            files=files,
+            files=files or [],
             options={"extension": extension, "language": language},
         )
     except ValueError as error:

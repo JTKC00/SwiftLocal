@@ -20,6 +20,12 @@ python -m pip install -r requirements.txt
 
 如果 `python` 不在 PATH，請先安裝 Python 3.10+，並勾選 Add Python to PATH。
 
+如果 Windows Store 的 `python.exe` alias 排在 PATH 前面，可指定實際 Python：
+
+```powershell
+$env:SWIFTLOCAL_PYTHON="C:\Users\sgeus\AppData\Local\Python\pythoncore-3.14-64\python.exe"
+```
+
 ## 啟動
 
 啟動前端：
