@@ -64,6 +64,46 @@ async def ocr_images(input_paths: list[Path], output_dir: Path, language: str) -
     return outputs, logs
 
 
+async def convert_image(input_paths: list[Path], output_dir: Path, extension: str) -> tuple[list[Path], list[str]]:
+    try:
+        from PIL import Image  # lazy import
+    except ImportError as error:
+        raise RuntimeError("Image convert failed: Pillow is not installed") from error
+
+    fmt_map = {
+        "jpg": "JPEG",
+        "jpeg": "JPEG",
+        "png": "PNG",
+        "webp": "WEBP",
+        "tiff": "TIFF",
+        "tif": "TIFF",
+        "bmp": "BMP",
+        "gif": "GIF",
+    }
+    clean_ext = sanitize_extension(extension or "jpg")
+    pil_format = fmt_map.get(clean_ext)
+    if not pil_format:
+        raise ValueError(f"Unsupported image format: {clean_ext}")
+
+    outputs: list[Path] = []
+    logs: list[str] = []
+    for input_path in input_paths:
+        output_path = output_dir / f"{input_path.stem}.{clean_ext}"
+        try:
+            with Image.open(input_path) as img:
+                # JPEG does not support alpha channel
+                if pil_format == "JPEG" and img.mode in ("RGBA", "LA", "P"):
+                    img = img.convert("RGB")
+                img.save(output_path, format=pil_format)
+        except Exception as error:
+            raise RuntimeError(f"Image convert failed for {input_path.name}: {error}") from error
+        if not output_path.exists():
+            raise RuntimeError(f"Image convert finished but output was not created for {input_path.name}")
+        outputs.append(output_path)
+        logs.append(f"converted: {input_path.name} -> {output_path.name}")
+    return outputs, logs
+
+
 async def merge_pdfs(input_paths: list[Path], output_dir: Path) -> tuple[list[Path], list[str]]:
     try:
         from pypdf import PdfWriter  # lazy import

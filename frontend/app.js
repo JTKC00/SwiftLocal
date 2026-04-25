@@ -1580,10 +1580,12 @@
     const languageRow = $(".backend-language-row");
     const pdfPagesRow = $(".backend-pdf-pages-row");
     const pdfAngleRow = $(".backend-pdf-angle-row");
+    const imageFormatRow = $(".backend-image-format-row");
     extensionField.style.display = type === "media-convert" ? "" : "none";
     languageRow.style.display = type === "ocr-image" ? "" : "none";
     pdfPagesRow.style.display = type === "pdf-split" ? "" : "none";
     pdfAngleRow.style.display = type === "pdf-rotate" ? "" : "none";
+    imageFormatRow.style.display = type === "image-convert" ? "" : "none";
     const filesInput = $("#backend-files");
     if (filesInput) {
       filesInput.accept = backendFileAccept(type);
@@ -1639,6 +1641,9 @@
     if (type === "pdf-to-docx" || type === "pdf-merge" || type === "pdf-split" || type === "pdf-rotate") {
       return ".pdf";
     }
+    if (type === "image-convert") {
+      return ".jpg,.jpeg,.png,.webp,.tiff,.tif,.bmp,.gif";
+    }
     if (type === "media-convert") {
       return ".mp3,.wav,.m4a,.flac,.aac,.ogg,.mp4,.mov,.mkv,.avi,.webm";
     }
@@ -1688,6 +1693,9 @@
     }
     if (type === "pdf-rotate") {
       payload.append("angle", $("#backend-pdf-angle").value);
+    }
+    if (type === "image-convert") {
+      payload.append("extension", $("#backend-image-format").value);
     }
 
     try {
@@ -1789,6 +1797,9 @@
     }
     if (type === "pdf-rotate") {
       return "PDF 旋轉";
+    }
+    if (type === "image-convert") {
+      return "圖片格式轉換";
     }
     if (type === "media-convert") {
       return "音訊 / 影片轉換";

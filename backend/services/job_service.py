@@ -8,6 +8,7 @@ from pathlib import Path
 from fastapi import UploadFile
 
 from .conversion_service import (
+    convert_image,
     convert_media,
     convert_office_to_pdf,
     convert_pdf_to_docx,
@@ -22,7 +23,11 @@ from .conversion_service import (
 ROOT_DIR = Path(__file__).resolve().parents[1]
 TEMP_DIR = ROOT_DIR / "temp"
 JOBS_DIR = TEMP_DIR / "jobs"
-SUPPORTED_JOB_TYPES = {"office-to-pdf", "media-convert", "ocr-image", "pdf-to-docx", "pdf-merge", "pdf-split", "pdf-rotate"}
+SUPPORTED_JOB_TYPES = {
+    "office-to-pdf", "media-convert", "ocr-image",
+    "pdf-to-docx", "pdf-merge", "pdf-split", "pdf-rotate",
+    "image-convert",
+}
 
 
 @dataclass
@@ -146,6 +151,8 @@ class JobService:
                 outputs, logs = await split_pdf(job.input_paths, job.output_dir, job.options["pages"])
             elif job.type == "pdf-rotate":
                 outputs, logs = await rotate_pdf(job.input_paths, job.output_dir, int(job.options["angle"]))
+            elif job.type == "image-convert":
+                outputs, logs = await convert_image(job.input_paths, job.output_dir, job.options["extension"])
             else:
                 raise RuntimeError(f"Unsupported job type: {job.type}")
 
@@ -189,6 +196,8 @@ class JobService:
     def _validate_options(self, job_type: str, options: dict[str, str]) -> dict[str, str]:
         if job_type == "media-convert":
             return {"extension": sanitize_extension(options.get("extension") or "mp4")}
+        if job_type == "image-convert":
+            return {"extension": sanitize_extension(options.get("extension") or "jpg")}
         if job_type == "ocr-image":
             language = (options.get("language") or "eng").strip()
             return {"language": language or "eng"}
