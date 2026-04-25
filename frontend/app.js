@@ -1477,55 +1477,56 @@
     state.splitDownloads = [];
   }
 
+  function bindFileDropZone(zoneId, inputId, listId, stateKey) {
+    const zone = $(`#${zoneId}`);
+    const input = $(`#${inputId}`);
+    const list = $(`#${listId}`);
+
+    function applyFiles(files) {
+      state[stateKey] = Array.from(files);
+      if (!state[stateKey].length) {
+        list.classList.add("empty");
+        list.textContent = "尚未選擇檔案";
+      } else {
+        list.classList.remove("empty");
+        list.innerHTML = state[stateKey].map((f) => `<span>${escapeHtml(f.name)} · ${formatBytes(f.size)}</span>`).join("");
+      }
+    }
+
+    input.addEventListener("change", () => applyFiles(input.files || []));
+
+    zone.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      zone.classList.add("drag-over");
+    });
+    zone.addEventListener("dragleave", (e) => {
+      if (!zone.contains(e.relatedTarget)) zone.classList.remove("drag-over");
+    });
+    zone.addEventListener("drop", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      zone.classList.remove("drag-over");
+      if (e.dataTransfer.files.length) applyFiles(e.dataTransfer.files);
+    });
+  }
+
   function bindBackendTool() {
     $("#detect-backend-tools").addEventListener("click", detectBackendTools);
     $("#refresh-backend-jobs").addEventListener("click", refreshBackendJobs);
 
-    // 影音面板後端表單
-    $("#media-pick-files").addEventListener("click", () => $("#media-files").click());
-    $("#media-files").addEventListener("change", () => {
-      state.mediaBackendFiles = Array.from($("#media-files").files || []);
-      const container = $("#media-selected-files");
-      if (!state.mediaBackendFiles.length) {
-        container.classList.add("empty");
-        container.textContent = "尚未選擇檔案";
-      } else {
-        container.classList.remove("empty");
-        container.innerHTML = state.mediaBackendFiles.map((f) => `<span>${escapeHtml(f.name)} · ${formatBytes(f.size)}</span>`).join("");
-      }
-    });
+    // 影音面板
+    bindFileDropZone("media-drop", "media-files", "media-selected-files", "mediaBackendFiles");
     $("#media-backend-form").addEventListener("submit", enqueueMediaBackendJob);
 
-    // PDF 面板後端表單
+    // PDF 面板
     $("#pdf-backend-job-type").addEventListener("change", updatePdfBackendJobControls);
-    $("#pdf-backend-pick-files").addEventListener("click", () => $("#pdf-backend-files").click());
-    $("#pdf-backend-files").addEventListener("change", () => {
-      state.pdfBackendFiles = Array.from($("#pdf-backend-files").files || []);
-      const container = $("#pdf-backend-selected-files");
-      if (!state.pdfBackendFiles.length) {
-        container.classList.add("empty");
-        container.textContent = "尚未選擇檔案";
-      } else {
-        container.classList.remove("empty");
-        container.innerHTML = state.pdfBackendFiles.map((f) => `<span>${escapeHtml(f.name)} · ${formatBytes(f.size)}</span>`).join("");
-      }
-    });
+    bindFileDropZone("pdf-backend-drop", "pdf-backend-files", "pdf-backend-selected-files", "pdfBackendFiles");
     $("#pdf-backend-form").addEventListener("submit", enqueuePdfBackendJob);
 
-    // 圖片面板後端表單
+    // 圖片面板
     $("#img-backend-job-type").addEventListener("change", updateImgBackendJobControls);
-    $("#img-backend-pick-files").addEventListener("click", () => $("#img-backend-files").click());
-    $("#img-backend-files").addEventListener("change", () => {
-      state.imgBackendFiles = Array.from($("#img-backend-files").files || []);
-      const container = $("#img-backend-selected-files");
-      if (!state.imgBackendFiles.length) {
-        container.classList.add("empty");
-        container.textContent = "尚未選擇檔案";
-      } else {
-        container.classList.remove("empty");
-        container.innerHTML = state.imgBackendFiles.map((f) => `<span>${escapeHtml(f.name)} · ${formatBytes(f.size)}</span>`).join("");
-      }
-    });
+    bindFileDropZone("img-backend-drop", "img-backend-files", "img-backend-selected-files", "imgBackendFiles");
     $("#img-backend-form").addEventListener("submit", enqueueImgBackendJob);
 
     $$("[data-tool-pick]").forEach((button) => {

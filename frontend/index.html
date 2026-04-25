@@ -176,11 +176,11 @@
               </label>
               <div></div>
             </div>
-            <div class="path-picker">
-              <button class="secondary-button" type="button" id="img-backend-pick-files">選擇輸入檔案</button>
+            <label class="file-drop-zone" id="img-backend-drop" for="img-backend-files">
               <input id="img-backend-files" class="visually-hidden" type="file" multiple>
-              <div id="img-backend-selected-files" class="path-list empty">尚未選擇檔案</div>
-            </div>
+              <span>選擇或拖括檔案</span>
+              <div id="img-backend-selected-files" class="drop-file-list empty">尚未選擇檔案</div>
+            </label>
             <div class="actions">
               <button class="primary-button" type="submit">加入後端佇列</button>
             </div>
@@ -337,11 +337,11 @@
               </label>
               <div></div>
             </div>
-            <div class="path-picker">
-              <button class="secondary-button" type="button" id="pdf-backend-pick-files">選擇輸入檔案</button>
+            <label class="file-drop-zone" id="pdf-backend-drop" for="pdf-backend-files">
               <input id="pdf-backend-files" class="visually-hidden" type="file" multiple>
-              <div id="pdf-backend-selected-files" class="path-list empty">尚未選擇檔案</div>
-            </div>
+              <span>選擇或拖括檔案</span>
+              <div id="pdf-backend-selected-files" class="drop-file-list empty">尚未選擇檔案</div>
+            </label>
             <div class="actions">
               <button class="primary-button" type="submit">加入後端佇列</button>
             </div>
@@ -647,11 +647,11 @@
               </label>
               <div></div>
             </div>
-            <div class="path-picker">
-              <button class="secondary-button" type="button" id="media-pick-files">選擇音訊 / 影片</button>
+            <label class="file-drop-zone" id="media-drop" for="media-files">
               <input id="media-files" class="visually-hidden" type="file" multiple accept=".mp3,.wav,.m4a,.flac,.aac,.ogg,.mp4,.mov,.mkv,.avi,.webm">
-              <div id="media-selected-files" class="path-list empty">尚未選擇檔案</div>
-            </div>
+              <span>選擇或拖括音訊 / 影片</span>
+              <div id="media-selected-files" class="drop-file-list empty">尚未選擇檔案</div>
+            </label>
             <div class="actions">
               <button class="primary-button" type="submit">加入佇列</button>
             </div>
