@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .routers import jobs, tools
+from .routers.text import router as text_router
 from .services.job_service import job_service
 
 
@@ -36,6 +37,7 @@ app.add_middleware(
 
 app.include_router(tools.router, prefix="/api")
 app.include_router(jobs.router, prefix="/api")
+app.include_router(text_router, prefix="/api")
 
 
 @app.get("/api/health")

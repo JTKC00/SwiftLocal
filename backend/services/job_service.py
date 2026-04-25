@@ -9,11 +9,14 @@ from fastapi import UploadFile
 
 from .conversion_service import (
     ALLOWED_PDF_TO_OFFICE_EXTENSIONS,
+    compress_pdf,
     convert_image,
     convert_media,
     convert_office_to_pdf,
     convert_pdf_to_docx,
     convert_pdf_to_office,
+    decrypt_pdf,
+    encrypt_pdf,
     merge_pdfs,
     ocr_images,
     rotate_pdf,
@@ -28,7 +31,7 @@ JOBS_DIR = TEMP_DIR / "jobs"
 SUPPORTED_JOB_TYPES = {
     "office-to-pdf", "pdf-to-office", "media-convert", "ocr-image",
     "pdf-to-docx", "pdf-merge", "pdf-split", "pdf-rotate",
-    "image-convert",
+    "image-convert", "pdf-encrypt", "pdf-decrypt", "pdf-compress",
 }
 
 
@@ -157,6 +160,12 @@ class JobService:
                 outputs, logs = await convert_pdf_to_office(job.input_paths, job.output_dir, job.options["extension"])
             elif job.type == "image-convert":
                 outputs, logs = await convert_image(job.input_paths, job.output_dir, job.options["extension"])
+            elif job.type == "pdf-encrypt":
+                outputs, logs = await encrypt_pdf(job.input_paths, job.output_dir, job.options["password"])
+            elif job.type == "pdf-decrypt":
+                outputs, logs = await decrypt_pdf(job.input_paths, job.output_dir, job.options["password"])
+            elif job.type == "pdf-compress":
+                outputs, logs = await compress_pdf(job.input_paths, job.output_dir)
             else:
                 raise RuntimeError(f"Unsupported job type: {job.type}")
 
@@ -224,6 +233,17 @@ class JobService:
             if raw not in {"90", "180", "270"}:
                 raise ValueError("Rotation angle must be 90, 180, or 270")
             return {"angle": raw}
+        if job_type == "pdf-encrypt":
+            password = (options.get("password") or "").strip()
+            if not password:
+                raise ValueError("PDF 加密需要設定密碼")
+            if len(password) > 256:
+                raise ValueError("密碼長度不能超過 256 字元")
+            return {"password": password}
+        if job_type == "pdf-decrypt":
+            return {"password": (options.get("password") or "").strip()}
+        if job_type == "pdf-compress":
+            return {}
         return {}
 
 

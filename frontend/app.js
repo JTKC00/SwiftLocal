@@ -444,14 +444,16 @@
 
   function updatePdfControls() {
     const mode = $("#pdf-mode").value;
-    const showRange = mode === "extract" || mode === "rotate" || mode === "watermark" || mode === "text" || mode === "images";
+    const showRange = mode === "extract" || mode === "rotate" || mode === "watermark" || mode === "text" || mode === "images" || mode === "page-numbers";
     const showRotation = mode === "rotate";
     const showWatermark = mode === "watermark";
     const showImages = mode === "images";
+    const showPageNumbers = mode === "page-numbers";
     $(".pdf-range-controls").style.display = showRange ? "" : "none";
     $("#pdf-rotation").closest("label").style.display = showRotation ? "" : "none";
     $(".pdf-watermark-controls").style.display = showWatermark ? "" : "none";
     $(".pdf-image-controls").style.display = showImages ? "" : "none";
+    $(".pdf-pagenumber-controls").style.display = showPageNumbers ? "" : "none";
   }
 
   async function runPdfTool(mode, files) {
@@ -469,6 +471,9 @@
     }
     if (mode === "watermark") {
       return [await watermarkPdf(files[0])];
+    }
+    if (mode === "page-numbers") {
+      return [await addPdfPageNumbers(files[0])];
     }
     if (mode === "text") {
       return [await extractPdfText(files[0])];
@@ -562,6 +567,36 @@
     });
 
     return makePdfResult(input, normalizePdfName($("#pdf-output-name").value || `${stripExtension(file.name)}_watermark.pdf`));
+  }
+
+  async function addPdfPageNumbers(file) {
+    const { PDFDocument, StandardFonts, rgb } = window.PDFLib;
+    const input = await PDFDocument.load(await file.arrayBuffer());
+    const pageCount = input.getPageCount();
+    const pageIndexes = parsePageRanges($("#pdf-pages").value, pageCount);
+    const position = $("#pdf-pagenumber-position").value || "bottom-center";
+    const startNum = parseInt($("#pdf-pagenumber-start").value, 10) || 1;
+    const font = await input.embedFont(StandardFonts.Helvetica);
+    const fontSize = 12;
+
+    pageIndexes.forEach((index, i) => {
+      const page = input.getPage(index);
+      const { width, height } = page.getSize();
+      const pageNum = String(startNum + i);
+      const textWidth = font.widthOfTextAtSize(pageNum, fontSize);
+      const margin = 28;
+      let x;
+      let y;
+      if (position === "bottom-center") { x = (width - textWidth) / 2; y = margin; }
+      else if (position === "bottom-right") { x = width - textWidth - margin; y = margin; }
+      else if (position === "bottom-left") { x = margin; y = margin; }
+      else if (position === "top-center") { x = (width - textWidth) / 2; y = height - margin - fontSize; }
+      else if (position === "top-right") { x = width - textWidth - margin; y = height - margin - fontSize; }
+      else { x = margin; y = height - margin - fontSize; } // top-left
+      page.drawText(pageNum, { x, y, size: fontSize, font, color: rgb(0.2, 0.2, 0.2) });
+    });
+
+    return makePdfResult(input, normalizePdfName($("#pdf-output-name").value || `${stripExtension(file.name)}_numbered.pdf`));
   }
 
   async function extractPdfText(file) {
@@ -1670,6 +1705,7 @@
     $(".pdf-backend-office-format-row").style.display = type === "pdf-to-office" ? "" : "none";
     $(".pdf-backend-pages-row").style.display = type === "pdf-split" ? "" : "none";
     $(".pdf-backend-angle-row").style.display = type === "pdf-rotate" ? "" : "none";
+    $(".pdf-backend-password-row").style.display = (type === "pdf-encrypt" || type === "pdf-decrypt") ? "" : "none";
     const filesInput = $("#pdf-backend-files");
     if (filesInput) {
       filesInput.accept = type === "office-to-pdf"
@@ -1735,6 +1771,7 @@
     if (type === "pdf-split") payload.append("pages", $("#pdf-backend-pages").value.trim());
     if (type === "pdf-rotate") payload.append("angle", $("#pdf-backend-angle").value);
     if (type === "pdf-to-office") payload.append("extension", $("#pdf-backend-office-format").value);
+    if (type === "pdf-encrypt" || type === "pdf-decrypt") payload.append("password", $("#pdf-backend-password").value);
     try {
       await backendFetch("/jobs", { method: "POST", body: payload });
       await refreshBackendJobs();

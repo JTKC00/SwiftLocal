@@ -299,3 +299,89 @@ def sanitize_extension(extension: str) -> str:
     if not clean:
         raise ValueError("Invalid output extension")
     return clean
+
+
+async def encrypt_pdf(input_paths: list[Path], output_dir: Path, password: str) -> tuple[list[Path], list[str]]:
+    outputs: list[Path] = []
+    logs: list[str] = []
+    for input_path in input_paths:
+        output_path = output_dir / f"{input_path.stem}_encrypted.pdf"
+        await asyncio.to_thread(_encrypt_pdf_sync, input_path, output_path, password)
+        if not output_path.exists():
+            raise RuntimeError(f"PDF encrypt finished but output was not created for {input_path.name}")
+        outputs.append(output_path)
+        logs.append(f"encrypted: {input_path.name} -> {output_path.name}")
+    return outputs, logs
+
+
+def _encrypt_pdf_sync(input_path: Path, output_path: Path, password: str) -> None:
+    try:
+        from pypdf import PdfReader, PdfWriter  # lazy import
+    except ImportError as error:
+        raise RuntimeError("PDF encrypt failed: pypdf is not installed") from error
+    reader = PdfReader(str(input_path))
+    if reader.is_encrypted:
+        raise RuntimeError("PDF 已加密，請先解密後再重新加密")
+    writer = PdfWriter()
+    for page in reader.pages:
+        writer.add_page(page)
+    writer.encrypt(user_password=password)
+    with open(output_path, "wb") as f:
+        writer.write(f)
+
+
+async def decrypt_pdf(input_paths: list[Path], output_dir: Path, password: str) -> tuple[list[Path], list[str]]:
+    outputs: list[Path] = []
+    logs: list[str] = []
+    for input_path in input_paths:
+        output_path = output_dir / f"{input_path.stem}_decrypted.pdf"
+        await asyncio.to_thread(_decrypt_pdf_sync, input_path, output_path, password)
+        if not output_path.exists():
+            raise RuntimeError(f"PDF decrypt finished but output was not created for {input_path.name}")
+        outputs.append(output_path)
+        logs.append(f"decrypted: {input_path.name} -> {output_path.name}")
+    return outputs, logs
+
+
+def _decrypt_pdf_sync(input_path: Path, output_path: Path, password: str) -> None:
+    try:
+        from pypdf import PdfReader, PdfWriter  # lazy import
+    except ImportError as error:
+        raise RuntimeError("PDF decrypt failed: pypdf is not installed") from error
+    reader = PdfReader(str(input_path))
+    if reader.is_encrypted:
+        result = reader.decrypt(password)
+        if not result:
+            raise RuntimeError("解密失敗：密碼不正確或加密格式不支援")
+    writer = PdfWriter()
+    for page in reader.pages:
+        writer.add_page(page)
+    with open(output_path, "wb") as f:
+        writer.write(f)
+
+
+async def compress_pdf(input_paths: list[Path], output_dir: Path) -> tuple[list[Path], list[str]]:
+    outputs: list[Path] = []
+    logs: list[str] = []
+    for input_path in input_paths:
+        output_path = output_dir / f"{input_path.stem}_compressed.pdf"
+        await asyncio.to_thread(_compress_pdf_sync, input_path, output_path)
+        if not output_path.exists():
+            raise RuntimeError(f"PDF compress finished but output was not created for {input_path.name}")
+        outputs.append(output_path)
+        logs.append(f"compressed: {input_path.name} -> {output_path.name}")
+    return outputs, logs
+
+
+def _compress_pdf_sync(input_path: Path, output_path: Path) -> None:
+    try:
+        from pypdf import PdfReader, PdfWriter  # lazy import
+    except ImportError as error:
+        raise RuntimeError("PDF compress failed: pypdf is not installed") from error
+    reader = PdfReader(str(input_path))
+    writer = PdfWriter()
+    for page in reader.pages:
+        page.compress_content_streams()
+        writer.add_page(page)
+    with open(output_path, "wb") as f:
+        writer.write(f)

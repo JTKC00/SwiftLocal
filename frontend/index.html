@@ -217,8 +217,7 @@
                   <option value="split">逐頁分割</option>
                   <option value="extract">抽出頁面</option>
                   <option value="rotate">旋轉頁面</option>
-                  <option value="watermark">加文字浮水印</option>
-                  <option value="text">PDF → TXT</option>
+                  <option value="watermark">加文字浮水印</option>                  <option value="page-numbers">加頁碼</option>                  <option value="text">PDF → TXT</option>
                   <option value="images">PDF → 圖片</option>
                 </select>
               </label>
@@ -274,6 +273,24 @@
               </label>
             </div>
 
+            <div class="control-row pdf-pagenumber-controls">
+              <label>
+                <span>頁碼位置</span>
+                <select id="pdf-pagenumber-position">
+                  <option value="bottom-center">底部置中</option>
+                  <option value="bottom-right">底部靠右</option>
+                  <option value="bottom-left">底部靠左</option>
+                  <option value="top-center">頂部置中</option>
+                  <option value="top-right">頂部靠右</option>
+                  <option value="top-left">頂部靠左</option>
+                </select>
+              </label>
+              <label>
+                <span>起始頁碼</span>
+                <input id="pdf-pagenumber-start" type="number" min="1" value="1">
+              </label>
+            </div>
+
             <div class="actions">
               <button class="primary-button" type="submit">處理 PDF</button>
               <button class="secondary-button" type="button" data-clear-panel="pdf-panel">重設</button>
@@ -302,8 +319,9 @@
                   <option value="pdf-to-office">PDF → Office 格式</option>
                   <option value="pdf-merge">PDF 合併（後端）</option>
                   <option value="pdf-split">PDF 分割（後端）</option>
-                  <option value="pdf-rotate">PDF 旋轉（後端）</option>
-                </select>
+                  <option value="pdf-rotate">PDF 旋轉（後端）</option>                  <option value="pdf-encrypt">PDF 加密</option>
+                  <option value="pdf-decrypt">PDF 解密</option>
+                  <option value="pdf-compress">PDF 壓縮</option>                </select>
               </label>
               <div></div>
             </div>
@@ -334,6 +352,13 @@
                   <option value="180">180°（翻轉）</option>
                   <option value="270">270°（逆時针）</option>
                 </select>
+              </label>
+              <div></div>
+            </div>
+            <div class="control-row pdf-backend-password-row">
+              <label>
+                <span>密碼</span>
+                <input id="pdf-backend-password" type="text" placeholder="加密 / 解密密碼" autocomplete="off">
               </label>
               <div></div>
             </div>
@@ -427,11 +452,37 @@
               <button type="button" class="segment" data-text-mode="dedupe-lines">去除重複行</button>
               <button type="button" class="segment" data-text-mode="sort-lines">排序行</button>
               <button type="button" class="segment" data-text-mode="text-stats">文字統計</button>
+              <button type="button" class="segment" data-text-mode="find-replace">尋找取代</button>
+              <button type="button" class="segment" data-text-mode="trad-to-simp">繁→簡</button>
+              <button type="button" class="segment" data-text-mode="simp-to-trad">簡→繁</button>
             </div>
             <label>
               <span>輸入</span>
               <textarea id="text-input" spellcheck="false"></textarea>
             </label>
+            <div class="find-replace-controls">
+              <div class="control-row">
+                <label>
+                  <span>搜尋</span>
+                  <input id="find-pattern" type="text" placeholder="搜尋文字或正則表達式">
+                </label>
+                <label>
+                  <span>取代</span>
+                  <input id="replace-pattern" type="text" placeholder="取代内容（留空則刪除）">
+                </label>
+              </div>
+              <div class="control-row">
+                <label class="check-row">
+                  <input id="find-use-regex" type="checkbox">
+                  <span>正則表達式</span>
+                </label>
+                <label class="check-row">
+                  <input id="find-case-sensitive" type="checkbox" checked>
+                  <span>區分大小寫</span>
+                </label>
+              </div>
+            </div>
+            <div class="trad-simp-note">繁簡轉換需要 FastAPI 後端（zhconv）</div>
             <div class="actions">
               <button class="primary-button" type="submit">轉換文字</button>
               <button class="secondary-button" type="button" id="copy-text-output">複製輸出</button>

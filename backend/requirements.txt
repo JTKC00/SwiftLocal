@@ -4,3 +4,4 @@ python-multipart
 pdf2docx
 pypdf
 Pillow
+zhconv
