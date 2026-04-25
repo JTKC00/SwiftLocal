@@ -562,6 +562,9 @@
                 <select id="backend-job-type">
                   <option value="office-to-pdf">Office → PDF</option>
                   <option value="pdf-to-docx">PDF → DOCX</option>
+                  <option value="pdf-merge">PDF 合併</option>
+                  <option value="pdf-split">PDF 分割</option>
+                  <option value="pdf-rotate">PDF 旋轉</option>
                   <option value="media-convert">音訊 / 影片轉換</option>
                   <option value="ocr-image">圖片 OCR → TXT</option>
                 </select>
@@ -583,6 +586,26 @@
               <label>
                 <span>OCR 語言</span>
                 <input id="backend-ocr-language" type="text" value="eng">
+              </label>
+              <div></div>
+            </div>
+
+            <div class="control-row backend-pdf-pages-row">
+              <label>
+                <span>頁碼範圍</span>
+                <input id="backend-pdf-pages" type="text" placeholder="例：1-3,5,7-9">
+              </label>
+              <div></div>
+            </div>
+
+            <div class="control-row backend-pdf-angle-row">
+              <label>
+                <span>旋轉角度</span>
+                <select id="backend-pdf-angle">
+                  <option value="90">90°（順時针）</option>
+                  <option value="180">180°（翻轉）</option>
+                  <option value="270">270°（逆時针）</option>
+                </select>
               </label>
               <div></div>
             </div>

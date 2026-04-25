@@ -13,12 +13,14 @@ async def create_job(
     files: list[UploadFile] | None = File(None),
     extension: str = Form(""),
     language: str = Form(""),
+    pages: str = Form(""),
+    angle: str = Form(""),
 ):
     try:
         return await job_service.create_job(
             job_type=type,
             files=files or [],
-            options={"extension": extension, "language": language},
+            options={"extension": extension, "language": language, "pages": pages, "angle": angle},
         )
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error

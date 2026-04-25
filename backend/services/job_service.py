@@ -7,13 +7,22 @@ from pathlib import Path
 
 from fastapi import UploadFile
 
-from .conversion_service import convert_media, convert_office_to_pdf, convert_pdf_to_docx, ocr_images, sanitize_extension
+from .conversion_service import (
+    convert_media,
+    convert_office_to_pdf,
+    convert_pdf_to_docx,
+    merge_pdfs,
+    ocr_images,
+    rotate_pdf,
+    sanitize_extension,
+    split_pdf,
+)
 
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 TEMP_DIR = ROOT_DIR / "temp"
 JOBS_DIR = TEMP_DIR / "jobs"
-SUPPORTED_JOB_TYPES = {"office-to-pdf", "media-convert", "ocr-image", "pdf-to-docx"}
+SUPPORTED_JOB_TYPES = {"office-to-pdf", "media-convert", "ocr-image", "pdf-to-docx", "pdf-merge", "pdf-split", "pdf-rotate"}
 
 
 @dataclass
@@ -131,6 +140,12 @@ class JobService:
                 outputs, logs = await ocr_images(job.input_paths, job.output_dir, job.options["language"])
             elif job.type == "pdf-to-docx":
                 outputs, logs = await convert_pdf_to_docx(job.input_paths, job.output_dir)
+            elif job.type == "pdf-merge":
+                outputs, logs = await merge_pdfs(job.input_paths, job.output_dir)
+            elif job.type == "pdf-split":
+                outputs, logs = await split_pdf(job.input_paths, job.output_dir, job.options["pages"])
+            elif job.type == "pdf-rotate":
+                outputs, logs = await rotate_pdf(job.input_paths, job.output_dir, int(job.options["angle"]))
             else:
                 raise RuntimeError(f"Unsupported job type: {job.type}")
 
@@ -179,6 +194,18 @@ class JobService:
             return {"language": language or "eng"}
         if job_type == "pdf-to-docx":
             return {}
+        if job_type == "pdf-merge":
+            return {}
+        if job_type == "pdf-split":
+            pages = (options.get("pages") or "").strip()
+            if not pages:
+                raise ValueError("Page ranges are required for PDF split (example: 1-3,5,7-9)")
+            return {"pages": pages}
+        if job_type == "pdf-rotate":
+            raw = (options.get("angle") or "90").strip()
+            if raw not in {"90", "180", "270"}:
+                raise ValueError("Rotation angle must be 90, 180, or 270")
+            return {"angle": raw}
         return {}
 
 
