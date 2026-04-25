@@ -115,6 +115,8 @@
       pdfList.textContent = "尚未選擇檔案";
       setEmpty("#pdf-backend-jobs", "尚未建立任務");
       updatePdfBackendJobControls();
+      const pwdInput = $("#pdf-backend-password");
+      if (pwdInput) pwdInput.value = "";
     }
     if (panelId === "data-panel") {
       $("#data-input").value = "";
@@ -125,6 +127,10 @@
       $("#text-input").value = "";
       $("#text-output").value = "";
       $("#text-count").textContent = "0 字元";
+      $("#find-pattern").value = "";
+      $("#replace-pattern").value = "";
+      $("#find-use-regex").checked = false;
+      $("#find-case-sensitive").checked = true;
     }
     if (panelId === "hash-panel") {
       $("#hash-form").reset();
@@ -1035,13 +1041,30 @@
       button.addEventListener("click", () => {
         state.textMode = button.dataset.textMode;
         $$("[data-text-mode]").forEach((item) => item.classList.toggle("is-active", item === button));
+        updateTextControls();
       });
     });
 
-    $("#text-form").addEventListener("submit", (event) => {
+    $("#text-form").addEventListener("submit", async (event) => {
       event.preventDefault();
+      const input = $("#text-input").value;
       try {
-        const output = runTextTool($("#text-input").value);
+        let output;
+        if (state.textMode === "trad-to-simp" || state.textMode === "simp-to-trad") {
+          if (!backendApiAvailable()) { await checkBackendHealth(); }
+          if (!backendApiAvailable()) { throw new Error("需要 FastAPI 後端（zhconv），請先啟動後端"); }
+          const locale = state.textMode === "trad-to-simp" ? "zh-hans" : "zh-hant-tw";
+          const result = await backendFetch("/convert-text", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text: input, locale })
+          });
+          output = result.result;
+        } else if (state.textMode === "find-replace") {
+          output = runFindReplace(input);
+        } else {
+          output = runTextTool(input);
+        }
         $("#text-output").value = output;
         $("#text-count").textContent = `${Array.from(output).length} 字元`;
       } catch (error) {
@@ -1052,6 +1075,34 @@
     });
 
     $("#copy-text-output").addEventListener("click", () => copyText($("#text-output").value));
+    updateTextControls();
+  }
+
+  function updateTextControls() {
+    const isFindReplace = state.textMode === "find-replace";
+    const isTradSimp = state.textMode === "trad-to-simp" || state.textMode === "simp-to-trad";
+    $(".find-replace-controls").style.display = isFindReplace ? "" : "none";
+    $(".trad-simp-note").style.display = isTradSimp ? "" : "none";
+  }
+
+  function runFindReplace(input) {
+    const findText = $("#find-pattern").value;
+    const replaceText = $("#replace-pattern").value;
+    const useRegex = $("#find-use-regex").checked;
+    const caseSensitive = $("#find-case-sensitive").checked;
+    if (!findText) { return input; }
+    if (useRegex) {
+      const flags = "g" + (caseSensitive ? "" : "i");
+      return input.replace(new RegExp(findText, flags), replaceText);
+    }
+    if (caseSensitive) {
+      return input.split(findText).join(replaceText);
+    }
+    return input.replace(new RegExp(escapeRegExp(findText), "gi"), replaceText);
+  }
+
+  function escapeRegExp(text) {
+    return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   }
 
   function runTextTool(input) {
@@ -1943,6 +1994,15 @@
     }
     if (type === "pdf-rotate") {
       return "PDF 旋轉";
+    }
+    if (type === "pdf-encrypt") {
+      return "PDF 加密";
+    }
+    if (type === "pdf-decrypt") {
+      return "PDF 解密";
+    }
+    if (type === "pdf-compress") {
+      return "PDF 壓縮";
     }
     if (type === "image-convert") {
       return "圖片格式轉換";

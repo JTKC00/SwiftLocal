@@ -854,3 +854,14 @@ td.code-cell {
     width: 100%;
   }
 }
+
+/* find-replace controls — hidden by default, shown when mode is active */
+.find-replace-controls { display: none; margin-bottom: 8px; }
+
+/* trad-simp backend note */
+.trad-simp-note {
+  display: none;
+  font-size: 0.78rem;
+  color: var(--muted, #888);
+  margin-bottom: 4px;
+}
