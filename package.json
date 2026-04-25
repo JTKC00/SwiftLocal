@@ -5,9 +5,9 @@
   "description": "快轉通 SwiftLocal - Your Local All-in-One File Converter",
   "main": "desktop/main.js",
   "scripts": {
-    "start": "node serve.js",
+    "start": "node scripts/serve.js",
     "desktop": "electron .",
-    "backend": "start-backend.cmd",
+    "backend": "scripts/start-backend.cmd",
     "dev:all": "start \"SwiftLocal Backend\" cmd /c \"npm run backend\" && npm run start",
     "pack:win": "electron-builder --win --dir",
     "pack:win:portable": "electron-builder --win portable"
@@ -20,15 +20,11 @@
     "appId": "com.swiftlocal.converter",
     "productName": "快轉通 SwiftLocal",
     "files": [
-      "index.html",
-      "styles.css",
-      "app.js",
+      "frontend/**/*",
       "backend/**/*",
-      "vendor/**/*",
       "desktop/**/*",
+      "scripts/start-backend.cmd",
       "README.md",
-      "requirements.txt",
-      "start-backend.cmd",
       "package.json"
     ],
     "win": {

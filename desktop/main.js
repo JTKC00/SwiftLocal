@@ -46,7 +46,7 @@ function createMainWindow() {
     return { action: "deny" };
   });
 
-  window.loadFile(path.join(__dirname, "..", "index.html"));
+  window.loadFile(path.join(__dirname, "..", "frontend", "index.html"));
 
   if (isDev && process.env.SWIFTLOCAL_DEVTOOLS === "1") {
     window.webContents.openDevTools({ mode: "detach" });

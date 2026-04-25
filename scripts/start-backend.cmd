@@ -1,6 +1,7 @@
 @echo off
 setlocal
 cd /d "%~dp0"
+cd ..
 
 set "PYTHON_EXE=%SWIFTLOCAL_PYTHON%"
 if not defined PYTHON_EXE if exist "%LOCALAPPDATA%\Python\pythoncore-3.14-64\python.exe" set "PYTHON_EXE=%LOCALAPPDATA%\Python\pythoncore-3.14-64\python.exe"

@@ -1,4 +1,5 @@
 import asyncio
+import subprocess
 from pathlib import Path
 
 from .tools_service import tools_service
@@ -10,8 +11,23 @@ async def convert_office_to_pdf(input_paths: list[Path], output_dir: Path) -> tu
     outputs: list[Path] = []
 
     for input_path in input_paths:
-        args = ["--headless", "--convert-to", "pdf", "--outdir", str(output_dir), str(input_path)]
-        log = await run_process(str(tool["path"]), args)
+        profile_dir = output_dir / f"{input_path.stem}_lo_profile"
+        profile_dir.mkdir(parents=True, exist_ok=True)
+        profile_uri = profile_dir.resolve().as_posix()
+        args = [
+            "--headless",
+            "--nologo",
+            "--nodefault",
+            "--norestore",
+            "--nolockcheck",
+            f"-env:UserInstallation=file:///{profile_uri}",
+            "--convert-to",
+            "pdf",
+            "--outdir",
+            str(output_dir),
+            str(input_path),
+        ]
+        log = await run_process(str(tool["path"]), args, timeout=180)
         logs.append(log)
         outputs.append(output_dir / f"{input_path.stem}.pdf")
 
@@ -26,7 +42,7 @@ async def convert_media(input_paths: list[Path], output_dir: Path, extension: st
 
     for input_path in input_paths:
         output_path = output_dir / f"{input_path.stem}.{clean_extension}"
-        log = await run_process(str(tool["path"]), ["-y", "-i", str(input_path), str(output_path)])
+        log = await run_process(str(tool["path"]), ["-y", "-i", str(input_path), str(output_path)], timeout=600)
         logs.append(log)
         outputs.append(output_path)
 
@@ -41,24 +57,25 @@ async def ocr_images(input_paths: list[Path], output_dir: Path, language: str) -
 
     for input_path in input_paths:
         output_base = output_dir / f"{input_path.stem}_ocr"
-        log = await run_process(str(tool["path"]), [str(input_path), str(output_base), "-l", clean_language])
+        log = await run_process(str(tool["path"]), [str(input_path), str(output_base), "-l", clean_language], timeout=300)
         logs.append(log)
         outputs.append(output_base.with_suffix(".txt"))
 
     return outputs, logs
 
 
-async def run_process(executable: str, args: list[str]) -> str:
-    process = await asyncio.create_subprocess_exec(
-        executable,
-        *args,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
+async def run_process(executable: str, args: list[str], timeout: int = 300) -> str:
+    result = await asyncio.to_thread(
+        subprocess.run,
+        [executable, *args],
+        capture_output=True,
+        text=True,
+        timeout=timeout,
+        check=False,
     )
-    stdout, stderr = await process.communicate()
-    output = (stdout + stderr).decode(errors="replace").strip()
-    if process.returncode != 0:
-        raise RuntimeError(output or f"Process exited with code {process.returncode}")
+    output = f"{result.stdout or ''}{result.stderr or ''}".strip()
+    if result.returncode != 0:
+        raise RuntimeError(output or f"Process exited with code {result.returncode}")
     return output
 
 

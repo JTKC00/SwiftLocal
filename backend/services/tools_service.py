@@ -1,6 +1,7 @@
 import asyncio
 import json
 import os
+import subprocess
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
@@ -135,14 +136,15 @@ class ToolsService:
 
     async def _read_version(self, executable: str, args: tuple[str, ...]) -> str:
         try:
-            process = await asyncio.create_subprocess_exec(
-                executable,
-                *args,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
+            result = await asyncio.to_thread(
+                subprocess.run,
+                [executable, *args],
+                capture_output=True,
+                text=True,
+                timeout=8,
+                check=False,
             )
-            stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=8)
-            text = (stdout + stderr).decode(errors="replace").strip()
+            text = f"{result.stdout or ''}{result.stderr or ''}".strip()
             return next((line.strip() for line in text.splitlines() if line.strip()), "")
         except Exception as error:
             return str(error)

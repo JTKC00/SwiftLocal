@@ -1,6 +1,7 @@
 @echo off
 setlocal
 cd /d "%~dp0"
+cd ..
 if not exist "node_modules\electron" (
   echo Electron is not installed yet.
   echo Run: "C:\Program Files\nodejs\npm.cmd" install

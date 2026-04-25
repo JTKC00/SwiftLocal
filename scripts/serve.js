@@ -4,7 +4,7 @@ const fs = require("fs");
 const http = require("http");
 const path = require("path");
 
-const root = path.resolve(__dirname);
+const root = path.resolve(__dirname, "..", "frontend");
 const port = Number(process.env.PORT) || 4173;
 const host = "127.0.0.1";
 

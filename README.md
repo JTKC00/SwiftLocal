@@ -2,6 +2,15 @@
 
 SwiftLocal 是本地全能格式轉換工具箱。前端可用瀏覽器或 Electron 桌面殼開啟；需要外部程式的轉換功能由本機 FastAPI 後端處理，檔案只會送到 `127.0.0.1`。
 
+## 專案結構
+
+- `frontend/`：瀏覽器介面、前端腳本、樣式與本地 vendor 資源。
+- `backend/`：FastAPI 後端、routers、services、Python 依賴與暫存目錄。
+- `desktop/`：Electron 桌面殼、preload 與桌面輔助 IPC。
+- `scripts/`：Windows 啟動腳本與前端靜態伺服器。
+- `docs/`：規劃、架構與操作文件。
+- `tools/`：本機下載或解壓的外部工具，已被 Git 忽略。
+
 ## 需求
 
 - Node.js，用於前端靜態伺服器與 Electron。
@@ -11,11 +20,13 @@ SwiftLocal 是本地全能格式轉換工具箱。前端可用瀏覽器或 Elect
   - FFmpeg：音訊 / 影片轉換。
   - Tesseract：圖片 OCR → TXT。
 
+LibreOffice 官方 Windows MSI 通常需要管理員權限。若無法安裝到 `C:\Program Files\LibreOffice`，Office → PDF 會保持不可用，直到在「本地後端」面板手動指定可正常執行的 `soffice.exe` / `soffice.com`。
+
 ## 安裝
 
 ```powershell
 npm install
-python -m pip install -r requirements.txt
+python -m pip install -r backend\requirements.txt
 ```
 
 如果 `python` 不在 PATH，請先安裝 Python 3.10+，並勾選 Add Python to PATH。
@@ -37,7 +48,7 @@ npm run start
 啟動 FastAPI 後端：
 
 ```powershell
-start-backend.cmd
+scripts\start-backend.cmd
 ```
 
 或：
