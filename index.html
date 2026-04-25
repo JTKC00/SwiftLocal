@@ -508,7 +508,7 @@
           <form id="backend-form" class="tool-surface">
             <div class="surface-heading">
               <h3 id="backend-title">本地後端佇列</h3>
-              <span id="backend-mode" class="badge muted">Electron</span>
+              <span id="backend-mode" class="badge muted">FastAPI</span>
             </div>
             <div class="backend-tools" id="backend-tools">
               <div class="tool-status pending">
@@ -533,7 +533,7 @@
               <div class="path-config-row">
                 <label>
                   <span>LibreOffice 路徑</span>
-                  <input id="tool-path-libreOffice" type="text" readonly placeholder="自動偵測或手動指定 soffice.exe">
+                  <input id="tool-path-libreOffice" type="text" placeholder="自動偵測或手動指定 soffice.exe">
                 </label>
                 <button class="secondary-button compact" type="button" data-tool-pick="libreOffice">選擇</button>
                 <button class="secondary-button compact" type="button" data-tool-clear="libreOffice">清除</button>
@@ -541,7 +541,7 @@
               <div class="path-config-row">
                 <label>
                   <span>FFmpeg 路徑</span>
-                  <input id="tool-path-ffmpeg" type="text" readonly placeholder="自動偵測或手動指定 ffmpeg.exe">
+                  <input id="tool-path-ffmpeg" type="text" placeholder="自動偵測或手動指定 ffmpeg.exe">
                 </label>
                 <button class="secondary-button compact" type="button" data-tool-pick="ffmpeg">選擇</button>
                 <button class="secondary-button compact" type="button" data-tool-clear="ffmpeg">清除</button>
@@ -549,7 +549,7 @@
               <div class="path-config-row">
                 <label>
                   <span>Tesseract 路徑</span>
-                  <input id="tool-path-tesseract" type="text" readonly placeholder="自動偵測或手動指定 tesseract.exe">
+                  <input id="tool-path-tesseract" type="text" placeholder="自動偵測或手動指定 tesseract.exe">
                 </label>
                 <button class="secondary-button compact" type="button" data-tool-pick="tesseract">選擇</button>
                 <button class="secondary-button compact" type="button" data-tool-clear="tesseract">清除</button>
@@ -588,18 +588,13 @@
 
             <div class="path-picker">
               <button class="secondary-button" type="button" id="backend-pick-files">選擇輸入檔案</button>
+              <input id="backend-files" class="visually-hidden" type="file" multiple>
               <div id="backend-selected-files" class="path-list empty">尚未選擇檔案</div>
-            </div>
-
-            <div class="path-picker">
-              <button class="secondary-button" type="button" id="backend-pick-output">選擇輸出資料夾</button>
-              <div id="backend-output-dir" class="path-list empty">尚未選擇輸出資料夾</div>
             </div>
 
             <div class="actions">
               <button class="primary-button" type="submit">加入佇列</button>
               <button class="secondary-button" type="button" id="refresh-backend-jobs">刷新佇列</button>
-              <button class="secondary-button" type="button" id="open-backend-output">開啟輸出資料夾</button>
             </div>
           </form>
 

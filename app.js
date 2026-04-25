@@ -12,9 +12,9 @@
     diffText: "",
     splitDownloads: [],
     backendFiles: [],
-    backendOutputDir: "",
     backendConfig: { toolPaths: {} },
-    backendJobsUnsubscribe: null,
+    backendConnected: false,
+    backendPollTimer: null,
     hashRows: [],
     renameRows: []
   };
@@ -35,6 +35,8 @@
   const $ = (selector) => document.querySelector(selector);
   const $$ = (selector) => Array.from(document.querySelectorAll(selector));
   const CRC_TABLE = createCrcTable();
+  const BACKEND_API_BASE = "http://127.0.0.1:8787/api";
+  const BACKEND_ORIGIN = "http://127.0.0.1:8787";
   let pdfjsPromise = null;
 
   function init() {
@@ -142,11 +144,10 @@
     }
     if (panelId === "backend-panel") {
       state.backendFiles = [];
-      state.backendOutputDir = "";
+      $("#backend-files").value = "";
       renderBackendSelectedFiles();
-      renderBackendOutputDir();
       renderBackendJobs([]);
-      setStatus("#backend-status", backendApiAvailable() ? "待偵測" : "瀏覽器模式");
+      setStatus("#backend-status", state.backendConnected ? "已連線" : "FastAPI 未連線");
     }
   }
 
@@ -1466,8 +1467,7 @@
     $("#detect-backend-tools").addEventListener("click", detectBackendTools);
     $("#backend-job-type").addEventListener("change", updateBackendJobControls);
     $("#backend-pick-files").addEventListener("click", pickBackendFiles);
-    $("#backend-pick-output").addEventListener("click", pickBackendOutputDir);
-    $("#open-backend-output").addEventListener("click", openBackendOutputDir);
+    $("#backend-files").addEventListener("change", updateBackendFilesFromInput);
     $("#refresh-backend-jobs").addEventListener("click", refreshBackendJobs);
     $("#backend-form").addEventListener("submit", enqueueBackendJob);
     $$("[data-tool-pick]").forEach((button) => {
@@ -1476,61 +1476,76 @@
     $$("[data-tool-clear]").forEach((button) => {
       button.addEventListener("click", () => clearBackendToolPath(button.dataset.toolClear));
     });
+    ["libreOffice", "ffmpeg", "tesseract"].forEach((key) => {
+      const input = $(`#tool-path-${key}`);
+      input.addEventListener("change", () => setBackendToolPath(key, input.value));
+    });
 
-    if (backendApiAvailable()) {
-      $("#backend-mode").textContent = "桌面後端";
-      state.backendJobsUnsubscribe = window.swiftLocalBackend.onJobsUpdated((jobs) => {
-        renderBackendJobs(jobs);
-      });
-      loadBackendConfig();
-      detectBackendTools();
-      refreshBackendJobs();
-    } else {
-      $("#backend-mode").textContent = "瀏覽器模式";
-      setStatus("#backend-status", "瀏覽器模式");
-      renderBackendTools(null);
-      renderBackendJobs([]);
-    }
+    checkBackendHealth();
     updateBackendJobControls();
   }
 
   function backendApiAvailable() {
+    return state.backendConnected;
+  }
+
+  function electronBridgeAvailable() {
     return Boolean(window.swiftLocalBackend && window.swiftLocalBackend.isAvailable);
+  }
+
+  async function checkBackendHealth() {
+    setStatus("#backend-status", "連線中");
+    try {
+      await backendFetch("/health");
+      state.backendConnected = true;
+      $("#backend-mode").textContent = "FastAPI 已連線";
+      setStatus("#backend-status", "已連線");
+      await detectBackendTools();
+      await refreshBackendJobs();
+    } catch (error) {
+      state.backendConnected = false;
+      $("#backend-mode").textContent = "FastAPI 未連線";
+      setStatus("#backend-status", "FastAPI 未連線");
+      renderBackendTools(null);
+      renderBackendJobs([]);
+    }
   }
 
   async function detectBackendTools() {
     if (!backendApiAvailable()) {
-      renderBackendTools(null);
+      await checkBackendHealth();
       return;
     }
     setStatus("#backend-status", "偵測中");
     try {
-      const tools = await window.swiftLocalBackend.detectTools();
+      const tools = await backendFetch("/tools");
       renderBackendTools(tools);
-      await loadBackendConfig();
       setStatus("#backend-status", "已偵測");
     } catch (error) {
+      state.backendConnected = false;
       setStatus("#backend-status", "偵測失敗");
+      renderBackendTools(null);
       alert(readableError(error));
     }
   }
 
-  async function loadBackendConfig() {
+  async function setBackendToolPath(key, toolPath) {
     if (!backendApiAvailable()) {
-      renderBackendConfig();
+      alert("請先啟動 FastAPI 後端");
       return;
     }
-    state.backendConfig = await window.swiftLocalBackend.getConfig();
-    renderBackendConfig();
-  }
-
-  function renderBackendConfig() {
-    ["libreOffice", "ffmpeg", "tesseract"].forEach((key) => {
-      const input = $(`#tool-path-${key}`);
-      if (input) {
-        input.value = state.backendConfig.toolPaths[key] || "";
-      }
-    });
+    try {
+      const tools = await backendFetch(`/tools/${encodeURIComponent(key)}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path: toolPath })
+      });
+      renderBackendTools(tools);
+      setStatus("#backend-status", "路徑已更新");
+    } catch (error) {
+      setStatus("#backend-status", "路徑更新失敗");
+      alert(readableError(error));
+    }
   }
 
   function renderBackendTools(tools) {
@@ -1548,10 +1563,14 @@
       row.className = `tool-status ${tool && tool.available ? "available" : "missing"}`;
       row.innerHTML = [
         `<strong>${label}</strong>`,
-        `<span>${tool && tool.available ? escapeHtml(tool.version || tool.path) : backendApiAvailable() ? "未找到" : "需桌面模式"}</span>`,
+        `<span>${tool && tool.available ? escapeHtml(tool.version || tool.path) : backendApiAvailable() ? "未找到" : "FastAPI 未連線"}</span>`,
         tool && tool.path ? `<small>${escapeHtml(tool.path)}</small>` : ""
       ].join("");
       container.appendChild(row);
+      const input = $(`#tool-path-${key}`);
+      if (input && tool && tool.path) {
+        input.value = tool.path;
+      }
     });
   }
 
@@ -1561,14 +1580,18 @@
     const languageRow = $(".backend-language-row");
     extensionField.style.display = type === "media-convert" ? "" : "none";
     languageRow.style.display = type === "ocr-image" ? "" : "none";
+    const filesInput = $("#backend-files");
+    if (filesInput) {
+      filesInput.accept = backendFileAccept(type);
+    }
   }
 
   async function pickBackendToolPath(key) {
-    if (!backendApiAvailable()) {
-      alert("此功能需要桌面預覽模式");
+    const toolName = backendToolLabel(key);
+    if (!electronBridgeAvailable()) {
+      $(`#tool-path-${key}`).focus();
       return;
     }
-    const toolName = backendToolLabel(key);
     const toolPath = await window.swiftLocalBackend.chooseExecutable({
       title: `選擇 ${toolName} 執行檔`,
       filters: [{ name: toolName, extensions: ["exe", "*"] }]
@@ -1576,26 +1599,19 @@
     if (!toolPath) {
       return;
     }
-    try {
-      const tools = await window.swiftLocalBackend.setToolPath(key, toolPath);
-      state.backendConfig = await window.swiftLocalBackend.getConfig();
-      renderBackendConfig();
-      renderBackendTools(tools);
-      setStatus("#backend-status", "路徑已更新");
-    } catch (error) {
-      alert(readableError(error));
-    }
+    $(`#tool-path-${key}`).value = toolPath;
+    await setBackendToolPath(key, toolPath);
   }
 
   async function clearBackendToolPath(key) {
     if (!backendApiAvailable()) {
-      alert("此功能需要桌面預覽模式");
+      $(`#tool-path-${key}`).value = "";
+      alert("請先啟動 FastAPI 後端");
       return;
     }
     try {
-      const tools = await window.swiftLocalBackend.setToolPath(key, "");
-      state.backendConfig = await window.swiftLocalBackend.getConfig();
-      renderBackendConfig();
+      const tools = await backendFetch(`/tools/${encodeURIComponent(key)}`, { method: "DELETE" });
+      $(`#tool-path-${key}`).value = "";
       renderBackendTools(tools);
       setStatus("#backend-status", "路徑已清除");
     } catch (error) {
@@ -1603,60 +1619,26 @@
     }
   }
 
-  async function pickBackendFiles() {
-    if (!backendApiAvailable()) {
-      alert("此功能需要桌面預覽模式");
-      return;
-    }
-    const type = $("#backend-job-type").value;
-    const files = await window.swiftLocalBackend.chooseFiles({
-      title: "選擇輸入檔案",
-      filters: backendFileFilters(type)
-    });
-    if (files.length) {
-      state.backendFiles = files;
-      renderBackendSelectedFiles();
-    }
+  function pickBackendFiles() {
+    $("#backend-files").click();
   }
 
-  function backendFileFilters(type) {
+  function updateBackendFilesFromInput() {
+    state.backendFiles = Array.from($("#backend-files").files || []);
+    renderBackendSelectedFiles();
+  }
+
+  function backendFileAccept(type) {
     if (type === "office-to-pdf") {
-      return [{ name: "Office Files", extensions: ["doc", "docx", "xls", "xlsx", "ppt", "pptx", "odt", "ods", "odp"] }];
+      return ".doc,.docx,.xls,.xlsx,.ppt,.pptx,.odt,.ods,.odp";
     }
     if (type === "media-convert") {
-      return [{ name: "Media Files", extensions: ["mp3", "wav", "m4a", "flac", "aac", "ogg", "mp4", "mov", "mkv", "avi", "webm"] }];
+      return ".mp3,.wav,.m4a,.flac,.aac,.ogg,.mp4,.mov,.mkv,.avi,.webm";
     }
     if (type === "ocr-image") {
-      return [{ name: "Images", extensions: ["png", "jpg", "jpeg", "tif", "tiff", "bmp", "webp"] }];
+      return ".png,.jpg,.jpeg,.tif,.tiff,.bmp,.webp";
     }
-    return [{ name: "All Files", extensions: ["*"] }];
-  }
-
-  async function pickBackendOutputDir() {
-    if (!backendApiAvailable()) {
-      alert("此功能需要桌面預覽模式");
-      return;
-    }
-    const outputDir = await window.swiftLocalBackend.chooseDirectory();
-    if (outputDir) {
-      state.backendOutputDir = outputDir;
-      renderBackendOutputDir();
-    }
-  }
-
-  async function openBackendOutputDir() {
-    if (!backendApiAvailable()) {
-      alert("此功能需要桌面預覽模式");
-      return;
-    }
-    if (!state.backendOutputDir) {
-      alert("請先選擇輸出資料夾");
-      return;
-    }
-    const message = await window.swiftLocalBackend.openPath(state.backendOutputDir);
-    if (message) {
-      alert(message);
-    }
+    return "";
   }
 
   function renderBackendSelectedFiles() {
@@ -1667,47 +1649,39 @@
       return;
     }
     container.classList.remove("empty");
-    container.innerHTML = state.backendFiles.map((file) => `<span>${escapeHtml(file)}</span>`).join("");
-  }
-
-  function renderBackendOutputDir() {
-    const container = $("#backend-output-dir");
-    if (!state.backendOutputDir) {
-      container.classList.add("empty");
-      container.textContent = "尚未選擇輸出資料夾";
-      return;
-    }
-    container.classList.remove("empty");
-    container.innerHTML = `<span>${escapeHtml(state.backendOutputDir)}</span>`;
+    container.innerHTML = state.backendFiles.map((file) => `<span>${escapeHtml(file.name)} · ${formatBytes(file.size)}</span>`).join("");
   }
 
   async function enqueueBackendJob(event) {
     event.preventDefault();
     if (!backendApiAvailable()) {
-      alert("此功能需要桌面預覽模式");
+      await checkBackendHealth();
+    }
+    if (!backendApiAvailable()) {
+      alert("請先啟動 FastAPI 後端");
       return;
     }
-    if (!state.backendFiles.length || !state.backendOutputDir) {
-      alert("請先選擇輸入檔案和輸出資料夾");
+    if (!state.backendFiles.length) {
+      alert("請先選擇輸入檔案");
       return;
     }
 
     const type = $("#backend-job-type").value;
-    const payload = {
-      type,
-      inputPaths: state.backendFiles,
-      outputDir: state.backendOutputDir,
-      options: {}
-    };
+    const payload = new FormData();
+    payload.append("type", type);
+    state.backendFiles.forEach((file) => payload.append("files", file, file.name));
     if (type === "media-convert") {
-      payload.options.extension = $("#backend-output-extension").value;
+      payload.append("extension", $("#backend-output-extension").value);
     }
     if (type === "ocr-image") {
-      payload.options.language = $("#backend-ocr-language").value.trim() || "eng";
+      payload.append("language", $("#backend-ocr-language").value.trim() || "eng");
     }
 
     try {
-      await window.swiftLocalBackend.enqueueJob(payload);
+      await backendFetch("/jobs", {
+        method: "POST",
+        body: payload
+      });
       await refreshBackendJobs();
       setStatus("#backend-status", "已加入佇列");
     } catch (error) {
@@ -1717,11 +1691,18 @@
 
   async function refreshBackendJobs() {
     if (!backendApiAvailable()) {
-      renderBackendJobs([]);
+      await checkBackendHealth();
       return;
     }
-    const jobs = await window.swiftLocalBackend.getJobs();
-    renderBackendJobs(jobs);
+    try {
+      const jobs = await backendFetch("/jobs");
+      renderBackendJobs(jobs);
+      scheduleBackendPolling(jobs);
+    } catch (error) {
+      state.backendConnected = false;
+      setStatus("#backend-status", "FastAPI 未連線");
+      renderBackendJobs([]);
+    }
   }
 
   function renderBackendJobs(jobs) {
@@ -1735,7 +1716,7 @@
     container.classList.remove("empty");
     container.innerHTML = jobs.map((job) => {
       const outputs = job.outputPaths && job.outputPaths.length
-        ? job.outputPaths.map((item) => `<span>${escapeHtml(item)}</span>`).join("")
+        ? job.outputPaths.map((item) => renderBackendOutputLink(item)).join("")
         : "<span>尚未產生輸出</span>";
       const log = job.error || (job.log && job.log.length ? job.log[job.log.length - 1] : "");
       return [
@@ -1747,6 +1728,37 @@
         "</div>"
       ].join("");
     }).join("");
+  }
+
+  function renderBackendOutputLink(item) {
+    const url = `${BACKEND_ORIGIN}${item.url}`;
+    return `<a href="${escapeHtml(url)}" download="${escapeHtml(item.name)}">${escapeHtml(item.name)} · ${formatBytes(item.size || 0)}</a>`;
+  }
+
+  function scheduleBackendPolling(jobs) {
+    if (state.backendPollTimer) {
+      window.clearTimeout(state.backendPollTimer);
+      state.backendPollTimer = null;
+    }
+    const hasActiveJobs = jobs.some((job) => job.status === "queued" || job.status === "running");
+    if (hasActiveJobs) {
+      state.backendPollTimer = window.setTimeout(refreshBackendJobs, 1200);
+    }
+  }
+
+  async function backendFetch(path, options = {}) {
+    const response = await fetch(`${BACKEND_API_BASE}${path}`, options);
+    if (!response.ok) {
+      let message = `${response.status} ${response.statusText}`;
+      try {
+        const payload = await response.json();
+        message = payload.detail || message;
+      } catch {
+        message = await response.text() || message;
+      }
+      throw new Error(message);
+    }
+    return response.json();
   }
 
   function jobTypeLabel(type) {

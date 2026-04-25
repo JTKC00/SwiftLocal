@@ -7,6 +7,8 @@
   "scripts": {
     "start": "node serve.js",
     "desktop": "electron .",
+    "backend": "python -m uvicorn backend.main:app --host 127.0.0.1 --port 8787",
+    "dev:all": "start \"SwiftLocal Backend\" cmd /c \"npm run backend\" && npm run start",
     "pack:win": "electron-builder --win --dir",
     "pack:win:portable": "electron-builder --win portable"
   },
@@ -21,9 +23,12 @@
       "index.html",
       "styles.css",
       "app.js",
+      "backend/**/*",
       "vendor/**/*",
       "desktop/**/*",
       "README.md",
+      "requirements.txt",
+      "start-backend.cmd",
       "package.json"
     ],
     "win": {

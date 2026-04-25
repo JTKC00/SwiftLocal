@@ -2,22 +2,32 @@
 
 ## 目前完成
 
-- Electron 主行程偵測本機工具：
+- FastAPI HTTP 後端固定執行於 `http://127.0.0.1:8787`。
+- 後端目錄已拆分為：
+  - `backend/main.py`
+  - `backend/routers/`
+  - `backend/services/`
+  - `backend/temp/`
+- API 支援：
+  - `GET /api/health`
+  - `GET /api/tools`
+  - `PUT /api/tools/{key}`
+  - `DELETE /api/tools/{key}`
+  - `POST /api/jobs`
+  - `GET /api/jobs`
+  - `GET /api/jobs/{job_id}`
+  - `GET /api/jobs/{job_id}/outputs/{filename}`
+  - `DELETE /api/jobs/{job_id}`
+- 本地工具偵測：
   - LibreOffice
   - FFmpeg
   - Tesseract
-- Renderer 透過安全 preload API 呼叫本地後端。
 - 任務佇列支援：
   - Office → PDF
   - 音訊 / 影片轉換
   - 圖片 OCR → TXT
-- 工具路徑可在桌面 UI 中手動設定並持久化。
-- 可直接從 UI 開啟輸出資料夾。
-- 佇列狀態：
-  - queued
-  - running
-  - done
-  - failed
+- 前端「本地後端」面板已改用 FastAPI `fetch` API，上傳檔案、查詢狀態並下載輸出。
+- Electron IPC 保留作桌面殼輔助，主要用於選擇本機工具執行檔路徑。
 
 ## 環境變數覆寫
 
@@ -29,15 +39,16 @@ $env:SWIFTLOCAL_FFMPEG="C:\ffmpeg\bin\ffmpeg.exe"
 $env:SWIFTLOCAL_TESSERACT="C:\Program Files\Tesseract-OCR\tesseract.exe"
 ```
 
-桌面 UI 手動指定的路徑會存於 Electron `userData` 目錄的 `tools.json`，優先順序高於環境變數與 PATH 偵測。
+前端手動指定的路徑會寫入 `backend/tools.json`，優先順序高於環境變數與 PATH 偵測。
 
 ## 任務流程
 
-1. 前端選擇任務類型。
-2. Electron dialog 選擇本機檔案與輸出資料夾。
-3. 前端送出任務到主行程。
-4. 主行程加入佇列並逐一執行。
-5. 任務狀態透過 IPC 推送回前端。
+1. 前端選擇任務類型與輸入檔案。
+2. 前端以 multipart/form-data POST 到 `POST /api/jobs`。
+3. FastAPI 將檔案存入 `backend/temp/jobs/{job_id}/input`。
+4. 任務佇列逐一呼叫 LibreOffice、FFmpeg 或 Tesseract。
+5. 輸出寫入 `backend/temp/jobs/{job_id}/output`。
+6. 前端輪詢 `GET /api/jobs` 並提供下載連結。
 
 ## 待接功能
 
