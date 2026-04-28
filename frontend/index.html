@@ -343,7 +343,7 @@
           <form id="pdf-backend-form" class="tool-surface">
             <div class="surface-heading">
               <h3>後端文件轉換</h3>
-              <span class="badge">LibreOffice</span>
+              <span id="pdf-backend-engine" class="badge">LibreOffice / pdf-lib / QPDF</span>
             </div>
             <div class="control-row">
               <label>
@@ -354,9 +354,11 @@
                   <option value="pdf-to-office">PDF → Office 格式</option>
                   <option value="pdf-merge">PDF 合併（後端）</option>
                   <option value="pdf-split">PDF 分割（後端）</option>
-                  <option value="pdf-rotate">PDF 旋轉（後端）</option>                  <option value="pdf-encrypt">PDF 加密</option>
+                  <option value="pdf-rotate">PDF 旋轉（後端）</option>
+                  <option value="pdf-encrypt">PDF 加密</option>
                   <option value="pdf-decrypt">PDF 解密</option>
-                  <option value="pdf-compress">PDF 壓縮</option>                </select>
+                  <option value="pdf-compress">PDF 壓縮</option>
+                </select>
               </label>
               <div></div>
             </div>
@@ -868,6 +870,10 @@
                 <strong>Tesseract</strong>
                 <span>未偵測</span>
               </div>
+              <div class="tool-status pending">
+                <strong>QPDF</strong>
+                <span>未偵測</span>
+              </div>
             </div>
 
             <div class="actions backend-actions">
@@ -898,6 +904,14 @@
                 </label>
                 <button class="secondary-button compact" type="button" data-tool-pick="tesseract">選擇</button>
                 <button class="secondary-button compact" type="button" data-tool-clear="tesseract">清除</button>
+              </div>
+              <div class="path-config-row">
+                <label>
+                  <span>QPDF 路徑</span>
+                  <input id="tool-path-qpdf" type="text" placeholder="自動偵測或手動指定 qpdf.exe">
+                </label>
+                <button class="secondary-button compact" type="button" data-tool-pick="qpdf">選擇</button>
+                <button class="secondary-button compact" type="button" data-tool-clear="qpdf">清除</button>
               </div>
             </div>
 

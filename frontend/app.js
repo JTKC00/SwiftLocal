@@ -14,7 +14,6 @@
     pdfBackendFiles: [],
     imgBackendFiles: [],
     mediaBackendFiles: [],
-    backendConfig: { toolPaths: {} },
     backendConnected: false,
     backendPollTimer: null,
     hashRows: [],
@@ -1998,7 +1997,8 @@
     const items = [
       ["libreOffice", "LibreOffice"],
       ["ffmpeg", "FFmpeg"],
-      ["tesseract", "Tesseract"]
+      ["tesseract", "Tesseract"],
+      ["qpdf", "QPDF"]
     ];
 
     container.innerHTML = "";
@@ -2019,12 +2019,18 @@
     });
   }
 
-  function updateBackendJobControls() {
-    // backend panel now only contains tool config; no file inputs
-  }
-
   function updatePdfBackendJobControls() {
     const type = $("#pdf-backend-job-type").value;
+    const engineBadge = $("#pdf-backend-engine");
+    if (engineBadge) {
+      if (type === "office-to-pdf" || type === "pdf-to-docx" || type === "pdf-to-office") {
+        engineBadge.textContent = "LibreOffice";
+      } else if (type === "pdf-encrypt" || type === "pdf-decrypt") {
+        engineBadge.textContent = "QPDF";
+      } else {
+        engineBadge.textContent = "pdf-lib";
+      }
+    }
     $(".pdf-backend-office-format-row").style.display = type === "pdf-to-office" ? "" : "none";
     $(".pdf-backend-pages-row").style.display = type === "pdf-split" ? "" : "none";
     $(".pdf-backend-angle-row").style.display = type === "pdf-rotate" ? "" : "none";
@@ -2279,11 +2285,6 @@
     }
   }
 
-  function renderBackendOutputLink(item) {
-    const url = `${BACKEND_ORIGIN}${item.url}`;
-    return `<a href="${escapeHtml(url)}" download="${escapeHtml(item.name)}">${escapeHtml(item.name)} · ${formatBytes(item.size || 0)}</a>`;
-  }
-
   function scheduleBackendPolling(jobs) {
     if (state.backendPollTimer) {
       window.clearTimeout(state.backendPollTimer);
@@ -2428,6 +2429,9 @@
     }
     if (key === "tesseract") {
       return "Tesseract";
+    }
+    if (key === "qpdf") {
+      return "QPDF";
     }
     return key;
   }
