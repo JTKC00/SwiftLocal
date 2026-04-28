@@ -59,6 +59,7 @@
     bindRenameTool();
     bindBackendTool();
     bindGlobalActions();
+    $$(".file-zone input[type='file']").forEach(bindFileZoneLabel);
   }
 
   function bindNavigation() {
@@ -183,6 +184,13 @@
       c.textContent = "尚未選擇檔案";
       renderPanelBackendJobs("#media-backend-jobs", "#media-backend-status", [], MEDIA_BACKEND_JOB_TYPES);
       setStatus("#media-backend-status", state.backendConnected ? "已連線" : "FastAPI 未連線");
+    }
+    const panel = $(`#${panelId}`);
+    if (panel) {
+      panel.querySelectorAll(".file-zone input[type='file']").forEach((input) => {
+        const hint = input.closest(".file-zone") && input.closest(".file-zone").querySelector("small[data-original-hint]");
+        if (hint) hint.textContent = hint.dataset.originalHint;
+      });
     }
   }
 
@@ -1576,6 +1584,24 @@
   function revokeSplitUrls() {
     state.splitDownloads.forEach((item) => URL.revokeObjectURL(item.url));
     state.splitDownloads = [];
+  }
+
+  function bindFileZoneLabel(input) {
+    const label = input.closest(".file-zone");
+    if (!label) return;
+    const hint = label.querySelector("small");
+    if (!hint) return;
+    hint.dataset.originalHint = hint.textContent;
+    input.addEventListener("change", () => {
+      const files = Array.from(input.files || []);
+      if (!files.length) {
+        hint.textContent = hint.dataset.originalHint;
+      } else if (files.length === 1) {
+        hint.textContent = `${files[0].name}  ·  ${formatBytes(files[0].size)}`;
+      } else {
+        hint.textContent = `已選取 ${files.length} 個檔案`;
+      }
+    });
   }
 
   function bindFileDropZone(zoneId, inputId, listId, stateKey) {
