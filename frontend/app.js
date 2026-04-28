@@ -92,8 +92,8 @@
     bindBackendTool();
     bindToolsPanel();
     bindGlobalActions();
-    bindQuickStart();
     enhanceNavigation();
+    bindQuickStart();
     $("#panel-title").textContent = titles[state.activePanel] || "SwiftLocal";
     updatePanelAssist(state.activePanel);
     $$(".file-zone input[type='file']").forEach(bindFileZoneLabel);
@@ -230,23 +230,64 @@
   }
 
   function bindQuickStart() {
-    $$("#quick-actions [data-panel]").forEach((button) => {
-      button.addEventListener("click", () => {
-        activatePanel(button.dataset.panel, button.dataset.focus);
-        const panel = $(`#${button.dataset.panel}`);
-        if (panel) panel.scrollIntoView({ behavior: "smooth", block: "start" });
-      });
-    });
-
+    const quickActions = $("#quick-actions");
     const search = $("#tool-search");
+    if (!quickActions) return;
+    const defaultActions = Array.from(quickActions.children).map((node) => node.cloneNode(true));
+    bindQuickActionButtons();
     if (!search) return;
+
     search.addEventListener("input", () => {
       const query = search.value.trim().toLowerCase();
+      renderSearchResults(query);
+    });
+
+    function bindQuickActionButtons() {
+      $$("#quick-actions [data-panel]").forEach((button) => {
+        button.addEventListener("click", () => {
+          activatePanel(button.dataset.panel, button.dataset.focus);
+          const panel = $(`#${button.dataset.panel}`);
+          if (panel) panel.scrollIntoView({ behavior: "smooth", block: "start" });
+        });
+      });
+    }
+
+    function renderSearchResults(query) {
+      const hasQuery = Boolean(query);
+      const matches = Object.entries(toolGuides).filter(([panelId, guide]) => {
+        const haystack = [guide.nav, guide.hint, guide.keywords, titles[panelId]].join(" ").toLowerCase();
+        return !hasQuery || haystack.includes(query);
+      });
+
       $$(".nav-item").forEach((button) => {
         const haystack = (button.dataset.keywords || button.textContent || "").toLowerCase();
-        button.hidden = Boolean(query) && !haystack.includes(query);
+        button.hidden = hasQuery && !haystack.includes(query);
       });
-    });
+
+      quickActions.innerHTML = "";
+      if (!hasQuery) {
+        defaultActions.forEach((node) => quickActions.appendChild(node.cloneNode(true)));
+        bindQuickActionButtons();
+        return;
+      }
+
+      if (!matches.length) {
+        const empty = document.createElement("div");
+        empty.className = "quick-empty";
+        empty.textContent = "找不到符合的工具";
+        quickActions.appendChild(empty);
+        return;
+      }
+
+      matches.forEach(([panelId, guide]) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.dataset.panel = panelId;
+        button.innerHTML = `<strong>${escapeHtml(guide.nav)}</strong><span>${escapeHtml(guide.hint)}</span>`;
+        quickActions.appendChild(button);
+      });
+      bindQuickActionButtons();
+    }
   }
 
   function updatePanelAssist(panelId) {
