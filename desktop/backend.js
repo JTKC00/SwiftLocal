@@ -5,13 +5,6 @@ const path = require("node:path");
 const { execFile, spawn } = require("node:child_process");
 const { PDFDocument, degrees } = require("pdf-lib");
 
-const OFFICE_FILTER_MAP = {
-  docx: "MS Word 2007 XML",
-  xlsx: "Calc MS Excel 2007 XML",
-  pptx: "Impress MS PowerPoint 2007 XML",
-  odt: "writer8"
-};
-
 const TOOL_DEFINITIONS = {
   libreOffice: {
     label: "LibreOffice",
@@ -232,22 +225,19 @@ class BackendService {
   }
 
   async runPdfToDocx(job) {
-    await this.runPdfToOffice({ ...job, options: { ...job.options, extension: "docx" } });
+    ensureOutputDir(job.outputDir);
+    for (const inputPath of job.inputPaths) {
+      const outputPath = path.join(job.outputDir, `${path.parse(inputPath).name}.docx`);
+      const text = await extractPdfText(inputPath);
+      writeTextDocx(outputPath, text || path.basename(inputPath));
+      ensureOutputFile(outputPath, inputPath);
+      job.outputPaths.push(outputPath);
+      job.log.push(`converted text: ${path.basename(inputPath)} -> ${path.basename(outputPath)}`);
+    }
   }
 
   async runPdfToOffice(job) {
-    const tool = requireTool(this.tools, "libreOffice");
-    ensureOutputDir(job.outputDir);
-    const extension = sanitizeOfficeExtension(job.options.extension || "docx");
-    const convertTo = `${extension}:${OFFICE_FILTER_MAP[extension]}`;
-    for (const inputPath of job.inputPaths) {
-      const args = libreOfficeArgs(job.outputDir, inputPath, convertTo);
-      const result = await runProcess(tool.path, args);
-      job.log.push(result.output);
-      const outputPath = path.join(job.outputDir, `${path.parse(inputPath).name}.${extension}`);
-      ensureOutputFile(outputPath, inputPath);
-      job.outputPaths.push(outputPath);
-    }
+    throw new Error("PDF to Office formats other than DOCX are not supported in the desktop app. Use PDF → DOCX for text extraction.");
   }
 
   async runPdfMerge(job) {
@@ -506,14 +496,6 @@ function sanitizeExtension(extension) {
   return clean;
 }
 
-function sanitizeOfficeExtension(extension) {
-  const clean = sanitizeExtension(extension);
-  if (!Object.prototype.hasOwnProperty.call(OFFICE_FILTER_MAP, clean)) {
-    throw new Error(`Unsupported Office format: ${clean}. Allowed: ${Object.keys(OFFICE_FILTER_MAP).join(", ")}`);
-  }
-  return clean;
-}
-
 function sanitizeRotation(angle) {
   const numeric = Number(angle);
   if (![90, 180, 270].includes(numeric)) {
@@ -584,6 +566,218 @@ async function loadPdf(inputPath) {
 async function savePdf(pdfDoc, outputPath) {
   const bytes = await pdfDoc.save();
   fs.writeFileSync(outputPath, bytes);
+}
+
+async function extractPdfText(inputPath) {
+  const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  const data = new Uint8Array(fs.readFileSync(inputPath));
+  const loadingTask = pdfjs.getDocument({
+    data,
+    disableWorker: true,
+    useWorkerFetch: false,
+    isEvalSupported: false,
+    verbosity: 0
+  });
+  const pdf = await loadingTask.promise;
+  const pages = [];
+  try {
+    for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+      const page = await pdf.getPage(pageNumber);
+      const content = await page.getTextContent();
+      const lines = textItemsToLines(content.items);
+      pages.push([`Page ${pageNumber}`, ...lines].join("\n"));
+    }
+  } finally {
+    await loadingTask.destroy();
+  }
+  return pages.join("\n\n");
+}
+
+function textItemsToLines(items) {
+  const rows = [];
+  for (const item of items) {
+    const text = String(item.str || "").trim();
+    if (!text) {
+      continue;
+    }
+    const transform = item.transform || [];
+    const y = Math.round(Number(transform[5] || 0));
+    let row = rows.find((entry) => Math.abs(entry.y - y) <= 2);
+    if (!row) {
+      row = { y, parts: [] };
+      rows.push(row);
+    }
+    row.parts.push({ x: Number(transform[4] || 0), text });
+  }
+  return rows
+    .sort((a, b) => b.y - a.y)
+    .map((row) => row.parts.sort((a, b) => a.x - b.x).map((part) => part.text).join(" "))
+    .filter(Boolean);
+}
+
+function writeTextDocx(outputPath, text) {
+  const files = [
+    {
+      name: "[Content_Types].xml",
+      data: utf8Bytes(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>
+  <Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>
+</Types>`)
+    },
+    {
+      name: "_rels/.rels",
+      data: utf8Bytes(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/>
+  <Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/>
+</Relationships>`)
+    },
+    {
+      name: "word/document.xml",
+      data: utf8Bytes(buildDocumentXml(text))
+    },
+    {
+      name: "word/_rels/document.xml.rels",
+      data: utf8Bytes(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"/>`)
+    },
+    {
+      name: "docProps/core.xml",
+      data: utf8Bytes(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <dc:title>SwiftLocal PDF Text Export</dc:title>
+  <dc:creator>SwiftLocal</dc:creator>
+  <cp:lastModifiedBy>SwiftLocal</cp:lastModifiedBy>
+  <dcterms:created xsi:type="dcterms:W3CDTF">${new Date().toISOString()}</dcterms:created>
+  <dcterms:modified xsi:type="dcterms:W3CDTF">${new Date().toISOString()}</dcterms:modified>
+</cp:coreProperties>`)
+    },
+    {
+      name: "docProps/app.xml",
+      data: utf8Bytes(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties">
+  <Application>SwiftLocal</Application>
+</Properties>`)
+    }
+  ];
+  fs.writeFileSync(outputPath, createZip(files));
+}
+
+function buildDocumentXml(text) {
+  const paragraphs = String(text || "")
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
+    .split("\n")
+    .map((line) => `<w:p><w:r><w:t xml:space="preserve">${escapeXml(line)}</w:t></w:r></w:p>`)
+    .join("");
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    ${paragraphs || "<w:p/>"}
+    <w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440"/></w:sectPr>
+  </w:body>
+</w:document>`;
+}
+
+function createZip(files) {
+  const localParts = [];
+  const centralParts = [];
+  let offset = 0;
+  for (const file of files) {
+    const nameBytes = utf8Bytes(file.name);
+    const data = Buffer.from(file.data);
+    const crc = crc32(data);
+    const localHeader = createZipLocalHeader(nameBytes, data.length, crc);
+    const centralHeader = createZipCentralHeader(nameBytes, data.length, crc, offset);
+    localParts.push(localHeader, data);
+    centralParts.push(centralHeader);
+    offset += localHeader.length + data.length;
+  }
+  const centralSize = centralParts.reduce((sum, part) => sum + part.length, 0);
+  const endRecord = createZipEndRecord(files.length, centralSize, offset);
+  return Buffer.concat([...localParts, ...centralParts, endRecord]);
+}
+
+function createZipLocalHeader(nameBytes, size, crc) {
+  const header = Buffer.alloc(30 + nameBytes.length);
+  header.writeUInt32LE(0x04034b50, 0);
+  header.writeUInt16LE(20, 4);
+  header.writeUInt16LE(0x0800, 6);
+  header.writeUInt16LE(0, 8);
+  header.writeUInt16LE(0, 10);
+  header.writeUInt16LE(0, 12);
+  header.writeUInt32LE(crc >>> 0, 14);
+  header.writeUInt32LE(size, 18);
+  header.writeUInt32LE(size, 22);
+  header.writeUInt16LE(nameBytes.length, 26);
+  header.writeUInt16LE(0, 28);
+  nameBytes.copy(header, 30);
+  return header;
+}
+
+function createZipCentralHeader(nameBytes, size, crc, offset) {
+  const header = Buffer.alloc(46 + nameBytes.length);
+  header.writeUInt32LE(0x02014b50, 0);
+  header.writeUInt16LE(20, 4);
+  header.writeUInt16LE(20, 6);
+  header.writeUInt16LE(0x0800, 8);
+  header.writeUInt16LE(0, 10);
+  header.writeUInt16LE(0, 12);
+  header.writeUInt16LE(0, 14);
+  header.writeUInt32LE(crc >>> 0, 16);
+  header.writeUInt32LE(size, 20);
+  header.writeUInt32LE(size, 24);
+  header.writeUInt16LE(nameBytes.length, 28);
+  header.writeUInt16LE(0, 30);
+  header.writeUInt16LE(0, 32);
+  header.writeUInt16LE(0, 34);
+  header.writeUInt16LE(0, 36);
+  header.writeUInt32LE(0, 38);
+  header.writeUInt32LE(offset, 42);
+  nameBytes.copy(header, 46);
+  return header;
+}
+
+function createZipEndRecord(count, centralSize, centralOffset) {
+  const header = Buffer.alloc(22);
+  header.writeUInt32LE(0x06054b50, 0);
+  header.writeUInt16LE(0, 4);
+  header.writeUInt16LE(0, 6);
+  header.writeUInt16LE(count, 8);
+  header.writeUInt16LE(count, 10);
+  header.writeUInt32LE(centralSize, 12);
+  header.writeUInt32LE(centralOffset, 16);
+  header.writeUInt16LE(0, 20);
+  return header;
+}
+
+function utf8Bytes(value) {
+  return Buffer.from(String(value), "utf8");
+}
+
+function escapeXml(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
+function crc32(bytes) {
+  let crc = 0xffffffff;
+  for (const byte of bytes) {
+    crc ^= byte;
+    for (let i = 0; i < 8; i += 1) {
+      crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1));
+    }
+  }
+  return (crc ^ 0xffffffff) >>> 0;
 }
 
 function libreOfficeArgs(outputDir, inputPath, convertTo) {

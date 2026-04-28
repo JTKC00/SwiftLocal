@@ -20,7 +20,7 @@ SwiftLocal 不是要取代 LibreOffice、FFmpeg、Tesseract 或 QPDF。它的角
 | --- | --- |
 | 圖片 | JPG / PNG / WebP 轉換、壓縮、縮放、旋轉、浮水印 |
 | PDF 基礎處理 | 合併、分割、抽頁、旋轉、加浮水印、加頁碼、轉圖片、抽文字 |
-| PDF 後端處理 | 合併、分割、旋轉、壓縮 |
+| PDF 後端處理 | 合併、分割、旋轉、壓縮、PDF 文字匯出成 DOCX |
 | 資料格式 | JSON / CSV / XML 格式化與互轉 |
 | 文字 | Base64、URL 編碼、HTML escape、搜尋取代、行處理、統計 |
 | ZIP / Hash | 建立 ZIP、計算檔案校驗值 |
@@ -33,7 +33,6 @@ SwiftLocal 不是要取代 LibreOffice、FFmpeg、Tesseract 或 QPDF。它的角
 | 功能 | 需要工具 | Windows 常見執行檔 | macOS 常見執行檔 |
 | --- | --- | --- | --- |
 | Office → PDF | LibreOffice | `soffice.exe` | `soffice` |
-| PDF → DOCX / Office 格式 | LibreOffice | `soffice.exe` | `soffice` |
 | 音訊 / 影片格式轉換 | FFmpeg | `ffmpeg.exe` | `ffmpeg` |
 | 圖片 OCR → TXT | Tesseract | `tesseract.exe` | `tesseract` |
 | PDF 加密 / 解密 | QPDF | `qpdf.exe` | `qpdf` |
@@ -99,7 +98,7 @@ Intel Mac 的 Homebrew 有時會在：
 
 #### LibreOffice
 
-用途：Office → PDF、PDF → DOCX / Office 格式。
+用途：Office → PDF。
 
 1. 到 [LibreOffice Windows 下載頁](https://www.libreoffice.org/download/Windows/)。
 2. 下載 Windows 64-bit 安裝程式。
@@ -310,7 +309,7 @@ node --check desktop/preload.js
 node --check desktop/backend.js
 ```
 
-- PDF 後端任務可執行：合併、分割、旋轉、壓縮、Office 轉換、PDF 轉 Office。
+- PDF 後端任務可執行：合併、分割、旋轉、壓縮、Office → PDF、PDF → DOCX（文字）。
 - 缺少 LibreOffice、FFmpeg、Tesseract 或 QPDF 時，App 會顯示清楚錯誤。
 - 手動指定外部工具路徑後，相關任務可正常執行。
 - Windows 打包成功產生 portable 與 installer。

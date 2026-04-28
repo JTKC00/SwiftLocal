@@ -343,33 +343,20 @@
           <form id="pdf-backend-form" class="tool-surface">
             <div class="surface-heading">
               <h3>後端文件轉換</h3>
-              <span id="pdf-backend-engine" class="badge">LibreOffice / pdf-lib / QPDF</span>
+              <span id="pdf-backend-engine" class="badge">LibreOffice / pdf.js / pdf-lib / QPDF</span>
             </div>
             <div class="control-row">
               <label>
                 <span>轉換類型</span>
                 <select id="pdf-backend-job-type">
                   <option value="office-to-pdf">Office → PDF</option>
-                  <option value="pdf-to-docx">PDF → DOCX</option>
-                  <option value="pdf-to-office">PDF → Office 格式</option>
+                  <option value="pdf-to-docx">PDF → DOCX（文字）</option>
                   <option value="pdf-merge">PDF 合併（後端）</option>
                   <option value="pdf-split">PDF 分割（後端）</option>
                   <option value="pdf-rotate">PDF 旋轉（後端）</option>
                   <option value="pdf-encrypt">PDF 加密</option>
                   <option value="pdf-decrypt">PDF 解密</option>
                   <option value="pdf-compress">PDF 壓縮</option>
-                </select>
-              </label>
-              <div></div>
-            </div>
-            <div class="control-row pdf-backend-office-format-row">
-              <label>
-                <span>Office 輸出格式</span>
-                <select id="pdf-backend-office-format">
-                  <option value="docx">DOCX（Word）</option>
-                  <option value="xlsx">XLSX（Excel）</option>
-                  <option value="pptx">PPTX（PowerPoint）</option>
-                  <option value="odt">ODT（OpenDocument）</option>
                 </select>
               </label>
               <div></div>

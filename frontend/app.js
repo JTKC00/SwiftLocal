@@ -66,7 +66,7 @@
     "backend-panel": { nav: "設定", hint: "設定 LibreOffice、FFmpeg、Tesseract 等外部工具。", steps: ["按「偵測工具」", "缺少時選擇工具執行檔路徑", "回到需要的工具重新執行"], keywords: "backend 後端 fastapi libreoffice ffmpeg tesseract ocr 設定" }
   };
 
-  const PDF_BACKEND_JOB_TYPES = new Set(["office-to-pdf", "pdf-to-docx", "pdf-to-office", "pdf-merge", "pdf-split", "pdf-rotate", "pdf-encrypt", "pdf-decrypt", "pdf-compress"]);
+  const PDF_BACKEND_JOB_TYPES = new Set(["office-to-pdf", "pdf-to-docx", "pdf-merge", "pdf-split", "pdf-rotate", "pdf-encrypt", "pdf-decrypt", "pdf-compress"]);
   const IMG_BACKEND_JOB_TYPES = new Set(["image-convert", "ocr-image"]);
   const MEDIA_BACKEND_JOB_TYPES = new Set(["media-convert"]);
 
@@ -2064,15 +2064,16 @@
     const type = $("#pdf-backend-job-type").value;
     const engineBadge = $("#pdf-backend-engine");
     if (engineBadge) {
-      if (type === "office-to-pdf" || type === "pdf-to-docx" || type === "pdf-to-office") {
+      if (type === "office-to-pdf") {
         engineBadge.textContent = "LibreOffice";
+      } else if (type === "pdf-to-docx") {
+        engineBadge.textContent = "pdf.js → DOCX";
       } else if (type === "pdf-encrypt" || type === "pdf-decrypt") {
         engineBadge.textContent = "QPDF";
       } else {
         engineBadge.textContent = "pdf-lib";
       }
     }
-    $(".pdf-backend-office-format-row").style.display = type === "pdf-to-office" ? "" : "none";
     $(".pdf-backend-pages-row").style.display = type === "pdf-split" ? "" : "none";
     $(".pdf-backend-angle-row").style.display = type === "pdf-rotate" ? "" : "none";
     $(".pdf-backend-password-row").style.display = (type === "pdf-encrypt" || type === "pdf-decrypt") ? "" : "none";
@@ -2140,7 +2141,6 @@
     state.pdfBackendFiles.forEach((file) => payload.append("files", file, file.name));
     if (type === "pdf-split") payload.append("pages", $("#pdf-backend-pages").value.trim());
     if (type === "pdf-rotate") payload.append("angle", $("#pdf-backend-angle").value);
-    if (type === "pdf-to-office") payload.append("extension", $("#pdf-backend-office-format").value);
     if (type === "pdf-encrypt" || type === "pdf-decrypt") payload.append("password", $("#pdf-backend-password").value);
     try {
       await backendFetch("/jobs", { method: "POST", body: payload });
@@ -2426,10 +2426,7 @@
       return "Office → PDF";
     }
     if (type === "pdf-to-docx") {
-      return "PDF → DOCX";
-    }
-    if (type === "pdf-to-office") {
-      return "PDF → Office 格式";
+      return "PDF → DOCX（文字）";
     }
     if (type === "pdf-merge") {
       return "PDF 合併";
