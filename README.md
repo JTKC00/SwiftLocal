@@ -40,6 +40,86 @@ SwiftLocal 是一個本機檔案轉換工具箱，提供圖片、PDF、文件、
 
 可在 App 的「後端設定」面板按「偵測工具」，或手動指定工具路徑。
 
+## 外部工具安裝指南
+
+SwiftLocal 會自動嘗試尋找外部工具。安裝後建議重新開啟 App，進入「後端設定」按「偵測工具」。如果仍顯示未找到，可在同一頁手動指定執行檔路徑。
+
+### LibreOffice
+
+用途：Office → PDF、PDF → DOCX / Office 格式。
+
+1. 到 [LibreOffice 官方下載頁](https://www.libreoffice.org/download/Windows/)。
+2. 選擇 Windows 64-bit 版本並下載安裝程式。
+3. 用預設選項安裝即可。
+4. 安裝後常見路徑：
+
+```text
+C:\Program Files\LibreOffice\program\soffice.exe
+```
+
+### FFmpeg
+
+用途：音訊 / 影片格式轉換。
+
+1. 到 [FFmpeg 官方下載頁](https://www.ffmpeg.org/download.html)。
+2. 在 Windows EXE Files 區域選擇 Windows build，例如 gyan.dev 或 BtbN。
+3. 下載 release build，解壓縮到固定位置，例如：
+
+```text
+C:\ffmpeg\
+```
+
+4. 常見執行檔路徑：
+
+```text
+C:\ffmpeg\bin\ffmpeg.exe
+```
+
+如果你不想設定 PATH，也可以直接在 SwiftLocal 的「後端設定」手動指定 `ffmpeg.exe`。
+
+### Tesseract
+
+用途：圖片 OCR → TXT。
+
+1. 到 [Tesseract 官方文件的下載頁](https://tesseract-ocr.github.io/tessdoc/Downloads.html)。
+2. Windows 使用者可依官方文件前往 UB Mannheim 的 Windows installer。
+3. 安裝時建議勾選需要的語言資料；如果只做英文 OCR，預設英文即可。
+4. 安裝後常見路徑：
+
+```text
+C:\Program Files\Tesseract-OCR\tesseract.exe
+```
+
+如果要辨識中文，請確認 `chi_tra` 或 `chi_sim` 語言資料已安裝，並在 App 的 OCR 語言欄輸入對應代碼。
+
+### QPDF
+
+用途：PDF 加密 / 解密。
+
+1. 到 [QPDF GitHub Releases](https://github.com/qpdf/qpdf/releases)。
+2. 下載 Windows 64-bit 版本的 release zip 或 installer。
+3. 安裝或解壓縮到固定位置。
+4. 常見執行檔路徑：
+
+```text
+C:\Program Files\qpdf\bin\qpdf.exe
+```
+
+如果 App 顯示 `QPDF not found`，代表 PDF 加密 / 解密功能尚未找到 `qpdf.exe`。請安裝 QPDF 或在「後端設定」手動指定路徑。
+
+### 用 winget 安裝（可選）
+
+如果你的 Windows 已安裝 winget，也可以用命令列快速安裝部分工具：
+
+```powershell
+winget install -e --id LibreOffice.LibreOffice
+winget install -e --id Gyan.FFmpeg
+winget install -e --id UB-Mannheim.TesseractOCR
+winget install -e --id QPDF.QPDF
+```
+
+winget 套件 ID 可能會隨來源更新而變動；若安裝失敗，請改用上方官方下載頁。
+
 ## 使用方式
 
 ### Windows 桌面版
