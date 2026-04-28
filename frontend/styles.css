@@ -73,14 +73,13 @@ button {
 }
 
 .brand-mark {
-  display: inline-grid;
-  width: 44px;
-  height: 44px;
-  place-items: center;
+  display: block;
+  width: 52px;
+  height: 52px;
+  object-fit: contain;
   border-radius: 8px;
-  background: var(--ink);
-  color: #fff;
-  font-weight: 800;
+  padding: 2px;
+  background: #eaf5ef;
 }
 
 .brand h1,
@@ -794,6 +793,154 @@ td.code-cell {
   color: var(--danger);
 }
 
+.quick-start {
+  display: grid;
+  gap: 16px;
+  margin-bottom: 18px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.quick-start-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.quick-start-heading h2 {
+  margin: 2px 0 0;
+  font-size: 22px;
+  line-height: 1.2;
+}
+
+.tool-search {
+  width: min(360px, 100%);
+}
+
+.quick-actions {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.quick-actions button {
+  display: grid;
+  gap: 6px;
+  min-height: 112px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink);
+  text-align: left;
+}
+
+.quick-actions button:hover,
+.quick-actions button:focus-visible {
+  border-color: var(--accent);
+  background: #f4fbf8;
+}
+
+.quick-actions strong {
+  font-size: 15px;
+  line-height: 1.25;
+}
+
+.quick-actions span {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.panel-assist {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.75fr) minmax(0, 1.25fr);
+  gap: 16px;
+  align-items: center;
+  margin-bottom: 18px;
+  padding: 14px 16px;
+  border: 1px solid #b9d4c8;
+  border-radius: 8px;
+  background: #edf7f2;
+}
+
+.panel-assist div {
+  display: grid;
+  gap: 4px;
+}
+
+.panel-assist strong {
+  color: var(--accent-dark);
+  font-size: 15px;
+}
+
+.panel-assist span,
+.panel-assist li {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.panel-assist ol {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: assist-step;
+}
+
+.panel-assist li {
+  position: relative;
+  min-height: 44px;
+  padding: 9px 10px 9px 38px;
+  border: 1px solid #cfe3da;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.panel-assist li::before {
+  counter-increment: assist-step;
+  content: counter(assist-step);
+  position: absolute;
+  left: 10px;
+  top: 9px;
+  display: grid;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.nav-item {
+  display: grid;
+  gap: 2px;
+}
+
+.nav-item span {
+  font-weight: 800;
+}
+
+.nav-item small {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.25;
+}
+
+.nav-item.is-active small {
+  color: rgba(255, 255, 255, 0.82);
+}
+
 @media (max-width: 940px) {
   .app-shell {
     grid-template-columns: 1fr;
@@ -812,6 +959,17 @@ td.code-cell {
 
   .nav-item {
     text-align: center;
+  }
+
+  .quick-start-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .quick-actions,
+  .panel-assist,
+  .panel-assist ol {
+    grid-template-columns: 1fr;
   }
 
   .privacy-note {
@@ -838,6 +996,18 @@ td.code-cell {
 
   .tool-nav {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .quick-start {
+    padding: 14px;
+  }
+
+  .quick-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .nav-item small {
+    display: none;
   }
 
   .result-item {
@@ -975,7 +1145,7 @@ td.code-cell {
 }
 
 [data-theme="dark"] .brand-mark {
-  background: var(--accent);
+  background: #132e22;
 }
 
 [data-theme="dark"] .sidebar {
@@ -984,6 +1154,26 @@ td.code-cell {
 
 [data-theme="dark"] .privacy-note {
   background: var(--surface);
+}
+
+[data-theme="dark"] .quick-start,
+[data-theme="dark"] .quick-actions button,
+[data-theme="dark"] .panel-assist li {
+  background: var(--surface);
+}
+
+[data-theme="dark"] .quick-actions button:hover,
+[data-theme="dark"] .quick-actions button:focus-visible {
+  background: #1a3028;
+}
+
+[data-theme="dark"] .panel-assist {
+  border-color: #2c6647;
+  background: #132e22;
+}
+
+[data-theme="dark"] .panel-assist strong {
+  color: var(--accent);
 }
 
 /* ─── Theme toggle button ─────────────────────────────────────── */

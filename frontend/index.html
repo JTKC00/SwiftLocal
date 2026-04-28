@@ -10,7 +10,7 @@
   <div class="app-shell">
     <aside class="sidebar" aria-label="工具分類">
       <div class="brand">
-        <span class="brand-mark">LC</span>
+        <img class="brand-mark" src="assets/swiftlocal-logo.png" alt="快轉通 SwiftLocal logo">
         <div>
           <h1>快轉通 SwiftLocal</h1>
           <p>本地全能格式轉換工具箱</p>
@@ -45,6 +45,39 @@
         </div>
         <button id="clear-all" class="ghost-button" type="button">清除目前工具</button>
       </section>
+
+      <section class="quick-start" aria-label="快速開始">
+        <div class="quick-start-heading">
+          <div>
+            <p class="eyebrow">不知道要選哪個工具？</p>
+            <h2>先選你想完成的事</h2>
+          </div>
+          <label class="tool-search">
+            <span class="visually-hidden">搜尋工具</span>
+            <input id="tool-search" type="search" placeholder="搜尋：PDF、圖片、壓縮、QR Code...">
+          </label>
+        </div>
+        <div class="quick-actions" id="quick-actions">
+          <button type="button" data-panel="image-panel" data-focus="#image-files">
+            <strong>轉換或壓縮圖片</strong>
+            <span>JPG、PNG、WebP，亦可調整尺寸與浮水印</span>
+          </button>
+          <button type="button" data-panel="pdf-panel" data-focus="#pdf-files">
+            <strong>處理 PDF</strong>
+            <span>合併、分割、抽頁、轉成圖片、加頁碼</span>
+          </button>
+          <button type="button" data-panel="media-panel" data-focus="#media-files">
+            <strong>轉音訊 / 影片</strong>
+            <span>MP3、WAV、MP4 等需要本地後端支援</span>
+          </button>
+          <button type="button" data-panel="zip-panel" data-focus="#zip-files">
+            <strong>把檔案打包成 ZIP</strong>
+            <span>多個檔案一次壓縮，方便傳送或備份</span>
+          </button>
+        </div>
+      </section>
+
+      <section class="panel-assist" id="panel-assist" aria-live="polite"></section>
 
       <section id="image-panel" class="panel is-active" aria-labelledby="image-title">
         <div class="tool-grid">

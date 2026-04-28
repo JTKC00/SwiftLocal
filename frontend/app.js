@@ -37,6 +37,36 @@
     "backend-panel": "後端設定"
   };
 
+  Object.assign(titles, {
+    "image-panel": "圖片轉換",
+    "pdf-panel": "PDF 處理",
+    "data-panel": "資料轉換",
+    "text-panel": "文字處理",
+    "hash-panel": "檔案驗證",
+    "zip-panel": "ZIP 壓縮",
+    "diff-panel": "文字比對",
+    "split-panel": "檔案切割",
+    "rename-panel": "批量改名",
+    "media-panel": "影音轉換",
+    "tools-panel": "常用工具",
+    "backend-panel": "後端設定"
+  });
+
+  const toolGuides = {
+    "image-panel": { nav: "圖片", hint: "轉 JPG / PNG / WebP、壓縮、縮放、加浮水印。", steps: ["選擇或拖放圖片", "保留預設或調整格式、品質、尺寸", "按「開始轉換」，在右邊下載結果"], keywords: "image 圖片 相片 jpg jpeg png webp 壓縮 縮小 浮水印 旋轉" },
+    "pdf-panel": { nav: "PDF", hint: "合併、分割、抽頁、旋轉、加浮水印或轉圖片。", steps: ["選擇 PDF 檔案", "選擇處理模式，例如合併或抽頁", "按「執行」，完成後下載新 PDF"], keywords: "pdf 合併 分割 抽頁 旋轉 頁碼 浮水印 office word docx" },
+    "data-panel": { nav: "資料", hint: "JSON、CSV、XML 互轉與格式化。", steps: ["貼上資料內容", "選擇想轉成的格式", "按「執行」，再複製或下載輸出"], keywords: "json csv xml 資料 表格 格式化 壓縮" },
+    "text-panel": { nav: "文字", hint: "Base64、URL、HTML 編碼，以及搜尋取代。", steps: ["貼上文字", "選擇處理方式", "按「執行」，再複製結果"], keywords: "文字 text base64 url html encode decode 搜尋 取代 繁簡" },
+    "hash-panel": { nav: "驗證", hint: "產生檔案雜湊值，用來確認檔案沒有被改動。", steps: ["選擇檔案", "選擇雜湊演算法", "按「開始計算」，需要時下載 CSV"], keywords: "hash sha md5 雜湊 校驗 驗證 checksum" },
+    "zip-panel": { nav: "壓縮", hint: "把多個檔案打包成一個 ZIP。", steps: ["選擇多個檔案", "確認 ZIP 檔名", "按「建立 ZIP」後下載"], keywords: "zip 壓縮 打包 archive" },
+    "diff-panel": { nav: "比對", hint: "比較兩段文字有哪些新增、刪除或修改。", steps: ["貼上原文字", "貼上新文字", "按「開始比對」查看差異"], keywords: "diff compare 比對 差異 文字" },
+    "split-panel": { nav: "切割", hint: "把大型檔案切成多個較小 part 檔。", steps: ["選擇大檔案", "設定每份大小", "按「產生分割檔」後全部下載"], keywords: "split 切割 分割 大檔 part" },
+    "rename-panel": { nav: "改名", hint: "先預覽批量改名規則，再下載 PowerShell 腳本。", steps: ["選擇要改名的檔案", "輸入命名格式", "產生預覽，確認後下載腳本"], keywords: "rename 改名 批量 檔名 file name" },
+    "media-panel": { nav: "影音", hint: "音訊與影片轉檔，需要 FFmpeg 與本地後端。", steps: ["選擇音訊或影片", "選擇輸出格式", "按「加入轉換佇列」，等完成後下載"], keywords: "media audio video mp3 wav mp4 mov ffmpeg 影音 音訊 影片" },
+    "tools-panel": { nav: "小工具", hint: "顏色格式、UUID、QR Code 等日常工具。", steps: ["選擇需要的小工具", "輸入內容或設定數量", "產生後複製或下載"], keywords: "color hex rgb hsl uuid qr qrcode 小工具 顏色" },
+    "backend-panel": { nav: "設定", hint: "設定 LibreOffice、FFmpeg、Tesseract 等外部工具。", steps: ["按「偵測工具」", "缺少時選擇工具執行檔路徑", "回到需要的工具重新執行"], keywords: "backend 後端 fastapi libreoffice ffmpeg tesseract ocr 設定" }
+  };
+
   const PDF_BACKEND_JOB_TYPES = new Set(["office-to-pdf", "pdf-to-docx", "pdf-to-office", "pdf-merge", "pdf-split", "pdf-rotate", "pdf-encrypt", "pdf-decrypt", "pdf-compress"]);
   const IMG_BACKEND_JOB_TYPES = new Set(["image-convert", "ocr-image"]);
   const MEDIA_BACKEND_JOB_TYPES = new Set(["media-convert"]);
@@ -63,6 +93,10 @@
     bindBackendTool();
     bindToolsPanel();
     bindGlobalActions();
+    bindQuickStart();
+    enhanceNavigation();
+    $("#panel-title").textContent = titles[state.activePanel] || "SwiftLocal";
+    updatePanelAssist(state.activePanel);
     $$(".file-zone input[type='file']").forEach(bindFileZoneLabel);
     $$(".file-zone").forEach((label) => {
       const input = label.querySelector("input[type='file']");
@@ -173,6 +207,57 @@
         $("#panel-title").textContent = titles[panelId] || "快轉通 SwiftLocal";
       });
     });
+  }
+
+  function activatePanel(panelId, focusSelector) {
+    if (!panelId) return;
+    state.activePanel = panelId;
+    $$(".nav-item").forEach((item) => item.classList.toggle("is-active", item.dataset.panel === panelId));
+    $$(".panel").forEach((panel) => panel.classList.toggle("is-active", panel.id === panelId));
+    $("#panel-title").textContent = titles[panelId] || "SwiftLocal";
+    updatePanelAssist(panelId);
+    const target = focusSelector ? $(focusSelector) : null;
+    if (target) window.setTimeout(() => target.focus({ preventScroll: true }), 120);
+  }
+
+  function enhanceNavigation() {
+    $$(".nav-item").forEach((button) => {
+      const guide = toolGuides[button.dataset.panel];
+      if (!guide) return;
+      button.dataset.keywords = `${guide.nav} ${guide.hint} ${guide.keywords}`;
+      button.innerHTML = `<span>${escapeHtml(guide.nav)}</span><small>${escapeHtml(guide.hint)}</small>`;
+      button.addEventListener("click", () => updatePanelAssist(button.dataset.panel));
+    });
+  }
+
+  function bindQuickStart() {
+    $$("#quick-actions [data-panel]").forEach((button) => {
+      button.addEventListener("click", () => {
+        activatePanel(button.dataset.panel, button.dataset.focus);
+        const panel = $(`#${button.dataset.panel}`);
+        if (panel) panel.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    });
+
+    const search = $("#tool-search");
+    if (!search) return;
+    search.addEventListener("input", () => {
+      const query = search.value.trim().toLowerCase();
+      $$(".nav-item").forEach((button) => {
+        const haystack = (button.dataset.keywords || button.textContent || "").toLowerCase();
+        button.hidden = Boolean(query) && !haystack.includes(query);
+      });
+    });
+  }
+
+  function updatePanelAssist(panelId) {
+    const assist = $("#panel-assist");
+    const guide = toolGuides[panelId];
+    if (!assist || !guide) return;
+    assist.innerHTML = [
+      `<div><strong>${escapeHtml(titles[panelId] || guide.nav)}</strong><span>${escapeHtml(guide.hint)}</span></div>`,
+      `<ol>${guide.steps.map((step) => `<li>${escapeHtml(step)}</li>`).join("")}</ol>`
+    ].join("");
   }
 
   function bindGlobalActions() {
