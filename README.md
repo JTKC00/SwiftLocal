@@ -1,110 +1,212 @@
 # 快轉通 SwiftLocal
 
-SwiftLocal 是本地全能格式轉換工具箱。前端可用瀏覽器或 Electron 桌面殼開啟；需要外部程式的轉換功能由本機 FastAPI 後端處理，檔案只會送到 `127.0.0.1`。
+SwiftLocal 是本地全能格式轉換工具箱。它可以用瀏覽器開啟，也可以打包成真正的 Windows 桌面程式。檔案處理以本機為主；桌面版會優先使用 Electron 內建的本機任務處理器，不需要普通用戶另外開命令列。
 
 ## 功能
 
-### 前端（無須後端）
+### 不需要外部工具
 
 | 功能 | 說明 |
 |------|------|
-| PDF 工具 | 合併、分割、旋轉、圖片轉 PDF、提取頁面（pdf-lib + PDF.js） |
-| 圖片壓縮 | 瀏覽器端 JPEG/WebP 壓縮，可調品質 |
-| 文字工具 | 字數統計、繁簡轉換、大小寫轉換 |
-| 資料轉換 | JSON ↔ YAML ↔ CSV、Base64、URL 編碼 |
-| ZIP 打包 | 批次打包下載，支援 Deflate 壓縮（DEFLATE-raw） |
-| 改名工具 | 批次重新命名，含序號、替換、前後綴 |
-| 工具箱 | 顏色格式轉換（HEX/RGB/HSL）、UUID 批次產生、QR Code 產生與下載 |
+| 圖片工具 | 圖片轉 JPG / PNG / WebP、壓縮、調整尺寸、旋轉、浮水印 |
+| PDF 基礎工具 | 合併、分割、抽頁、旋轉、轉圖片、加頁碼、加浮水印 |
+| 文字工具 | 編碼 / 解碼、搜尋取代、繁簡轉換等 |
+| 資料工具 | JSON / CSV / XML 格式化與互轉 |
+| ZIP / Hash | 打包 ZIP、計算檔案校驗值 |
+| 其他工具 | 顏色格式、UUID、QR Code |
 
-### 後端（需要 FastAPI + 外部工具）
+### 需要外部工具
+
+這些功能在桌面版會整合在 App 內操作，但不會把大型外部工具內建到安裝包：
 
 | 功能 | 需要工具 |
 |------|----------|
 | Office → PDF | LibreOffice |
-| PDF → Word / Excel | LibreOffice |
-| PDF 分割 / 旋轉 / 加密解密 | LibreOffice |
-| 圖片格式轉換 | FFmpeg |
-| 圖片 OCR → TXT | Tesseract |
 | 音訊 / 影片格式轉換 | FFmpeg |
+| 圖片 OCR → TXT | Tesseract |
 
-### UX
-
-- **Toast 通知**：操作結果以浮動提示取代瀏覽器 `alert()`
-- **暗色模式**：側欄切換按鈕，設定儲存於 `localStorage`
-- **拖放支援**：所有上傳區均支援拖放檔案
-- **剪貼簿貼上**：在圖片面板可直接 Ctrl+V 貼上截圖
-- **後端任務刪除**：已完成或失敗的任務可直接刪除
+如果工具未安裝，相關功能會顯示未偵測到。使用者可以安裝工具，或在「後端設定」面板手動指定 `soffice.exe`、`ffmpeg.exe`、`tesseract.exe` 的位置。
 
 ## 專案結構
 
-- `frontend/`：瀏覽器介面、前端腳本、樣式與本地 vendor 資源。
-- `backend/`：FastAPI 後端、routers、services、Python 依賴與暫存目錄。
-- `desktop/`：Electron 桌面殼、preload 與桌面輔助 IPC。
-- `scripts/`：Windows 啟動腳本與前端靜態伺服器。
-- `docs/`：規劃、架構與操作文件。
-- `tools/`：本機下載或解壓的外部工具，已被 Git 忽略。
+- `frontend/`：主介面、前端腳本、樣式、圖示與 vendor 資源。
+- `desktop/`：Electron 桌面殼、preload、桌面本機任務處理器。
+- `backend/`：瀏覽器模式可選用的 FastAPI 後端。
+- `scripts/`：開發用啟動腳本。
+- `build/`：Windows 打包資源，例如 `icon.ico`。
+- `dist/`：Windows 打包輸出，執行打包後才會出現。
 
-## 需求
+## 開發環境
 
-- Node.js，用於前端靜態伺服器與 Electron。
-- Python 3.10 或以上，用於 FastAPI 後端。
-- 視功能安裝外部工具：
-  - LibreOffice：Office → PDF。
-  - FFmpeg：音訊 / 影片轉換。
-  - Tesseract：圖片 OCR → TXT。
-
-LibreOffice 官方 Windows MSI 通常需要管理員權限。若無法安裝到 `C:\Program Files\LibreOffice`，Office → PDF 會保持不可用，直到在「本地後端」面板手動指定可正常執行的 `soffice.exe` / `soffice.com`。
-
-## 安裝
+安裝 Node.js 依賴：
 
 ```powershell
 npm install
-python -m pip install -r backend\requirements.txt
 ```
 
-如果 `python` 不在 PATH，請先安裝 Python 3.10+，並勾選 Add Python to PATH。
+如果你要使用瀏覽器模式的 FastAPI 後端，另需 Python 3.10+：
+
+```powershell
+python -m pip install -r backend\requirements.txt
+```
 
 如果 Windows Store 的 `python.exe` alias 排在 PATH 前面，可指定實際 Python：
 
 ```powershell
-$env:SWIFTLOCAL_PYTHON="C:\Users\sgeus\AppData\Local\Python\pythoncore-3.14-64\python.exe"
+$env:SWIFTLOCAL_PYTHON="C:\Users\你\AppData\Local\Python\python.exe"
 ```
 
-## 啟動
+## 啟動方式
 
-啟動前端：
+啟動桌面 App：
+
+```powershell
+npm run desktop
+```
+
+啟動瀏覽器版前端：
 
 ```powershell
 npm run start
 ```
 
-啟動 FastAPI 後端：
-
-```powershell
-scripts\start-backend.cmd
-```
-
-或：
+瀏覽器版若需要 FastAPI 後端：
 
 ```powershell
 npm run backend
 ```
 
-後端固定監聽：
+預設網址：
 
 ```text
-http://127.0.0.1:8787
+前端：http://127.0.0.1:4173
+FastAPI：http://127.0.0.1:8787
 ```
 
-前端固定監聽：
+## Windows App 打包
+
+第一版目標是同時輸出兩種 Windows 程式：
+
+- **免安裝版 Portable EXE**：下載後雙擊即可使用，適合快速測試或分享。
+- **安裝程式 Installer**：會建立開始功能表 / 桌面捷徑，比較像正式軟件。
+
+產生兩者：
+
+```powershell
+npm run pack:win
+```
+
+只產生免安裝 EXE：
+
+```powershell
+npm run pack:win:portable
+```
+
+只產生安裝程式：
+
+```powershell
+npm run pack:win:installer
+```
+
+只產生未封裝目錄，用來快速檢查內容：
+
+```powershell
+npm run pack:win:dir
+```
+
+輸出位置：
 
 ```text
-http://127.0.0.1:4173
+dist/
 ```
 
-也可用 `npm run dev:all` 同時開啟後端視窗與前端伺服器。
+如果打包機空間較小，`npm run pack:win` 可能因為同時保留 installer、portable、`win-unpacked` 和 NSIS 中間檔而失敗。這時可以清空 `dist/`，再分別執行 `npm run pack:win:installer` 和 `npm run pack:win:portable`。
 
-## FastAPI 後端
+目前沒有做程式碼簽章，所以 Windows SmartScreen 可能顯示「未知發行者」。這不是程式壞掉，而是 Windows 對未簽章 App 的正常提醒。正式公開發佈前，應申請 code signing certificate 並加入簽章流程。
+
+## 發佈前檢查清單
+
+每次發佈前，請至少檢查：
+
+- `package.json` 的 `version` 是否已升版。
+- `frontend/assets/swiftlocal-logo.png` 和 `build/icon.ico` 是否是最新 logo。
+- `npm run desktop` 可正常開啟。
+- `node --check frontend/app.js`、`node --check desktop/main.js`、`node --check desktop/backend.js` 通過。
+- `npm run pack:win:portable` 產生的 EXE 可雙擊開啟。
+- `npm run pack:win:installer` 產生的安裝程式可安裝、啟動、解除安裝。
+- 沒有安裝 LibreOffice / FFmpeg / Tesseract 時，App 不會崩潰，並清楚顯示未偵測到。
+- 手動指定外部工具路徑後，相關任務可執行。
+
+## 日後維護
+
+### 升版本
+
+每次準備發佈新版，先改 `package.json`：
+
+```json
+"version": "0.1.1"
+```
+
+版本號建議：
+
+- 小修 bug：`0.1.0` → `0.1.1`
+- 新增小功能：`0.1.0` → `0.2.0`
+- 大改版或不相容：`1.0.0` → `2.0.0`
+
+改完版本後重新打包：
+
+```powershell
+npm run pack:win
+```
+
+### 更新 Electron / electron-builder
+
+目前使用 `latest`，日後若要穩定維護，建議改成固定版本，例如：
+
+```json
+"electron": "x.y.z",
+"electron-builder": "x.y.z"
+```
+
+更新後要重新測：
+
+- 桌面 App 是否能啟動。
+- preload bridge 是否可用。
+- 打包後 portable / installer 是否能開。
+- Windows 防毒或 SmartScreen 是否有新警告。
+
+### 更新 logo 或 icon
+
+流程：
+
+1. 更新 `frontend/assets/swiftlocal-logo.png`。
+2. 用 PNG 重新產生 `build/icon.ico`。
+3. 執行 `npm run pack:win`。
+4. 檢查 EXE、installer、工作列、開始功能表圖示是否更新。
+
+### 外部工具維護
+
+SwiftLocal 第一版不內建 LibreOffice、FFmpeg、Tesseract。日後若功能失效，先檢查：
+
+- 使用者是否已安裝相關工具。
+- 工具路徑是否仍然存在。
+- App 的「後端設定」面板是否偵測到工具。
+- 工具本身是否能在命令列執行，例如 `ffmpeg -version`。
+
+LibreOffice 體積很大，不建議第一版打包進 installer。若日後要內建，需重新評估安裝包大小、授權、更新方式和防毒誤判風險。
+
+### 舊版本升級測試
+
+正式發佈前，建議保留上一版 installer，測試：
+
+- 舊版可正常解除安裝。
+- 新版可安裝到同一台電腦。
+- 開始功能表與桌面捷徑沒有重複或失效。
+- 使用者先前設定的工具路徑仍可正常讀取。
+
+## FastAPI 後端 API
+
+瀏覽器模式可使用 FastAPI 後端。桌面版會優先使用 Electron 本機 bridge。
 
 主要 API：
 
@@ -118,116 +220,4 @@ http://127.0.0.1:4173
 - `GET /api/jobs/{job_id}/outputs/{filename}`
 - `DELETE /api/jobs/{job_id}`
 
-暫存檔案位於 `backend/temp/jobs/{job_id}`。任務佇列只存在記憶體中，重啟後任務狀態不保留。
-
-## 工具路徑
-
-FastAPI 會依序使用：
-
-1. 前端「本地後端」面板手動設定的路徑。
-2. 環境變數：
-   - `SWIFTLOCAL_LIBREOFFICE`
-   - `SWIFTLOCAL_FFMPEG`
-   - `SWIFTLOCAL_TESSERACT`
-3. Windows 常見安裝路徑。
-4. 系統 PATH。
-
-手動設定會寫入 `backend/tools.json`，此檔案不會提交到 Git。
-
-
-- `frontend/`：瀏覽器介面、前端腳本、樣式與本地 vendor 資源。
-- `backend/`：FastAPI 後端、routers、services、Python 依賴與暫存目錄。
-- `desktop/`：Electron 桌面殼、preload 與桌面輔助 IPC。
-- `scripts/`：Windows 啟動腳本與前端靜態伺服器。
-- `docs/`：規劃、架構與操作文件。
-- `tools/`：本機下載或解壓的外部工具，已被 Git 忽略。
-
-## 需求
-
-- Node.js，用於前端靜態伺服器與 Electron。
-- Python 3.10 或以上，用於 FastAPI 後端。
-- 視功能安裝外部工具：
-  - LibreOffice：Office → PDF。
-  - FFmpeg：音訊 / 影片轉換。
-  - Tesseract：圖片 OCR → TXT。
-
-LibreOffice 官方 Windows MSI 通常需要管理員權限。若無法安裝到 `C:\Program Files\LibreOffice`，Office → PDF 會保持不可用，直到在「本地後端」面板手動指定可正常執行的 `soffice.exe` / `soffice.com`。
-
-## 安裝
-
-```powershell
-npm install
-python -m pip install -r backend\requirements.txt
-```
-
-如果 `python` 不在 PATH，請先安裝 Python 3.10+，並勾選 Add Python to PATH。
-
-如果 Windows Store 的 `python.exe` alias 排在 PATH 前面，可指定實際 Python：
-
-```powershell
-$env:SWIFTLOCAL_PYTHON="C:\Users\sgeus\AppData\Local\Python\pythoncore-3.14-64\python.exe"
-```
-
-## 啟動
-
-啟動前端：
-
-```powershell
-npm run start
-```
-
-啟動 FastAPI 後端：
-
-```powershell
-scripts\start-backend.cmd
-```
-
-或：
-
-```powershell
-npm run backend
-```
-
-後端固定監聽：
-
-```text
-http://127.0.0.1:8787
-```
-
-前端固定監聽：
-
-```text
-http://127.0.0.1:4173
-```
-
-也可用 `npm run dev:all` 同時開啟後端視窗與前端伺服器。
-
-## FastAPI 後端
-
-主要 API：
-
-- `GET /api/health`
-- `GET /api/tools`
-- `PUT /api/tools/{key}`
-- `DELETE /api/tools/{key}`
-- `POST /api/jobs`
-- `GET /api/jobs`
-- `GET /api/jobs/{job_id}`
-- `GET /api/jobs/{job_id}/outputs/{filename}`
-- `DELETE /api/jobs/{job_id}`
-
-暫存檔案位於 `backend/temp/jobs/{job_id}`。任務佇列只存在記憶體中，重啟後任務狀態不保留。
-
-## 工具路徑
-
-FastAPI 會依序使用：
-
-1. 前端「本地後端」面板手動設定的路徑。
-2. 環境變數：
-   - `SWIFTLOCAL_LIBREOFFICE`
-   - `SWIFTLOCAL_FFMPEG`
-   - `SWIFTLOCAL_TESSERACT`
-3. Windows 常見安裝路徑。
-4. 系統 PATH。
-
-手動設定會寫入 `backend/tools.json`，此檔案不會提交到 Git。
+FastAPI 暫存檔案位於 `backend/temp/jobs/{job_id}`。任務佇列只存在記憶體中，重啟後任務狀態不保留。

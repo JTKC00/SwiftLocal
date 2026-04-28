@@ -1916,6 +1916,17 @@
   }
 
   async function checkBackendHealth() {
+    if (electronBridgeAvailable()) {
+      state.backendConnected = true;
+      $("#backend-mode").textContent = "桌面版";
+      setStatus("#backend-status", "桌面版已就緒");
+      setStatus("#pdf-backend-status", "桌面版已就緒");
+      setStatus("#img-backend-status", "桌面版已就緒");
+      setStatus("#media-backend-status", "桌面版已就緒");
+      await detectBackendTools();
+      await refreshBackendJobs();
+      return;
+    }
     setStatus("#backend-status", "連線中");
     setStatus("#pdf-backend-status", "連線中");
     setStatus("#img-backend-status", "連線中");
@@ -2221,8 +2232,8 @@
     outputsDiv.className = "backend-output-paths";
     if (job.outputPaths && job.outputPaths.length) {
       job.outputPaths.forEach((item) => {
-        const a = document.createElement("a");
-        a.href = `${BACKEND_ORIGIN}${item.url}`;
+        const a = renderBackendOutputAction(item);
+        if (a.tagName === "A") a.href = `${BACKEND_ORIGIN}${item.url}`;
         a.download = item.name;
         a.textContent = `${item.name} · ${formatBytes(item.size || 0)}`;
         outputsDiv.appendChild(a);
@@ -2242,6 +2253,20 @@
     }
 
     return div;
+  }
+
+  function renderBackendOutputAction(item) {
+    const name = item && item.name ? item.name : String(item || "");
+    const size = item && item.size ? ` · ${formatBytes(item.size)}` : "";
+    if (electronBridgeAvailable() && item && item.path) {
+      const button = document.createElement("button");
+      button.className = "secondary-button compact";
+      button.type = "button";
+      button.textContent = `${name}${size}`;
+      button.addEventListener("click", () => window.swiftLocalBackend.openPath(item.path));
+      return button;
+    }
+    return document.createElement("a");
   }
 
   async function deleteBackendJob(jobId) {
@@ -2271,6 +2296,9 @@
   }
 
   async function backendFetch(path, options = {}) {
+    if (electronBridgeAvailable()) {
+      return electronBackendRequest(path, options);
+    }
     const response = await fetch(`${BACKEND_API_BASE}${path}`, options);
     if (!response.ok) {
       let message = `${response.status} ${response.statusText}`;
@@ -2283,6 +2311,72 @@
       throw new Error(message);
     }
     return response.json();
+  }
+
+  async function electronBackendRequest(path, options = {}) {
+    const method = String(options.method || "GET").toUpperCase();
+    if (path === "/health" && method === "GET") {
+      return { status: "ok", mode: "electron" };
+    }
+    if (path === "/tools" && method === "GET") {
+      return window.swiftLocalBackend.detectTools();
+    }
+    const toolMatch = path.match(/^\/tools\/([^/]+)$/);
+    if (toolMatch && method === "PUT") {
+      const body = JSON.parse(options.body || "{}");
+      return window.swiftLocalBackend.setToolPath(decodeURIComponent(toolMatch[1]), body.path || "");
+    }
+    if (toolMatch && method === "DELETE") {
+      return window.swiftLocalBackend.setToolPath(decodeURIComponent(toolMatch[1]), "");
+    }
+    if (path === "/jobs" && method === "GET") {
+      return window.swiftLocalBackend.getJobs();
+    }
+    if (path === "/jobs" && method === "POST") {
+      const payload = await buildElectronJobPayload(options.body);
+      return window.swiftLocalBackend.enqueueJob(payload);
+    }
+    const jobMatch = path.match(/^\/jobs\/([^/]+)$/);
+    if (jobMatch && method === "DELETE") {
+      const deleted = await window.swiftLocalBackend.deleteJob(decodeURIComponent(jobMatch[1]));
+      if (!deleted) throw new Error("Job not found");
+      return { ok: true };
+    }
+    throw new Error("此功能在桌面版暫未支援，請使用瀏覽器後端模式。");
+  }
+
+  async function buildElectronJobPayload(formData) {
+    if (!(formData instanceof FormData)) {
+      throw new Error("Desktop jobs require FormData input");
+    }
+    const files = formData.getAll("files");
+    const inputPaths = [];
+    for (const file of files) {
+      const filePath = await electronFilePath(file);
+      if (filePath) inputPaths.push(filePath);
+    }
+    if (!inputPaths.length) {
+      throw new Error("桌面版需要使用本機檔案，請重新選擇檔案後再試。");
+    }
+    return {
+      type: String(formData.get("type") || ""),
+      inputPaths,
+      options: {
+        extension: String(formData.get("extension") || ""),
+        language: String(formData.get("language") || ""),
+        pages: String(formData.get("pages") || ""),
+        angle: String(formData.get("angle") || ""),
+        password: String(formData.get("password") || "")
+      }
+    };
+  }
+
+  async function electronFilePath(file) {
+    if (!file) return "";
+    if (typeof window.swiftLocalBackend.getFilePath === "function") {
+      return window.swiftLocalBackend.getFilePath(file);
+    }
+    return file.path || "";
   }
 
   function jobTypeLabel(type) {

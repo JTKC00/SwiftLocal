@@ -1,6 +1,6 @@
 "use strict";
 
-const { contextBridge, ipcRenderer } = require("electron");
+const { contextBridge, ipcRenderer, webUtils } = require("electron");
 
 contextBridge.exposeInMainWorld("swiftLocalBackend", {
   isAvailable: true,
@@ -12,7 +12,9 @@ contextBridge.exposeInMainWorld("swiftLocalBackend", {
   chooseDirectory: () => ipcRenderer.invoke("backend:choose-directory"),
   openPath: (targetPath) => ipcRenderer.invoke("backend:open-path", targetPath),
   enqueueJob: (payload) => ipcRenderer.invoke("backend:enqueue-job", payload),
+  deleteJob: (jobId) => ipcRenderer.invoke("backend:delete-job", jobId),
   getJobs: () => ipcRenderer.invoke("backend:get-jobs"),
+  getFilePath: (file) => webUtils.getPathForFile(file),
   onJobsUpdated: (callback) => {
     const handler = (_event, jobs) => callback(jobs);
     ipcRenderer.on("backend:jobs-updated", handler);

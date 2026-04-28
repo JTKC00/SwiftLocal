@@ -4,12 +4,14 @@ const path = require("node:path");
 const { app, BrowserWindow, Menu, shell, ipcMain, dialog } = require("electron");
 const { BackendService } = require("./backend");
 
+const APP_NAME = "快轉通 SwiftLocal";
 const isDev = !app.isPackaged;
 let backend = null;
 
 function createBackend() {
   backend = new BackendService({
     configPath: path.join(app.getPath("userData"), "tools.json"),
+    defaultOutputDir: path.join(app.getPath("downloads"), "SwiftLocal"),
     onJobsUpdated: (jobs) => {
       BrowserWindow.getAllWindows().forEach((window) => {
         window.webContents.send("backend:jobs-updated", jobs);
@@ -24,7 +26,8 @@ function createMainWindow() {
     height: 860,
     minWidth: 1024,
     minHeight: 700,
-    title: "快轉通 SwiftLocal",
+    title: APP_NAME,
+    icon: path.join(__dirname, "..", "build", "icon.ico"),
     backgroundColor: "#f6f4ee",
     show: false,
     autoHideMenuBar: true,
@@ -32,7 +35,7 @@ function createMainWindow() {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: true,
+      sandbox: false,
       webSecurity: true
     }
   });
@@ -60,7 +63,7 @@ function installMenu() {
       submenu: [
         { role: "reload", label: "重新載入" },
         { type: "separator" },
-        { role: "quit", label: "離開" }
+        { role: "quit", label: "結束" }
       ]
     },
     {
@@ -78,7 +81,7 @@ function installMenu() {
     {
       label: "檢視",
       submenu: [
-        { role: "resetZoom", label: "實際大小" },
+        { role: "resetZoom", label: "重設縮放" },
         { role: "zoomIn", label: "放大" },
         { role: "zoomOut", label: "縮小" },
         { type: "separator" },
@@ -95,6 +98,7 @@ function installBackendIpc() {
   ipcMain.handle("backend:set-tool-path", (_event, key, toolPath) => backend.setToolPath(key, toolPath));
   ipcMain.handle("backend:get-jobs", () => backend.getJobs());
   ipcMain.handle("backend:enqueue-job", (_event, payload) => backend.enqueue(payload));
+  ipcMain.handle("backend:delete-job", (_event, jobId) => backend.deleteJob(jobId));
   ipcMain.handle("backend:choose-executable", async (_event, options = {}) => {
     const result = await dialog.showOpenDialog({
       title: options.title || "選擇工具執行檔",
@@ -125,6 +129,8 @@ function installBackendIpc() {
     return shell.openPath(targetPath);
   });
 }
+
+app.setName(APP_NAME);
 
 app.whenReady().then(() => {
   createBackend();

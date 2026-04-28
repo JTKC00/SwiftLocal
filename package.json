@@ -2,6 +2,7 @@
   "name": "swiftlocal",
   "version": "0.1.0",
   "private": true,
+  "author": "SwiftLocal",
   "description": "快轉通 SwiftLocal - Your Local All-in-One File Converter",
   "main": "desktop/main.js",
   "scripts": {
@@ -9,8 +10,10 @@
     "desktop": "electron .",
     "backend": "scripts/start-backend.cmd",
     "dev:all": "start \"SwiftLocal Backend\" cmd /c \"npm run backend\" && npm run start",
-    "pack:win": "electron-builder --win --dir",
-    "pack:win:portable": "electron-builder --win portable"
+    "pack:win": "electron-builder --win portable nsis",
+    "pack:win:dir": "electron-builder --win --dir",
+    "pack:win:portable": "electron-builder --win portable",
+    "pack:win:installer": "electron-builder --win nsis"
   },
   "devDependencies": {
     "electron": "latest",
@@ -19,16 +22,50 @@
   "build": {
     "appId": "com.swiftlocal.converter",
     "productName": "快轉通 SwiftLocal",
+    "directories": {
+      "buildResources": "build",
+      "output": "dist"
+    },
     "files": [
       "frontend/**/*",
       "backend/**/*",
       "desktop/**/*",
+      "build/icon.ico",
       "scripts/start-backend.cmd",
       "README.md",
       "package.json"
     ],
     "win": {
+      "icon": "build/icon.ico",
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "SwiftLocal-${version}-${arch}.${ext}",
       "signAndEditExecutable": false
+    },
+    "portable": {
+      "artifactName": "SwiftLocal-${version}-portable-${arch}.${ext}"
+    },
+    "nsis": {
+      "artifactName": "SwiftLocal-${version}-installer-${arch}.${ext}",
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "快轉通 SwiftLocal",
+      "uninstallDisplayName": "快轉通 SwiftLocal"
     }
   },
   "dependencies": {

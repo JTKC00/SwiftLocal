@@ -43,6 +43,7 @@ class BackendService {
     this.running = false;
     this.onJobsUpdated = options.onJobsUpdated;
     this.configPath = options.configPath || path.join(process.cwd(), ".swiftlocal-tools.json");
+    this.defaultOutputDir = options.defaultOutputDir || path.join(process.cwd(), "SwiftLocal-output");
     this.config = loadConfig(this.configPath);
     this.tools = null;
   }
@@ -93,7 +94,7 @@ class BackendService {
       id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
       type: payload.type,
       inputPaths: payload.inputPaths || [],
-      outputDir: payload.outputDir || "",
+      outputDir: payload.outputDir || this.defaultOutputDir,
       options: payload.options || {},
       status: "queued",
       createdAt: new Date().toISOString(),
@@ -107,6 +108,16 @@ class BackendService {
     this.emitJobs();
     this.runNext();
     return publicJob(job);
+  }
+
+  deleteJob(jobId) {
+    const index = this.jobs.findIndex((item) => item.id === jobId);
+    if (index === -1) {
+      return false;
+    }
+    this.jobs.splice(index, 1);
+    this.emitJobs();
+    return true;
   }
 
   async runNext() {
@@ -309,14 +320,20 @@ function publicJob(job) {
   return {
     id: job.id,
     type: job.type,
-    inputPaths: job.inputPaths,
+    inputPaths: job.inputPaths.map((item) => path.basename(item)),
     outputDir: job.outputDir,
     options: job.options,
     status: job.status,
     createdAt: job.createdAt,
     startedAt: job.startedAt,
     finishedAt: job.finishedAt,
-    outputPaths: job.outputPaths,
+    outputPaths: job.outputPaths
+      .filter((item) => fs.existsSync(item))
+      .map((item) => ({
+        name: path.basename(item),
+        path: item,
+        size: fs.statSync(item).size
+      })),
     log: job.log.slice(-6),
     error: job.error
   };
