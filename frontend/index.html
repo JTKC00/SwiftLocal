@@ -27,8 +27,10 @@
         <button class="nav-item" type="button" data-panel="split-panel">切割</button>
         <button class="nav-item" type="button" data-panel="rename-panel">改名</button>
         <button class="nav-item" type="button" data-panel="media-panel">影音</button>
+        <button class="nav-item" type="button" data-panel="tools-panel">工具</button>
         <button class="nav-item" type="button" data-panel="backend-panel">後端</button>
       </nav>
+      <button id="theme-toggle" class="ghost-button" type="button" title="切換暗色模式">☀</button>
       <div class="privacy-note">
         <strong>Your Local All-in-One File Converter</strong>
         <span>檔案只在瀏覽器記憶體內處理。</span>
@@ -718,6 +720,101 @@
         </div>
       </section>
 
+      <section id="tools-panel" class="panel" aria-labelledby="tools-title">
+        <div class="tool-grid single">
+
+          <form id="color-form" class="tool-surface wide">
+            <div class="surface-heading">
+              <h3 id="tools-title">顏色格式轉換</h3>
+              <span class="badge">HEX · RGB · HSL</span>
+            </div>
+            <div class="control-row">
+              <label>
+                <span>色票選擇</span>
+                <input id="color-picker" type="color" value="#1f7a68" style="min-height:52px;cursor:pointer;">
+              </label>
+              <label>
+                <span>HEX 值</span>
+                <input id="color-hex" type="text" value="#1f7a68" placeholder="#rrggbb" maxlength="9">
+              </label>
+            </div>
+            <div id="color-preview"></div>
+            <div class="color-output-row">
+              <input id="color-out-hex" type="text" readonly placeholder="HEX">
+              <button type="button" class="secondary-button compact" data-copy-color="hex">複製</button>
+            </div>
+            <div class="color-output-row">
+              <input id="color-out-rgb" type="text" readonly placeholder="RGB">
+              <button type="button" class="secondary-button compact" data-copy-color="rgb">複製</button>
+            </div>
+            <div class="color-output-row">
+              <input id="color-out-hsl" type="text" readonly placeholder="HSL">
+              <button type="button" class="secondary-button compact" data-copy-color="hsl">複製</button>
+            </div>
+            <div class="actions">
+              <button class="secondary-button" type="button" data-clear-panel="tools-panel">重設</button>
+            </div>
+          </form>
+
+          <form id="uuid-form" class="tool-surface wide">
+            <div class="surface-heading">
+              <h3>UUID 產生器</h3>
+              <span class="badge">crypto.randomUUID</span>
+            </div>
+            <div class="control-row">
+              <label>
+                <span>數量</span>
+                <input id="uuid-count" type="number" min="1" max="100" value="5">
+              </label>
+              <div class="actions inline-actions">
+                <button class="primary-button" type="submit">產生</button>
+                <button class="secondary-button" type="button" id="copy-uuid-output">複製全部</button>
+              </div>
+            </div>
+            <textarea id="uuid-output" class="output-area" spellcheck="false" readonly style="min-height:160px;"></textarea>
+          </form>
+
+          <form id="qr-form" class="tool-surface wide">
+            <div class="surface-heading">
+              <h3>QR Code 產生器</h3>
+              <span class="badge">qrcode-generator</span>
+            </div>
+            <label>
+              <span>輸入文字 / 網址</span>
+              <textarea id="qr-input" spellcheck="false" style="min-height:90px;" placeholder="https://example.com"></textarea>
+            </label>
+            <div class="control-row">
+              <label>
+                <span>單格大小</span>
+                <select id="qr-size">
+                  <option value="4">小（4px/格）</option>
+                  <option value="6" selected>中（6px/格）</option>
+                  <option value="8">大（8px/格）</option>
+                  <option value="12">超大（12px/格）</option>
+                </select>
+              </label>
+              <label>
+                <span>容錯等級</span>
+                <select id="qr-ecl">
+                  <option value="L">L（7%）</option>
+                  <option value="M" selected>M（15%）</option>
+                  <option value="Q">Q（25%）</option>
+                  <option value="H">H（30%）</option>
+                </select>
+              </label>
+            </div>
+            <div class="actions">
+              <button class="primary-button" type="submit">產生 QR Code</button>
+              <button class="secondary-button" type="button" id="download-qr" disabled>下載 PNG</button>
+            </div>
+            <div class="qr-canvas-wrap">
+              <canvas id="qr-canvas" style="display:none;"></canvas>
+            </div>
+          </form>
+
+        </div>
+      </section>
+
       <section id="backend-panel" class="panel" aria-labelledby="backend-title">
         <div class="tool-grid">
           <form id="backend-form" class="tool-surface">
@@ -792,6 +889,8 @@
   </div>
 
   <script src="vendor/pdf-lib.min.js"></script>
+  <script src="vendor/qrcode.min.js"></script>
   <script src="app.js"></script>
+  <div id="toast-container" aria-live="assertive"></div>
 </body>
 </html>

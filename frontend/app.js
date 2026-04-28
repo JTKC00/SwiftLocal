@@ -18,7 +18,8 @@
     backendConnected: false,
     backendPollTimer: null,
     hashRows: [],
-    renameRows: []
+    renameRows: [],
+    theme: "light"
   };
 
   const titles = {
@@ -32,6 +33,7 @@
     "split-panel": "檔案切割",
     "rename-panel": "批量改名",
     "media-panel": "影音轉換",
+    "tools-panel": "工具筱",
     "backend-panel": "後端設定"
   };
 
@@ -47,6 +49,7 @@
   let pdfjsPromise = null;
 
   function init() {
+    initTheme();
     bindNavigation();
     bindImageTool();
     bindPdfTool();
@@ -58,8 +61,106 @@
     bindSplitTool();
     bindRenameTool();
     bindBackendTool();
+    bindToolsPanel();
     bindGlobalActions();
     $$(".file-zone input[type='file']").forEach(bindFileZoneLabel);
+    $$(".file-zone").forEach((label) => {
+      const input = label.querySelector("input[type='file']");
+      if (input) bindFileZoneDragDrop(label, input);
+    });
+    document.addEventListener("paste", handleGlobalPaste);
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden && state.backendConnected) refreshBackendJobs();
+    });
+  }
+
+  // ─── Toast notifications ─────────────────────────────────────────
+  function showToast(message, type = "info", duration = 4000) {
+    const container = $("#toast-container");
+    if (!container) { return; }
+    const toast = document.createElement("div");
+    toast.className = `toast ${type}`;
+    toast.textContent = message;
+    container.appendChild(toast);
+    const dismiss = () => {
+      toast.classList.add("fade-out");
+      toast.addEventListener("animationend", () => toast.remove(), { once: true });
+    };
+    const timer = window.setTimeout(dismiss, duration);
+    toast.addEventListener("click", () => { window.clearTimeout(timer); dismiss(); });
+  }
+
+  // ─── Dark / Light mode ────────────────────────────────────────────
+  function initTheme() {
+    const saved = localStorage.getItem("swiftlocal-theme") || "light";
+    applyTheme(saved);
+    const btn = $("#theme-toggle");
+    if (btn) {
+      btn.addEventListener("click", () => {
+        const next = document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark";
+        applyTheme(next);
+        localStorage.setItem("swiftlocal-theme", next);
+      });
+    }
+  }
+
+  function applyTheme(theme) {
+    state.theme = theme;
+    document.documentElement.setAttribute("data-theme", theme);
+    const btn = $("#theme-toggle");
+    if (btn) btn.textContent = theme === "dark" ? "☀" : "🌙";
+  }
+
+  // ─── file-zone drag-and-drop ──────────────────────────────────────
+  function bindFileZoneDragDrop(label, input) {
+    label.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      label.classList.add("drag-over");
+    });
+    label.addEventListener("dragleave", (e) => {
+      if (!label.contains(e.relatedTarget)) label.classList.remove("drag-over");
+    });
+    label.addEventListener("drop", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      label.classList.remove("drag-over");
+      if (e.dataTransfer && e.dataTransfer.files.length) {
+        injectFiles(input, e.dataTransfer.files);
+      }
+    });
+  }
+
+  function injectFiles(input, fileList) {
+    try {
+      const dt = new DataTransfer();
+      Array.from(fileList).forEach((f) => dt.items.add(f));
+      input.files = dt.files;
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    } catch {
+      // fallback: DataTransfer not supported — do nothing
+    }
+  }
+
+  // ─── Clipboard paste (image panel) ────────────────────────────────
+  function handleGlobalPaste(event) {
+    if (state.activePanel !== "image-panel") return;
+    const focused = document.activeElement;
+    if (focused && (focused.tagName === "INPUT" || focused.tagName === "TEXTAREA" || focused.tagName === "SELECT")) return;
+    const items = event.clipboardData && event.clipboardData.items;
+    if (!items) return;
+    for (const item of items) {
+      if (item.type.startsWith("image/")) {
+        const file = item.getAsFile();
+        if (file) {
+          const input = $("#image-files");
+          injectFiles(input, [file]);
+          showToast("已從剪貼簿貼上圖片", "success");
+          event.preventDefault();
+        }
+        break;
+      }
+    }
   }
 
   function bindNavigation() {
@@ -175,6 +276,17 @@
     if (panelId === "backend-panel") {
       renderBackendJobs([]);
       setStatus("#backend-status", state.backendConnected ? "已連線" : "FastAPI 未連線");
+    }
+    if (panelId === "tools-panel") {
+      $("#color-picker").value = "#1f7a68";
+      $("#color-hex").value = "#1f7a68";
+      updateColorOutputs("#1f7a68");
+      $("#uuid-count").value = "5";
+      $("#uuid-output").value = "";
+      $("#qr-input").value = "";
+      const canvas = $("#qr-canvas");
+      if (canvas) { canvas.style.display = "none"; }
+      $("#download-qr").disabled = true;
     }
     if (panelId === "media-panel") {
       state.mediaBackendFiles = [];
@@ -830,7 +942,7 @@
       } catch (error) {
         $("#data-output").value = "";
         setStatus("#data-status", "錯誤");
-        alert(readableError(error));
+        showToast(readableError(error), "error");
       }
     });
 
@@ -1078,7 +1190,7 @@
       } catch (error) {
         $("#text-output").value = "";
         $("#text-count").textContent = "錯誤";
-        alert(readableError(error));
+        showToast(readableError(error), "error");
       }
     });
 
@@ -1262,6 +1374,31 @@
     });
   }
 
+  const SUPPORTS_DEFLATE = typeof CompressionStream !== "undefined";
+
+  async function deflateRaw(data) {
+    const cs = new CompressionStream("deflate-raw");
+    const writer = cs.writable.getWriter();
+    writer.write(data);
+    writer.close();
+    const reader = cs.readable.getReader();
+    const buffers = [];
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffers.push(value);
+    }
+    return concatUint8Arrays(buffers);
+  }
+
+  function concatUint8Arrays(arrays) {
+    const total = arrays.reduce((n, a) => n + a.length, 0);
+    const result = new Uint8Array(total);
+    let pos = 0;
+    for (const a of arrays) { result.set(a, pos); pos += a.length; }
+    return result;
+  }
+
   async function createZip(files) {
     const chunks = [];
     const centralDirectory = [];
@@ -1274,12 +1411,25 @@
       const data = new Uint8Array(await file.arrayBuffer());
       const crc = crc32(data);
       const dos = dateToDos(file.lastModified ? new Date(file.lastModified) : new Date());
-      const localHeader = createZipLocalHeader(nameBytes, data.length, crc, dos);
-      const centralHeader = createZipCentralHeader(nameBytes, data.length, crc, dos, offset);
 
-      chunks.push(localHeader, data);
+      let compressed = data;
+      let method = 0;
+      if (SUPPORTS_DEFLATE) {
+        try {
+          const deflated = await deflateRaw(data);
+          if (deflated.length < data.length) {
+            compressed = deflated;
+            method = 8;
+          }
+        } catch { /* fallback to store */ }
+      }
+
+      const localHeader = createZipLocalHeader(nameBytes, compressed.length, data.length, crc, dos, method);
+      const centralHeader = createZipCentralHeader(nameBytes, compressed.length, data.length, crc, dos, method, offset);
+
+      chunks.push(localHeader, compressed);
       centralDirectory.push(centralHeader);
-      offset += localHeader.length + data.length;
+      offset += localHeader.length + compressed.length;
     }
 
     const centralOffset = offset;
@@ -1289,37 +1439,37 @@
     return { blob, count: files.length };
   }
 
-  function createZipLocalHeader(nameBytes, size, crc, dos) {
+  function createZipLocalHeader(nameBytes, compressedSize, originalSize, crc, dos, method) {
     const header = new Uint8Array(30 + nameBytes.length);
     const view = new DataView(header.buffer);
     writeUint32(view, 0, 0x04034b50);
     writeUint16(view, 4, 20);
     writeUint16(view, 6, 0x0800);
-    writeUint16(view, 8, 0);
+    writeUint16(view, 8, method);
     writeUint16(view, 10, dos.time);
     writeUint16(view, 12, dos.date);
     writeUint32(view, 14, crc);
-    writeUint32(view, 18, size);
-    writeUint32(view, 22, size);
+    writeUint32(view, 18, compressedSize);
+    writeUint32(view, 22, originalSize);
     writeUint16(view, 26, nameBytes.length);
     writeUint16(view, 28, 0);
     header.set(nameBytes, 30);
     return header;
   }
 
-  function createZipCentralHeader(nameBytes, size, crc, dos, offset) {
+  function createZipCentralHeader(nameBytes, compressedSize, originalSize, crc, dos, method, offset) {
     const header = new Uint8Array(46 + nameBytes.length);
     const view = new DataView(header.buffer);
     writeUint32(view, 0, 0x02014b50);
     writeUint16(view, 4, 20);
     writeUint16(view, 6, 20);
     writeUint16(view, 8, 0x0800);
-    writeUint16(view, 10, 0);
+    writeUint16(view, 10, method);
     writeUint16(view, 12, dos.time);
     writeUint16(view, 14, dos.date);
     writeUint32(view, 16, crc);
-    writeUint32(view, 20, size);
-    writeUint32(view, 24, size);
+    writeUint32(view, 20, compressedSize);
+    writeUint32(view, 24, originalSize);
     writeUint16(view, 28, nameBytes.length);
     writeUint16(view, 30, 0);
     writeUint16(view, 32, 0);
@@ -1724,13 +1874,13 @@
       state.backendConnected = false;
       setStatus("#backend-status", "偵測失敗");
       renderBackendTools(null);
-      alert(readableError(error));
+      showToast(readableError(error), "error");
     }
   }
 
   async function setBackendToolPath(key, toolPath) {
     if (!backendApiAvailable()) {
-      alert("請先啟動 FastAPI 後端");
+      showToast("請先啟動 FastAPI 後端", "error");
       return;
     }
     try {
@@ -1743,7 +1893,7 @@
       setStatus("#backend-status", "路徑已更新");
     } catch (error) {
       setStatus("#backend-status", "路徑更新失敗");
-      alert(readableError(error));
+      showToast(readableError(error), "error");
     }
   }
 
@@ -1823,7 +1973,7 @@
   async function clearBackendToolPath(key) {
     if (!backendApiAvailable()) {
       $(`#tool-path-${key}`).value = "";
-      alert("請先啟動 FastAPI 後端");
+      showToast("請先啟動 FastAPI 後端", "error");
       return;
     }
     try {
@@ -1832,15 +1982,15 @@
       renderBackendTools(tools);
       setStatus("#backend-status", "路徑已清除");
     } catch (error) {
-      alert(readableError(error));
+      showToast(readableError(error), "error");
     }
   }
 
   async function enqueuePdfBackendJob(event) {
     event.preventDefault();
     if (!backendApiAvailable()) await checkBackendHealth();
-    if (!backendApiAvailable()) { alert("請先啟動 FastAPI 後端"); return; }
-    if (!state.pdfBackendFiles.length) { alert("請先選擇輸入檔案"); return; }
+    if (!backendApiAvailable()) { showToast("請先啟動 FastAPI 後端", "error"); return; }
+    if (!state.pdfBackendFiles.length) { showToast("請先選擇輸入檔案", "error"); return; }
     const type = $("#pdf-backend-job-type").value;
     const payload = new FormData();
     payload.append("type", type);
@@ -1853,16 +2003,17 @@
       await backendFetch("/jobs", { method: "POST", body: payload });
       await refreshBackendJobs();
       setStatus("#pdf-backend-status", "已加入佇列");
+      showToast("已加入後端佇列", "success");
     } catch (error) {
-      alert(readableError(error));
+      showToast(readableError(error), "error");
     }
   }
 
   async function enqueueImgBackendJob(event) {
     event.preventDefault();
     if (!backendApiAvailable()) await checkBackendHealth();
-    if (!backendApiAvailable()) { alert("請先啟動 FastAPI 後端"); return; }
-    if (!state.imgBackendFiles.length) { alert("請先選擇輸入檔案"); return; }
+    if (!backendApiAvailable()) { showToast("請先啟動 FastAPI 後端", "error"); return; }
+    if (!state.imgBackendFiles.length) { showToast("請先選擇輸入檔案", "error"); return; }
     const type = $("#img-backend-job-type").value;
     const payload = new FormData();
     payload.append("type", type);
@@ -1873,16 +2024,17 @@
       await backendFetch("/jobs", { method: "POST", body: payload });
       await refreshBackendJobs();
       setStatus("#img-backend-status", "已加入佇列");
+      showToast("已加入後端佇列", "success");
     } catch (error) {
-      alert(readableError(error));
+      showToast(readableError(error), "error");
     }
   }
 
   async function enqueueMediaBackendJob(event) {
     event.preventDefault();
     if (!backendApiAvailable()) await checkBackendHealth();
-    if (!backendApiAvailable()) { alert("請先啟動 FastAPI 後端"); return; }
-    if (!state.mediaBackendFiles.length) { alert("請先選擇音訊 / 影片檔案"); return; }
+    if (!backendApiAvailable()) { showToast("請先啟動 FastAPI 後端", "error"); return; }
+    if (!state.mediaBackendFiles.length) { showToast("請先選擇音訊 / 影片檔案", "error"); return; }
     const payload = new FormData();
     payload.append("type", "media-convert");
     state.mediaBackendFiles.forEach((file) => payload.append("files", file, file.name));
@@ -1891,8 +2043,9 @@
       await backendFetch("/jobs", { method: "POST", body: payload });
       await refreshBackendJobs();
       setStatus("#media-backend-status", "已加入佇列");
+      showToast("已加入後端佇列", "success");
     } catch (error) {
-      alert(readableError(error));
+      showToast(readableError(error), "error");
     }
   }
 
@@ -1928,20 +2081,8 @@
       return;
     }
     container.classList.remove("empty");
-    container.innerHTML = jobs.map((job) => {
-      const outputs = job.outputPaths && job.outputPaths.length
-        ? job.outputPaths.map((item) => renderBackendOutputLink(item)).join("")
-        : "<span>尚未產生輸出</span>";
-      const log = job.error || (job.log && job.log.length ? job.log[job.log.length - 1] : "");
-      return [
-        `<div class="backend-job ${escapeHtml(job.status)}">`,
-        `<div><strong>${escapeHtml(jobTypeLabel(job.type))}</strong><span>${escapeHtml(job.status)}</span></div>`,
-        `<small>${job.inputPaths.map((item) => escapeHtml(item)).join("<br>")}</small>`,
-        `<div class="backend-output-paths">${outputs}</div>`,
-        log ? `<pre>${escapeHtml(log)}</pre>` : "",
-        "</div>"
-      ].join("");
-    }).join("");
+    container.innerHTML = "";
+    jobs.forEach((job) => container.appendChild(buildJobElement(job)));
     const hasActive = jobs.some((j) => j.status === "queued" || j.status === "running");
     if (hasActive) setStatus(statusSel, "處理中…");
   }
@@ -1953,22 +2094,79 @@
       container.textContent = "尚未建立任務";
       return;
     }
-
     container.classList.remove("empty");
-    container.innerHTML = jobs.map((job) => {
-      const outputs = job.outputPaths && job.outputPaths.length
-        ? job.outputPaths.map((item) => renderBackendOutputLink(item)).join("")
-        : "<span>尚未產生輸出</span>";
-      const log = job.error || (job.log && job.log.length ? job.log[job.log.length - 1] : "");
-      return [
-        `<div class="backend-job ${escapeHtml(job.status)}">`,
-        `<div><strong>${escapeHtml(jobTypeLabel(job.type))}</strong><span>${escapeHtml(job.status)}</span></div>`,
-        `<small>${job.inputPaths.map((item) => escapeHtml(item)).join("<br>")}</small>`,
-        `<div class="backend-output-paths">${outputs}</div>`,
-        log ? `<pre>${escapeHtml(log)}</pre>` : "",
-        "</div>"
-      ].join("");
-    }).join("");
+    container.innerHTML = "";
+    jobs.forEach((job) => container.appendChild(buildJobElement(job)));
+  }
+
+  function buildJobElement(job) {
+    const div = document.createElement("div");
+    div.className = `backend-job ${escapeHtml(job.status)}`;
+
+    const header = document.createElement("div");
+    const title = document.createElement("strong");
+    title.textContent = jobTypeLabel(job.type);
+    const statusSpan = document.createElement("span");
+    statusSpan.textContent = job.status;
+
+    const headerRight = document.createElement("div");
+    headerRight.style.display = "flex";
+    headerRight.style.gap = "8px";
+    headerRight.style.alignItems = "center";
+    headerRight.appendChild(statusSpan);
+
+    if (job.status === "done" || job.status === "failed") {
+      const delBtn = document.createElement("button");
+      delBtn.className = "secondary-button compact danger-button";
+      delBtn.type = "button";
+      delBtn.textContent = "刪除";
+      delBtn.addEventListener("click", () => deleteBackendJob(job.id));
+      headerRight.appendChild(delBtn);
+    }
+
+    header.appendChild(title);
+    header.appendChild(headerRight);
+    div.appendChild(header);
+
+    const small = document.createElement("small");
+    small.innerHTML = job.inputPaths.map((item) => escapeHtml(item)).join("<br>");
+    div.appendChild(small);
+
+    const outputsDiv = document.createElement("div");
+    outputsDiv.className = "backend-output-paths";
+    if (job.outputPaths && job.outputPaths.length) {
+      job.outputPaths.forEach((item) => {
+        const a = document.createElement("a");
+        a.href = `${BACKEND_ORIGIN}${item.url}`;
+        a.download = item.name;
+        a.textContent = `${item.name} · ${formatBytes(item.size || 0)}`;
+        outputsDiv.appendChild(a);
+      });
+    } else {
+      const placeholder = document.createElement("span");
+      placeholder.textContent = "尚未產生輸出";
+      outputsDiv.appendChild(placeholder);
+    }
+    div.appendChild(outputsDiv);
+
+    const log = job.error || (job.log && job.log.length ? job.log[job.log.length - 1] : "");
+    if (log) {
+      const pre = document.createElement("pre");
+      pre.textContent = log;
+      div.appendChild(pre);
+    }
+
+    return div;
+  }
+
+  async function deleteBackendJob(jobId) {
+    try {
+      await backendFetch(`/jobs/${encodeURIComponent(jobId)}`, { method: "DELETE" });
+      await refreshBackendJobs();
+      showToast("任務已刪除", "success");
+    } catch (error) {
+      showToast(readableError(error), "error");
+    }
   }
 
   function renderBackendOutputLink(item) {
@@ -1982,8 +2180,8 @@
       state.backendPollTimer = null;
     }
     const hasActiveJobs = jobs.some((job) => job.status === "queued" || job.status === "running");
-    if (hasActiveJobs) {
-      state.backendPollTimer = window.setTimeout(refreshBackendJobs, 1200);
+    if (hasActiveJobs && !document.hidden) {
+      state.backendPollTimer = window.setTimeout(refreshBackendJobs, 2000);
     }
   }
 
@@ -2300,6 +2498,158 @@
       return error.message;
     }
     return String(error);
+  }
+
+  // ─── Tools Panel (Color + UUID + QR Code) ────────────────────────
+  function bindToolsPanel() {
+    // ── Color converter ──────────────────────────────────────────────
+    updateColorOutputs("#1f7a68");
+
+    $("#color-picker").addEventListener("input", (e) => {
+      const hex = e.target.value;
+      $("#color-hex").value = hex;
+      updateColorOutputs(hex);
+    });
+
+    $("#color-hex").addEventListener("input", (e) => {
+      const raw = e.target.value.trim();
+      const hex = raw.startsWith("#") ? raw : `#${raw}`;
+      if (/^#[0-9a-fA-F]{6}$/.test(hex) || /^#[0-9a-fA-F]{3}$/.test(hex)) {
+        try { $("#color-picker").value = hex; } catch { /* ignore */ }
+        updateColorOutputs(hex);
+      }
+    });
+
+    $$("[data-copy-color]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const key = btn.dataset.copyColor;
+        const map = { hex: "#color-out-hex", rgb: "#color-out-rgb", hsl: "#color-out-hsl" };
+        const input = $(map[key]);
+        if (input && input.value) {
+          copyText(input.value);
+          showToast(`已複製 ${input.value}`, "success", 2000);
+        }
+      });
+    });
+
+    // ── UUID generator ───────────────────────────────────────────────
+    $("#uuid-form").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const count = Math.min(100, Math.max(1, parseInt($("#uuid-count").value, 10) || 1));
+      const uuids = Array.from({ length: count }, () => crypto.randomUUID());
+      $("#uuid-output").value = uuids.join("\n");
+    });
+
+    $("#copy-uuid-output").addEventListener("click", () => {
+      const text = $("#uuid-output").value;
+      if (text) {
+        copyText(text);
+        showToast("已複製 UUID", "success", 2000);
+      }
+    });
+
+    // ── QR Code generator ────────────────────────────────────────────
+    $("#qr-form").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const text = $("#qr-input").value.trim();
+      if (!text) { showToast("請輸入內容", "error"); return; }
+      if (typeof qrcode === "undefined") { showToast("QR Code 函式庫未載入", "error"); return; }
+      try {
+        const cellSize = parseInt($("#qr-size").value, 10) || 6;
+        const ecl = $("#qr-ecl").value || "M";
+        const qr = qrcode(0, ecl);
+        qr.addData(text, "Byte");
+        qr.make();
+        const moduleCount = qr.getModuleCount();
+        const margin = cellSize * 2;
+        const canvasSize = moduleCount * cellSize + margin * 2;
+        const canvas = $("#qr-canvas");
+        canvas.width = canvasSize;
+        canvas.height = canvasSize;
+        const ctx = canvas.getContext("2d");
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, canvasSize, canvasSize);
+        ctx.fillStyle = "#000000";
+        for (let row = 0; row < moduleCount; row += 1) {
+          for (let col = 0; col < moduleCount; col += 1) {
+            if (qr.isDark(row, col)) {
+              ctx.fillRect(margin + col * cellSize, margin + row * cellSize, cellSize, cellSize);
+            }
+          }
+        }
+        canvas.style.display = "block";
+        $("#download-qr").disabled = false;
+      } catch (err) {
+        showToast(`QR Code 產生失敗：${err}`, "error");
+      }
+    });
+
+    $("#download-qr").addEventListener("click", () => {
+      const canvas = $("#qr-canvas");
+      canvas.toBlob((blob) => {
+        if (!blob) return;
+        const url = URL.createObjectURL(blob);
+        triggerDownload(url, "qrcode.png");
+        window.setTimeout(() => URL.revokeObjectURL(url), 500);
+      }, "image/png");
+    });
+  }
+
+  // ── Color helper functions ───────────────────────────────────────
+  function updateColorOutputs(hex) {
+    const rgb = hexToRgb(expandHex(hex));
+    if (!rgb) return;
+    const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
+    const hexFull = expandHex(hex).toUpperCase();
+    $("#color-out-hex").value = hexFull;
+    $("#color-out-rgb").value = `rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`;
+    $("#color-out-hsl").value = `hsl(${hsl.h}, ${hsl.s}%, ${hsl.l}%)`;
+    $("#color-preview").style.background = hexFull;
+  }
+
+  function expandHex(hex) {
+    const h = hex.replace("#", "");
+    if (h.length === 3) {
+      return `#${h[0]}${h[0]}${h[1]}${h[1]}${h[2]}${h[2]}`;
+    }
+    return `#${h}`;
+  }
+
+  function hexToRgb(hex) {
+    const result = /^#([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    if (!result) return null;
+    return {
+      r: parseInt(result[1], 16),
+      g: parseInt(result[2], 16),
+      b: parseInt(result[3], 16)
+    };
+  }
+
+  function rgbToHsl(r, g, b) {
+    const rn = r / 255;
+    const gn = g / 255;
+    const bn = b / 255;
+    const max = Math.max(rn, gn, bn);
+    const min = Math.min(rn, gn, bn);
+    const l = (max + min) / 2;
+    let h = 0;
+    let s = 0;
+
+    if (max !== min) {
+      const d = max - min;
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+      switch (max) {
+        case rn: h = ((gn - bn) / d + (gn < bn ? 6 : 0)) / 6; break;
+        case gn: h = ((bn - rn) / d + 2) / 6; break;
+        default: h = ((rn - gn) / d + 4) / 6;
+      }
+    }
+
+    return {
+      h: Math.round(h * 360),
+      s: Math.round(s * 100),
+      l: Math.round(l * 100)
+    };
   }
 
   window.addEventListener("DOMContentLoaded", init);
