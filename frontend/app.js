@@ -35,7 +35,7 @@
     "backend-panel": "後端設定"
   };
 
-  const PDF_BACKEND_JOB_TYPES = new Set(["office-to-pdf", "pdf-to-docx", "pdf-to-office", "pdf-merge", "pdf-split", "pdf-rotate"]);
+  const PDF_BACKEND_JOB_TYPES = new Set(["office-to-pdf", "pdf-to-docx", "pdf-to-office", "pdf-merge", "pdf-split", "pdf-rotate", "pdf-encrypt", "pdf-decrypt", "pdf-compress"]);
   const IMG_BACKEND_JOB_TYPES = new Set(["image-convert", "ocr-image"]);
   const MEDIA_BACKEND_JOB_TYPES = new Set(["media-convert"]);
 
@@ -1053,7 +1053,7 @@
         if (state.textMode === "trad-to-simp" || state.textMode === "simp-to-trad") {
           if (!backendApiAvailable()) { await checkBackendHealth(); }
           if (!backendApiAvailable()) { throw new Error("需要 FastAPI 後端（zhconv），請先啟動後端"); }
-          const locale = state.textMode === "trad-to-simp" ? "zh-hans" : "zh-hant-tw";
+          const locale = state.textMode === "trad-to-simp" ? "zh-hans" : "zh-hant";
           const result = await backendFetch("/convert-text", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
