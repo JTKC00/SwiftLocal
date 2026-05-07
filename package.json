@@ -35,6 +35,15 @@
       "README.md",
       "package.json"
     ],
+    "extraResources": [
+      {
+        "from": "tools",
+        "to": "tools",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
     "win": {
       "icon": "build/icon.ico",
       "target": [

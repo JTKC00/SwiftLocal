@@ -1937,7 +1937,7 @@
     $$("[data-tool-clear]").forEach((button) => {
       button.addEventListener("click", () => clearBackendToolPath(button.dataset.toolClear));
     });
-    ["libreOffice", "ffmpeg", "tesseract"].forEach((key) => {
+    ["libreOffice", "ffmpeg", "tesseract", "qpdf"].forEach((key) => {
       const input = $(`#tool-path-${key}`);
       input.addEventListener("change", () => setBackendToolPath(key, input.value));
     });
@@ -2045,19 +2045,45 @@
     container.innerHTML = "";
     items.forEach(([key, label]) => {
       const tool = tools && tools[key];
+      const available = Boolean(tool && tool.available);
+      const optional = key === "libreOffice" && !available && backendApiAvailable();
       const row = document.createElement("div");
-      row.className = `tool-status ${tool && tool.available ? "available" : "missing"}`;
+      row.className = `tool-status ${available ? "available" : optional ? "optional" : "missing"}`;
       row.innerHTML = [
         `<strong>${label}</strong>`,
-        `<span>${tool && tool.available ? escapeHtml(tool.version || tool.path) : backendApiAvailable() ? "未找到" : "FastAPI 未連線"}</span>`,
+        `<span>${toolStatusText(key, tool)}</span>`,
         tool && tool.path ? `<small>${escapeHtml(tool.path)}</small>` : ""
       ].join("");
       container.appendChild(row);
       const input = $(`#tool-path-${key}`);
-      if (input && tool && tool.path) {
-        input.value = tool.path;
+      if (input) {
+        input.value = tool && tool.path ? tool.path : "";
       }
     });
+  }
+
+  function toolStatusText(key, tool) {
+    if (tool && tool.available) {
+      const source = toolSourceLabel(tool.source);
+      const version = escapeHtml(tool.version || tool.path || "available");
+      return source ? `${source} · ${version}` : version;
+    }
+    if (!backendApiAvailable()) {
+      return "後端未啟動";
+    }
+    if (key === "libreOffice") {
+      return "可選安裝；Office 轉 PDF 才需要";
+    }
+    return "未找到內建工具，請確認打包內容";
+  }
+
+  function toolSourceLabel(source) {
+    if (source === "bundled") return "內建";
+    if (source === "manual") return "手動指定";
+    if (source === "env") return "環境變數";
+    if (source === "system") return "系統安裝";
+    if (source === "path") return "PATH";
+    return "";
   }
 
   function updatePdfBackendJobControls() {

@@ -16,6 +16,7 @@ class ToolDefinition:
     label: str
     env: str
     commands: tuple[str, ...]
+    bundled_paths: tuple[tuple[str, ...], ...]
     windows_paths: tuple[str, ...]
     version_args: tuple[str, ...]
 
@@ -25,6 +26,14 @@ TOOL_DEFINITIONS = {
         label="LibreOffice",
         env="SWIFTLOCAL_LIBREOFFICE",
         commands=("soffice", "libreoffice"),
+        bundled_paths=(
+            ("libreoffice", "program", "soffice.exe"),
+            ("libreOffice", "program", "soffice.exe"),
+            ("LibreOffice", "program", "soffice.exe"),
+            ("libreoffice", "program", "soffice"),
+            ("libreOffice", "program", "soffice"),
+            ("LibreOffice", "program", "soffice"),
+        ),
         windows_paths=(
             r"C:\Program Files\LibreOffice\program\soffice.exe",
             r"C:\Program Files (x86)\LibreOffice\program\soffice.exe",
@@ -35,6 +44,12 @@ TOOL_DEFINITIONS = {
         label="FFmpeg",
         env="SWIFTLOCAL_FFMPEG",
         commands=("ffmpeg",),
+        bundled_paths=(
+            ("ffmpeg", "bin", "ffmpeg.exe"),
+            ("ffmpeg", "ffmpeg.exe"),
+            ("ffmpeg", "bin", "ffmpeg"),
+            ("ffmpeg", "ffmpeg"),
+        ),
         windows_paths=(
             r"C:\ffmpeg\bin\ffmpeg.exe",
             r"C:\Program Files\ffmpeg\bin\ffmpeg.exe",
@@ -45,9 +60,31 @@ TOOL_DEFINITIONS = {
         label="Tesseract",
         env="SWIFTLOCAL_TESSERACT",
         commands=("tesseract",),
+        bundled_paths=(
+            ("tesseract", "tesseract.exe"),
+            ("tesseract", "bin", "tesseract.exe"),
+            ("tesseract", "tesseract"),
+            ("tesseract", "bin", "tesseract"),
+        ),
         windows_paths=(
             r"C:\Program Files\Tesseract-OCR\tesseract.exe",
             r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe",
+        ),
+        version_args=("--version",),
+    ),
+    "qpdf": ToolDefinition(
+        label="QPDF",
+        env="SWIFTLOCAL_QPDF",
+        commands=("qpdf",),
+        bundled_paths=(
+            ("qpdf", "bin", "qpdf.exe"),
+            ("qpdf", "qpdf.exe"),
+            ("qpdf", "bin", "qpdf"),
+            ("qpdf", "qpdf"),
+        ),
+        windows_paths=(
+            r"C:\Program Files\qpdf\bin\qpdf.exe",
+            r"C:\Program Files (x86)\qpdf\bin\qpdf.exe",
         ),
         version_args=("--version",),
     ),
@@ -94,7 +131,7 @@ class ToolsService:
     async def _detect_tool(
         self, key: str, definition: ToolDefinition
     ) -> tuple[str, dict[str, str | bool]]:
-        for candidate in self._build_candidates(key, definition):
+        for candidate, source in self._build_candidates(key, definition):
             resolved = await self._resolve_candidate(candidate)
             if not resolved:
                 continue
@@ -104,6 +141,7 @@ class ToolsService:
                 "label": definition.label,
                 "path": resolved,
                 "version": version,
+                "source": source,
                 "message": "available",
             }
 
@@ -112,21 +150,35 @@ class ToolsService:
             "label": definition.label,
             "path": "",
             "version": "",
+            "source": "",
             "message": "not found",
         }
 
-    def _build_candidates(self, key: str, definition: ToolDefinition) -> list[str]:
-        candidates: list[str] = []
+    def _build_candidates(self, key: str, definition: ToolDefinition) -> list[tuple[str, str]]:
+        candidates: list[tuple[str, str]] = []
         configured = self.config["toolPaths"].get(key)
         if configured:
-            candidates.append(configured)
+            candidates.append((configured, "manual"))
         env_path = os.environ.get(definition.env)
         if env_path:
-            candidates.append(env_path)
+            candidates.append((env_path, "env"))
+        for bundled_path in self._bundled_tool_paths(definition):
+            candidates.append((str(bundled_path), "bundled"))
         if os.name == "nt":
-            candidates.extend(definition.windows_paths)
-        candidates.extend(definition.commands)
+            candidates.extend((item, "system") for item in definition.windows_paths)
+        candidates.extend((item, "path") for item in definition.commands)
         return candidates
+
+    def _bundled_tool_paths(self, definition: ToolDefinition) -> list[Path]:
+        roots = [
+            ROOT_DIR.parent / "tools",
+            ROOT_DIR.parent / "resources" / "tools",
+        ]
+        paths: list[Path] = []
+        for root in roots:
+            for relative_path in definition.bundled_paths:
+                paths.append(root.joinpath(*relative_path))
+        return paths
 
     async def _resolve_candidate(self, candidate: str) -> str:
         path = Path(candidate)

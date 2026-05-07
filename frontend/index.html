@@ -841,7 +841,7 @@
         <div class="tool-grid">
           <form id="backend-form" class="tool-surface">
             <div class="surface-heading">
-              <h3 id="backend-title">本地後端佇列</h3>
+              <h3 id="backend-title">工具狀態</h3>
               <span id="backend-mode" class="badge muted">FastAPI</span>
             </div>
             <div class="backend-tools" id="backend-tools">
@@ -867,40 +867,45 @@
               <button class="secondary-button" type="button" id="detect-backend-tools">偵測工具</button>
             </div>
 
-            <div class="backend-path-config" aria-label="工具路徑設定">
-              <div class="path-config-row">
-                <label>
-                  <span>LibreOffice 路徑</span>
-                  <input id="tool-path-libreOffice" type="text" placeholder="自動偵測或手動指定 soffice.exe">
-                </label>
-                <button class="secondary-button compact" type="button" data-tool-pick="libreOffice">選擇</button>
-                <button class="secondary-button compact" type="button" data-tool-clear="libreOffice">清除</button>
+            <p class="tool-status-note">一般使用不需要設定路徑；打包版會優先使用 app 內建的 FFmpeg、Tesseract 與 QPDF。LibreOffice 體積較大，可另外安裝或放入內建工具資料夾。</p>
+
+            <details class="backend-path-config">
+              <summary>進階：手動指定工具路徑</summary>
+              <div class="path-config-list" aria-label="工具路徑設定">
+                <div class="path-config-row">
+                  <label>
+                    <span>LibreOffice 路徑</span>
+                    <input id="tool-path-libreOffice" type="text" placeholder="自動偵測、內建，或手動指定 soffice.exe">
+                  </label>
+                  <button class="secondary-button compact" type="button" data-tool-pick="libreOffice">選擇</button>
+                  <button class="secondary-button compact" type="button" data-tool-clear="libreOffice">清除</button>
+                </div>
+                <div class="path-config-row">
+                  <label>
+                    <span>FFmpeg 路徑</span>
+                    <input id="tool-path-ffmpeg" type="text" placeholder="自動偵測、內建，或手動指定 ffmpeg.exe">
+                  </label>
+                  <button class="secondary-button compact" type="button" data-tool-pick="ffmpeg">選擇</button>
+                  <button class="secondary-button compact" type="button" data-tool-clear="ffmpeg">清除</button>
+                </div>
+                <div class="path-config-row">
+                  <label>
+                    <span>Tesseract 路徑</span>
+                    <input id="tool-path-tesseract" type="text" placeholder="自動偵測、內建，或手動指定 tesseract.exe">
+                  </label>
+                  <button class="secondary-button compact" type="button" data-tool-pick="tesseract">選擇</button>
+                  <button class="secondary-button compact" type="button" data-tool-clear="tesseract">清除</button>
+                </div>
+                <div class="path-config-row">
+                  <label>
+                    <span>QPDF 路徑</span>
+                    <input id="tool-path-qpdf" type="text" placeholder="自動偵測、內建，或手動指定 qpdf.exe">
+                  </label>
+                  <button class="secondary-button compact" type="button" data-tool-pick="qpdf">選擇</button>
+                  <button class="secondary-button compact" type="button" data-tool-clear="qpdf">清除</button>
+                </div>
               </div>
-              <div class="path-config-row">
-                <label>
-                  <span>FFmpeg 路徑</span>
-                  <input id="tool-path-ffmpeg" type="text" placeholder="自動偵測或手動指定 ffmpeg.exe">
-                </label>
-                <button class="secondary-button compact" type="button" data-tool-pick="ffmpeg">選擇</button>
-                <button class="secondary-button compact" type="button" data-tool-clear="ffmpeg">清除</button>
-              </div>
-              <div class="path-config-row">
-                <label>
-                  <span>Tesseract 路徑</span>
-                  <input id="tool-path-tesseract" type="text" placeholder="自動偵測或手動指定 tesseract.exe">
-                </label>
-                <button class="secondary-button compact" type="button" data-tool-pick="tesseract">選擇</button>
-                <button class="secondary-button compact" type="button" data-tool-clear="tesseract">清除</button>
-              </div>
-              <div class="path-config-row">
-                <label>
-                  <span>QPDF 路徑</span>
-                  <input id="tool-path-qpdf" type="text" placeholder="自動偵測或手動指定 qpdf.exe">
-                </label>
-                <button class="secondary-button compact" type="button" data-tool-pick="qpdf">選擇</button>
-                <button class="secondary-button compact" type="button" data-tool-clear="qpdf">清除</button>
-              </div>
-            </div>
+            </details>
 
             <div class="surface-heading" style="margin-top:16px;padding-top:16px;border-top:1px solid var(--line)">
               <h3>後端工具診斷</h3>

@@ -10,6 +10,14 @@ const TOOL_DEFINITIONS = {
     label: "LibreOffice",
     env: "SWIFTLOCAL_LIBREOFFICE",
     commands: ["soffice", "libreoffice"],
+    bundledPaths: [
+      ["libreoffice", "program", "soffice.exe"],
+      ["libreOffice", "program", "soffice.exe"],
+      ["LibreOffice", "program", "soffice.exe"],
+      ["libreoffice", "program", "soffice"],
+      ["libreOffice", "program", "soffice"],
+      ["LibreOffice", "program", "soffice"]
+    ],
     windowsPaths: [
       "C:\\Program Files\\LibreOffice\\program\\soffice.exe",
       "C:\\Program Files (x86)\\LibreOffice\\program\\soffice.exe"
@@ -20,6 +28,12 @@ const TOOL_DEFINITIONS = {
     label: "FFmpeg",
     env: "SWIFTLOCAL_FFMPEG",
     commands: ["ffmpeg"],
+    bundledPaths: [
+      ["ffmpeg", "bin", "ffmpeg.exe"],
+      ["ffmpeg", "ffmpeg.exe"],
+      ["ffmpeg", "bin", "ffmpeg"],
+      ["ffmpeg", "ffmpeg"]
+    ],
     windowsPaths: [
       "C:\\ffmpeg\\bin\\ffmpeg.exe",
       "C:\\Program Files\\ffmpeg\\bin\\ffmpeg.exe"
@@ -30,6 +44,12 @@ const TOOL_DEFINITIONS = {
     label: "Tesseract",
     env: "SWIFTLOCAL_TESSERACT",
     commands: ["tesseract"],
+    bundledPaths: [
+      ["tesseract", "tesseract.exe"],
+      ["tesseract", "bin", "tesseract.exe"],
+      ["tesseract", "tesseract"],
+      ["tesseract", "bin", "tesseract"]
+    ],
     windowsPaths: [
       "C:\\Program Files\\Tesseract-OCR\\tesseract.exe",
       "C:\\Program Files (x86)\\Tesseract-OCR\\tesseract.exe"
@@ -40,6 +60,12 @@ const TOOL_DEFINITIONS = {
     label: "QPDF",
     env: "SWIFTLOCAL_QPDF",
     commands: ["qpdf"],
+    bundledPaths: [
+      ["qpdf", "bin", "qpdf.exe"],
+      ["qpdf", "qpdf.exe"],
+      ["qpdf", "bin", "qpdf"],
+      ["qpdf", "qpdf"]
+    ],
     windowsPaths: [
       "C:\\Program Files\\qpdf\\bin\\qpdf.exe",
       "C:\\Program Files (x86)\\qpdf\\bin\\qpdf.exe"
@@ -390,7 +416,7 @@ class BackendService {
 async function detectTool(definition, configuredPath) {
   const candidates = buildCandidates(definition, configuredPath);
   for (const candidate of candidates) {
-    const resolved = await resolveCandidate(candidate);
+    const resolved = await resolveCandidate(candidate.path);
     if (!resolved) {
       continue;
     }
@@ -400,6 +426,7 @@ async function detectTool(definition, configuredPath) {
       label: definition.label,
       path: resolved,
       version,
+      source: candidate.source,
       message: "available"
     };
   }
@@ -408,6 +435,7 @@ async function detectTool(definition, configuredPath) {
     label: definition.label,
     path: "",
     version: "",
+    source: "",
     message: "not found"
   };
 }
@@ -415,16 +443,33 @@ async function detectTool(definition, configuredPath) {
 function buildCandidates(definition, configuredPath) {
   const candidates = [];
   if (configuredPath) {
-    candidates.push(configuredPath);
+    candidates.push({ path: configuredPath, source: "manual" });
   }
   if (process.env[definition.env]) {
-    candidates.push(process.env[definition.env]);
+    candidates.push({ path: process.env[definition.env], source: "env" });
+  }
+  for (const bundledPath of bundledToolPaths(definition)) {
+    candidates.push({ path: bundledPath, source: "bundled" });
   }
   if (process.platform === "win32") {
-    candidates.push(...definition.windowsPaths);
+    candidates.push(...definition.windowsPaths.map((item) => ({ path: item, source: "system" })));
   }
-  candidates.push(...definition.commands);
+  candidates.push(...definition.commands.map((item) => ({ path: item, source: "path" })));
   return candidates;
+}
+
+function bundledToolPaths(definition) {
+  const roots = [
+    path.join(process.resourcesPath || path.join(__dirname, ".."), "tools"),
+    path.join(__dirname, "..", "tools")
+  ];
+  const paths = [];
+  for (const root of Array.from(new Set(roots))) {
+    for (const relativePath of definition.bundledPaths || []) {
+      paths.push(path.join(root, ...relativePath));
+    }
+  }
+  return paths;
 }
 
 function loadConfig(configPath) {

@@ -622,14 +622,35 @@ td.code-cell {
   background: #fff6f4;
 }
 
+.tool-status.optional {
+  border-color: #dcc27a;
+  background: #fff9e8;
+}
+
+.tool-status-note {
+  margin: -4px 0 14px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
 .backend-actions {
   margin-bottom: 16px;
 }
 
 .backend-path-config {
+  margin-bottom: 16px;
+}
+
+.backend-path-config summary {
+  cursor: pointer;
+  color: var(--accent-dark);
+  font-weight: 700;
+}
+
+.path-config-list {
   display: grid;
   gap: 10px;
-  margin-bottom: 16px;
+  margin-top: 12px;
 }
 
 .path-config-row {
@@ -1122,6 +1143,11 @@ td.code-cell {
 [data-theme="dark"] .tool-status.missing {
   background: #2e1a1a;
   border-color: #6b3030;
+}
+
+[data-theme="dark"] .tool-status.optional {
+  background: #302910;
+  border-color: #6b5c20;
 }
 
 [data-theme="dark"] .backend-job.done {

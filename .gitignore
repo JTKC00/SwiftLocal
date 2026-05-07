@@ -5,4 +5,5 @@ dist/
 __pycache__/
 *.pyc
 backend/tools.json
-tools/
+tools/*
+!tools/README.md
