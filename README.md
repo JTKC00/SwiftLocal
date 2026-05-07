@@ -328,6 +328,33 @@ npm run pack:win:installer
 dist/
 ```
 
+### Windows Full 版
+
+如果 `tools/` 內已放入 LibreOffice，可另外建立 Full 版：
+
+```powershell
+npm run pack:win:full
+```
+
+只產生未封裝目錄：
+
+```powershell
+npm run pack:win:full:dir
+```
+
+分開打包：
+
+```powershell
+npm run pack:win:full:portable
+npm run pack:win:full:installer
+```
+
+輸出位置：
+
+```text
+dist-full/
+```
+
 ### macOS
 
 目前 `package.json` 尚未定義 macOS 打包 target，因此沒有正式 `.dmg` / `.pkg` 輸出。

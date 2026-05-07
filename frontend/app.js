@@ -15,6 +15,7 @@
     imgBackendFiles: [],
     mediaBackendFiles: [],
     backendConnected: false,
+    detectedTools: null,
     backendPollTimer: null,
     hashRows: [],
     renameRows: [],
@@ -33,7 +34,7 @@
     "rename-panel": "批量改名",
     "media-panel": "影音轉換",
     "tools-panel": "工具筱",
-    "backend-panel": "後端設定"
+    "backend-panel": "工具狀態"
   };
 
   Object.assign(titles, {
@@ -48,7 +49,7 @@
     "rename-panel": "批量改名",
     "media-panel": "影音轉換",
     "tools-panel": "常用工具",
-    "backend-panel": "後端設定"
+    "backend-panel": "工具狀態"
   });
 
   const toolGuides = {
@@ -63,7 +64,7 @@
     "rename-panel": { nav: "改名", hint: "先預覽批量改名規則，再下載 PowerShell 腳本。", steps: ["選擇要改名的檔案", "輸入命名格式", "產生預覽，確認後下載腳本"], keywords: "rename 改名 批量 檔名 file name" },
     "media-panel": { nav: "影音", hint: "音訊與影片轉檔，需要 FFmpeg 與本地後端。", steps: ["選擇音訊或影片", "選擇輸出格式", "按「加入轉換佇列」，等完成後下載"], keywords: "media audio video mp3 wav mp4 mov ffmpeg 影音 音訊 影片" },
     "tools-panel": { nav: "小工具", hint: "顏色格式、UUID、QR Code 等日常工具。", steps: ["選擇需要的小工具", "輸入內容或設定數量", "產生後複製或下載"], keywords: "color hex rgb hsl uuid qr qrcode 小工具 顏色" },
-    "backend-panel": { nav: "設定", hint: "設定 LibreOffice、FFmpeg、Tesseract 等外部工具。", steps: ["按「偵測工具」", "缺少時選擇工具執行檔路徑", "回到需要的工具重新執行"], keywords: "backend 後端 fastapi libreoffice ffmpeg tesseract ocr 設定" }
+    "backend-panel": { nav: "狀態", hint: "查看工具狀態，必要時手動指定 LibreOffice、FFmpeg、Tesseract、QPDF。", steps: ["按「偵測工具」", "確認需要的工具顯示可用", "缺少時到進階區手動指定路徑"], keywords: "backend 後端 狀態 libreoffice ffmpeg tesseract qpdf ocr 設定" }
   };
 
   const PDF_BACKEND_JOB_TYPES = new Set(["office-to-pdf", "pdf-to-docx", "pdf-merge", "pdf-split", "pdf-rotate", "pdf-encrypt", "pdf-decrypt", "pdf-compress"]);
@@ -2004,10 +2005,12 @@
     setStatus("#backend-status", "偵測中");
     try {
       const tools = await backendFetch("/tools");
+      state.detectedTools = tools;
       renderBackendTools(tools);
       setStatus("#backend-status", "已偵測");
     } catch (error) {
       state.backendConnected = false;
+      state.detectedTools = null;
       setStatus("#backend-status", "偵測失敗");
       renderBackendTools(null);
       showToast(readableError(error), "error");
@@ -2034,6 +2037,7 @@
   }
 
   function renderBackendTools(tools) {
+    state.detectedTools = tools || null;
     const container = $("#backend-tools");
     const items = [
       ["libreOffice", "LibreOffice"],
@@ -2052,6 +2056,7 @@
       row.innerHTML = [
         `<strong>${label}</strong>`,
         `<span>${toolStatusText(key, tool)}</span>`,
+        toolGuidanceText(key, tool) ? `<small>${toolGuidanceText(key, tool)}</small>` : "",
         tool && tool.path ? `<small>${escapeHtml(tool.path)}</small>` : ""
       ].join("");
       container.appendChild(row);
@@ -2072,9 +2077,22 @@
       return "後端未啟動";
     }
     if (key === "libreOffice") {
-      return "可選安裝；Office 轉 PDF 才需要";
+      return "此功能需要 LibreOffice";
     }
     return "未找到內建工具，請確認打包內容";
+  }
+
+  function toolGuidanceText(key, tool) {
+    if (key !== "libreOffice") {
+      return "";
+    }
+    if (tool && tool.available) {
+      return "Office → PDF 依賴 LibreOffice。若轉換失敗或版面異常，請確認 LibreOffice 可用，必要時更新。";
+    }
+    if (!backendApiAvailable()) {
+      return "";
+    }
+    return "請安裝或更新 LibreOffice，然後重新偵測工具。";
   }
 
   function toolSourceLabel(source) {
@@ -2089,6 +2107,7 @@
   function updatePdfBackendJobControls() {
     const type = $("#pdf-backend-job-type").value;
     const engineBadge = $("#pdf-backend-engine");
+    const officeNote = $("#pdf-backend-office-note");
     if (engineBadge) {
       if (type === "office-to-pdf") {
         engineBadge.textContent = "LibreOffice";
@@ -2098,6 +2117,14 @@
         engineBadge.textContent = "QPDF";
       } else {
         engineBadge.textContent = "pdf-lib";
+      }
+    }
+    if (officeNote) {
+      if (type === "office-to-pdf") {
+        officeNote.style.display = "";
+        officeNote.textContent = officeToPdfGuidance();
+      } else {
+        officeNote.style.display = "none";
       }
     }
     $(".pdf-backend-pages-row").style.display = type === "pdf-split" ? "" : "none";
@@ -2162,6 +2189,11 @@
     if (!backendApiAvailable()) { showToast("請先啟動 FastAPI 後端", "error"); return; }
     if (!state.pdfBackendFiles.length) { showToast("請先選擇輸入檔案", "error"); return; }
     const type = $("#pdf-backend-job-type").value;
+    if (type === "office-to-pdf" && !isToolAvailable("libreOffice")) {
+      setStatus("#pdf-backend-status", "缺少 LibreOffice");
+      showToast("此功能需要 LibreOffice。請安裝或更新 LibreOffice，然後重新偵測工具。", "error");
+      return;
+    }
     const payload = new FormData();
     payload.append("type", type);
     state.pdfBackendFiles.forEach((file) => payload.append("files", file, file.name));
@@ -2498,6 +2530,17 @@
       return "QPDF";
     }
     return key;
+  }
+
+  function isToolAvailable(key) {
+    return Boolean(state.detectedTools && state.detectedTools[key] && state.detectedTools[key].available);
+  }
+
+  function officeToPdfGuidance() {
+    if (isToolAvailable("libreOffice")) {
+      return "Office → PDF 依賴 LibreOffice。若轉換失敗或版面異常，請確認 LibreOffice 可用，必要時更新。";
+    }
+    return "此功能需要 LibreOffice。請安裝或更新 LibreOffice，然後重新偵測工具。";
   }
 
   function bindRenameTool() {

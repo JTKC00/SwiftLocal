@@ -633,6 +633,12 @@ td.code-cell {
   line-height: 1.6;
 }
 
+.backend-inline-note {
+  margin: 0 0 12px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
 .backend-actions {
   margin-bottom: 16px;
 }

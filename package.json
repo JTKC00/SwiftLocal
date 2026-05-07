@@ -13,7 +13,11 @@
     "pack:win": "electron-builder --win portable nsis",
     "pack:win:dir": "electron-builder --win --dir",
     "pack:win:portable": "electron-builder --win portable",
-    "pack:win:installer": "electron-builder --win nsis"
+    "pack:win:installer": "electron-builder --win nsis",
+    "pack:win:full": "node scripts/build-win-full.js portable installer",
+    "pack:win:full:dir": "node scripts/build-win-full.js dir",
+    "pack:win:full:portable": "node scripts/build-win-full.js portable",
+    "pack:win:full:installer": "node scripts/build-win-full.js installer"
   },
   "devDependencies": {
     "electron": "latest",
