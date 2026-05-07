@@ -178,7 +178,45 @@ class ToolsService:
         for root in roots:
             for relative_path in definition.bundled_paths:
                 paths.append(root.joinpath(*relative_path))
-        return paths
+            paths.extend(self._find_bundled_executables(root, definition))
+        unique_paths: list[Path] = []
+        seen: set[Path] = set()
+        for path in paths:
+            if path in seen:
+                continue
+            seen.add(path)
+            unique_paths.append(path)
+        return unique_paths
+
+    def _find_bundled_executables(self, root: Path, definition: ToolDefinition) -> list[Path]:
+        if not root.exists():
+            return []
+        executable_names = {parts[-1] for parts in definition.bundled_paths}
+        top_level_dirs = {parts[0] for parts in definition.bundled_paths}
+        matches: list[Path] = []
+        for dir_name in top_level_dirs:
+            start_dir = root / dir_name
+            if not start_dir.exists():
+                continue
+            matches.extend(self._walk_bundled_tool_dir(start_dir, executable_names, depth=4))
+        matches.extend(self._walk_bundled_tool_dir(root, executable_names, depth=5))
+        return matches
+
+    def _walk_bundled_tool_dir(self, current_dir: Path, executable_names: set[str], depth: int) -> list[Path]:
+        if depth < 0:
+            return []
+        matches: list[Path] = []
+        try:
+            entries = list(current_dir.iterdir())
+        except OSError:
+            return matches
+        for entry in entries:
+            if entry.is_file() and entry.name in executable_names:
+                matches.append(entry)
+                continue
+            if entry.is_dir():
+                matches.extend(self._walk_bundled_tool_dir(entry, executable_names, depth - 1))
+        return matches
 
     async def _resolve_candidate(self, candidate: str) -> str:
         path = Path(candidate)

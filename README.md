@@ -117,6 +117,8 @@ tools/
       qpdf.exe
 ```
 
+如果你直接把官方 release zip 解開在 `tools/qpdf/`、`tools/ffmpeg/`、`tools/tesseract/` 之類的資料夾下，即使中間多一層版本號資料夾，或另外放在 `tools/` 底下的子資料夾，SwiftLocal 也會嘗試自動搜尋常見執行檔位置。
+
 LibreOffice 可選內建：
 
 ```text

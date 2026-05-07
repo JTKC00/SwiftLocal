@@ -464,12 +464,54 @@ function bundledToolPaths(definition) {
     path.join(__dirname, "..", "tools")
   ];
   const paths = [];
+  const dynamicPaths = [];
   for (const root of Array.from(new Set(roots))) {
     for (const relativePath of definition.bundledPaths || []) {
       paths.push(path.join(root, ...relativePath));
     }
+    dynamicPaths.push(...findBundledExecutables(root, definition));
   }
-  return paths;
+  return Array.from(new Set([...paths, ...dynamicPaths]));
+}
+
+function findBundledExecutables(root, definition) {
+  if (!fs.existsSync(root)) {
+    return [];
+  }
+  const executableNames = Array.from(new Set((definition.bundledPaths || []).map((parts) => parts[parts.length - 1])));
+  const topLevelDirs = Array.from(new Set((definition.bundledPaths || []).map((parts) => parts[0])));
+  const matches = [];
+  for (const dirName of topLevelDirs) {
+    const startDir = path.join(root, dirName);
+    if (!fs.existsSync(startDir)) {
+      continue;
+    }
+    walkBundledToolDir(startDir, executableNames, 4, matches);
+  }
+  walkBundledToolDir(root, executableNames, 5, matches);
+  return matches;
+}
+
+function walkBundledToolDir(currentDir, executableNames, depth, matches) {
+  if (depth < 0) {
+    return;
+  }
+  let entries = [];
+  try {
+    entries = fs.readdirSync(currentDir, { withFileTypes: true });
+  } catch {
+    return;
+  }
+  for (const entry of entries) {
+    const fullPath = path.join(currentDir, entry.name);
+    if (entry.isFile() && executableNames.includes(entry.name)) {
+      matches.push(fullPath);
+      continue;
+    }
+    if (entry.isDirectory()) {
+      walkBundledToolDir(fullPath, executableNames, depth - 1, matches);
+    }
+  }
 }
 
 function loadConfig(configPath) {
