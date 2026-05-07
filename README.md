@@ -41,10 +41,28 @@ SwiftLocal 是一個本機優先的檔案工具箱。它把常用的圖片、PDF
 
 ### Windows
 
-打包後會在 `dist/` 產生：
+目前提供兩種 Windows 版本：
+
+| 版本 | 適合對象 | 內建工具 | 不包含 |
+| --- | --- | --- | --- |
+| 一般版 | 大多數使用者 | FFmpeg、Tesseract、QPDF | LibreOffice |
+| Full 版 | 需要 Office → PDF 的使用者 | FFmpeg、Tesseract、QPDF、LibreOffice | 體積較大 |
+
+你可以這樣理解：
+
+- 一般版：可直接做影音轉檔、OCR、PDF 加密 / 解密等常用功能。
+- Full 版：在一般版基礎上，額外可直接使用 `Word / Excel / PowerPoint → PDF`。
+
+一般版打包後會在 `dist/` 產生：
 
 - `SwiftLocal-0.1.0-portable-x64.exe`：免安裝版，雙擊即可使用。
 - `SwiftLocal-0.1.0-installer-x64.exe`：安裝版，會建立開始功能表與桌面捷徑。
+- `win-unpacked/`：未封裝資料夾，主要供開發測試，不建議作為正式發佈檔。
+
+Full 版打包後會在 `dist-full/` 產生：
+
+- `SwiftLocal-0.1.0-full-installer-x64.exe`：含 LibreOffice 的安裝版。
+- `SwiftLocal-0.1.0-full-portable-x64.exe`：含 LibreOffice 的免安裝版。
 - `win-unpacked/`：未封裝資料夾，主要供開發測試，不建議作為正式發佈檔。
 
 第一次使用建議：
@@ -52,7 +70,7 @@ SwiftLocal 是一個本機優先的檔案工具箱。它把常用的圖片、PDF
 1. 開啟 SwiftLocal。
 2. 到「工具狀態」面板按「偵測工具」。
 3. 如果 FFmpeg、Tesseract、QPDF 顯示「內建」，可直接使用相關功能。
-4. 如果 LibreOffice 顯示未找到，只有 Office → PDF 會受影響；可另外安裝 LibreOffice，或提供含 LibreOffice 的特別打包版。
+4. 如果 LibreOffice 顯示未找到，只有 Office → PDF 會受影響；可另外安裝 LibreOffice，或改用 Full 版。
 5. 回到需要的功能面板執行轉換。
 
 目前沒有程式碼簽章，所以 Windows SmartScreen 可能顯示「未知發行者」。這是未簽章 App 的正常提醒，不代表檔案損壞。
@@ -302,6 +320,13 @@ http://127.0.0.1:8787
 ## 打包
 
 ### Windows
+
+一般版與 Full 版差異：
+
+| 打包類型 | 內建工具 | 適用情境 | 輸出目錄 |
+| --- | --- | --- | --- |
+| 一般版 | FFmpeg、Tesseract、QPDF | 大多數朋友試用 | `dist/` |
+| Full 版 | FFmpeg、Tesseract、QPDF、LibreOffice | 需要 Office → PDF | `dist-full/` |
 
 產生 portable EXE 與 installer：
 
