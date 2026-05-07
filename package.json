@@ -8,78 +8,36 @@
   "scripts": {
     "start": "node scripts/serve.js",
     "desktop": "electron .",
-    "backend": "scripts/start-backend.cmd",
-    "dev:all": "start \"SwiftLocal Backend\" cmd /c \"npm run backend\" && npm run start",
-    "pack:win": "electron-builder --win portable nsis",
-    "pack:win:dir": "electron-builder --win --dir",
-    "pack:win:portable": "electron-builder --win portable",
-    "pack:win:installer": "electron-builder --win nsis",
+    "backend": "node scripts/start-backend.js",
+    "backend:win": "scripts/start-backend.cmd",
+    "dev:all": "start \"SwiftLocal Backend\" cmd /c \"npm run backend:win\" && npm run start",
+    "pack:win": "electron-builder --config electron-builder.config.js --win portable nsis",
+    "pack:win:dir": "electron-builder --config electron-builder.config.js --win --dir",
+    "pack:win:portable": "electron-builder --config electron-builder.config.js --win portable",
+    "pack:win:installer": "electron-builder --config electron-builder.config.js --win nsis",
     "pack:win:full": "node scripts/build-win-full.js portable installer",
     "pack:win:full:dir": "node scripts/build-win-full.js dir",
     "pack:win:full:portable": "node scripts/build-win-full.js portable",
-    "pack:win:full:installer": "node scripts/build-win-full.js installer"
+    "pack:win:full:installer": "node scripts/build-win-full.js installer",
+    "pack:mac": "electron-builder --config electron-builder.config.js --mac dmg zip",
+    "pack:mac:dir": "electron-builder --config electron-builder.config.js --mac --dir",
+    "pack:mac:dmg": "electron-builder --config electron-builder.config.js --mac dmg",
+    "pack:mac:zip": "electron-builder --config electron-builder.config.js --mac zip",
+    "bundle:mac:tools": "node scripts/bundle-mac-tools.js",
+    "pack:mac:full": "node scripts/build-mac-full.js dmg zip",
+    "pack:mac:full:dir": "node scripts/build-mac-full.js dir",
+    "pack:mac:full:dmg": "node scripts/build-mac-full.js dmg",
+    "pack:mac:full:zip": "node scripts/build-mac-full.js zip",
+    "pack:mac:signed": "SWIFTLOCAL_MAC_SIGN=1 electron-builder --config electron-builder.config.js --mac dmg zip",
+    "pack:mac:dir:signed": "SWIFTLOCAL_MAC_SIGN=1 electron-builder --config electron-builder.config.js --mac --dir",
+    "pack:mac:dmg:signed": "SWIFTLOCAL_MAC_SIGN=1 electron-builder --config electron-builder.config.js --mac dmg",
+    "pack:mac:full:signed": "SWIFTLOCAL_MAC_SIGN=1 node scripts/build-mac-full.js dmg zip",
+    "pack:mac:full:dir:signed": "SWIFTLOCAL_MAC_SIGN=1 node scripts/build-mac-full.js dir",
+    "pack:mac:full:dmg:signed": "SWIFTLOCAL_MAC_SIGN=1 node scripts/build-mac-full.js dmg"
   },
   "devDependencies": {
     "electron": "latest",
     "electron-builder": "latest"
-  },
-  "build": {
-    "appId": "com.swiftlocal.converter",
-    "productName": "快轉通 SwiftLocal",
-    "directories": {
-      "buildResources": "build",
-      "output": "dist"
-    },
-    "files": [
-      "frontend/**/*",
-      "backend/**/*",
-      "desktop/**/*",
-      "build/icon.ico",
-      "scripts/start-backend.cmd",
-      "README.md",
-      "package.json"
-    ],
-    "extraResources": [
-      {
-        "from": "tools",
-        "to": "tools",
-        "filter": [
-          "**/*"
-        ]
-      }
-    ],
-    "win": {
-      "icon": "build/icon.ico",
-      "target": [
-        {
-          "target": "portable",
-          "arch": [
-            "x64"
-          ]
-        },
-        {
-          "target": "nsis",
-          "arch": [
-            "x64"
-          ]
-        }
-      ],
-      "artifactName": "SwiftLocal-${version}-${arch}.${ext}",
-      "signAndEditExecutable": false
-    },
-    "portable": {
-      "artifactName": "SwiftLocal-${version}-portable-${arch}.${ext}"
-    },
-    "nsis": {
-      "artifactName": "SwiftLocal-${version}-installer-${arch}.${ext}",
-      "oneClick": false,
-      "perMachine": false,
-      "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true,
-      "shortcutName": "快轉通 SwiftLocal",
-      "uninstallDisplayName": "快轉通 SwiftLocal"
-    }
   },
   "dependencies": {
     "pdf-lib": "^1.17.1",

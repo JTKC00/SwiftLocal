@@ -8,3 +8,4 @@ __pycache__/
 backend/tools.json
 tools/*
 !tools/README.md
+.DS_Store

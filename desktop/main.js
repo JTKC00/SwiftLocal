@@ -8,6 +8,13 @@ const APP_NAME = "快轉通 SwiftLocal";
 const isDev = !app.isPackaged;
 let backend = null;
 
+function resolveWindowIcon() {
+  if (process.platform === "win32") {
+    return path.join(__dirname, "..", "build", "icon.ico");
+  }
+  return path.join(__dirname, "..", "frontend", "assets", "swiftlocal-logo.png");
+}
+
 function createBackend() {
   backend = new BackendService({
     configPath: path.join(app.getPath("userData"), "tools.json"),
@@ -27,7 +34,7 @@ function createMainWindow() {
     minWidth: 1024,
     minHeight: 700,
     title: APP_NAME,
-    icon: path.join(__dirname, "..", "build", "icon.ico"),
+    icon: resolveWindowIcon(),
     backgroundColor: "#f6f4ee",
     show: false,
     autoHideMenuBar: true,

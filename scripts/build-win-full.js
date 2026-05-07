@@ -20,6 +20,8 @@ if (!sofficePath) {
 
 const builderArgs = [
   electronBuilderCli,
+  "--config",
+  "electron-builder.config.js",
   "--win",
   ...mapTargets(targets),
   `--config.directories.output=${outputDir}`,

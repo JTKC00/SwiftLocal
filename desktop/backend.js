@@ -398,6 +398,10 @@ class BackendService {
     for (const inputPath of job.inputPaths) {
       const outputBase = path.join(job.outputDir, `${path.parse(inputPath).name}_ocr`);
       const args = [inputPath, outputBase, "-l", language];
+      const tessdataDir = bundledTessdataDir(tool.path);
+      if (tessdataDir) {
+        args.push("--tessdata-dir", tessdataDir);
+      }
       const result = await runProcess(tool.path, args);
       job.log.push(result.output);
       const outputPath = `${outputBase}.txt`;
@@ -560,6 +564,16 @@ function requireTool(tools, key) {
     throw new Error(`${label} not found`);
   }
   return tool;
+}
+
+function bundledTessdataDir(toolPath) {
+  const normalized = String(toolPath || "");
+  if (!normalized.includes(`${path.sep}tesseract${path.sep}`)) {
+    return "";
+  }
+  const bundleRoot = path.resolve(path.dirname(normalized), "..");
+  const tessdataDir = path.join(bundleRoot, "share", "tessdata");
+  return fs.existsSync(tessdataDir) ? tessdataDir : "";
 }
 
 function ensureOutputDir(outputDir) {

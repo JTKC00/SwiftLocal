@@ -9,7 +9,7 @@ SwiftLocal 是一個本機優先的檔案工具箱。它把常用的圖片、PDF
 | 平台 | 目前狀態 | 說明 |
 | --- | --- | --- |
 | Windows | 已支援桌面打包 | 可產生 portable EXE 與 installer。 |
-| macOS | 可用開發模式執行 | 目前未提供 `.dmg` / `.pkg` 打包腳本。 |
+| macOS | 已支援本機打包 | 可在 macOS 上產生 unsigned `.dmg` 與 `.zip`。 |
 | Linux | 未正式整理 | Electron / 瀏覽器模式理論上可跑，但尚未整理正式發佈流程。 |
 
 ## 功能總覽
@@ -65,6 +65,12 @@ Full 版打包後會在 `dist-full/` 產生：
 - `SwiftLocal-0.1.0-full-portable-x64.exe`：含 LibreOffice 的免安裝版。
 - `win-unpacked/`：未封裝資料夾，主要供開發測試，不建議作為正式發佈檔。
 
+macOS Full 版打包後會在 `dist-full/` 產生：
+
+- `SwiftLocal-0.1.0-full-mac-arm64.dmg`：含 LibreOffice 的 mac 安裝包。
+- `SwiftLocal-0.1.0-full-mac-arm64.zip`：含 LibreOffice 的 mac 壓縮包。
+- `mac-arm64/`：未封裝 app 目錄，主要供開發測試。
+
 第一次使用建議：
 
 1. 開啟 SwiftLocal。
@@ -77,7 +83,58 @@ Full 版打包後會在 `dist-full/` 產生：
 
 ### macOS
 
-目前未提供正式 macOS 安裝包。可用開發模式執行：
+目前可在 macOS 本機建立 unsigned 安裝包與壓縮包：
+
+```bash
+npm run pack:mac
+```
+
+也可分開產生：
+
+```bash
+npm run pack:mac:dmg
+npm run pack:mac:zip
+npm run pack:mac:dir
+```
+
+如果 `tools/` 內已放入 LibreOffice，也可另外建立 Full 版：
+
+```bash
+npm run pack:mac:full
+```
+
+只產生未封裝目錄：
+
+```bash
+npm run pack:mac:full:dir
+```
+
+分開打包：
+
+```bash
+npm run pack:mac:full:dmg
+npm run pack:mac:full:zip
+```
+
+若你已在這台 Mac 登入 Apple Developer 憑證，並準備做正式發佈版，可改用：
+
+```bash
+npm run pack:mac:signed
+```
+
+只測已簽章 app 目錄：
+
+```bash
+npm run pack:mac:dir:signed
+```
+
+輸出位置：
+
+```text
+dist/
+```
+
+開發模式仍可直接執行：
 
 ```bash
 npm install
@@ -144,6 +201,16 @@ tools/
   libreoffice/
     program/
       soffice.exe
+```
+
+macOS Full 版建議結構：
+
+```text
+tools/
+  LibreOffice.app/
+    Contents/
+      MacOS/
+        soffice
 ```
 
 `tools/` 目錄的擺放方式也整理在 [tools/README.md](C:/~/SwiftLocal/tools/README.md)。
@@ -305,7 +372,7 @@ python -m pip install -r backend/requirements.txt
 python -m uvicorn backend.main:app --host 127.0.0.1 --port 8787
 ```
 
-Windows 也可使用現有腳本：
+Windows 也可使用現有腳本；現在 `npm run backend` 也支援 macOS：
 
 ```powershell
 npm run backend
@@ -382,7 +449,64 @@ dist-full/
 
 ### macOS
 
-目前 `package.json` 尚未定義 macOS 打包 target，因此沒有正式 `.dmg` / `.pkg` 輸出。
+macOS 現在已定義 `dmg` 與 `zip` target。第一次發佈時會先產生 unsigned 成品；若要給外部使用者較順利安裝，下一步仍建議補上 Apple Developer ID 簽章與 notarization。
+
+如果 `tools/` 內已放入 LibreOffice，也可另外建立 Full 版：
+
+```bash
+npm run pack:mac:full
+```
+
+只產生未封裝目錄：
+
+```bash
+npm run pack:mac:full:dir
+```
+
+分開打包：
+
+```bash
+npm run pack:mac:full:dmg
+npm run pack:mac:full:zip
+```
+
+輸出位置：
+
+```text
+dist-full/
+```
+
+若要啟用簽章，先在 macOS Keychain 安裝 `Developer ID Application` 憑證，然後用 signed 腳本：
+
+```bash
+npm run pack:mac:signed
+```
+
+若要連 notarization 一起做，另外提供以下其中一組環境變數後再執行 signed 腳本：
+
+Apple ID 方式：
+
+```bash
+export APPLE_ID="your-apple-id@example.com"
+export APPLE_APP_SPECIFIC_PASSWORD="xxxx-xxxx-xxxx-xxxx"
+export APPLE_TEAM_ID="TEAMID1234"
+npm run pack:mac:signed
+```
+
+App Store Connect API key 方式：
+
+```bash
+export APPLE_API_KEY="/absolute/path/AuthKey_XXXXXXXXXX.p8"
+export APPLE_API_KEY_ID="XXXXXXXXXX"
+export APPLE_API_ISSUER="00000000-0000-0000-0000-000000000000"
+npm run pack:mac:signed
+```
+
+目前 repo 內建的規則是：
+
+- `npm run pack:mac` 會維持 unsigned，避免開發機沒有憑證時卡住。
+- `npm run pack:mac:signed` 才會啟用 hardened runtime 與簽章流程。
+- 若 signed 模式同時偵測到 `APPLE_*` notarization 憑證，`electron-builder` 會自動送 Apple notarize。
 
 ## 工具偵測順序
 
@@ -421,7 +545,7 @@ frontend/   主介面、前端腳本、樣式與 vendor 資源
 desktop/    Electron 桌面殼、preload、桌面本機任務處理器
 backend/    瀏覽器模式可選用的 FastAPI 後端
 scripts/    開發用啟動腳本
-build/      Windows 打包資源，例如 icon.ico
+build/      打包資源，例如 Windows icon.ico
 tools/      可選的內建 FFmpeg、Tesseract、QPDF 與 LibreOffice
 dist/       打包輸出，不納入版本控制
 ```
@@ -459,10 +583,12 @@ node --check desktop/backend.js
 - 缺少 LibreOffice、FFmpeg、Tesseract 或 QPDF 時，App 會顯示清楚狀態與錯誤
 - 手動指定外部工具路徑後，相關任務可正常執行
 - Windows 打包成功產生 portable 與 installer
+- macOS 打包成功產生 `.dmg` 或 `.zip`
+- 若要正式外發，macOS signed build 可成功完成 code signing；有 `APPLE_*` 憑證時可完成 notarization
 
 ## 維護備註
 
-- Windows 是目前唯一已有正式打包腳本的平台
+- Windows 與 macOS 都已整理基本打包腳本
 - LibreOffice 體積很大，一般 installer 預設不建議內建
 - 內建 FFmpeg、Tesseract、QPDF 前，需要確認各工具授權、更新方式與防毒誤判風險
 - 正式公開發佈 Windows 前，建議加入 code signing certificate，降低 SmartScreen 警告
