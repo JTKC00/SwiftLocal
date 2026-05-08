@@ -9,7 +9,7 @@ SwiftLocal 是一個本機優先的檔案工具箱。它把常用的圖片、PDF
 | 平台 | 目前狀態 | 說明 |
 | --- | --- | --- |
 | Windows | 已支援桌面打包 | 可產生 portable EXE 與 installer。 |
-| macOS | 已支援本機打包 | 可在 macOS 上產生 unsigned `.dmg` 與 `.zip`。 |
+| macOS | 已支援本機打包 | 可在 macOS 上產生 unsigned `.dmg`。 |
 | Linux | 未正式整理 | Electron / 瀏覽器模式理論上可跑，但尚未整理正式發佈流程。 |
 
 ## 功能總覽
@@ -67,14 +67,14 @@ SwiftLocal 是一個本機優先的檔案工具箱。它把常用的圖片、PDF
 
 ### macOS
 
-目前 repo 已準備好 macOS 打包腳本，但實際產生 `.dmg`、`.zip` 或簽章版本，仍需要在一台 Mac 上執行。
+目前 repo 已準備好 macOS 打包腳本，但實際產生 `.dmg` 或簽章版本，仍需要在一台 Mac 上執行。
 
 也就是說：
 
 - 現在可以先在 Mac 上跑開發模式與測試功能
 - 今晚回到 Mac 後，再執行打包與簽章相關流程
 
-在 macOS 本機可建立 unsigned 安裝包與壓縮包：
+在 macOS 本機可建立 unsigned 安裝包：
 
 ```bash
 npm run pack:mac
@@ -84,7 +84,6 @@ npm run pack:mac
 
 ```bash
 npm run pack:mac:dmg
-npm run pack:mac:zip
 npm run pack:mac:dir
 ```
 
@@ -404,7 +403,7 @@ dist-full/
 
 ### macOS
 
-macOS 現在已定義 `dmg` 與 `zip` target，但這些流程需要在實際的 Mac 機器上執行。第一次發佈時會先產生 unsigned 成品；若要給外部使用者較順利安裝，下一步仍建議補上 Apple Developer ID 簽章與 notarization。
+macOS 現在只保留 `dmg` target，但這些流程需要在實際的 Mac 機器上執行。第一次發佈時會先產生 unsigned 成品；若要給外部使用者較順利安裝，下一步仍建議補上 Apple Developer ID 簽章與 notarization。
 
 如果你回到 Mac 後，想保留額外的 macOS bundled-tools 打包流程做內部測試，可以另外使用：
 
@@ -412,7 +411,6 @@ macOS 現在已定義 `dmg` 與 `zip` target，但這些流程需要在實際的
 npm run pack:mac:full
 npm run pack:mac:full:dir
 npm run pack:mac:full:dmg
-npm run pack:mac:full:zip
 ```
 
 這些額外腳本會輸出到：
@@ -528,7 +526,7 @@ node --check desktop/backend.js
 - 缺少 LibreOffice、FFmpeg、Tesseract 或 QPDF 時，App 會顯示清楚狀態與錯誤
 - 手動指定外部工具路徑後，相關任務可正常執行
 - Windows 打包成功產生 portable 與 installer
-- macOS 打包成功產生 `.dmg` 或 `.zip`
+- macOS 打包成功產生 `.dmg`
 - 若要正式外發，macOS signed build 可成功完成 code signing；有 `APPLE_*` 憑證時可完成 notarization
 
 ## 維護備註

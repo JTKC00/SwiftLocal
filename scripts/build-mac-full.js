@@ -11,7 +11,7 @@ const electronBuilderCli = require.resolve("electron-builder/out/cli/cli.js");
 const bundleToolsScript = path.join(projectRoot, "scripts", "bundle-mac-tools.js");
 
 const requestedTargets = process.argv.slice(2);
-const targets = requestedTargets.length ? requestedTargets : ["dmg", "zip"];
+const targets = requestedTargets.length ? requestedTargets : ["dmg"];
 
 const bundleTools = spawn(process.execPath, [bundleToolsScript], {
   cwd: projectRoot,
@@ -71,7 +71,7 @@ function mapTargets(items) {
       mapped.push("--dir");
       continue;
     }
-    if (item === "dmg" || item === "zip") {
+    if (item === "dmg") {
       mapped.push(item);
       continue;
     }

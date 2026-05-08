@@ -53,7 +53,7 @@ module.exports = {
   mac: {
     icon: "frontend/assets/swiftlocal-logo.png",
     category: "public.app-category.productivity",
-    target: ["dmg", "zip"],
+    target: ["dmg"],
     artifactName: "SwiftLocal-${version}-mac-${arch}.${ext}",
     identity: shouldSignMac ? undefined : null,
     hardenedRuntime: shouldSignMac,
