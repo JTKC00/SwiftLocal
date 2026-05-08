@@ -24,6 +24,7 @@ SwiftLocal 是一個本機優先的檔案工具箱。它把常用的圖片、PDF
 | 資料格式 | JSON / CSV / XML 格式化與互轉 |
 | 文字 | Base64、URL 編碼、HTML escape、搜尋取代、行處理、統計 |
 | ZIP / Hash | 建立 ZIP、計算檔案校驗值 |
+| 進階分片 | 將原始檔案切成多個 part 分片；需之後完整合併才能還原 |
 | 小工具 | 顏色格式、UUID、QR Code |
 
 ### 依賴本機工具的功能
@@ -32,6 +33,7 @@ SwiftLocal 是一個本機優先的檔案工具箱。它把常用的圖片、PDF
 | --- | --- | --- | --- |
 | Office → PDF | LibreOffice | 可選安裝或可選內建 | `soffice.exe` / `soffice` |
 | 音訊 / 影片格式轉換 | FFmpeg | 建議內建 | `ffmpeg.exe` / `ffmpeg` |
+| 圖片格式轉換（後端） | FFmpeg | 建議內建 | `ffmpeg.exe` / `ffmpeg` |
 | 圖片 OCR → TXT | Tesseract | 建議內建 | `tesseract.exe` / `tesseract` |
 | PDF 加密 / 解密 | QPDF | 建議內建 | `qpdf.exe` / `qpdf` |
 
@@ -41,49 +43,38 @@ SwiftLocal 是一個本機優先的檔案工具箱。它把常用的圖片、PDF
 
 ### Windows
 
-目前提供兩種 Windows 版本：
+目前建議對外提供單一 Windows 版本：
 
-| 版本 | 適合對象 | 內建工具 | 不包含 |
-| --- | --- | --- | --- |
-| 一般版 | 大多數使用者 | FFmpeg、Tesseract、QPDF | LibreOffice |
-| Full 版 | 需要 Office → PDF 的使用者 | FFmpeg、Tesseract、QPDF、LibreOffice | 體積較大 |
+| 版本 | 內建工具 | 適合對象 |
+| --- | --- | --- |
+| Windows installer | FFmpeg、Tesseract、QPDF、LibreOffice | 一般朋友試用與日常使用 |
 
-你可以這樣理解：
-
-- 一般版：可直接做影音轉檔、OCR、PDF 加密 / 解密等常用功能。
-- Full 版：在一般版基礎上，額外可直接使用 `Word / Excel / PowerPoint → PDF`。
-
-一般版打包後會在 `dist/` 產生：
+目前建議交付的 Windows 成品會在 `dist/` 產生：
 
 - `SwiftLocal-0.1.0-portable-x64.exe`：免安裝版，雙擊即可使用。
 - `SwiftLocal-0.1.0-installer-x64.exe`：安裝版，會建立開始功能表與桌面捷徑。
 - `win-unpacked/`：未封裝資料夾，主要供開發測試，不建議作為正式發佈檔。
 
-Full 版打包後會在 `dist-full/` 產生：
-
-- `SwiftLocal-0.1.0-full-installer-x64.exe`：含 LibreOffice 的安裝版。
-- `SwiftLocal-0.1.0-full-portable-x64.exe`：含 LibreOffice 的免安裝版。
-- `win-unpacked/`：未封裝資料夾，主要供開發測試，不建議作為正式發佈檔。
-
-macOS Full 版打包後會在 `dist-full/` 產生：
-
-- `SwiftLocal-0.1.0-full-mac-arm64.dmg`：含 LibreOffice 的 mac 安裝包。
-- `SwiftLocal-0.1.0-full-mac-arm64.zip`：含 LibreOffice 的 mac 壓縮包。
-- `mac-arm64/`：未封裝 app 目錄，主要供開發測試。
-
 第一次使用建議：
 
 1. 開啟 SwiftLocal。
 2. 到「工具狀態」面板按「偵測工具」。
-3. 如果 FFmpeg、Tesseract、QPDF 顯示「內建」，可直接使用相關功能。
-4. 如果 LibreOffice 顯示未找到，只有 Office → PDF 會受影響；可另外安裝 LibreOffice，或改用 Full 版。
+3. 如果 FFmpeg、Tesseract、QPDF、LibreOffice 顯示「內建」或「可用」，可直接使用相關功能。
+4. 如果 LibreOffice 顯示未找到，只有 Office → PDF 會受影響；可另外安裝 LibreOffice 後再偵測一次工具。
 5. 回到需要的功能面板執行轉換。
 
 目前沒有程式碼簽章，所以 Windows SmartScreen 可能顯示「未知發行者」。這是未簽章 App 的正常提醒，不代表檔案損壞。
 
 ### macOS
 
-目前可在 macOS 本機建立 unsigned 安裝包與壓縮包：
+目前 repo 已準備好 macOS 打包腳本，但實際產生 `.dmg`、`.zip` 或簽章版本，仍需要在一台 Mac 上執行。
+
+也就是說：
+
+- 現在可以先在 Mac 上跑開發模式與測試功能
+- 今晚回到 Mac 後，再執行打包與簽章相關流程
+
+在 macOS 本機可建立 unsigned 安裝包與壓縮包：
 
 ```bash
 npm run pack:mac
@@ -95,25 +86,6 @@ npm run pack:mac
 npm run pack:mac:dmg
 npm run pack:mac:zip
 npm run pack:mac:dir
-```
-
-如果 `tools/` 內已放入 LibreOffice，也可另外建立 Full 版：
-
-```bash
-npm run pack:mac:full
-```
-
-只產生未封裝目錄：
-
-```bash
-npm run pack:mac:full:dir
-```
-
-分開打包：
-
-```bash
-npm run pack:mac:full:dmg
-npm run pack:mac:full:zip
 ```
 
 若你已在這台 Mac 登入 Apple Developer 憑證，並準備做正式發佈版，可改用：
@@ -128,13 +100,13 @@ npm run pack:mac:signed
 npm run pack:mac:dir:signed
 ```
 
-輸出位置：
+打包輸出位置：
 
 ```text
 dist/
 ```
 
-開發模式仍可直接執行：
+如果你今晚回到 Mac 前，只想先確認專案能跑，開發模式仍可直接執行：
 
 ```bash
 npm install
@@ -203,7 +175,7 @@ tools/
       soffice.exe
 ```
 
-macOS Full 版建議結構：
+macOS 若要把 LibreOffice 一起放入 `tools/`，建議結構如下：
 
 ```text
 tools/
@@ -388,12 +360,7 @@ http://127.0.0.1:8787
 
 ### Windows
 
-一般版與 Full 版差異：
-
-| 打包類型 | 內建工具 | 適用情境 | 輸出目錄 |
-| --- | --- | --- | --- |
-| 一般版 | FFmpeg、Tesseract、QPDF | 大多數朋友試用 | `dist/` |
-| Full 版 | FFmpeg、Tesseract、QPDF、LibreOffice | 需要 Office → PDF | `dist-full/` |
+目前建議對外只發佈 `dist/` 內的單一 Windows installer，預設打包 FFmpeg、Tesseract、QPDF、LibreOffice。
 
 產生 portable EXE 與 installer：
 
@@ -420,28 +387,16 @@ npm run pack:win:installer
 dist/
 ```
 
-### Windows Full 版
-
-如果 `tools/` 內已放入 LibreOffice，可另外建立 Full 版：
+如果你仍想保留額外的打包流程做內部測試，可以另外使用：
 
 ```powershell
 npm run pack:win:full
-```
-
-只產生未封裝目錄：
-
-```powershell
 npm run pack:win:full:dir
-```
-
-分開打包：
-
-```powershell
 npm run pack:win:full:portable
 npm run pack:win:full:installer
 ```
 
-輸出位置：
+這些額外腳本會輸出到：
 
 ```text
 dist-full/
@@ -449,28 +404,18 @@ dist-full/
 
 ### macOS
 
-macOS 現在已定義 `dmg` 與 `zip` target。第一次發佈時會先產生 unsigned 成品；若要給外部使用者較順利安裝，下一步仍建議補上 Apple Developer ID 簽章與 notarization。
+macOS 現在已定義 `dmg` 與 `zip` target，但這些流程需要在實際的 Mac 機器上執行。第一次發佈時會先產生 unsigned 成品；若要給外部使用者較順利安裝，下一步仍建議補上 Apple Developer ID 簽章與 notarization。
 
-如果 `tools/` 內已放入 LibreOffice，也可另外建立 Full 版：
+如果你回到 Mac 後，想保留額外的 macOS bundled-tools 打包流程做內部測試，可以另外使用：
 
 ```bash
 npm run pack:mac:full
-```
-
-只產生未封裝目錄：
-
-```bash
 npm run pack:mac:full:dir
-```
-
-分開打包：
-
-```bash
 npm run pack:mac:full:dmg
 npm run pack:mac:full:zip
 ```
 
-輸出位置：
+這些額外腳本會輸出到：
 
 ```text
 dist-full/

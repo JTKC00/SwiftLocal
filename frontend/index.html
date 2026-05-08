@@ -24,7 +24,7 @@
         <button class="nav-item" type="button" data-panel="hash-panel">雜湊</button>
         <button class="nav-item" type="button" data-panel="zip-panel">壓縮</button>
         <button class="nav-item" type="button" data-panel="diff-panel">比對</button>
-        <button class="nav-item" type="button" data-panel="split-panel">切割</button>
+        <button class="nav-item" type="button" data-panel="split-panel">分片</button>
         <button class="nav-item" type="button" data-panel="rename-panel">改名</button>
         <button class="nav-item" type="button" data-panel="media-panel">影音</button>
         <button class="nav-item" type="button" data-panel="tools-panel">工具</button>
@@ -179,7 +179,7 @@
           <form id="img-backend-form" class="tool-surface">
             <div class="surface-heading">
               <h3>後端圖片處理</h3>
-              <span class="badge">Pillow · Tesseract</span>
+              <span class="badge">FFmpeg · Tesseract</span>
             </div>
             <div class="control-row">
               <label>
@@ -626,14 +626,15 @@
         <div class="tool-grid">
           <form id="split-form" class="tool-surface">
             <div class="surface-heading">
-              <h3 id="split-title">檔案切割</h3>
+              <h3 id="split-title">進階分片工具</h3>
               <span class="badge">Blob</span>
             </div>
             <label class="file-zone" for="split-file">
               <input id="split-file" type="file">
               <span>選擇檔案</span>
-              <small>將大檔切成多個 part 檔</small>
+              <small>把原始檔案切成多個 part 分片；分片後不能直接開啟原文件</small>
             </label>
+            <p class="backend-inline-note">這是二進位分片工具，不是 Word、Excel、PDF 的內容拆分工具。分片只適合傳輸或備份，之後必須把全部 part 檔完整合併，才能還原原檔。</p>
             <div class="control-row">
               <label>
                 <span>每份大小</span>
@@ -648,7 +649,7 @@
               </label>
             </div>
             <div class="actions">
-              <button class="primary-button" type="submit">產生分割檔</button>
+              <button class="primary-button" type="submit">產生分片檔</button>
               <button class="secondary-button" type="button" id="download-all-parts" disabled>全部下載</button>
             </div>
           </form>
@@ -658,7 +659,7 @@
               <h3>輸出</h3>
               <span id="split-status" class="status-pill">待處理</span>
             </div>
-            <div id="split-results" class="result-list empty">尚未產生分割檔</div>
+            <div id="split-results" class="result-list empty">尚未產生分片檔</div>
           </div>
         </div>
       </section>

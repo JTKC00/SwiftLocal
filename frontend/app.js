@@ -30,7 +30,7 @@
     "hash-panel": "檔案雜湊",
     "zip-panel": "ZIP 壓縮",
     "diff-panel": "文字比對",
-    "split-panel": "檔案切割",
+    "split-panel": "進階分片",
     "rename-panel": "批量改名",
     "media-panel": "影音轉換",
     "tools-panel": "工具筱",
@@ -45,7 +45,7 @@
     "hash-panel": "檔案驗證",
     "zip-panel": "ZIP 壓縮",
     "diff-panel": "文字比對",
-    "split-panel": "檔案切割",
+    "split-panel": "進階分片",
     "rename-panel": "批量改名",
     "media-panel": "影音轉換",
     "tools-panel": "常用工具",
@@ -60,7 +60,7 @@
     "hash-panel": { nav: "驗證", hint: "產生檔案雜湊值，用來確認檔案沒有被改動。", steps: ["選擇檔案", "選擇雜湊演算法", "按「開始計算」，需要時下載 CSV"], keywords: "hash sha md5 雜湊 校驗 驗證 checksum" },
     "zip-panel": { nav: "壓縮", hint: "把多個檔案打包成一個 ZIP。", steps: ["選擇多個檔案", "確認 ZIP 檔名", "按「建立 ZIP」後下載"], keywords: "zip 壓縮 打包 archive" },
     "diff-panel": { nav: "比對", hint: "比較兩段文字有哪些新增、刪除或修改。", steps: ["貼上原文字", "貼上新文字", "按「開始比對」查看差異"], keywords: "diff compare 比對 差異 文字" },
-    "split-panel": { nav: "切割", hint: "把大型檔案切成多個較小 part 檔。", steps: ["選擇大檔案", "設定每份大小", "按「產生分割檔」後全部下載"], keywords: "split 切割 分割 大檔 part" },
+    "split-panel": { nav: "分片", hint: "把原始檔案切成多個二進位 part 分片，需之後完整合併才能還原。", steps: ["選擇檔案", "設定每份大小", "按「產生分片檔」後下載全部 part 和 manifest"], keywords: "split 切割 分片 大檔 part binary manifest" },
     "rename-panel": { nav: "改名", hint: "先預覽批量改名規則，再下載 PowerShell 腳本。", steps: ["選擇要改名的檔案", "輸入命名格式", "產生預覽，確認後下載腳本"], keywords: "rename 改名 批量 檔名 file name" },
     "media-panel": { nav: "影音", hint: "音訊與影片轉檔，需要 FFmpeg 與本地後端。", steps: ["選擇音訊或影片", "選擇輸出格式", "按「加入轉換佇列」，等完成後下載"], keywords: "media audio video mp3 wav mp4 mov ffmpeg 影音 音訊 影片" },
     "tools-panel": { nav: "小工具", hint: "顏色格式、UUID、QR Code 等日常工具。", steps: ["選擇需要的小工具", "輸入內容或設定數量", "產生後複製或下載"], keywords: "color hex rgb hsl uuid qr qrcode 小工具 顏色" },
@@ -387,7 +387,7 @@
       $("#split-size").value = "10";
       $("#split-unit").value = "1048576";
       setStatus("#split-status", "待處理");
-      setEmpty("#split-results", "尚未產生分割檔");
+      setEmpty("#split-results", "尚未產生分片檔");
       $("#download-all-parts").disabled = true;
     }
     if (panelId === "rename-panel") {
@@ -1767,7 +1767,7 @@
         return;
       }
       if (!Number.isFinite(sizeValue) || sizeValue <= 0) {
-        setEmpty("#split-results", "請輸入有效的分割大小");
+        setEmpty("#split-results", "請輸入有效的分片大小");
         return;
       }
 
@@ -1775,7 +1775,7 @@
       const partSize = Math.floor(sizeValue * unit);
       const totalParts = Math.ceil(file.size / partSize);
       if (totalParts > 500) {
-        setEmpty("#split-results", "分割份數超過 500，請調大每份大小");
+        setEmpty("#split-results", "分片數超過 500，請調大每份大小");
         return;
       }
 
@@ -1817,6 +1817,7 @@
     const partFiles = downloads.filter((item) => item.name.includes(".part"));
     return {
       tool: "SwiftLocal",
+      type: "binary-file-split",
       originalName: file.name,
       originalSize: file.size,
       partSize,
@@ -1839,6 +1840,11 @@
     summary.className = "result-summary";
     summary.textContent = `${file.name} · ${formatBytes(file.size)} · 每份 ${formatBytes(partSize)}`;
     container.appendChild(summary);
+
+    const warning = document.createElement("div");
+    warning.className = "result-summary";
+    warning.textContent = "這些是原始位元組分片，不能直接打開成 Word、Excel、PDF；必須保留全部 .part 檔和 manifest，之後完整合併才能還原原檔。";
+    container.appendChild(warning);
 
     state.splitDownloads.forEach((item) => {
       const row = document.createElement("div");

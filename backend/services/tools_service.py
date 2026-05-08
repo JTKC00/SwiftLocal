@@ -25,8 +25,11 @@ TOOL_DEFINITIONS = {
     "libreOffice": ToolDefinition(
         label="LibreOffice",
         env="SWIFTLOCAL_LIBREOFFICE",
-        commands=("soffice", "libreoffice"),
+        commands=("soffice.com", "soffice", "libreoffice"),
         bundled_paths=(
+            ("libreoffice", "program", "soffice.com"),
+            ("libreOffice", "program", "soffice.com"),
+            ("LibreOffice", "program", "soffice.com"),
             ("libreoffice", "program", "soffice.exe"),
             ("libreOffice", "program", "soffice.exe"),
             ("LibreOffice", "program", "soffice.exe"),
@@ -35,7 +38,9 @@ TOOL_DEFINITIONS = {
             ("LibreOffice", "program", "soffice"),
         ),
         windows_paths=(
+            r"C:\Program Files\LibreOffice\program\soffice.com",
             r"C:\Program Files\LibreOffice\program\soffice.exe",
+            r"C:\Program Files (x86)\LibreOffice\program\soffice.com",
             r"C:\Program Files (x86)\LibreOffice\program\soffice.exe",
         ),
         version_args=("--version",),
@@ -135,11 +140,12 @@ class ToolsService:
             resolved = await self._resolve_candidate(candidate)
             if not resolved:
                 continue
-            version = await self._read_version(resolved, definition.version_args)
+            normalized = self._normalize_tool_path(definition, resolved)
+            version = await self._read_version(normalized, definition.version_args)
             return key, {
                 "available": True,
                 "label": definition.label,
-                "path": resolved,
+                "path": normalized,
                 "version": version,
                 "source": source,
                 "message": "available",
@@ -223,6 +229,14 @@ class ToolsService:
         if path.is_absolute():
             return str(path) if path.exists() else ""
         return shutil.which(candidate) or ""
+
+    def _normalize_tool_path(self, definition: ToolDefinition, resolved: str) -> str:
+        if os.name != "nt" or definition.label != "LibreOffice":
+            return resolved
+        if not resolved.lower().endswith("soffice.exe"):
+            return resolved
+        console_path = Path(resolved[:-4] + ".com")
+        return str(console_path) if console_path.exists() else resolved
 
     async def _read_version(self, executable: str, args: tuple[str, ...]) -> str:
         try:

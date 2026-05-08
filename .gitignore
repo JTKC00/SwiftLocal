@@ -6,6 +6,9 @@ dist-full/
 __pycache__/
 *.pyc
 backend/tools.json
+.swiftlocal-tools.json
+SwiftLocal-output/
+smoke-temp/
 tools/*
 !tools/README.md
 .DS_Store

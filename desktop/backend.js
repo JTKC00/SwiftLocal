@@ -9,8 +9,11 @@ const TOOL_DEFINITIONS = {
   libreOffice: {
     label: "LibreOffice",
     env: "SWIFTLOCAL_LIBREOFFICE",
-    commands: ["soffice", "libreoffice"],
+    commands: ["soffice.com", "soffice", "libreoffice"],
     bundledPaths: [
+      ["libreoffice", "program", "soffice.com"],
+      ["libreOffice", "program", "soffice.com"],
+      ["LibreOffice", "program", "soffice.com"],
       ["libreoffice", "program", "soffice.exe"],
       ["libreOffice", "program", "soffice.exe"],
       ["LibreOffice", "program", "soffice.exe"],
@@ -19,7 +22,9 @@ const TOOL_DEFINITIONS = {
       ["LibreOffice", "program", "soffice"]
     ],
     windowsPaths: [
+      "C:\\Program Files\\LibreOffice\\program\\soffice.com",
       "C:\\Program Files\\LibreOffice\\program\\soffice.exe",
+      "C:\\Program Files (x86)\\LibreOffice\\program\\soffice.com",
       "C:\\Program Files (x86)\\LibreOffice\\program\\soffice.exe"
     ],
     versionArgs: ["--version"]
@@ -230,6 +235,10 @@ class BackendService {
       await this.runMediaConvert(job);
       return;
     }
+    if (job.type === "image-convert") {
+      await this.runImageConvert(job);
+      return;
+    }
     if (job.type === "ocr-image") {
       await this.runOcrImage(job);
       return;
@@ -391,6 +400,20 @@ class BackendService {
     }
   }
 
+  async runImageConvert(job) {
+    const tool = requireTool(this.tools, "ffmpeg");
+    ensureOutputDir(job.outputDir);
+    const extension = sanitizeExtension(job.options.extension || "jpg");
+    for (const inputPath of job.inputPaths) {
+      const outputPath = path.join(job.outputDir, `${path.parse(inputPath).name}.${extension}`);
+      const args = ["-y", "-i", inputPath, outputPath];
+      const result = await runProcess(tool.path, args);
+      job.log.push(result.output);
+      ensureOutputFile(outputPath, inputPath);
+      job.outputPaths.push(outputPath);
+    }
+  }
+
   async runOcrImage(job) {
     const tool = requireTool(this.tools, "tesseract");
     ensureOutputDir(job.outputDir);
@@ -424,11 +447,12 @@ async function detectTool(definition, configuredPath) {
     if (!resolved) {
       continue;
     }
-    const version = await readVersion(resolved, definition.versionArgs);
+    const normalized = normalizeToolPath(definition, resolved);
+    const version = await readVersion(normalized, definition.versionArgs);
     return {
       available: true,
       label: definition.label,
-      path: resolved,
+      path: normalized,
       version,
       source: candidate.source,
       message: "available"
@@ -546,6 +570,17 @@ async function resolveCandidate(candidate) {
   } catch {
     return "";
   }
+}
+
+function normalizeToolPath(definition, resolvedPath) {
+  if (process.platform !== "win32" || definition.label !== "LibreOffice") {
+    return resolvedPath;
+  }
+  if (!/soffice\.exe$/i.test(resolvedPath)) {
+    return resolvedPath;
+  }
+  const consolePath = resolvedPath.replace(/soffice\.exe$/i, "soffice.com");
+  return fs.existsSync(consolePath) ? consolePath : resolvedPath;
 }
 
 async function readVersion(executable, args) {
