@@ -934,6 +934,18 @@
               <button class="secondary-button" type="button" id="detect-backend-tools">偵測工具</button>
             </div>
 
+            <div id="desktop-output-dir-block" class="desktop-output-dir" style="display:none">
+              <label>
+                <span>桌面版輸出資料夾</span>
+                <input id="desktop-output-dir" type="text" readonly placeholder="預設：下載／SwiftLocal">
+              </label>
+              <div class="actions" style="margin-top:8px">
+                <button class="secondary-button compact" type="button" id="pick-desktop-output-dir">選擇資料夾</button>
+                <button class="secondary-button compact" type="button" id="open-desktop-output-dir">開啟資料夾</button>
+              </div>
+              <p class="backend-inline-note">僅桌面版有效。後續加入佇列的轉換結果會寫入此路徑（可在任務卡片查看）。</p>
+            </div>
+
             <p class="tool-status-note">一般使用不需要設定路徑；打包版會優先使用 app 內建的 FFmpeg、Tesseract 與 QPDF。LibreOffice 體積較大，可另外安裝或放入內建工具資料夾。</p>
 
             <details class="backend-path-config">

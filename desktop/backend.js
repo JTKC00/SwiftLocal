@@ -90,6 +90,9 @@ class BackendService {
     this.jobsStatePath = options.jobsStatePath || path.join(path.dirname(this.configPath), "jobs-state.json");
     this.defaultOutputDir = options.defaultOutputDir || path.join(process.cwd(), "SwiftLocal-output");
     this.config = loadConfig(this.configPath);
+    if (this.config.defaultOutputDir && path.isAbsolute(this.config.defaultOutputDir)) {
+      this.defaultOutputDir = this.config.defaultOutputDir;
+    }
     this.tools = null;
     this.jobs = loadJobsState(this.jobsStatePath);
     // Persist repairs (e.g. running → failed after crash) immediately.
@@ -113,8 +116,24 @@ class BackendService {
 
   getConfig() {
     return {
-      toolPaths: { ...this.config.toolPaths }
+      toolPaths: { ...this.config.toolPaths },
+      defaultOutputDir: this.defaultOutputDir
     };
+  }
+
+  setDefaultOutputDir(outputDir) {
+    const normalized = String(outputDir || "").trim();
+    if (!normalized) {
+      throw new Error("Output folder is required");
+    }
+    if (!path.isAbsolute(normalized)) {
+      throw new Error("Output folder must be absolute");
+    }
+    fs.mkdirSync(normalized, { recursive: true });
+    this.defaultOutputDir = normalized;
+    this.config.defaultOutputDir = normalized;
+    saveConfig(this.configPath, this.config);
+    return this.getConfig();
   }
 
   async setToolPath(key, toolPath) {
@@ -776,10 +795,12 @@ function loadConfig(configPath) {
   try {
     const parsed = JSON.parse(fs.readFileSync(configPath, "utf8"));
     return {
-      toolPaths: parsed && typeof parsed.toolPaths === "object" ? parsed.toolPaths : {}
+      toolPaths: parsed && typeof parsed.toolPaths === "object" ? parsed.toolPaths : {},
+      defaultOutputDir:
+        parsed && typeof parsed.defaultOutputDir === "string" ? parsed.defaultOutputDir : ""
     };
   } catch {
-    return { toolPaths: {} };
+    return { toolPaths: {}, defaultOutputDir: "" };
   }
 }
 

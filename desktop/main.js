@@ -102,6 +102,7 @@ function installMenu() {
 function installBackendIpc() {
   ipcMain.handle("backend:detect-tools", () => backend.detectTools());
   ipcMain.handle("backend:get-config", () => backend.getConfig());
+  ipcMain.handle("backend:set-default-output-dir", (_event, outputDir) => backend.setDefaultOutputDir(outputDir));
   ipcMain.handle("backend:set-tool-path", (_event, key, toolPath) => backend.setToolPath(key, toolPath));
   ipcMain.handle("backend:get-jobs", () => backend.getJobs());
   ipcMain.handle("backend:enqueue-job", (_event, payload) => backend.enqueue(payload));

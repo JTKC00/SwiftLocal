@@ -1,13 +1,101 @@
 {
   "version": 1,
-  "savedAt": "2026-07-22T02:30:57.218Z",
+  "savedAt": "2026-07-22T02:40:43.558Z",
   "jobs": [
+    {
+      "id": "1784688043153-52a54033f7ad6",
+      "type": "pdf-compress",
+      "inputPaths": [
+        "C:\\Users\\sgeus\\AppData\\Local\\Temp\\sl-jobs-KKqqoB\\locked.pdf"
+      ],
+      "outputDir": "C:\\Users\\sgeus\\AppData\\Local\\Temp\\sl-jobs-KKqqoB\\enc-out",
+      "options": {},
+      "status": "failed",
+      "createdAt": "2026-07-22T02:40:43.153Z",
+      "startedAt": "2026-07-22T02:40:43.153Z",
+      "finishedAt": "2026-07-22T02:40:43.558Z",
+      "outputPaths": [],
+      "log": [
+        "「locked.pdf」已加密，請先使用「PDF 解密」後再處理"
+      ],
+      "error": "「locked.pdf」已加密，請先使用「PDF 解密」後再處理"
+    },
+    {
+      "id": "1784688042667-4d75e197743a5",
+      "type": "pdf-merge",
+      "inputPaths": [
+        "C:\\Users\\sgeus\\AppData\\Local\\Temp\\sl-jobs-KKqqoB\\a.pdf",
+        "C:\\Users\\sgeus\\AppData\\Local\\Temp\\sl-jobs-KKqqoB\\b.pdf"
+      ],
+      "outputDir": "C:\\Users\\sgeus\\AppData\\Local\\Temp\\sl-jobs-KKqqoB\\merge-out",
+      "options": {},
+      "status": "done",
+      "createdAt": "2026-07-22T02:40:42.667Z",
+      "startedAt": "2026-07-22T02:40:42.668Z",
+      "finishedAt": "2026-07-22T02:40:43.132Z",
+      "outputPaths": [
+        "C:\\Users\\sgeus\\AppData\\Local\\Temp\\sl-jobs-KKqqoB\\merge-out\\merged.pdf"
+      ],
+      "log": [
+        "merged 2 file(s) -> merged.pdf"
+      ],
+      "error": ""
+    },
+    {
+      "id": "1784688042196-062b52a8352ef8",
+      "type": "pdf-compress",
+      "inputPaths": [
+        "C:\\Users\\sgeus\\AppData\\Local\\Temp\\sl-jobs-KKqqoB\\cancel-me.pdf"
+      ],
+      "outputDir": "C:\\Users\\sgeus\\AppData\\Local\\Temp\\sl-jobs-KKqqoB",
+      "options": {},
+      "status": "cancelled",
+      "createdAt": "2026-07-22T02:40:42.196Z",
+      "startedAt": "2026-07-22T02:40:42.197Z",
+      "finishedAt": "2026-07-22T02:40:42.631Z",
+      "outputPaths": [],
+      "log": [
+        "取消請求已送出：外部工具（FFmpeg／LibreOffice／Tesseract 等）會盡快中止；本機純處理步驟需等目前段落結束。",
+        "任務已取消"
+      ],
+      "error": "任務已取消"
+    },
+    {
+      "id": "1784688042113-d2d5019e5e61c",
+      "type": "pdf-merge",
+      "inputPaths": [],
+      "outputDir": "C:\\Users\\sgeus\\AppData\\Local\\Temp\\sl-jobs-KKqqoB",
+      "options": {},
+      "status": "cancelled",
+      "createdAt": "2026-07-22T02:40:42.113Z",
+      "startedAt": null,
+      "finishedAt": "2026-07-22T02:40:42.113Z",
+      "outputPaths": [],
+      "log": [
+        "任務已取消"
+      ],
+      "error": "任務已取消"
+    },
+    {
+      "id": "1784688041911-ea943f3b3ce68",
+      "type": "pdf-merge",
+      "inputPaths": [],
+      "outputDir": "C:\\Users\\sgeus\\AppData\\Local\\Temp\\sl-jobs-KKqqoB",
+      "options": {},
+      "status": "failed",
+      "createdAt": "2026-07-22T02:40:41.911Z",
+      "startedAt": "2026-07-22T02:40:41.912Z",
+      "finishedAt": "2026-07-22T02:40:42.112Z",
+      "outputPaths": [],
+      "log": [
+        "應用程式重啟時任務中斷"
+      ],
+      "error": "應用程式重啟時任務中斷"
+    },
     {
       "id": "1784687456823-69055dd30b9078",
       "type": "pdf-compress",
-      "inputPaths": [
-        "C:\\Users\\sgeus\\AppData\\Local\\Temp\\sl-jobs-KHsY8J\\locked.pdf"
-      ],
+      "inputPaths": [],
       "outputDir": "C:\\Users\\sgeus\\AppData\\Local\\Temp\\sl-jobs-KHsY8J\\enc-out",
       "options": {},
       "status": "failed",
@@ -23,19 +111,14 @@
     {
       "id": "1784687456395-748e4cafd800f",
       "type": "pdf-merge",
-      "inputPaths": [
-        "C:\\Users\\sgeus\\AppData\\Local\\Temp\\sl-jobs-KHsY8J\\a.pdf",
-        "C:\\Users\\sgeus\\AppData\\Local\\Temp\\sl-jobs-KHsY8J\\b.pdf"
-      ],
+      "inputPaths": [],
       "outputDir": "C:\\Users\\sgeus\\AppData\\Local\\Temp\\sl-jobs-KHsY8J\\merge-out",
       "options": {},
       "status": "done",
       "createdAt": "2026-07-22T02:30:56.395Z",
       "startedAt": "2026-07-22T02:30:56.396Z",
       "finishedAt": "2026-07-22T02:30:56.821Z",
-      "outputPaths": [
-        "C:\\Users\\sgeus\\AppData\\Local\\Temp\\sl-jobs-KHsY8J\\merge-out\\merged.pdf"
-      ],
+      "outputPaths": [],
       "log": [
         "merged 2 file(s) -> merged.pdf"
       ],
@@ -44,9 +127,7 @@
     {
       "id": "1784687455895-f40e991f2c7568",
       "type": "pdf-compress",
-      "inputPaths": [
-        "C:\\Users\\sgeus\\AppData\\Local\\Temp\\sl-jobs-KHsY8J\\cancel-me.pdf"
-      ],
+      "inputPaths": [],
       "outputDir": "C:\\Users\\sgeus\\AppData\\Local\\Temp\\sl-jobs-KHsY8J",
       "options": {},
       "status": "cancelled",

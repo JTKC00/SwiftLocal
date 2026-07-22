@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld("swiftLocalBackend", {
   isAvailable: true,
   detectTools: () => ipcRenderer.invoke("backend:detect-tools"),
   getConfig: () => ipcRenderer.invoke("backend:get-config"),
+  setDefaultOutputDir: (outputDir) => ipcRenderer.invoke("backend:set-default-output-dir", outputDir),
   setToolPath: (key, toolPath) => ipcRenderer.invoke("backend:set-tool-path", key, toolPath),
   chooseExecutable: (options) => ipcRenderer.invoke("backend:choose-executable", options),
   chooseFiles: (options) => ipcRenderer.invoke("backend:choose-files", options),

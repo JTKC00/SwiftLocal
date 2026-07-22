@@ -206,7 +206,7 @@ CI：GitHub Actions 工作流程 `.github/workflows/ci.yml` 在 `main` / `master
 
 | 模式 | 狀態檔 | 行為 |
 | --- | --- | --- |
-| Electron | `userData/jobs-state.json`（與 `tools.json` 同目錄） | 啟動時載入；`queued` 會繼續跑 |
+| Electron | `userData/jobs-state.json`（與 `tools.json` 同目錄） | 啟動時載入；`queued` 會繼續跑；輸出目錄可在「狀態」面板設定（寫入 `tools.json` 的 `defaultOutputDir`） |
 | FastAPI | `backend/temp/jobs-state.json` | 啟動 `restore_state()`；保留 job 目錄與輸出 |
 
 - 重啟時仍為 **`running`** 的任務會改為 **`failed`**（訊息：重啟／中斷），避免半成品當成功。

@@ -647,6 +647,30 @@ td.code-cell {
   margin-bottom: 16px;
 }
 
+.desktop-output-dir {
+  margin: 12px 0 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--border, #ddd5c8);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.desktop-output-dir input[readonly] {
+  width: 100%;
+  font-size: 12px;
+}
+
+.job-output-dir {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+[data-theme="dark"] .desktop-output-dir {
+  background: rgba(255, 255, 255, 0.03);
+}
+
 .media-advanced {
   margin: 10px 0 14px;
   padding: 10px 12px;

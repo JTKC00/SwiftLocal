@@ -17,6 +17,7 @@
     backendConnected: false,
     detectedTools: null,
     backendPollTimer: null,
+    desktopOutputDir: "",
     hashRows: [],
     renameRows: [],
     theme: "light"
@@ -2015,6 +2016,11 @@
     $("#detect-backend-tools").addEventListener("click", detectBackendTools);
     $("#refresh-backend-jobs").addEventListener("click", refreshBackendJobs);
 
+    const pickOut = $("#pick-desktop-output-dir");
+    const openOut = $("#open-desktop-output-dir");
+    if (pickOut) pickOut.addEventListener("click", pickDesktopOutputDir);
+    if (openOut) openOut.addEventListener("click", openDesktopOutputDir);
+
     // 影音面板
     bindFileDropZone("media-drop", "media-files", "media-selected-files", "mediaBackendFiles");
     $("#media-backend-form").addEventListener("submit", enqueueMediaBackendJob);
@@ -2045,9 +2051,66 @@
       input.addEventListener("change", () => setBackendToolPath(key, input.value));
     });
 
+    updateDesktopOutputDirVisibility();
     checkBackendHealth();
     updatePdfBackendJobControls();
     updateImgBackendJobControls();
+  }
+
+  function updateDesktopOutputDirVisibility() {
+    const block = $("#desktop-output-dir-block");
+    if (!block) return;
+    block.style.display = electronBridgeAvailable() ? "" : "none";
+  }
+
+  function renderDesktopOutputDir() {
+    const input = $("#desktop-output-dir");
+    if (input) {
+      input.value = state.desktopOutputDir || "";
+    }
+  }
+
+  async function loadDesktopOutputDir() {
+    updateDesktopOutputDirVisibility();
+    if (!electronBridgeAvailable() || typeof window.swiftLocalBackend.getConfig !== "function") {
+      return;
+    }
+    try {
+      const config = await window.swiftLocalBackend.getConfig();
+      state.desktopOutputDir = (config && config.defaultOutputDir) || "";
+      renderDesktopOutputDir();
+    } catch {
+      state.desktopOutputDir = "";
+      renderDesktopOutputDir();
+    }
+  }
+
+  async function pickDesktopOutputDir() {
+    if (!electronBridgeAvailable()) return;
+    try {
+      const dir = await window.swiftLocalBackend.chooseDirectory();
+      if (!dir) return;
+      const config = await window.swiftLocalBackend.setDefaultOutputDir(dir);
+      state.desktopOutputDir = (config && config.defaultOutputDir) || dir;
+      renderDesktopOutputDir();
+      showToast("輸出資料夾已更新", "success");
+    } catch (error) {
+      showToast(readableError(error), "error");
+    }
+  }
+
+  async function openDesktopOutputDir() {
+    if (!electronBridgeAvailable()) return;
+    const target = state.desktopOutputDir;
+    if (!target) {
+      showToast("尚未設定輸出資料夾", "error");
+      return;
+    }
+    try {
+      await window.swiftLocalBackend.openPath(target);
+    } catch (error) {
+      showToast(readableError(error), "error");
+    }
   }
 
   function backendApiAvailable() {
@@ -2066,6 +2129,7 @@
       setStatus("#pdf-backend-status", "桌面版已就緒");
       setStatus("#img-backend-status", "桌面版已就緒");
       setStatus("#media-backend-status", "桌面版已就緒");
+      await loadDesktopOutputDir();
       await detectBackendTools();
       await refreshBackendJobs();
       return;
@@ -2457,7 +2521,8 @@
     const title = document.createElement("strong");
     title.textContent = jobTypeLabel(job.type);
     const statusSpan = document.createElement("span");
-    statusSpan.textContent = job.status;
+    statusSpan.textContent = jobStatusLabel(job.status);
+    statusSpan.title = job.status;
 
     const headerRight = document.createElement("div");
     headerRight.style.display = "flex";
@@ -2488,6 +2553,18 @@
     const small = document.createElement("small");
     small.innerHTML = job.inputPaths.map((item) => escapeHtml(item)).join("<br>");
     div.appendChild(small);
+
+    if (job.outputDir) {
+      const outDir = document.createElement("small");
+      outDir.className = "job-output-dir";
+      outDir.textContent = `輸出：${job.outputDir}`;
+      if (electronBridgeAvailable()) {
+        outDir.style.cursor = "pointer";
+        outDir.title = "點擊開啟輸出資料夾";
+        outDir.addEventListener("click", () => window.swiftLocalBackend.openPath(job.outputDir));
+      }
+      div.appendChild(outDir);
+    }
 
     const outputsDiv = document.createElement("div");
     outputsDiv.className = "backend-output-paths";
@@ -2637,6 +2714,7 @@
     return {
       type: String(formData.get("type") || ""),
       inputPaths,
+      outputDir: state.desktopOutputDir || undefined,
       options: {
         extension: String(formData.get("extension") || ""),
         language: String(formData.get("language") || ""),
@@ -2661,6 +2739,15 @@
       return window.swiftLocalBackend.getFilePath(file);
     }
     return file.path || "";
+  }
+
+  function jobStatusLabel(status) {
+    if (status === "queued") return "排隊中";
+    if (status === "running") return "處理中";
+    if (status === "done") return "已完成";
+    if (status === "failed") return "失敗";
+    if (status === "cancelled") return "已取消";
+    return status || "未知";
   }
 
   function jobTypeLabel(type) {
