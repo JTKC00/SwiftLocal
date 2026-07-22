@@ -736,6 +736,12 @@ td.code-cell {
   background: #fff6f4;
 }
 
+.backend-job.cancelled {
+  border-color: #c5c5c5;
+  background: #f4f4f4;
+  opacity: 0.92;
+}
+
 .backend-output-paths {
   display: grid;
   gap: 4px;
@@ -1169,6 +1175,11 @@ td.code-cell {
 [data-theme="dark"] .backend-job.failed {
   background: #2e1a1a;
   border-color: #6b3030;
+}
+
+[data-theme="dark"] .backend-job.cancelled {
+  background: #242424;
+  border-color: #555;
 }
 
 [data-theme="dark"] .file-icon {

@@ -13,6 +13,7 @@ contextBridge.exposeInMainWorld("swiftLocalBackend", {
   openPath: (targetPath) => ipcRenderer.invoke("backend:open-path", targetPath),
   enqueueJob: (payload) => ipcRenderer.invoke("backend:enqueue-job", payload),
   deleteJob: (jobId) => ipcRenderer.invoke("backend:delete-job", jobId),
+  cancelJob: (jobId) => ipcRenderer.invoke("backend:cancel-job", jobId),
   getJobs: () => ipcRenderer.invoke("backend:get-jobs"),
   getFilePath: (file) => webUtils.getPathForFile(file),
   onJobsUpdated: (callback) => {

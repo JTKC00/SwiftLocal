@@ -31,7 +31,10 @@
     "pack:mac:dmg:signed": "SWIFTLOCAL_MAC_SIGN=1 electron-builder --config electron-builder.config.js --mac dmg",
     "pack:mac:full:signed": "SWIFTLOCAL_MAC_SIGN=1 node scripts/build-mac-full.js dmg",
     "pack:mac:full:dir:signed": "SWIFTLOCAL_MAC_SIGN=1 node scripts/build-mac-full.js dir",
-    "pack:mac:full:dmg:signed": "SWIFTLOCAL_MAC_SIGN=1 node scripts/build-mac-full.js dmg"
+    "pack:mac:full:dmg:signed": "SWIFTLOCAL_MAC_SIGN=1 node scripts/build-mac-full.js dmg",
+    "test": "node scripts/run-tests.js",
+    "test:js": "node --test tests/desktop/backend.test.js",
+    "test:py": "node -e \"const {spawnSync}=require('child_process'); const r=spawnSync(process.platform==='win32'?'py':'python3', process.platform==='win32'?['-3','-m','unittest','tests.backend.test_core','-v']:['-m','unittest','tests.backend.test_core','-v'],{stdio:'inherit',shell:true}); process.exit(r.status||0)\""
   },
   "devDependencies": {
     "electron": "latest",

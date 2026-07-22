@@ -1,8 +1,49 @@
 import asyncio
 import subprocess
+from contextvars import ContextVar
 from pathlib import Path
 
 from .tools_service import tools_service
+
+# Job cancellation: set by JobService, checked/killed inside run_process.
+_current_job_id: ContextVar[str | None] = ContextVar("swiftlocal_job_id", default=None)
+_cancel_requested: dict[str, bool] = {}
+_active_processes: dict[str, subprocess.Popen] = {}
+
+
+class JobCancelled(Exception):
+    """Raised when a job is cancelled by the user."""
+
+
+def begin_job(job_id: str) -> None:
+    _cancel_requested[job_id] = False
+    _current_job_id.set(job_id)
+
+
+def end_job(job_id: str) -> None:
+    _cancel_requested.pop(job_id, None)
+    _active_processes.pop(job_id, None)
+    if _current_job_id.get() == job_id:
+        _current_job_id.set(None)
+
+
+def request_cancel(job_id: str) -> bool:
+    """Mark job cancelled and kill its external process if any. Returns True if process was signalled."""
+    _cancel_requested[job_id] = True
+    proc = _active_processes.get(job_id)
+    if not proc or proc.poll() is not None:
+        return False
+    try:
+        proc.kill()
+    except OSError:
+        return False
+    return True
+
+
+def ensure_not_cancelled() -> None:
+    job_id = _current_job_id.get()
+    if job_id and _cancel_requested.get(job_id):
+        raise JobCancelled("任務已取消")
 
 
 async def convert_office_to_pdf(input_paths: list[Path], output_dir: Path) -> tuple[list[Path], list[str]]:
@@ -11,6 +52,7 @@ async def convert_office_to_pdf(input_paths: list[Path], output_dir: Path) -> tu
     outputs: list[Path] = []
 
     for input_path in input_paths:
+        ensure_not_cancelled()
         profile_dir = output_dir / f"{input_path.stem}_lo_profile"
         profile_dir.mkdir(parents=True, exist_ok=True)
         profile_uri = profile_dir.resolve().as_posix()
@@ -57,6 +99,7 @@ async def convert_pdf_to_office(input_paths: list[Path], output_dir: Path, exten
     outputs: list[Path] = []
 
     for input_path in input_paths:
+        ensure_not_cancelled()
         profile_dir = output_dir / f"{input_path.stem}_lo_profile"
         profile_dir.mkdir(parents=True, exist_ok=True)
         profile_uri = profile_dir.resolve().as_posix()
@@ -173,6 +216,7 @@ async def convert_media(input_paths: list[Path], output_dir: Path, extension: st
     outputs: list[Path] = []
 
     for input_path in input_paths:
+        ensure_not_cancelled()
         output_path = output_dir / f"{input_path.stem}.{clean_extension}"
         log = await run_process(str(tool["path"]), ["-y", "-i", str(input_path), str(output_path)], timeout=600)
         logs.append(log)
@@ -189,6 +233,7 @@ async def ocr_images(input_paths: list[Path], output_dir: Path, language: str) -
     tessdata_dir = resolve_tessdata_dir(Path(str(tool["path"])))
 
     for input_path in input_paths:
+        ensure_not_cancelled()
         output_base = output_dir / f"{input_path.stem}_ocr"
         args = [str(input_path), str(output_base), "-l", clean_language]
         if tessdata_dir:
@@ -427,17 +472,39 @@ def _pdf_to_docx_sync(input_path: Path, output_path: Path) -> None:
 
 
 async def run_process(executable: str, args: list[str], timeout: int = 300) -> str:
-    result = await asyncio.to_thread(
-        subprocess.run,
+    ensure_not_cancelled()
+    job_id = _current_job_id.get()
+    return await asyncio.to_thread(_run_process_sync, executable, args, timeout, job_id)
+
+
+def _run_process_sync(executable: str, args: list[str], timeout: int, job_id: str | None) -> str:
+    if job_id and _cancel_requested.get(job_id):
+        raise JobCancelled("任務已取消")
+    proc = subprocess.Popen(
         [executable, *args],
-        capture_output=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
         text=True,
-        timeout=timeout,
-        check=False,
     )
-    output = f"{result.stdout or ''}{result.stderr or ''}".strip()
-    if result.returncode != 0:
-        raise RuntimeError(output or f"Process exited with code {result.returncode}")
+    if job_id:
+        _active_processes[job_id] = proc
+    try:
+        try:
+            stdout, stderr = proc.communicate(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            stdout, stderr = proc.communicate()
+            output = f"{stdout or ''}{stderr or ''}".strip()
+            raise RuntimeError(output or f"Process timed out after {timeout}s") from None
+    finally:
+        if job_id:
+            _active_processes.pop(job_id, None)
+
+    output = f"{stdout or ''}{stderr or ''}".strip()
+    if job_id and _cancel_requested.get(job_id):
+        raise JobCancelled("任務已取消")
+    if proc.returncode != 0:
+        raise RuntimeError(output or f"Process exited with code {proc.returncode}")
     return output
 
 

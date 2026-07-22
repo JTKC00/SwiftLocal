@@ -9,6 +9,8 @@ from fastapi import UploadFile
 
 from .conversion_service import (
     ALLOWED_PDF_TO_OFFICE_EXTENSIONS,
+    JobCancelled,
+    begin_job,
     compress_pdf,
     convert_image,
     convert_media,
@@ -17,8 +19,11 @@ from .conversion_service import (
     convert_pdf_to_office,
     decrypt_pdf,
     encrypt_pdf,
+    end_job,
+    ensure_not_cancelled,
     merge_pdfs,
     ocr_images,
+    request_cancel,
     rotate_pdf,
     sanitize_extension,
     split_pdf,
@@ -49,6 +54,7 @@ class Job:
     output_paths: list[Path] = field(default_factory=list)
     log: list[str] = field(default_factory=list)
     error: str = ""
+    cancel_requested: bool = False
 
 
 class JobService:
@@ -120,10 +126,27 @@ class JobService:
         if not job:
             return False
         if job.status == "running":
-            raise ValueError("無法刪除執行中的任務，請等完成後再刪除")
+            raise ValueError("無法刪除執行中的任務，請先取消或等完成後再刪除")
         self.jobs = [item for item in self.jobs if item.id != job_id]
         shutil.rmtree(JOBS_DIR / job_id, ignore_errors=True)
         return True
+
+    async def cancel_job(self, job_id: str) -> dict | None:
+        job = self._find_job(job_id)
+        if not job:
+            return None
+        if job.status == "queued":
+            job.status = "cancelled"
+            job.error = "任務已取消"
+            job.log.append(job.error)
+            job.finished_at = now_iso()
+            return self.public_job(job)
+        if job.status == "running":
+            job.cancel_requested = True
+            request_cancel(job.id)
+            job.log.append("取消請求已送出…")
+            return self.public_job(job)
+        raise ValueError("只能取消排隊中或執行中的任務")
 
     async def _run_next(self) -> None:
         async with self.lock:
@@ -145,9 +168,17 @@ class JobService:
                 asyncio.create_task(self._run_next())
 
     async def _run_job(self, job: Job) -> None:
+        if job.cancel_requested or job.status == "cancelled":
+            job.status = "cancelled"
+            job.error = job.error or "任務已取消"
+            job.finished_at = now_iso()
+            return
+
         job.status = "running"
         job.started_at = now_iso()
+        begin_job(job.id)
         try:
+            ensure_not_cancelled()
             if job.type == "office-to-pdf":
                 outputs, logs = await convert_office_to_pdf(job.input_paths, job.output_dir)
             elif job.type == "media-convert":
@@ -175,16 +206,29 @@ class JobService:
             else:
                 raise RuntimeError(f"Unsupported job type: {job.type}")
 
+            ensure_not_cancelled()
             job.output_paths = [path for path in outputs if path.exists()]
             job.log.extend(log for log in logs if log)
+            if job.cancel_requested:
+                raise JobCancelled("任務已取消")
             if not job.output_paths:
                 raise RuntimeError("Conversion finished but no output file was created")
             job.status = "done"
-        except Exception as error:
-            job.error = str(error)
+        except JobCancelled as error:
+            job.error = str(error) or "任務已取消"
             job.log.append(job.error)
-            job.status = "failed"
+            job.status = "cancelled"
+        except Exception as error:
+            if job.cancel_requested:
+                job.error = "任務已取消"
+                job.log.append(job.error)
+                job.status = "cancelled"
+            else:
+                job.error = str(error)
+                job.log.append(job.error)
+                job.status = "failed"
         finally:
+            end_job(job.id)
             job.finished_at = now_iso()
 
     def public_job(self, job: Job) -> dict:

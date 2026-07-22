@@ -48,6 +48,17 @@ async def download_output(job_id: str, filename: str):
     return FileResponse(output_path, filename=output_path.name)
 
 
+@router.post("/jobs/{job_id}/cancel")
+async def cancel_job(job_id: str):
+    try:
+        job = await job_service.cancel_job(job_id)
+    except ValueError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return job
+
+
 @router.delete("/jobs/{job_id}")
 async def delete_job(job_id: str):
     try:

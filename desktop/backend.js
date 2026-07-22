@@ -144,7 +144,9 @@ class BackendService {
       finishedAt: null,
       outputPaths: [],
       log: [],
-      error: ""
+      error: "",
+      cancelRequested: false,
+      _child: null
     };
     this.jobs.unshift(job);
     this.emitJobs();
@@ -159,11 +161,40 @@ class BackendService {
     }
     const job = this.jobs[index];
     if (job.status === "running") {
-      throw new Error("無法刪除執行中的任務，請等完成後再刪除");
+      throw new Error("無法刪除執行中的任務，請先取消或等完成後再刪除");
     }
     this.jobs.splice(index, 1);
     this.emitJobs();
     return true;
+  }
+
+  cancelJob(jobId) {
+    const job = this.jobs.find((item) => item.id === jobId);
+    if (!job) {
+      return false;
+    }
+    if (job.status === "queued") {
+      job.status = "cancelled";
+      job.error = "任務已取消";
+      job.log.push(job.error);
+      job.finishedAt = new Date().toISOString();
+      this.emitJobs();
+      return publicJob(job);
+    }
+    if (job.status === "running") {
+      job.cancelRequested = true;
+      job.log.push("取消請求已送出…");
+      if (job._child && !job._child.killed) {
+        try {
+          job._child.kill();
+        } catch {
+          // ignore kill races
+        }
+      }
+      this.emitJobs();
+      return publicJob(job);
+    }
+    throw new Error("只能取消排隊中或執行中的任務");
   }
 
   async runNext() {
@@ -172,6 +203,15 @@ class BackendService {
     }
     const job = this.jobs.find((item) => item.status === "queued");
     if (!job) {
+      return;
+    }
+
+    if (job.cancelRequested) {
+      job.status = "cancelled";
+      job.error = job.error || "任務已取消";
+      job.finishedAt = new Date().toISOString();
+      this.emitJobs();
+      this.runNext();
       return;
     }
 
@@ -184,13 +224,21 @@ class BackendService {
       if (!this.tools) {
         await this.detectTools();
       }
+      ensureJobNotCancelled(job);
       await this.runJob(job);
+      ensureJobNotCancelled(job);
       job.status = "done";
     } catch (error) {
-      job.status = "failed";
-      job.error = error instanceof Error ? error.message : String(error);
+      if (isJobCancelledError(error) || job.cancelRequested) {
+        job.status = "cancelled";
+        job.error = "任務已取消";
+      } else {
+        job.status = "failed";
+        job.error = error instanceof Error ? error.message : String(error);
+      }
       job.log.push(job.error);
     } finally {
+      job._child = null;
       job.finishedAt = new Date().toISOString();
       this.running = false;
       this.emitJobs();
@@ -254,9 +302,10 @@ class BackendService {
     const tool = requireTool(this.tools, "libreOffice");
     ensureOutputDir(job.outputDir);
     for (const inputPath of job.inputPaths) {
+      ensureJobNotCancelled(job);
       const args = libreOfficeArgs(job.outputDir, inputPath, "pdf");
       const before = snapshotOutputDir(job.outputDir);
-      const result = await runProcess(tool.path, args);
+      const result = await runProcess(tool.path, args, job);
       const outputPath = resolveLibreOfficeOutput(job.outputDir, inputPath, "pdf", before);
       job.log.push(result.output || `converted: ${path.basename(inputPath)} -> ${path.basename(outputPath)}`);
       job.outputPaths.push(outputPath);
@@ -276,7 +325,24 @@ class BackendService {
   }
 
   async runPdfToOffice(job) {
-    throw new Error("PDF to Office formats other than DOCX are not supported in the desktop app. Use PDF → DOCX for text extraction.");
+    const tool = requireTool(this.tools, "libreOffice");
+    ensureOutputDir(job.outputDir);
+    const extension = sanitizeOfficeExtension(job.options.extension || "docx");
+    const convertTo = officeConvertTarget(extension);
+    for (const inputPath of job.inputPaths) {
+      ensureJobNotCancelled(job);
+      // Reject encrypted PDFs early; LibreOffice error messages are hard to parse.
+      const probe = fs.readFileSync(inputPath);
+      if (pdfBytesLookEncrypted(probe)) {
+        throw encryptedPdfError(path.basename(inputPath));
+      }
+      const before = snapshotOutputDir(job.outputDir);
+      const args = libreOfficeArgs(job.outputDir, inputPath, convertTo);
+      const result = await runProcess(tool.path, args, job);
+      const outputPath = resolveLibreOfficeOutput(job.outputDir, inputPath, extension, before);
+      job.log.push(result.output || `converted: ${path.basename(inputPath)} -> ${path.basename(outputPath)}`);
+      job.outputPaths.push(outputPath);
+    }
   }
 
   async runPdfMerge(job) {
@@ -349,9 +415,10 @@ class BackendService {
     ensureOutputDir(job.outputDir);
     const password = sanitizePassword(job.options.password);
     for (const inputPath of job.inputPaths) {
+      ensureJobNotCancelled(job);
       const outputPath = path.join(job.outputDir, `${path.parse(inputPath).name}_encrypted.pdf`);
       const args = ["--encrypt", password, password, "256", "--", inputPath, outputPath];
-      const result = await runProcess(tool.path, args);
+      const result = await runProcess(tool.path, args, job);
       job.log.push(result.output || `encrypted: ${path.basename(inputPath)} -> ${path.basename(outputPath)}`);
       ensureOutputFile(outputPath, inputPath);
       job.outputPaths.push(outputPath);
@@ -363,11 +430,12 @@ class BackendService {
     ensureOutputDir(job.outputDir);
     const password = String(job.options.password || "");
     for (const inputPath of job.inputPaths) {
+      ensureJobNotCancelled(job);
       const outputPath = path.join(job.outputDir, `${path.parse(inputPath).name}_decrypted.pdf`);
       const args = password
         ? [`--password=${password}`, "--decrypt", inputPath, outputPath]
         : ["--decrypt", inputPath, outputPath];
-      const result = await runProcess(tool.path, args);
+      const result = await runProcess(tool.path, args, job);
       job.log.push(result.output || `decrypted: ${path.basename(inputPath)} -> ${path.basename(outputPath)}`);
       ensureOutputFile(outputPath, inputPath);
       job.outputPaths.push(outputPath);
@@ -377,6 +445,7 @@ class BackendService {
   async runPdfCompress(job) {
     ensureOutputDir(job.outputDir);
     for (const inputPath of job.inputPaths) {
+      ensureJobNotCancelled(job);
       const input = await loadPdf(inputPath);
       const outputPath = path.join(job.outputDir, `${path.parse(inputPath).name}_compressed.pdf`);
       const bytes = await input.save({ useObjectStreams: true });
@@ -395,9 +464,10 @@ class BackendService {
     ensureOutputDir(job.outputDir);
     const extension = sanitizeExtension(job.options.extension || "mp4");
     for (const inputPath of job.inputPaths) {
+      ensureJobNotCancelled(job);
       const outputPath = path.join(job.outputDir, `${path.parse(inputPath).name}.${extension}`);
       const args = ["-y", "-i", inputPath, outputPath];
-      const result = await runProcess(tool.path, args);
+      const result = await runProcess(tool.path, args, job);
       job.log.push(result.output);
       ensureOutputFile(outputPath, inputPath);
       job.outputPaths.push(outputPath);
@@ -409,9 +479,10 @@ class BackendService {
     ensureOutputDir(job.outputDir);
     const extension = sanitizeExtension(job.options.extension || "jpg");
     for (const inputPath of job.inputPaths) {
+      ensureJobNotCancelled(job);
       const outputPath = path.join(job.outputDir, `${path.parse(inputPath).name}.${extension}`);
       const args = ["-y", "-i", inputPath, outputPath];
-      const result = await runProcess(tool.path, args);
+      const result = await runProcess(tool.path, args, job);
       job.log.push(result.output);
       ensureOutputFile(outputPath, inputPath);
       job.outputPaths.push(outputPath);
@@ -423,13 +494,14 @@ class BackendService {
     ensureOutputDir(job.outputDir);
     const language = job.options.language || "eng";
     for (const inputPath of job.inputPaths) {
+      ensureJobNotCancelled(job);
       const outputBase = path.join(job.outputDir, `${path.parse(inputPath).name}_ocr`);
       const args = [inputPath, outputBase, "-l", language];
       const tessdataDir = bundledTessdataDir(tool.path);
       if (tessdataDir) {
         args.push("--tessdata-dir", tessdataDir);
       }
-      const result = await runProcess(tool.path, args);
+      const result = await runProcess(tool.path, args, job);
       job.log.push(result.output);
       const outputPath = `${outputBase}.txt`;
       ensureOutputFile(outputPath, inputPath);
@@ -756,6 +828,26 @@ function sanitizeExtension(extension) {
     throw new Error("Invalid output extension");
   }
   return clean;
+}
+
+const OFFICE_FILTER_MAP = {
+  docx: "MS Word 2007 XML",
+  xlsx: "Calc MS Excel 2007 XML",
+  pptx: "Impress MS PowerPoint 2007 XML",
+  odt: "writer8"
+};
+
+function sanitizeOfficeExtension(extension) {
+  const clean = sanitizeExtension(extension || "docx");
+  if (!Object.prototype.hasOwnProperty.call(OFFICE_FILTER_MAP, clean)) {
+    throw new Error(`Unsupported Office format: ${clean}. Allowed: docx, xlsx, pptx, odt`);
+  }
+  return clean;
+}
+
+function officeConvertTarget(extension) {
+  const clean = sanitizeOfficeExtension(extension);
+  return `${clean}:${OFFICE_FILTER_MAP[clean]}`;
 }
 
 function sanitizeRotation(angle) {
@@ -1134,15 +1226,52 @@ function execFileText(file, args, options = {}) {
   });
 }
 
-function runProcess(file, args) {
+class JobCancelledError extends Error {
+  constructor(message = "任務已取消") {
+    super(message);
+    this.name = "JobCancelledError";
+    this.cancelled = true;
+  }
+}
+
+function ensureJobNotCancelled(job) {
+  if (job && job.cancelRequested) {
+    throw new JobCancelledError();
+  }
+}
+
+function isJobCancelledError(error) {
+  return Boolean(error && (error.cancelled || error.name === "JobCancelledError"));
+}
+
+function runProcess(file, args, job) {
   return new Promise((resolve, reject) => {
+    if (job && job.cancelRequested) {
+      reject(new JobCancelledError());
+      return;
+    }
     const child = spawn(file, args, { windowsHide: true });
+    if (job) {
+      job._child = child;
+    }
     const chunks = [];
     child.stdout.on("data", (chunk) => chunks.push(chunk.toString()));
     child.stderr.on("data", (chunk) => chunks.push(chunk.toString()));
-    child.on("error", reject);
+    child.on("error", (error) => {
+      if (job) {
+        job._child = null;
+      }
+      reject(error);
+    });
     child.on("close", (code) => {
+      if (job) {
+        job._child = null;
+      }
       const output = chunks.join("").trim();
+      if (job && job.cancelRequested) {
+        reject(new JobCancelledError());
+        return;
+      }
       if (code === 0) {
         resolve({ output });
       } else {
@@ -1152,4 +1281,15 @@ function runProcess(file, args) {
   });
 }
 
-module.exports = { BackendService };
+module.exports = {
+  BackendService,
+  // Exported for unit tests
+  snapshotOutputDir,
+  resolveLibreOfficeOutput,
+  pdfBytesLookEncrypted,
+  isEncryptedPdfMessage,
+  parsePageRanges,
+  sanitizeOfficeExtension,
+  officeConvertTarget,
+  JobCancelledError
+};

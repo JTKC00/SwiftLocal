@@ -67,7 +67,7 @@
     "backend-panel": { nav: "狀態", hint: "查看工具狀態，必要時手動指定 LibreOffice、FFmpeg、Tesseract、QPDF。", steps: ["按「偵測工具」", "確認需要的工具顯示可用", "缺少時到進階區手動指定路徑"], keywords: "backend 後端 狀態 libreoffice ffmpeg tesseract qpdf ocr 設定" }
   };
 
-  const PDF_BACKEND_JOB_TYPES = new Set(["office-to-pdf", "pdf-to-docx", "pdf-merge", "pdf-split", "pdf-rotate", "pdf-encrypt", "pdf-decrypt", "pdf-compress"]);
+  const PDF_BACKEND_JOB_TYPES = new Set(["office-to-pdf", "pdf-to-docx", "pdf-to-office", "pdf-merge", "pdf-split", "pdf-rotate", "pdf-encrypt", "pdf-decrypt", "pdf-compress"]);
   const IMG_BACKEND_JOB_TYPES = new Set(["image-convert", "ocr-image"]);
   const MEDIA_BACKEND_JOB_TYPES = new Set(["media-convert"]);
 
@@ -2206,10 +2206,10 @@
     const engineBadge = $("#pdf-backend-engine");
     const officeNote = $("#pdf-backend-office-note");
     if (engineBadge) {
-      if (type === "office-to-pdf") {
+      if (type === "office-to-pdf" || type === "pdf-to-office") {
         engineBadge.textContent = "LibreOffice";
       } else if (type === "pdf-to-docx") {
-        engineBadge.textContent = "pdf.js → DOCX";
+        engineBadge.textContent = "pdf.js → 純文字 DOCX";
       } else if (type === "pdf-encrypt" || type === "pdf-decrypt") {
         engineBadge.textContent = "QPDF";
       } else {
@@ -2220,10 +2220,19 @@
       if (type === "office-to-pdf") {
         officeNote.style.display = "";
         officeNote.textContent = officeToPdfGuidance();
+      } else if (type === "pdf-to-office") {
+        officeNote.style.display = "";
+        officeNote.textContent = isToolAvailable("libreOffice")
+          ? "PDF → Office 透過 LibreOffice 轉版面。掃描型 PDF 可能效果不佳；純文字請改用「PDF → DOCX（純文字）」。"
+          : "此功能需要 LibreOffice。請安裝或更新後重新偵測工具。";
+      } else if (type === "pdf-to-docx") {
+        officeNote.style.display = "";
+        officeNote.textContent = "此模式只抽取文字組成簡易 DOCX，不保留原始版面。需要版面請選「PDF → Office（LibreOffice）」。";
       } else {
         officeNote.style.display = "none";
       }
     }
+    $(".pdf-backend-office-format-row").style.display = type === "pdf-to-office" ? "" : "none";
     $(".pdf-backend-pages-row").style.display = type === "pdf-split" ? "" : "none";
     $(".pdf-backend-angle-row").style.display = type === "pdf-rotate" ? "" : "none";
     $(".pdf-backend-password-row").style.display = (type === "pdf-encrypt" || type === "pdf-decrypt") ? "" : "none";
@@ -2286,7 +2295,7 @@
     if (!backendApiAvailable()) { showToast("請先啟動 FastAPI 後端", "error"); return; }
     if (!state.pdfBackendFiles.length) { showToast("請先選擇輸入檔案", "error"); return; }
     const type = $("#pdf-backend-job-type").value;
-    if (type === "office-to-pdf" && !isToolAvailable("libreOffice")) {
+    if ((type === "office-to-pdf" || type === "pdf-to-office") && !isToolAvailable("libreOffice")) {
       setStatus("#pdf-backend-status", "缺少 LibreOffice");
       showToast("此功能需要 LibreOffice。請安裝或更新 LibreOffice，然後重新偵測工具。", "error");
       return;
@@ -2294,6 +2303,7 @@
     const payload = new FormData();
     payload.append("type", type);
     state.pdfBackendFiles.forEach((file) => payload.append("files", file, file.name));
+    if (type === "pdf-to-office") payload.append("extension", $("#pdf-backend-office-format").value || "docx");
     if (type === "pdf-split") payload.append("pages", $("#pdf-backend-pages").value.trim());
     if (type === "pdf-rotate") payload.append("angle", $("#pdf-backend-angle").value);
     if (type === "pdf-encrypt" || type === "pdf-decrypt") payload.append("password", $("#pdf-backend-password").value);
@@ -2413,11 +2423,18 @@
     headerRight.style.alignItems = "center";
     headerRight.appendChild(statusSpan);
 
-    if (job.status === "done" || job.status === "failed" || job.status === "queued") {
+    if (job.status === "queued" || job.status === "running") {
+      const cancelBtn = document.createElement("button");
+      cancelBtn.className = "secondary-button compact danger-button";
+      cancelBtn.type = "button";
+      cancelBtn.textContent = "取消";
+      cancelBtn.addEventListener("click", () => cancelBackendJob(job.id));
+      headerRight.appendChild(cancelBtn);
+    } else if (job.status === "done" || job.status === "failed" || job.status === "cancelled") {
       const delBtn = document.createElement("button");
       delBtn.className = "secondary-button compact danger-button";
       delBtn.type = "button";
-      delBtn.textContent = job.status === "queued" ? "取消" : "刪除";
+      delBtn.textContent = "刪除";
       delBtn.addEventListener("click", () => deleteBackendJob(job.id));
       headerRight.appendChild(delBtn);
     }
@@ -2469,6 +2486,16 @@
       return button;
     }
     return document.createElement("a");
+  }
+
+  async function cancelBackendJob(jobId) {
+    try {
+      await backendFetch(`/jobs/${encodeURIComponent(jobId)}/cancel`, { method: "POST" });
+      await refreshBackendJobs();
+      showToast("已送出取消", "success");
+    } catch (error) {
+      showToast(readableError(error), "error");
+    }
   }
 
   async function deleteBackendJob(jobId) {
@@ -2539,6 +2566,12 @@
       if (!deleted) throw new Error("Job not found");
       return { ok: true };
     }
+    const cancelMatch = path.match(/^\/jobs\/([^/]+)\/cancel$/);
+    if (cancelMatch && method === "POST") {
+      const cancelled = await window.swiftLocalBackend.cancelJob(decodeURIComponent(cancelMatch[1]));
+      if (!cancelled) throw new Error("Job not found");
+      return cancelled;
+    }
     if (path === "/convert-text" && method === "POST") {
       const body = typeof options.body === "string" ? JSON.parse(options.body || "{}") : options.body || {};
       return { result: convertChineseLocal(body.text || "", body.locale || "zh-hans") };
@@ -2585,7 +2618,10 @@
       return "Office → PDF";
     }
     if (type === "pdf-to-docx") {
-      return "PDF → DOCX（文字）";
+      return "PDF → DOCX（純文字）";
+    }
+    if (type === "pdf-to-office") {
+      return "PDF → Office（LibreOffice）";
     }
     if (type === "pdf-merge") {
       return "PDF 合併";

@@ -106,6 +106,7 @@ function installBackendIpc() {
   ipcMain.handle("backend:get-jobs", () => backend.getJobs());
   ipcMain.handle("backend:enqueue-job", (_event, payload) => backend.enqueue(payload));
   ipcMain.handle("backend:delete-job", (_event, jobId) => backend.deleteJob(jobId));
+  ipcMain.handle("backend:cancel-job", (_event, jobId) => backend.cancelJob(jobId));
   ipcMain.handle("backend:choose-executable", async (_event, options = {}) => {
     const result = await dialog.showOpenDialog({
       title: options.title || "選擇工具執行檔",
