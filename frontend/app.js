@@ -25,6 +25,10 @@
     backendPollTimer: null,
     backendJobs: [],
     taskFilter: "all",
+    workflowFiles: [],
+    workflowSteps: [],
+    workflowRuns: [],
+    workflowAdvancing: new Set(),
     desktopOutputDir: "",
     hashRows: [],
     renameRows: [],
@@ -34,6 +38,7 @@
   const titles = {
     "home-panel": "首頁",
     "tasks-panel": "全域任務中心",
+    "workflow-panel": "工作流程串連",
     "image-panel": "圖片轉換",
     "pdf-panel": "PDF 處理",
     "data-panel": "資料格式",
@@ -51,6 +56,7 @@
   Object.assign(titles, {
     "home-panel": "首頁",
     "tasks-panel": "全域任務中心",
+    "workflow-panel": "工作流程串連",
     "image-panel": "圖片轉換",
     "pdf-panel": "PDF 處理",
     "data-panel": "資料轉換",
@@ -68,6 +74,7 @@
   const toolGuides = {
     "home-panel": { nav: "首頁", hint: "選擇常用工具，並查看手機版與桌面版的功能差異。", steps: [], keywords: "home 首頁 開始 mobile 手機 desktop 桌面", platform: "web" },
     "tasks-panel": { nav: "任務中心", hint: "集中追蹤所有進階處理、下載結果及處理失敗任務。", steps: [], keywords: "task job queue 任務 工作 佇列 進度 下載 失敗", platform: "desktop" },
+    "workflow-panel": { nav: "流程", hint: "把多個進階處理步驟串連，以上一步輸出自動啟動下一步。", steps: ["選擇範本及來源檔案", "調整步驟和選項", "啟動後在右側或任務中心追蹤"], keywords: "workflow pipeline automation 流程 串連 自動 接力", platform: "desktop" },
     "image-panel": { nav: "圖片", hint: "轉 JPG / PNG / WebP、壓縮、縮放、加浮水印。", steps: ["選擇或拖放圖片", "保留預設或調整格式、品質、尺寸", "按「開始轉換」，在右邊下載結果"], keywords: "image 圖片 相片 jpg jpeg png webp 壓縮 縮小 浮水印 旋轉" },
     "pdf-panel": { nav: "PDF", hint: "逐頁視覺編排、轉換、OCR、壓縮及保護 PDF。", steps: ["選擇 PDF 工作台或其他處理方式", "在工作台拖放頁面，並旋轉、複製或刪除", "輸出新 PDF，或在任務區查看後端進度"], keywords: "pdf 工作台 縮圖 排序 合併 分割 抽頁 旋轉 頁碼 浮水印 壓縮 加密 解密 ocr office word docx" },
     "data-panel": { nav: "資料", hint: "JSON、CSV、XML 互轉與格式化。", steps: ["貼上資料內容", "選擇想轉成的格式", "按「執行」，再複製或下載輸出"], keywords: "json csv xml 資料 表格 格式化 壓縮" },
@@ -103,6 +110,7 @@
     bindNavigation();
     bindResponsiveNavigation();
     bindTaskCenter();
+    bindWorkflowTool();
     updateRuntimeLabels();
     bindImageTool();
     bindPdfTool();
@@ -235,7 +243,7 @@
     $$(".panel").forEach((panel) => panel.classList.toggle("is-active", panel.id === panelId));
     $("#panel-title").textContent = titles[panelId] || "SwiftLocal";
     const clearButton = $("#clear-all");
-    if (clearButton) clearButton.hidden = panelId === "home-panel" || panelId === "tasks-panel";
+    if (clearButton) clearButton.hidden = panelId === "home-panel" || panelId === "tasks-panel" || panelId === "workflow-panel";
     updatePanelAssist(panelId);
     closeMobileNavigation();
     if (panelId === "tasks-panel" && state.backendConnected) refreshBackendJobs();
@@ -282,6 +290,188 @@
       });
     });
     if (clear) clear.addEventListener("click", clearFinishedTaskHistory);
+  }
+
+  function bindWorkflowTool() {
+    const template = $("#workflow-template");
+    const files = $("#workflow-files");
+    const form = $("#workflow-form");
+    const add = $("#workflow-add-step");
+    const reset = $("#workflow-reset");
+    try {
+      const saved = JSON.parse(localStorage.getItem("swiftlocal-workflows") || "[]");
+      state.workflowRuns = Array.isArray(saved) ? saved.slice(0, 20) : [];
+    } catch {
+      state.workflowRuns = [];
+    }
+    if (template) template.addEventListener("change", () => applyWorkflowTemplate(template.value));
+    if (files) files.addEventListener("change", () => {
+      state.workflowFiles = Array.from(files.files || []);
+      updateWorkflowReadiness();
+    });
+    if (add) add.addEventListener("click", () => {
+      state.workflowSteps.push({ type: "pdf-compress" });
+      if (template) template.value = "custom";
+      renderWorkflowSteps();
+    });
+    if (reset) reset.addEventListener("click", resetWorkflowBuilder);
+    if (form) form.addEventListener("submit", startWorkflowRun);
+    applyWorkflowTemplate(template ? template.value : "office-archive");
+    renderWorkflowRuns();
+    updateWorkflowDesktopState();
+  }
+
+  function applyWorkflowTemplate(templateId) {
+    const templates = {
+      "office-archive": ["office-to-pdf", "pdf-compress"],
+      "secure-pdf": ["pdf-compress", "pdf-encrypt"],
+      "review-pdf": ["pdf-rotate", "pdf-compress"],
+      custom: state.workflowSteps.length ? state.workflowSteps.map((step) => step.type) : ["pdf-compress"]
+    };
+    state.workflowSteps = (templates[templateId] || templates.custom).map((type) => ({ type }));
+    const help = $("#workflow-file-help");
+    if (help) help.textContent = templateId === "office-archive"
+      ? "Office 文件會先轉成 PDF，再自動壓縮"
+      : "請選擇 PDF；每一步完成後會自動接續";
+    renderWorkflowSteps();
+  }
+
+  function renderWorkflowSteps() {
+    const list = $("#workflow-steps");
+    if (!list) return;
+    list.innerHTML = "";
+    state.workflowSteps.forEach((step, index) => {
+      const item = document.createElement("li");
+      item.className = "workflow-step";
+      item.innerHTML = `<span class="workflow-step-number">${index + 1}</span><label><span class="visually-hidden">步驟 ${index + 1}</span><select data-workflow-step-index="${index}">${workflowStepOptions(step.type)}</select></label><div class="workflow-step-actions"><button type="button" data-workflow-up="${index}" aria-label="向上移">↑</button><button type="button" data-workflow-down="${index}" aria-label="向下移">↓</button><button type="button" data-workflow-remove="${index}" aria-label="移除">×</button></div>`;
+      list.appendChild(item);
+    });
+    $$('[data-workflow-step-index]').forEach((select) => {
+      select.addEventListener("change", () => {
+        state.workflowSteps[Number(select.dataset.workflowStepIndex)].type = select.value;
+        const template = $("#workflow-template");
+        if (template) template.value = "custom";
+        updateWorkflowOptions();
+      });
+    });
+    $$('[data-workflow-up]').forEach((button) => button.addEventListener("click", () => moveWorkflowStep(Number(button.dataset.workflowUp), -1)));
+    $$('[data-workflow-down]').forEach((button) => button.addEventListener("click", () => moveWorkflowStep(Number(button.dataset.workflowDown), 1)));
+    $$('[data-workflow-remove]').forEach((button) => button.addEventListener("click", () => {
+      state.workflowSteps.splice(Number(button.dataset.workflowRemove), 1);
+      const template = $("#workflow-template");
+      if (template) template.value = "custom";
+      renderWorkflowSteps();
+    }));
+    updateWorkflowOptions();
+    updateWorkflowReadiness();
+  }
+
+  function workflowStepOptions(selected) {
+    const options = [
+      ["office-to-pdf", "Office → PDF"],
+      ["pdf-rotate", "旋轉 PDF"],
+      ["pdf-compress", "壓縮 PDF"],
+      ["pdf-encrypt", "加密 PDF"],
+      ["pdf-decrypt", "解密 PDF"]
+    ];
+    return options.map(([value, label]) => `<option value="${value}"${value === selected ? " selected" : ""}>${label}</option>`).join("");
+  }
+
+  function moveWorkflowStep(index, offset) {
+    const target = index + offset;
+    if (target < 0 || target >= state.workflowSteps.length) return;
+    [state.workflowSteps[index], state.workflowSteps[target]] = [state.workflowSteps[target], state.workflowSteps[index]];
+    const template = $("#workflow-template");
+    if (template) template.value = "custom";
+    renderWorkflowSteps();
+  }
+
+  function updateWorkflowOptions() {
+    const types = new Set(state.workflowSteps.map((step) => step.type));
+    $$('[data-workflow-option]').forEach((label) => {
+      const key = label.dataset.workflowOption;
+      label.hidden = key === "angle" ? !types.has("pdf-rotate") : !(types.has("pdf-encrypt") || types.has("pdf-decrypt"));
+    });
+  }
+
+  function updateWorkflowReadiness() {
+    const ready = electronBridgeAvailable() && state.workflowFiles.length > 0 && state.workflowSteps.length > 0;
+    setStatus("#workflow-readiness", ready ? "可以啟動" : electronBridgeAvailable() ? "等待檔案" : "需要桌面版");
+  }
+
+  function updateWorkflowDesktopState() {
+    const submit = $("#workflow-form button[type='submit']");
+    if (submit) submit.disabled = !electronBridgeAvailable();
+    updateWorkflowReadiness();
+  }
+
+  function resetWorkflowBuilder() {
+    const form = $("#workflow-form");
+    if (form) form.reset();
+    state.workflowFiles = [];
+    applyWorkflowTemplate("office-archive");
+  }
+
+  async function startWorkflowRun(event) {
+    event.preventDefault();
+    if (!electronBridgeAvailable()) {
+      showToast("工作流程串連需要桌面版", "error");
+      return;
+    }
+    if (!state.workflowFiles.length || !state.workflowSteps.length) {
+      showToast("請選擇來源檔案並保留至少一個步驟", "error");
+      return;
+    }
+    const types = state.workflowSteps.map((step) => step.type);
+    if (types.slice(1).includes("office-to-pdf")) {
+      showToast("Office 轉 PDF 只能放在第一步", "error");
+      return;
+    }
+    if (types[0] !== "office-to-pdf" && state.workflowFiles.some((file) => !file.name.toLowerCase().endsWith(".pdf"))) {
+      showToast("這個流程的第一步需要 PDF 檔案", "error");
+      return;
+    }
+    const password = $("#workflow-password") ? $("#workflow-password").value : "";
+    if ((types.includes("pdf-encrypt") || types.includes("pdf-decrypt")) && !password) {
+      showToast("加密或解密步驟需要 PDF 密碼", "error");
+      return;
+    }
+    const inputPaths = [];
+    for (const file of state.workflowFiles) {
+      const filePath = await electronFilePath(file);
+      if (filePath) inputPaths.push(filePath);
+    }
+    if (!inputPaths.length) {
+      showToast("無法讀取來源檔案路徑，請重新選擇檔案", "error");
+      return;
+    }
+    const template = $("#workflow-template");
+    const run = {
+      id: `workflow-${Date.now()}`,
+      name: template && template.selectedOptions[0] ? template.selectedOptions[0].textContent : "自訂流程",
+      status: "running",
+      createdAt: new Date().toISOString(),
+      currentStep: 0,
+      inputPaths,
+      outputPaths: [],
+      options: { angle: $("#workflow-angle") ? $("#workflow-angle").value : "90", password },
+      steps: types.map((type) => ({ type, status: "pending", jobId: null }))
+    };
+    state.workflowRuns.unshift(run);
+    state.workflowRuns = state.workflowRuns.slice(0, 20);
+    persistWorkflowRuns();
+    renderWorkflowRuns();
+    try {
+      await enqueueWorkflowStep(run, 0, inputPaths);
+      showToast("工作流程已啟動", "success");
+      await refreshBackendJobs();
+    } catch (error) {
+      run.status = "failed";
+      run.error = readableError(error);
+      persistWorkflowRuns();
+      renderWorkflowRuns();
+      showToast(run.error, "error");
+    }
   }
 
   function openMobileNavigation() {
@@ -3223,6 +3413,7 @@
     try {
       const jobs = await backendFetch("/jobs");
       state.backendJobs = jobs;
+      await processWorkflowRuns(jobs);
       renderGlobalTaskCenter();
       renderBackendJobs(jobs);
       renderPanelBackendJobs("#pdf-backend-jobs", "#pdf-backend-status", jobs, PDF_BACKEND_JOB_TYPES);
@@ -3260,6 +3451,174 @@
       const latest = jobs[0];
       setStatus(statusSel, latest.status === "done" ? "最近任務已完成" : jobStatusLabel(latest.status));
     }
+  }
+
+  async function enqueueWorkflowStep(run, stepIndex, inputPaths) {
+    const step = run.steps[stepIndex];
+    if (!step) return;
+    const job = await window.swiftLocalBackend.enqueueJob({
+      type: step.type,
+      inputPaths,
+      outputDir: state.desktopOutputDir || undefined,
+      options: {
+        angle: run.options && run.options.angle ? run.options.angle : "90",
+        password: run.options && run.options.password ? run.options.password : ""
+      }
+    });
+    step.jobId = job.id;
+    step.status = job.status || "queued";
+    run.currentStep = stepIndex;
+    run.status = "running";
+    persistWorkflowRuns();
+    renderWorkflowRuns();
+  }
+
+  async function processWorkflowRuns(jobs) {
+    if (!electronBridgeAvailable()) return;
+    for (const run of state.workflowRuns.filter((item) => item.status === "running")) {
+      if (state.workflowAdvancing.has(run.id)) continue;
+      const step = run.steps[run.currentStep];
+      if (!step || !step.jobId) continue;
+      const job = jobs.find((item) => item.id === step.jobId);
+      if (!job) {
+        run.status = "failed";
+        run.error = "找不到目前步驟的任務紀錄，流程已停止。";
+        continue;
+      }
+      step.status = job.status;
+      if (job.status === "failed" || job.status === "cancelled") {
+        run.status = job.status;
+        run.error = job.error || `步驟「${jobTypeLabel(step.type)}」未能完成`;
+        continue;
+      }
+      if (job.status !== "done") continue;
+      const outputs = Array.isArray(job.outputPaths) ? job.outputPaths : [];
+      step.status = "done";
+      if (run.currentStep >= run.steps.length - 1) {
+        run.status = "done";
+        run.finishedAt = new Date().toISOString();
+        run.outputPaths = outputs;
+        continue;
+      }
+      const nextInputs = outputs.map((item) => item.path).filter(Boolean);
+      if (!nextInputs.length) {
+        run.status = "failed";
+        run.error = "上一步沒有產生可供下一步使用的本機檔案。";
+        continue;
+      }
+      const nextIndex = run.currentStep + 1;
+      const nextStep = run.steps[nextIndex];
+      if ((nextStep.type === "pdf-encrypt" || nextStep.type === "pdf-decrypt") && !(run.options && run.options.password)) {
+        run.status = "failed";
+        run.error = "程式重新啟動後不會保留 PDF 密碼，請重新建立此流程。";
+        continue;
+      }
+      state.workflowAdvancing.add(run.id);
+      try {
+        await enqueueWorkflowStep(run, nextIndex, nextInputs);
+      } catch (error) {
+        run.status = "failed";
+        run.error = readableError(error);
+      } finally {
+        state.workflowAdvancing.delete(run.id);
+      }
+    }
+    persistWorkflowRuns();
+    renderWorkflowRuns();
+  }
+
+  function persistWorkflowRuns() {
+    try {
+      const safeRuns = state.workflowRuns.map((run) => ({
+        ...run,
+        options: { ...(run.options || {}), password: "" }
+      }));
+      localStorage.setItem("swiftlocal-workflows", JSON.stringify(safeRuns));
+    } catch {
+      // Workflow history remains available for this session if storage is unavailable.
+    }
+  }
+
+  function renderWorkflowRuns() {
+    const container = $("#workflow-run-list");
+    const count = $("#workflow-run-count");
+    if (count) count.textContent = String(state.workflowRuns.length);
+    if (!container) return;
+    container.innerHTML = "";
+    container.classList.toggle("empty", state.workflowRuns.length === 0);
+    if (!state.workflowRuns.length) {
+      container.innerHTML = '<div class="task-empty-state"><strong>尚未執行流程</strong><span>選擇範本和來源檔案後，啟動流程即可在這裡追蹤每一步。</span></div>';
+      return;
+    }
+    state.workflowRuns.forEach((run) => {
+      const card = document.createElement("article");
+      card.className = `workflow-run ${escapeHtml(run.status)}`;
+      const header = document.createElement("header");
+      header.innerHTML = `<div><strong>${escapeHtml(run.name)}</strong><small>${escapeHtml(new Date(run.createdAt).toLocaleString([], { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }))}</small></div><span class="status-pill">${escapeHtml(workflowStatusLabel(run.status))}</span>`;
+      card.appendChild(header);
+      const steps = document.createElement("ol");
+      steps.className = "workflow-run-steps";
+      run.steps.forEach((step, index) => {
+        const item = document.createElement("li");
+        item.className = step.status || "pending";
+        item.innerHTML = `<span>${step.status === "done" ? "✓" : step.status === "running" ? "…" : index + 1}</span><div><strong>${escapeHtml(jobTypeLabel(step.type))}</strong><small>${escapeHtml(jobStatusLabel(step.status === "pending" ? "queued" : step.status))}</small></div>`;
+        steps.appendChild(item);
+      });
+      card.appendChild(steps);
+      if (run.error) {
+        const error = document.createElement("p");
+        error.className = "workflow-run-error";
+        error.textContent = run.error;
+        card.appendChild(error);
+      }
+      if (run.outputPaths && run.outputPaths.length) {
+        const outputs = document.createElement("div");
+        outputs.className = "backend-output-paths";
+        run.outputPaths.forEach((item) => outputs.appendChild(renderBackendOutputAction(item)));
+        card.appendChild(outputs);
+      }
+      const actions = document.createElement("div");
+      actions.className = "workflow-run-actions";
+      if (run.status === "running") {
+        const stop = document.createElement("button");
+        stop.type = "button";
+        stop.className = "secondary-button compact danger-button";
+        stop.textContent = "停止流程";
+        stop.addEventListener("click", () => {
+          const current = run.steps[run.currentStep];
+          if (current && current.jobId) cancelBackendJob(current.jobId);
+        });
+        actions.appendChild(stop);
+      }
+      const tasks = document.createElement("button");
+      tasks.type = "button";
+      tasks.className = "secondary-button compact";
+      tasks.textContent = "查看任務中心";
+      tasks.addEventListener("click", () => activatePanel("tasks-panel"));
+      actions.appendChild(tasks);
+      if (run.status !== "running") {
+        const remove = document.createElement("button");
+        remove.type = "button";
+        remove.className = "ghost-button compact";
+        remove.textContent = "移除紀錄";
+        remove.addEventListener("click", () => {
+          state.workflowRuns = state.workflowRuns.filter((item) => item.id !== run.id);
+          persistWorkflowRuns();
+          renderWorkflowRuns();
+        });
+        actions.appendChild(remove);
+      }
+      card.appendChild(actions);
+      container.appendChild(card);
+    });
+  }
+
+  function workflowStatusLabel(status) {
+    if (status === "running") return "執行中";
+    if (status === "done") return "流程完成";
+    if (status === "failed") return "流程失敗";
+    if (status === "cancelled") return "已停止";
+    return status || "等待中";
   }
 
   function renderGlobalTaskCenter() {
@@ -3487,7 +3846,8 @@
       window.clearTimeout(state.backendPollTimer);
       state.backendPollTimer = null;
     }
-    const hasActiveJobs = jobs.some((job) => job.status === "queued" || job.status === "running");
+    const hasActiveJobs = jobs.some((job) => job.status === "queued" || job.status === "running")
+      || state.workflowRuns.some((run) => run.status === "running");
     if (hasActiveJobs && !document.hidden) {
       state.backendPollTimer = window.setTimeout(refreshBackendJobs, 2000);
     }

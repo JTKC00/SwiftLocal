@@ -40,6 +40,7 @@
         </div>
         <div class="nav-group desktop-nav-group">
           <span class="nav-group-label">桌面進階</span>
+          <button class="nav-item" type="button" data-panel="workflow-panel">流程</button>
           <button class="nav-item" type="button" data-panel="rename-panel">改名</button>
           <button class="nav-item" type="button" data-panel="media-panel">影音</button>
           <button class="nav-item" type="button" data-panel="backend-panel">狀態</button>
@@ -147,6 +148,62 @@
       </section>
 
       <section class="panel-assist" id="panel-assist" aria-live="polite"></section>
+
+      <section id="workflow-panel" class="panel workflow-panel" aria-labelledby="workflow-title">
+        <header class="workflow-hero">
+          <div>
+            <p class="eyebrow">一次設定，自動接力</p>
+            <h1 id="workflow-title">工作流程串連</h1>
+            <p>上一個步驟的輸出會自動成為下一步的輸入；失敗時立即停步，並保留已完成結果。</p>
+          </div>
+          <span class="desktop-only-pill">桌面版</span>
+        </header>
+
+        <div class="workflow-layout">
+          <form id="workflow-form" class="workflow-builder">
+            <div class="surface-heading"><h3>建立流程</h3><span id="workflow-readiness" class="status-pill">等待設定</span></div>
+            <label>
+              <span>流程範本</span>
+              <select id="workflow-template">
+                <option value="office-archive">Office 歸檔：轉 PDF → 壓縮</option>
+                <option value="secure-pdf">安全 PDF：壓縮 → 加密</option>
+                <option value="review-pdf">審閱版本：旋轉 → 壓縮</option>
+                <option value="custom">自訂流程</option>
+              </select>
+            </label>
+
+            <label class="file-zone workflow-file-zone" for="workflow-files">
+              <input id="workflow-files" type="file" multiple>
+              <span>選擇來源檔案</span>
+              <small id="workflow-file-help">Office 文件會先轉成 PDF，再自動壓縮</small>
+            </label>
+
+            <div class="workflow-step-heading">
+              <div><strong>處理步驟</strong><small>可調整次序或移除步驟</small></div>
+              <button id="workflow-add-step" class="secondary-button compact" type="button">加入步驟</button>
+            </div>
+            <ol id="workflow-steps" class="workflow-steps"></ol>
+
+            <div id="workflow-options" class="workflow-options">
+              <label data-workflow-option="angle"><span>旋轉角度</span><select id="workflow-angle"><option value="90">順時針 90°</option><option value="180">180°</option><option value="270">逆時針 90°</option></select></label>
+              <label data-workflow-option="password"><span>PDF 密碼</span><input id="workflow-password" type="password" autocomplete="new-password" placeholder="至少輸入一個密碼"></label>
+            </div>
+
+            <div class="actions">
+              <button class="primary-button" type="submit">啟動工作流程</button>
+              <button id="workflow-reset" class="secondary-button" type="button">重設</button>
+            </div>
+            <p id="workflow-desktop-note" class="backend-inline-note">流程串連需要桌面版存取本機輸出路徑。</p>
+          </form>
+
+          <section class="workflow-runs" aria-labelledby="workflow-runs-title">
+            <div class="surface-heading"><h3 id="workflow-runs-title">流程執行紀錄</h3><span id="workflow-run-count" class="badge muted">0</span></div>
+            <div id="workflow-run-list" class="workflow-run-list empty">
+              <div class="task-empty-state"><strong>尚未執行流程</strong><span>選擇範本和來源檔案後，啟動流程即可在這裡追蹤每一步。</span></div>
+            </div>
+          </section>
+        </div>
+      </section>
 
       <section id="tasks-panel" class="panel tasks-panel" aria-labelledby="tasks-title">
         <header class="tasks-hero">
