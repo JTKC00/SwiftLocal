@@ -186,10 +186,35 @@ CI：GitHub Actions 工作流程 `.github/workflows/ci.yml` 在 `main` / `master
 - fastapi、uvicorn、python-multipart
 - pypdf、pdf2docx、Pillow、zhconv
 
+### 影音進階參數（`media-convert`）
+
+選填表單欄位（空值 = FFmpeg 預設）：
+
+| 欄位 | 說明 | 範例 |
+| --- | --- | --- |
+| `videoBitrate` | 影片碼率 | `2M`, `1500k` |
+| `audioBitrate` | 音訊碼率 | `128k` |
+| `scale` | 解析度 | `1280:720`, `-2:720` |
+| `crop` | 畫面裁切 `w:h:x:y` | `640:360:0:0` |
+| `start` | 開始時間 | `5` 或 `00:00:05` |
+| `duration` | 長度 | `10` 或 `00:00:10` |
+| `gifFps` | GIF 幀率 1–30 | `10` |
+
+音訊輸出（mp3/wav/…）會加 `-vn`；GIF 使用 `fps` + 可選 scale。
+
+### 任務持久化
+
+| 模式 | 狀態檔 | 行為 |
+| --- | --- | --- |
+| Electron | `userData/jobs-state.json`（與 `tools.json` 同目錄） | 啟動時載入；`queued` 會繼續跑 |
+| FastAPI | `backend/temp/jobs-state.json` | 啟動 `restore_state()`；保留 job 目錄與輸出 |
+
+- 重啟時仍為 **`running`** 的任務會改為 **`failed`**（訊息：重啟／中斷），避免半成品當成功。
+- `queued` 但輸入檔已不存在會丟棄。
+- 最多保留約 **80** 筆任務摘要；刪除任務會同步更新狀態檔並清理工作目錄（FastAPI）。
+
 ## 待擴充（尚未做）
 
-- 影音進階參數（碼率、解析度、裁切、GIF FPS）
-- 任務持久化（重開 app 仍保留佇列）
 - 取消時對純 Python 長步驟的更細粒度中斷
 
 ## 相關檔案速查

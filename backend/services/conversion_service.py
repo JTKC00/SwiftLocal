@@ -1,4 +1,5 @@
 import asyncio
+import re
 import subprocess
 from contextvars import ContextVar
 from pathlib import Path
@@ -209,20 +210,144 @@ def resolve_libreoffice_output(
     return max(candidates, key=lambda p: p.stat().st_mtime_ns)
 
 
-async def convert_media(input_paths: list[Path], output_dir: Path, extension: str) -> tuple[list[Path], list[str]]:
+_AUDIO_ONLY_EXTENSIONS = frozenset({"mp3", "wav", "m4a", "flac", "aac", "ogg", "opus"})
+
+
+async def convert_media(
+    input_paths: list[Path],
+    output_dir: Path,
+    extension: str,
+    media_options: dict[str, str] | None = None,
+) -> tuple[list[Path], list[str]]:
     tool = await tools_service.require_tool("ffmpeg")
     clean_extension = sanitize_extension(extension or "mp4")
+    options = dict(media_options or {})
+    options["extension"] = clean_extension
     logs: list[str] = []
     outputs: list[Path] = []
 
     for input_path in input_paths:
         ensure_not_cancelled()
         output_path = output_dir / f"{input_path.stem}.{clean_extension}"
-        log = await run_process(str(tool["path"]), ["-y", "-i", str(input_path), str(output_path)], timeout=600)
-        logs.append(log)
+        args = build_ffmpeg_media_args(input_path, output_path, options)
+        log = await run_process(str(tool["path"]), args, timeout=600)
+        logs.append(log or f"media: {input_path.name} -> {output_path.name}")
         outputs.append(output_path)
 
     return outputs, logs
+
+
+def sanitize_media_bitrate(value: str, field_name: str) -> str:
+    text = (value or "").strip().lower().replace(" ", "")
+    if not text:
+        return ""
+    # e.g. 128k, 2m, 1500k, 64
+    if not re.fullmatch(r"\d{1,7}([kmg])?", text):
+        raise ValueError(f"Invalid {field_name}: use values like 128k or 2M")
+    return text
+
+
+def sanitize_media_scale(value: str) -> str:
+    text = (value or "").strip().replace(" ", "")
+    if not text:
+        return ""
+    # 1280:720, -2:720, 1280:-2, iw/2:ih/2 (limited: digits, :, -, *)
+    if not re.fullmatch(r"-?\d{1,5}:-?\d{1,5}", text):
+        raise ValueError("Invalid scale: use W:H such as 1280:720 or -2:720")
+    return text
+
+
+def sanitize_media_crop(value: str) -> str:
+    text = (value or "").strip().replace(" ", "")
+    if not text:
+        return ""
+    # w:h:x:y
+    if not re.fullmatch(r"\d{1,5}:\d{1,5}:\d{1,5}:\d{1,5}", text):
+        raise ValueError("Invalid crop: use w:h:x:y (example 640:360:0:0)")
+    return text
+
+
+def sanitize_media_time(value: str, field_name: str) -> str:
+    text = (value or "").strip().replace(" ", "")
+    if not text:
+        return ""
+    # seconds or HH:MM:SS(.ms)
+    if re.fullmatch(r"\d+(\.\d+)?", text):
+        return text
+    if re.fullmatch(r"\d{1,2}:\d{2}(:\d{2}(\.\d+)?)?", text):
+        return text
+    raise ValueError(f"Invalid {field_name}: use seconds or HH:MM:SS")
+
+
+def sanitize_gif_fps(value: str) -> str:
+    text = (value or "").strip()
+    if not text:
+        return ""
+    try:
+        fps = int(text)
+    except ValueError as error:
+        raise ValueError("gifFps must be an integer") from error
+    if fps < 1 or fps > 30:
+        raise ValueError("gifFps must be between 1 and 30")
+    return str(fps)
+
+
+def build_ffmpeg_media_args(input_path: Path, output_path: Path, options: dict[str, str]) -> list[str]:
+    """Build ffmpeg argv (without executable) for media conversion."""
+    extension = sanitize_extension(options.get("extension") or "mp4")
+    start = sanitize_media_time(options.get("start") or "", "start")
+    duration = sanitize_media_time(options.get("duration") or "", "duration")
+    video_bitrate = sanitize_media_bitrate(options.get("videoBitrate") or "", "videoBitrate")
+    audio_bitrate = sanitize_media_bitrate(options.get("audioBitrate") or "", "audioBitrate")
+    scale = sanitize_media_scale(options.get("scale") or "")
+    crop = sanitize_media_crop(options.get("crop") or "")
+    gif_fps = sanitize_gif_fps(options.get("gifFps") or "")
+
+    args: list[str] = ["-y"]
+    if start:
+        args.extend(["-ss", start])
+    args.extend(["-i", str(input_path)])
+    if duration:
+        args.extend(["-t", duration])
+
+    video_filters: list[str] = []
+    if crop:
+        video_filters.append(f"crop={crop}")
+    if scale:
+        video_filters.append(f"scale={scale}")
+
+    if extension == "gif":
+        fps = gif_fps or "10"
+        video_filters.append(f"fps={fps}")
+        # Simple high-quality-ish gif pipeline without palettegen (portable).
+        if video_filters:
+            args.extend(["-vf", ",".join(video_filters)])
+        args.extend(["-loop", "0", str(output_path)])
+        return args
+
+    if extension in _AUDIO_ONLY_EXTENSIONS:
+        args.append("-vn")
+        if audio_bitrate and extension not in {"wav", "flac"}:
+            args.extend(["-b:a", audio_bitrate])
+        # codec hints for common formats
+        if extension == "mp3":
+            args.extend(["-codec:a", "libmp3lame"])
+        elif extension == "aac" or extension == "m4a":
+            args.extend(["-codec:a", "aac"])
+        args.append(str(output_path))
+        return args
+
+    # Video containers (mp4, webm, mov, mkv, ...)
+    if video_filters:
+        args.extend(["-vf", ",".join(video_filters)])
+    if video_bitrate:
+        args.extend(["-b:v", video_bitrate])
+    if audio_bitrate:
+        args.extend(["-b:a", audio_bitrate])
+    if extension == "mp4":
+        args.extend(["-movflags", "+faststart"])
+    args.append(str(output_path))
+    return args
 
 
 async def ocr_images(input_paths: list[Path], output_dir: Path, language: str) -> tuple[list[Path], list[str]]:

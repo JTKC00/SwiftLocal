@@ -17,7 +17,8 @@ TEMP_DIR = ROOT_DIR / "temp"
 async def lifespan(app: FastAPI):
     TEMP_DIR.mkdir(parents=True, exist_ok=True)
     (TEMP_DIR / "jobs").mkdir(parents=True, exist_ok=True)
-    await job_service.cleanup_all()
+    # Restore queue / results from previous run (interrupted running jobs → failed).
+    await job_service.restore_state()
     yield
 
 

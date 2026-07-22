@@ -1,0 +1,177 @@
+{
+  "version": 1,
+  "savedAt": "2026-07-22T02:29:59.718Z",
+  "jobs": [
+    {
+      "id": "1784687399256-c027ccff1dca3",
+      "type": "pdf-compress",
+      "inputPaths": [
+        "C:\\Users\\sgeus\\AppData\\Local\\Temp\\sl-jobs-k0mkCE\\locked.pdf"
+      ],
+      "outputDir": "C:\\Users\\sgeus\\AppData\\Local\\Temp\\sl-jobs-k0mkCE\\enc-out",
+      "options": {},
+      "status": "failed",
+      "createdAt": "2026-07-22T02:29:59.256Z",
+      "startedAt": "2026-07-22T02:29:59.257Z",
+      "finishedAt": "2026-07-22T02:29:59.718Z",
+      "outputPaths": [],
+      "log": [
+        "「locked.pdf」已加密，請先使用「PDF 解密」後再處理"
+      ],
+      "error": "「locked.pdf」已加密，請先使用「PDF 解密」後再處理"
+    },
+    {
+      "id": "1784687398630-119bd2cef11b38",
+      "type": "pdf-merge",
+      "inputPaths": [
+        "C:\\Users\\sgeus\\AppData\\Local\\Temp\\sl-jobs-k0mkCE\\a.pdf",
+        "C:\\Users\\sgeus\\AppData\\Local\\Temp\\sl-jobs-k0mkCE\\b.pdf"
+      ],
+      "outputDir": "C:\\Users\\sgeus\\AppData\\Local\\Temp\\sl-jobs-k0mkCE\\merge-out",
+      "options": {},
+      "status": "done",
+      "createdAt": "2026-07-22T02:29:58.630Z",
+      "startedAt": "2026-07-22T02:29:58.632Z",
+      "finishedAt": "2026-07-22T02:29:59.232Z",
+      "outputPaths": [
+        "C:\\Users\\sgeus\\AppData\\Local\\Temp\\sl-jobs-k0mkCE\\merge-out\\merged.pdf"
+      ],
+      "log": [
+        "merged 2 file(s) -> merged.pdf"
+      ],
+      "error": ""
+    },
+    {
+      "id": "1784687397968-ae32a4faad57e8",
+      "type": "pdf-compress",
+      "inputPaths": [
+        "C:\\Users\\sgeus\\AppData\\Local\\Temp\\sl-jobs-k0mkCE\\cancel-me.pdf"
+      ],
+      "outputDir": "C:\\Users\\sgeus\\AppData\\Local\\Temp\\sl-jobs-k0mkCE",
+      "options": {},
+      "status": "cancelled",
+      "createdAt": "2026-07-22T02:29:57.968Z",
+      "startedAt": "2026-07-22T02:29:57.969Z",
+      "finishedAt": "2026-07-22T02:29:58.600Z",
+      "outputPaths": [],
+      "log": [
+        "取消請求已送出…",
+        "任務已取消"
+      ],
+      "error": "任務已取消"
+    },
+    {
+      "id": "1784687397898-0bb5a6791eece8",
+      "type": "pdf-merge",
+      "inputPaths": [],
+      "outputDir": "C:\\Users\\sgeus\\AppData\\Local\\Temp\\sl-jobs-k0mkCE",
+      "options": {},
+      "status": "cancelled",
+      "createdAt": "2026-07-22T02:29:57.898Z",
+      "startedAt": null,
+      "finishedAt": "2026-07-22T02:29:57.899Z",
+      "outputPaths": [],
+      "log": [
+        "任務已取消"
+      ],
+      "error": "任務已取消"
+    },
+    {
+      "id": "1784687397662-abaf9037bbe8a8",
+      "type": "pdf-merge",
+      "inputPaths": [],
+      "outputDir": "C:\\Users\\sgeus\\AppData\\Local\\Temp\\sl-jobs-k0mkCE",
+      "options": {},
+      "status": "failed",
+      "createdAt": "2026-07-22T02:29:57.662Z",
+      "startedAt": "2026-07-22T02:29:57.662Z",
+      "finishedAt": "2026-07-22T02:29:57.898Z",
+      "outputPaths": [],
+      "log": [
+        "應用程式重啟時任務中斷"
+      ],
+      "error": "應用程式重啟時任務中斷"
+    },
+    {
+      "id": "1784687252439-5581c03f3631f",
+      "type": "pdf-compress",
+      "inputPaths": [],
+      "outputDir": "C:\\Users\\sgeus\\AppData\\Local\\Temp\\sl-jobs-FWxW5Z\\enc-out",
+      "options": {},
+      "status": "failed",
+      "createdAt": "2026-07-22T02:27:32.439Z",
+      "startedAt": "2026-07-22T02:27:32.440Z",
+      "finishedAt": "2026-07-22T02:27:32.828Z",
+      "outputPaths": [],
+      "log": [
+        "「locked.pdf」已加密，請先使用「PDF 解密」後再處理"
+      ],
+      "error": "「locked.pdf」已加密，請先使用「PDF 解密」後再處理"
+    },
+    {
+      "id": "1784687251987-ded015c9b324a8",
+      "type": "pdf-merge",
+      "inputPaths": [],
+      "outputDir": "C:\\Users\\sgeus\\AppData\\Local\\Temp\\sl-jobs-FWxW5Z\\merge-out",
+      "options": {},
+      "status": "done",
+      "createdAt": "2026-07-22T02:27:31.987Z",
+      "startedAt": "2026-07-22T02:27:31.988Z",
+      "finishedAt": "2026-07-22T02:27:32.425Z",
+      "outputPaths": [],
+      "log": [
+        "merged 2 file(s) -> merged.pdf"
+      ],
+      "error": ""
+    },
+    {
+      "id": "1784687251488-94cae8364af2b8",
+      "type": "pdf-compress",
+      "inputPaths": [],
+      "outputDir": "C:\\Users\\sgeus\\AppData\\Local\\Temp\\sl-jobs-FWxW5Z",
+      "options": {},
+      "status": "cancelled",
+      "createdAt": "2026-07-22T02:27:31.488Z",
+      "startedAt": "2026-07-22T02:27:31.489Z",
+      "finishedAt": "2026-07-22T02:27:31.956Z",
+      "outputPaths": [],
+      "log": [
+        "取消請求已送出…",
+        "任務已取消"
+      ],
+      "error": "任務已取消"
+    },
+    {
+      "id": "1784687251363-212ca43f77b858",
+      "type": "pdf-merge",
+      "inputPaths": [],
+      "outputDir": "C:\\Users\\sgeus\\AppData\\Local\\Temp\\sl-jobs-FWxW5Z",
+      "options": {},
+      "status": "cancelled",
+      "createdAt": "2026-07-22T02:27:31.363Z",
+      "startedAt": null,
+      "finishedAt": "2026-07-22T02:27:31.364Z",
+      "outputPaths": [],
+      "log": [
+        "任務已取消"
+      ],
+      "error": "任務已取消"
+    },
+    {
+      "id": "1784687251115-caa0723f7f54d",
+      "type": "pdf-merge",
+      "inputPaths": [],
+      "outputDir": "C:\\Users\\sgeus\\AppData\\Local\\Temp\\sl-jobs-FWxW5Z",
+      "options": {},
+      "status": "failed",
+      "createdAt": "2026-07-22T02:27:31.115Z",
+      "startedAt": "2026-07-22T02:27:31.115Z",
+      "finishedAt": "2026-07-22T02:27:31.363Z",
+      "outputPaths": [],
+      "log": [
+        "應用程式重啟時任務中斷"
+      ],
+      "error": "應用程式重啟時任務中斷"
+    }
+  ]
+}

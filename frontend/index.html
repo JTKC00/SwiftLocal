@@ -748,6 +748,47 @@
               </label>
               <div></div>
             </div>
+            <details class="media-advanced" open>
+              <summary>進階參數（選填）</summary>
+              <div class="control-row">
+                <label>
+                  <span>影片碼率</span>
+                  <input id="media-video-bitrate" type="text" placeholder="例：2M 或 1500k" autocomplete="off">
+                </label>
+                <label>
+                  <span>音訊碼率</span>
+                  <input id="media-audio-bitrate" type="text" placeholder="例：128k" autocomplete="off">
+                </label>
+              </div>
+              <div class="control-row">
+                <label>
+                  <span>解析度 scale</span>
+                  <input id="media-scale" type="text" placeholder="例：1280:720 或 -2:720" autocomplete="off">
+                </label>
+                <label>
+                  <span>畫面裁切 crop</span>
+                  <input id="media-crop" type="text" placeholder="w:h:x:y 例：640:360:0:0" autocomplete="off">
+                </label>
+              </div>
+              <div class="control-row">
+                <label>
+                  <span>開始時間</span>
+                  <input id="media-start" type="text" placeholder="秒 或 00:00:05" autocomplete="off">
+                </label>
+                <label>
+                  <span>長度 duration</span>
+                  <input id="media-duration" type="text" placeholder="秒 或 00:00:10" autocomplete="off">
+                </label>
+              </div>
+              <div class="control-row media-gif-fps-row" style="display:none">
+                <label>
+                  <span>GIF FPS</span>
+                  <input id="media-gif-fps" type="number" min="1" max="30" value="10">
+                </label>
+                <div></div>
+              </div>
+              <p class="backend-inline-note">留空則由 FFmpeg 自動決定。音訊格式會忽略影片碼率／scale／crop；GIF 主要使用 FPS 與 scale。</p>
+            </details>
             <label class="file-drop-zone" id="media-drop" for="media-files">
               <input id="media-files" type="file" multiple accept=".mp3,.wav,.m4a,.flac,.aac,.ogg,.mp4,.mov,.mkv,.avi,.webm">
               <span>選擇或拖放音訊 / 影片</span>

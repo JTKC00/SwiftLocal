@@ -10,6 +10,7 @@ Run from repo root:
 from __future__ import annotations
 
 import asyncio
+import json
 import sys
 import tempfile
 import unittest
@@ -43,6 +44,111 @@ class TessdataTests(unittest.TestCase):
         assert found is not None
         self.assertEqual(found.name, "tessdata")
         self.assertTrue(found.is_dir())
+
+
+class JobPersistenceTests(unittest.IsolatedAsyncioTestCase):
+    async def test_restore_marks_running_failed_and_keeps_queued(self) -> None:
+        from backend.services import job_service as js_mod
+        from backend.services.job_service import Job, JobService
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            jobs_dir = tmp_path / "jobs"
+            jobs_dir.mkdir()
+            state_path = tmp_path / "jobs-state.json"
+            old_jobs_dir = js_mod.JOBS_DIR
+            old_state = js_mod.JOBS_STATE_PATH
+            old_temp = js_mod.TEMP_DIR
+            js_mod.JOBS_DIR = jobs_dir
+            js_mod.JOBS_STATE_PATH = state_path
+            js_mod.TEMP_DIR = tmp_path
+            try:
+                sample = jobs_dir / "j1" / "input" / "a.pdf"
+                sample.parent.mkdir(parents=True)
+                sample.write_bytes(b"%PDF")
+                payload = {
+                    "version": 1,
+                    "jobs": [
+                        {
+                            "id": "j1",
+                            "type": "pdf-compress",
+                            "inputPaths": [str(sample)],
+                            "outputDir": str(jobs_dir / "j1" / "output"),
+                            "options": {},
+                            "status": "running",
+                            "createdAt": "t0",
+                            "log": [],
+                            "error": "",
+                            "outputPaths": [],
+                        },
+                        {
+                            "id": "j2",
+                            "type": "pdf-compress",
+                            "inputPaths": [str(sample)],
+                            "outputDir": str(jobs_dir / "j2" / "output"),
+                            "options": {},
+                            "status": "queued",
+                            "createdAt": "t1",
+                            "log": [],
+                            "error": "",
+                            "outputPaths": [],
+                        },
+                    ],
+                }
+                state_path.write_text(json.dumps(payload), encoding="utf-8")
+                service = JobService()
+                await service.restore_state()
+                by_id = {job.id: job for job in service.jobs}
+                self.assertEqual(by_id["j1"].status, "failed")
+                self.assertIn("中斷", by_id["j1"].error)
+                self.assertEqual(by_id["j2"].status, "queued")
+                self.assertTrue(state_path.exists())
+            finally:
+                js_mod.JOBS_DIR = old_jobs_dir
+                js_mod.JOBS_STATE_PATH = old_state
+                js_mod.TEMP_DIR = old_temp
+
+
+class MediaArgsTests(unittest.TestCase):
+    def test_video_args(self) -> None:
+        args = cs.build_ffmpeg_media_args(
+            Path("in.mp4"),
+            Path("out.mp4"),
+            {
+                "extension": "mp4",
+                "scale": "1280:720",
+                "videoBitrate": "2M",
+                "audioBitrate": "128k",
+                "start": "1.5",
+                "duration": "10",
+            },
+        )
+        self.assertEqual(args[:6], ["-y", "-ss", "1.5", "-i", "in.mp4", "-t"])
+        self.assertIn("10", args)
+        self.assertIn("-vf", args)
+        self.assertIn("scale=1280:720", args)
+        self.assertIn("-b:v", args)
+        self.assertIn("2m", args)
+        self.assertEqual(args[-1], "out.mp4")
+
+    def test_audio_only_and_gif(self) -> None:
+        mp3 = cs.build_ffmpeg_media_args(Path("in.mp4"), Path("out.mp3"), {"extension": "mp3", "audioBitrate": "192k"})
+        self.assertIn("-vn", mp3)
+        self.assertIn("libmp3lame", mp3)
+        gif = cs.build_ffmpeg_media_args(
+            Path("in.mp4"), Path("out.gif"), {"extension": "gif", "gifFps": "12", "scale": "-2:480"}
+        )
+        vf = gif[gif.index("-vf") + 1]
+        self.assertIn("fps=12", vf)
+        self.assertIn("scale=-2:480", vf)
+
+    def test_sanitize_rejects(self) -> None:
+        with self.assertRaises(ValueError):
+            cs.sanitize_media_bitrate("fast", "videoBitrate")
+        with self.assertRaises(ValueError):
+            cs.sanitize_gif_fps("99")
+        with self.assertRaises(ValueError):
+            cs.sanitize_media_crop("bad")
 
 
 class OcrPdfRenderTests(unittest.TestCase):

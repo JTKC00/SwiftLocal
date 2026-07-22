@@ -17,6 +17,13 @@ async def create_job(
     angle: str = Form(""),
     password: str = Form(""),
     maxPages: str = Form(""),
+    videoBitrate: str = Form(""),
+    audioBitrate: str = Form(""),
+    scale: str = Form(""),
+    crop: str = Form(""),
+    start: str = Form(""),
+    duration: str = Form(""),
+    gifFps: str = Form(""),
 ):
     try:
         return await job_service.create_job(
@@ -29,6 +36,13 @@ async def create_job(
                 "angle": angle,
                 "password": password,
                 "maxPages": maxPages,
+                "videoBitrate": videoBitrate,
+                "audioBitrate": audioBitrate,
+                "scale": scale,
+                "crop": crop,
+                "start": start,
+                "duration": duration,
+                "gifFps": gifFps,
             },
         )
     except ValueError as error:

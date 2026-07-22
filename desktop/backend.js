@@ -79,15 +79,23 @@ const TOOL_DEFINITIONS = {
   }
 };
 
+const MAX_PERSISTED_JOBS = 80;
+
 class BackendService {
   constructor(options = {}) {
     this.jobs = [];
     this.running = false;
     this.onJobsUpdated = options.onJobsUpdated;
     this.configPath = options.configPath || path.join(process.cwd(), ".swiftlocal-tools.json");
+    this.jobsStatePath = options.jobsStatePath || path.join(path.dirname(this.configPath), "jobs-state.json");
     this.defaultOutputDir = options.defaultOutputDir || path.join(process.cwd(), "SwiftLocal-output");
     this.config = loadConfig(this.configPath);
     this.tools = null;
+    this.jobs = loadJobsState(this.jobsStatePath);
+    // Resume any work left queued from a previous session.
+    if (this.jobs.some((job) => job.status === "queued")) {
+      setImmediate(() => this.runNext());
+    }
   }
 
   async detectTools() {
@@ -470,9 +478,9 @@ class BackendService {
     for (const inputPath of job.inputPaths) {
       ensureJobNotCancelled(job);
       const outputPath = path.join(job.outputDir, `${path.parse(inputPath).name}.${extension}`);
-      const args = ["-y", "-i", inputPath, outputPath];
+      const args = buildFfmpegMediaArgs(inputPath, outputPath, { ...job.options, extension });
       const result = await runProcess(tool.path, args, job);
-      job.log.push(result.output);
+      job.log.push(result.output || `media: ${path.basename(inputPath)} -> ${path.basename(outputPath)}`);
       ensureOutputFile(outputPath, inputPath);
       job.outputPaths.push(outputPath);
     }
@@ -561,9 +569,93 @@ class BackendService {
   }
 
   emitJobs() {
+    saveJobsState(this.jobsStatePath, this.jobs);
     if (typeof this.onJobsUpdated === "function") {
       this.onJobsUpdated(this.getJobs());
     }
+  }
+}
+
+function loadJobsState(statePath) {
+  try {
+    const raw = JSON.parse(fs.readFileSync(statePath, "utf8"));
+    const list = Array.isArray(raw) ? raw : Array.isArray(raw && raw.jobs) ? raw.jobs : [];
+    return list
+      .map((item) => normalizePersistedJob(item))
+      .filter(Boolean)
+      .slice(0, MAX_PERSISTED_JOBS);
+  } catch {
+    return [];
+  }
+}
+
+function normalizePersistedJob(item) {
+  if (!item || typeof item !== "object" || !item.id || !item.type) {
+    return null;
+  }
+  let status = String(item.status || "queued");
+  let error = String(item.error || "");
+  const log = Array.isArray(item.log) ? item.log.map(String).slice(-20) : [];
+  let finishedAt = item.finishedAt ? String(item.finishedAt) : null;
+  // Interrupted mid-run jobs cannot resume safely — mark failed.
+  if (status === "running") {
+    status = "failed";
+    error = error || "應用程式重啟時任務中斷";
+    log.push(error);
+    finishedAt = finishedAt || new Date().toISOString();
+  }
+  const inputPaths = Array.isArray(item.inputPaths)
+    ? item.inputPaths.map(String).filter((p) => p && fs.existsSync(p))
+    : [];
+  // Drop queued jobs whose inputs vanished.
+  if (status === "queued" && !inputPaths.length) {
+    return null;
+  }
+  const outputPaths = Array.isArray(item.outputPaths)
+    ? item.outputPaths.map(String).filter((p) => p && fs.existsSync(p))
+    : [];
+  return {
+    id: String(item.id),
+    type: String(item.type),
+    inputPaths,
+    outputDir: String(item.outputDir || ""),
+    options: item.options && typeof item.options === "object" ? { ...item.options } : {},
+    status,
+    createdAt: String(item.createdAt || new Date().toISOString()),
+    startedAt: item.startedAt ? String(item.startedAt) : null,
+    finishedAt,
+    outputPaths,
+    log,
+    error,
+    cancelRequested: false,
+    _child: null
+  };
+}
+
+function saveJobsState(statePath, jobs) {
+  try {
+    fs.mkdirSync(path.dirname(statePath), { recursive: true });
+    const payload = {
+      version: 1,
+      savedAt: new Date().toISOString(),
+      jobs: jobs.slice(0, MAX_PERSISTED_JOBS).map((job) => ({
+        id: job.id,
+        type: job.type,
+        inputPaths: job.inputPaths || [],
+        outputDir: job.outputDir || "",
+        options: job.options || {},
+        status: job.status,
+        createdAt: job.createdAt,
+        startedAt: job.startedAt,
+        finishedAt: job.finishedAt,
+        outputPaths: job.outputPaths || [],
+        log: (job.log || []).slice(-12),
+        error: job.error || ""
+      }))
+    };
+    fs.writeFileSync(statePath, JSON.stringify(payload, null, 2), "utf8");
+  } catch {
+    // Persistence is best-effort; conversion should still work offline.
   }
 }
 
@@ -879,6 +971,130 @@ function sanitizeExtension(extension) {
     throw new Error("Invalid output extension");
   }
   return clean;
+}
+
+const AUDIO_ONLY_EXTENSIONS = new Set(["mp3", "wav", "m4a", "flac", "aac", "ogg", "opus"]);
+
+function sanitizeMediaBitrate(value, fieldName) {
+  const text = String(value || "").trim().toLowerCase().replace(/\s+/g, "");
+  if (!text) {
+    return "";
+  }
+  if (!/^\d{1,7}([kmg])?$/.test(text)) {
+    throw new Error(`Invalid ${fieldName}: use values like 128k or 2M`);
+  }
+  return text;
+}
+
+function sanitizeMediaScale(value) {
+  const text = String(value || "").trim().replace(/\s+/g, "");
+  if (!text) {
+    return "";
+  }
+  if (!/^-?\d{1,5}:-?\d{1,5}$/.test(text)) {
+    throw new Error("Invalid scale: use W:H such as 1280:720 or -2:720");
+  }
+  return text;
+}
+
+function sanitizeMediaCrop(value) {
+  const text = String(value || "").trim().replace(/\s+/g, "");
+  if (!text) {
+    return "";
+  }
+  if (!/^\d{1,5}:\d{1,5}:\d{1,5}:\d{1,5}$/.test(text)) {
+    throw new Error("Invalid crop: use w:h:x:y (example 640:360:0:0)");
+  }
+  return text;
+}
+
+function sanitizeMediaTime(value, fieldName) {
+  const text = String(value || "").trim().replace(/\s+/g, "");
+  if (!text) {
+    return "";
+  }
+  if (/^\d+(\.\d+)?$/.test(text) || /^\d{1,2}:\d{2}(:\d{2}(\.\d+)?)?$/.test(text)) {
+    return text;
+  }
+  throw new Error(`Invalid ${fieldName}: use seconds or HH:MM:SS`);
+}
+
+function sanitizeGifFps(value) {
+  const text = String(value || "").trim();
+  if (!text) {
+    return "";
+  }
+  const fps = Number.parseInt(text, 10);
+  if (!Number.isFinite(fps) || fps < 1 || fps > 30) {
+    throw new Error("gifFps must be between 1 and 30");
+  }
+  return String(fps);
+}
+
+function buildFfmpegMediaArgs(inputPath, outputPath, options = {}) {
+  const extension = sanitizeExtension(options.extension || "mp4");
+  const start = sanitizeMediaTime(options.start || "", "start");
+  const duration = sanitizeMediaTime(options.duration || "", "duration");
+  const videoBitrate = sanitizeMediaBitrate(options.videoBitrate || "", "videoBitrate");
+  const audioBitrate = sanitizeMediaBitrate(options.audioBitrate || "", "audioBitrate");
+  const scale = sanitizeMediaScale(options.scale || "");
+  const crop = sanitizeMediaCrop(options.crop || "");
+  const gifFps = sanitizeGifFps(options.gifFps || "");
+
+  const args = ["-y"];
+  if (start) {
+    args.push("-ss", start);
+  }
+  args.push("-i", inputPath);
+  if (duration) {
+    args.push("-t", duration);
+  }
+
+  const videoFilters = [];
+  if (crop) {
+    videoFilters.push(`crop=${crop}`);
+  }
+  if (scale) {
+    videoFilters.push(`scale=${scale}`);
+  }
+
+  if (extension === "gif") {
+    videoFilters.push(`fps=${gifFps || "10"}`);
+    if (videoFilters.length) {
+      args.push("-vf", videoFilters.join(","));
+    }
+    args.push("-loop", "0", outputPath);
+    return args;
+  }
+
+  if (AUDIO_ONLY_EXTENSIONS.has(extension)) {
+    args.push("-vn");
+    if (audioBitrate && extension !== "wav" && extension !== "flac") {
+      args.push("-b:a", audioBitrate);
+    }
+    if (extension === "mp3") {
+      args.push("-codec:a", "libmp3lame");
+    } else if (extension === "aac" || extension === "m4a") {
+      args.push("-codec:a", "aac");
+    }
+    args.push(outputPath);
+    return args;
+  }
+
+  if (videoFilters.length) {
+    args.push("-vf", videoFilters.join(","));
+  }
+  if (videoBitrate) {
+    args.push("-b:v", videoBitrate);
+  }
+  if (audioBitrate) {
+    args.push("-b:a", audioBitrate);
+  }
+  if (extension === "mp4") {
+    args.push("-movflags", "+faststart");
+  }
+  args.push(outputPath);
+  return args;
 }
 
 const OFFICE_FILTER_MAP = {
@@ -1408,5 +1624,11 @@ module.exports = {
   parsePageRanges,
   sanitizeOfficeExtension,
   officeConvertTarget,
+  buildFfmpegMediaArgs,
+  sanitizeMediaBitrate,
+  sanitizeGifFps,
+  loadJobsState,
+  saveJobsState,
+  normalizePersistedJob,
   JobCancelledError
 };

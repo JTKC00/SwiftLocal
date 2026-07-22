@@ -2018,6 +2018,11 @@
     // 影音面板
     bindFileDropZone("media-drop", "media-files", "media-selected-files", "mediaBackendFiles");
     $("#media-backend-form").addEventListener("submit", enqueueMediaBackendJob);
+    const mediaExt = $("#media-output-extension");
+    if (mediaExt) {
+      mediaExt.addEventListener("change", updateMediaAdvancedControls);
+      updateMediaAdvancedControls();
+    }
 
     // PDF 面板
     $("#pdf-backend-job-type").addEventListener("change", updatePdfBackendJobControls);
@@ -2355,15 +2360,35 @@
     }
   }
 
+  function updateMediaAdvancedControls() {
+    const ext = ($("#media-output-extension") && $("#media-output-extension").value) || "";
+    const gifRow = $(".media-gif-fps-row");
+    if (gifRow) {
+      gifRow.style.display = ext === "gif" ? "" : "none";
+    }
+  }
+
   async function enqueueMediaBackendJob(event) {
     event.preventDefault();
     if (!backendApiAvailable()) await checkBackendHealth();
     if (!backendApiAvailable()) { showToast("請先啟動 FastAPI 後端", "error"); return; }
     if (!state.mediaBackendFiles.length) { showToast("請先選擇音訊 / 影片檔案", "error"); return; }
+    if (!isToolAvailable("ffmpeg")) {
+      setStatus("#media-backend-status", "缺少 FFmpeg");
+      showToast("影音轉換需要 FFmpeg。請確認內建工具或重新偵測。", "error");
+      return;
+    }
     const payload = new FormData();
     payload.append("type", "media-convert");
     state.mediaBackendFiles.forEach((file) => payload.append("files", file, file.name));
     payload.append("extension", $("#media-output-extension").value);
+    payload.append("videoBitrate", ($("#media-video-bitrate").value || "").trim());
+    payload.append("audioBitrate", ($("#media-audio-bitrate").value || "").trim());
+    payload.append("scale", ($("#media-scale").value || "").trim());
+    payload.append("crop", ($("#media-crop").value || "").trim());
+    payload.append("start", ($("#media-start").value || "").trim());
+    payload.append("duration", ($("#media-duration").value || "").trim());
+    payload.append("gifFps", ($("#media-gif-fps").value || "").trim());
     try {
       await backendFetch("/jobs", { method: "POST", body: payload });
       await refreshBackendJobs();
@@ -2618,7 +2643,14 @@
         pages: String(formData.get("pages") || ""),
         angle: String(formData.get("angle") || ""),
         password: String(formData.get("password") || ""),
-        maxPages: String(formData.get("maxPages") || "")
+        maxPages: String(formData.get("maxPages") || ""),
+        videoBitrate: String(formData.get("videoBitrate") || ""),
+        audioBitrate: String(formData.get("audioBitrate") || ""),
+        scale: String(formData.get("scale") || ""),
+        crop: String(formData.get("crop") || ""),
+        start: String(formData.get("start") || ""),
+        duration: String(formData.get("duration") || ""),
+        gifFps: String(formData.get("gifFps") || "")
       }
     };
   }
