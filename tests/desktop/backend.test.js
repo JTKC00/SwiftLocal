@@ -174,6 +174,40 @@ describe("ffmpeg media args", () => {
   });
 });
 
+describe("job queue order", () => {
+  test("processes oldest queued job first (FIFO)", async () => {
+    const dir = tempDir("sl-fifo-");
+    try {
+      const backend = new BackendService({
+        configPath: path.join(dir, "tools.json"),
+        jobsStatePath: path.join(dir, "jobs-state.json"),
+        defaultOutputDir: dir
+      });
+      backend.running = true; // block auto-run while enqueueing
+      const order = [];
+      backend.runJob = async (job) => {
+        order.push(job.id);
+      };
+      const a = backend.enqueue({ type: "pdf-compress", inputPaths: [path.join(dir, "x")], outputDir: dir, options: {} });
+      const b = backend.enqueue({ type: "pdf-compress", inputPaths: [path.join(dir, "y")], outputDir: dir, options: {} });
+      // Restore inputs so jobs stay valid if normalized later
+      backend.jobs.forEach((job) => {
+        job.inputPaths = [path.join(dir, "dummy")];
+      });
+      fs.writeFileSync(path.join(dir, "dummy"), "x");
+      backend.running = false;
+      await backend.runNext();
+      // wait for both
+      for (let i = 0; i < 50 && order.length < 2; i += 1) {
+        await new Promise((r) => setTimeout(r, 10));
+      }
+      assert.deepEqual(order, [a.id, b.id]);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
 describe("job persistence", () => {
   test("running jobs become failed on reload; queued resume", () => {
     const dir = tempDir("sl-persist-");

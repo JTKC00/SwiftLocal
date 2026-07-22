@@ -92,7 +92,9 @@ class BackendService {
     this.config = loadConfig(this.configPath);
     this.tools = null;
     this.jobs = loadJobsState(this.jobsStatePath);
-    // Resume any work left queued from a previous session.
+    // Persist repairs (e.g. running → failed after crash) immediately.
+    saveJobsState(this.jobsStatePath, this.jobs);
+    // Resume any work left queued from a previous session (FIFO: oldest first).
     if (this.jobs.some((job) => job.status === "queued")) {
       setImmediate(() => this.runNext());
     }
@@ -191,7 +193,9 @@ class BackendService {
     }
     if (job.status === "running") {
       job.cancelRequested = true;
-      job.log.push("取消請求已送出…");
+      job.log.push(
+        "取消請求已送出：外部工具（FFmpeg／LibreOffice／Tesseract 等）會盡快中止；本機純處理步驟需等目前段落結束。"
+      );
       if (job._child && !job._child.killed) {
         try {
           job._child.kill();
@@ -209,7 +213,14 @@ class BackendService {
     if (this.running) {
       return;
     }
-    const job = this.jobs.find((item) => item.status === "queued");
+    // FIFO: jobs are unshifted (newest first), so take the last queued entry.
+    let job = null;
+    for (let i = this.jobs.length - 1; i >= 0; i -= 1) {
+      if (this.jobs[i].status === "queued") {
+        job = this.jobs[i];
+        break;
+      }
+    }
     if (!job) {
       return;
     }

@@ -278,7 +278,10 @@ class JobService:
         if job.status == "running":
             job.cancel_requested = True
             request_cancel(job.id)
-            job.log.append("取消請求已送出…")
+            job.log.append(
+                "取消請求已送出：外部工具（FFmpeg／LibreOffice／Tesseract 等）會盡快中止；"
+                "本機純處理步驟需等目前段落結束。"
+            )
             self._save_jobs_state()
             return self.public_job(job)
         raise ValueError("只能取消排隊中或執行中的任務")

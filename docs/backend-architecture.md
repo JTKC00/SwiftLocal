@@ -110,7 +110,7 @@ ocr-pdf
 
 - **取消 queued**：立刻 `cancelled`
 - **取消 running**：設 flag；外部行程（LibreOffice / FFmpeg / Tesseract / QPDF）會被 kill
-- 純 Python 步驟（pypdf 等）在當前步驟結束後才會停
+- 純 Python／本機記憶體步驟（pypdf 等）在**當前步驟結束後**才會停；UI 會提示「部分步驟需稍候」
 
 ## 工具偵測
 

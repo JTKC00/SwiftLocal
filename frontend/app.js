@@ -2534,7 +2534,7 @@
     try {
       await backendFetch(`/jobs/${encodeURIComponent(jobId)}/cancel`, { method: "POST" });
       await refreshBackendJobs();
-      showToast("已送出取消", "success");
+      showToast("已送出取消。外部工具會盡快中止；部分本機步驟可能需稍候目前工作結束。", "info", 5000);
     } catch (error) {
       showToast(readableError(error), "error");
     }
