@@ -98,14 +98,33 @@ async def ocr_images(input_paths: list[Path], output_dir: Path, language: str) -
     clean_language = (language or "eng").strip() or "eng"
     logs: list[str] = []
     outputs: list[Path] = []
+    tessdata_dir = resolve_tessdata_dir(Path(str(tool["path"])))
 
     for input_path in input_paths:
         output_base = output_dir / f"{input_path.stem}_ocr"
-        log = await run_process(str(tool["path"]), [str(input_path), str(output_base), "-l", clean_language], timeout=300)
+        args = [str(input_path), str(output_base), "-l", clean_language]
+        if tessdata_dir:
+            args.extend(["--tessdata-dir", str(tessdata_dir)])
+        log = await run_process(str(tool["path"]), args, timeout=300)
         logs.append(log)
         outputs.append(output_base.with_suffix(".txt"))
 
     return outputs, logs
+
+
+def resolve_tessdata_dir(tool_path: Path) -> Path | None:
+    """Locate tessdata next to a portable/bundled Tesseract install."""
+    exe_dir = tool_path.resolve().parent
+    candidates = [
+        exe_dir / "tessdata",
+        exe_dir / "share" / "tessdata",
+        exe_dir.parent / "tessdata",
+        exe_dir.parent / "share" / "tessdata",
+    ]
+    for candidate in candidates:
+        if candidate.is_dir():
+            return candidate
+    return None
 
 
 async def convert_image(input_paths: list[Path], output_dir: Path, extension: str) -> tuple[list[Path], list[str]]:
@@ -211,19 +230,29 @@ def _split_pdf_sync(input_path: Path, output_dir: Path, ranges: list[tuple[int, 
         raise RuntimeError("PDF split failed: pypdf is not installed") from error
     reader = PdfReader(str(input_path))
     total = len(reader.pages)
+    if total == 0:
+        raise ValueError("PDF has no pages")
     outputs: list[Path] = []
     logs: list[str] = []
     for i, (start, end) in enumerate(ranges, 1):
         writer = PdfWriter()
         for page_num in range(start - 1, end):
-            if page_num < total:
+            if 0 <= page_num < total:
                 writer.add_page(reader.pages[page_num])
-        label = str(start) if start == end else f"{start}-{end}"
+        if len(writer.pages) == 0:
+            # Skip empty ranges entirely (out of bounds) instead of writing blank PDFs.
+            logs.append(f"split part {i}: skipped pages {start if start == end else f'{start}-{end}'} (outside 1-{total})")
+            continue
+        actual_start = start
+        actual_end = min(end, total)
+        label = str(actual_start) if actual_start == actual_end else f"{actual_start}-{actual_end}"
         output_path = output_dir / f"{input_path.stem}_p{label}.pdf"
         with open(output_path, "wb") as f:
             writer.write(f)
         outputs.append(output_path)
         logs.append(f"split part {i}: pages {label} -> {output_path.name}")
+    if not outputs:
+        raise ValueError(f"No valid pages found in ranges (PDF has {total} page(s); example: 1-3,5)")
     return outputs, logs
 
 

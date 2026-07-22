@@ -603,12 +603,26 @@ function requireTool(tools, key) {
 
 function bundledTessdataDir(toolPath) {
   const normalized = String(toolPath || "");
-  if (!normalized.includes(`${path.sep}tesseract${path.sep}`)) {
+  if (!normalized) {
     return "";
   }
-  const bundleRoot = path.resolve(path.dirname(normalized), "..");
-  const tessdataDir = path.join(bundleRoot, "share", "tessdata");
-  return fs.existsSync(tessdataDir) ? tessdataDir : "";
+  // Prefer locations next to the executable (Windows portable layout:
+  // tools/tesseract/tesseract.exe + tools/tesseract/tessdata).
+  // Also support Unix-style share/tessdata and bin/ wrappers.
+  const exeDir = path.dirname(path.resolve(normalized));
+  const candidates = [
+    path.join(exeDir, "tessdata"),
+    path.join(exeDir, "share", "tessdata"),
+    path.join(exeDir, "..", "tessdata"),
+    path.join(exeDir, "..", "share", "tessdata")
+  ];
+  for (const candidate of candidates) {
+    const resolved = path.resolve(candidate);
+    if (fs.existsSync(resolved)) {
+      return resolved;
+    }
+  }
+  return "";
 }
 
 function ensureOutputDir(outputDir) {

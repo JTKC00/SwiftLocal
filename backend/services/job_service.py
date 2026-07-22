@@ -137,6 +137,10 @@ class JobService:
                 await self._run_job(job)
         finally:
             self.running = False
+            # If a job was enqueued while we held running=True, the concurrent
+            # _run_next task may have bailed out early — re-check the queue.
+            if any(item.status == "queued" for item in self.jobs):
+                asyncio.create_task(self._run_next())
 
     async def _run_job(self, job: Job) -> None:
         job.status = "running"
