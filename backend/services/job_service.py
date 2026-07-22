@@ -119,6 +119,8 @@ class JobService:
         job = self._find_job(job_id)
         if not job:
             return False
+        if job.status == "running":
+            raise ValueError("無法刪除執行中的任務，請等完成後再刪除")
         self.jobs = [item for item in self.jobs if item.id != job_id]
         shutil.rmtree(JOBS_DIR / job_id, ignore_errors=True)
         return True

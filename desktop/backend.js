@@ -157,6 +157,10 @@ class BackendService {
     if (index === -1) {
       return false;
     }
+    const job = this.jobs[index];
+    if (job.status === "running") {
+      throw new Error("無法刪除執行中的任務，請等完成後再刪除");
+    }
     this.jobs.splice(index, 1);
     this.emitJobs();
     return true;

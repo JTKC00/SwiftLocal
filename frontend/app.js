@@ -1297,15 +1297,8 @@
       try {
         let output;
         if (state.textMode === "trad-to-simp" || state.textMode === "simp-to-trad") {
-          if (!backendApiAvailable()) { await checkBackendHealth(); }
-          if (!backendApiAvailable()) { throw new Error("需要 FastAPI 後端（zhconv），請先啟動後端"); }
           const locale = state.textMode === "trad-to-simp" ? "zh-hans" : "zh-hant";
-          const result = await backendFetch("/convert-text", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ text: input, locale })
-          });
-          output = result.result;
+          output = await convertChineseText(input, locale);
         } else if (state.textMode === "find-replace") {
           output = runFindReplace(input);
         } else {
@@ -1329,6 +1322,36 @@
     const isTradSimp = state.textMode === "trad-to-simp" || state.textMode === "simp-to-trad";
     $(".find-replace-controls").style.display = isFindReplace ? "" : "none";
     $(".trad-simp-note").style.display = isTradSimp ? "" : "none";
+  }
+
+  async function convertChineseText(text, locale) {
+    // Desktop: local maps via Electron bridge. Browser: prefer FastAPI zhconv, else local maps.
+    if (!electronBridgeAvailable() && !backendApiAvailable()) {
+      await checkBackendHealth();
+    }
+    if (electronBridgeAvailable() || backendApiAvailable()) {
+      try {
+        const result = await backendFetch("/convert-text", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text, locale })
+        });
+        if (result && typeof result.result === "string") {
+          return result.result;
+        }
+      } catch {
+        // fall through to local maps
+      }
+    }
+    return convertChineseLocal(text, locale);
+  }
+
+  function convertChineseLocal(text, locale) {
+    const api = window.SwiftLocalZhConvert;
+    if (!api || typeof api.convertChinese !== "function") {
+      throw new Error("本機繁簡字表未載入，請重新整理頁面");
+    }
+    return api.convertChinese(text, locale);
   }
 
   function runFindReplace(input) {
@@ -2322,11 +2345,11 @@
     headerRight.style.alignItems = "center";
     headerRight.appendChild(statusSpan);
 
-    if (job.status === "done" || job.status === "failed") {
+    if (job.status === "done" || job.status === "failed" || job.status === "queued") {
       const delBtn = document.createElement("button");
       delBtn.className = "secondary-button compact danger-button";
       delBtn.type = "button";
-      delBtn.textContent = "刪除";
+      delBtn.textContent = job.status === "queued" ? "取消" : "刪除";
       delBtn.addEventListener("click", () => deleteBackendJob(job.id));
       headerRight.appendChild(delBtn);
     }
@@ -2447,6 +2470,10 @@
       const deleted = await window.swiftLocalBackend.deleteJob(decodeURIComponent(jobMatch[1]));
       if (!deleted) throw new Error("Job not found");
       return { ok: true };
+    }
+    if (path === "/convert-text" && method === "POST") {
+      const body = typeof options.body === "string" ? JSON.parse(options.body || "{}") : options.body || {};
+      return { result: convertChineseLocal(body.text || "", body.locale || "zh-hans") };
     }
     throw new Error("此功能在桌面版暫未支援，請使用瀏覽器後端模式。");
   }

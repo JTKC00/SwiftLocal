@@ -507,7 +507,7 @@
                 </label>
               </div>
             </div>
-            <div class="trad-simp-note">繁簡轉換需要 FastAPI 後端（zhconv）</div>
+            <div class="trad-simp-note">繁簡轉換在本機完成（單字對照；詞組級轉換可另用 FastAPI + zhconv）</div>
             <div class="actions">
               <button class="primary-button" type="submit">轉換文字</button>
               <button class="secondary-button" type="button" id="copy-text-output">複製輸出</button>
@@ -931,6 +931,7 @@
 
   <script src="vendor/pdf-lib.min.js"></script>
   <script src="vendor/qrcode.min.js"></script>
+  <script src="vendor/zh-maps.js"></script>
   <script src="app.js"></script>
   <div id="toast-container" aria-live="assertive"></div>
 </body>
