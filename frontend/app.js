@@ -10,6 +10,7 @@
     pdfWorkspaceUndo: [],
     pdfWorkspaceRedo: [],
     pdfWorkspaceLoading: false,
+    pdfWorkspaceSelectedId: null,
     dataMode: "json-format",
     textMode: "base64-encode",
     zipUrl: null,
@@ -84,7 +85,10 @@
   const BACKEND_ORIGIN = "http://127.0.0.1:8787";
   let pdfjsPromise = null;
   let pdfWorkspacePageId = 0;
+  let pdfWorkspacePreviewToken = 0;
+  const pdfWorkspacePreviewCache = new Map();
   const PDF_WORKSPACE_MAX_PAGES = 250;
+  const PDF_WORKSPACE_PREVIEW_CACHE_SIZE = 12;
 
   function init() {
     initTheme();
@@ -847,6 +851,9 @@
     state.pdfWorkspaceUndo = [];
     state.pdfWorkspaceRedo = [];
     state.pdfWorkspaceLoading = false;
+    state.pdfWorkspaceSelectedId = null;
+    pdfWorkspacePreviewCache.clear();
+    pdfWorkspacePreviewToken += 1;
     renderPdfWorkspace();
   }
 
@@ -872,6 +879,8 @@
       state.pdfWorkspacePages = [];
       state.pdfWorkspaceUndo = [];
       state.pdfWorkspaceRedo = [];
+      state.pdfWorkspaceSelectedId = null;
+      pdfWorkspacePreviewCache.clear();
     }
     renderPdfWorkspace();
     setStatus("#pdf-workspace-status", "正在讀取 PDF…");
@@ -926,6 +935,9 @@
 
       if (append && state.pdfWorkspacePages.length) recordPdfWorkspaceChange();
       state.pdfWorkspacePages.push(...pagesToAdd);
+      if (!state.pdfWorkspaceSelectedId && state.pdfWorkspacePages.length) {
+        state.pdfWorkspaceSelectedId = state.pdfWorkspacePages[0].id;
+      }
       state.pdfFiles = append ? [...state.pdfFiles, ...files] : Array.from(files);
       setStatus("#pdf-workspace-status", `已載入 ${state.pdfWorkspacePages.length} 頁`);
       $("#pdf-file-hint").textContent = `已載入 ${new Set(state.pdfWorkspacePages.filter((page) => !page.blank).map((page) => page.sourceId)).size} 個 PDF · ${state.pdfWorkspacePages.length} 頁`;
@@ -953,7 +965,7 @@
       await loadPdfWorkspaceFiles(files, true);
     });
     $("#pdf-workspace-add-blank").addEventListener("click", () => {
-      mutatePdfWorkspace((pages) => pages.push({
+      const blankPage = {
         id: `pdf-page-${++pdfWorkspacePageId}`,
         sourceId: null,
         sourceFile: null,
@@ -964,7 +976,9 @@
         height: 841.89,
         thumbnail: "",
         blank: true
-      }));
+      };
+      state.pdfWorkspaceSelectedId = blankPage.id;
+      mutatePdfWorkspace((pages) => pages.push(blankPage));
     });
     $("#pdf-workspace-undo").addEventListener("click", () => {
       if (!state.pdfWorkspaceUndo.length) return;
@@ -980,7 +994,16 @@
     });
     $("#pdf-workspace-clear").addEventListener("click", () => {
       if (!state.pdfWorkspacePages.length) return;
+      state.pdfWorkspaceSelectedId = null;
       mutatePdfWorkspace((pages) => pages.splice(0, pages.length));
+    });
+
+    $("#pdf-preview-prev").addEventListener("click", () => selectPdfWorkspaceOffset(-1));
+    $("#pdf-preview-next").addEventListener("click", () => selectPdfWorkspaceOffset(1));
+    $("#pdf-preview-rotate").addEventListener("click", () => {
+      const index = state.pdfWorkspacePages.findIndex((page) => page.id === state.pdfWorkspaceSelectedId);
+      if (index < 0) return;
+      mutatePdfWorkspace((pages) => { pages[index].rotation = (pages[index].rotation + 90) % 360; });
     });
 
     const grid = $("#pdf-workspace-grid");
@@ -988,8 +1011,13 @@
     grid.addEventListener("click", (event) => {
       const button = event.target.closest("[data-workspace-action]");
       const card = event.target.closest(".pdf-workspace-page");
-      if (!button || !card) return;
+      if (!card) return;
       const index = Number(card.dataset.index);
+      state.pdfWorkspaceSelectedId = state.pdfWorkspacePages[index].id;
+      if (!button) {
+        renderPdfWorkspace();
+        return;
+      }
       const action = button.dataset.workspaceAction;
       if (action === "left" || action === "right") {
         const targetIndex = index + (action === "left" ? -1 : 1);
@@ -1001,10 +1029,21 @@
       } else if (action === "rotate") {
         mutatePdfWorkspace((pages) => { pages[index].rotation = (pages[index].rotation + 90) % 360; });
       } else if (action === "duplicate") {
-        mutatePdfWorkspace((pages) => pages.splice(index + 1, 0, { ...pages[index], id: `pdf-page-${++pdfWorkspacePageId}` }));
+        const duplicateId = `pdf-page-${++pdfWorkspacePageId}`;
+        state.pdfWorkspaceSelectedId = duplicateId;
+        mutatePdfWorkspace((pages) => pages.splice(index + 1, 0, { ...pages[index], id: duplicateId }));
       } else if (action === "delete") {
+        const replacement = state.pdfWorkspacePages[index + 1] || state.pdfWorkspacePages[index - 1];
+        state.pdfWorkspaceSelectedId = replacement ? replacement.id : null;
         mutatePdfWorkspace((pages) => pages.splice(index, 1));
       }
+    });
+    grid.addEventListener("keydown", (event) => {
+      const card = event.target.closest(".pdf-workspace-page");
+      if (!card || (event.key !== "Enter" && event.key !== " ")) return;
+      event.preventDefault();
+      state.pdfWorkspaceSelectedId = state.pdfWorkspacePages[Number(card.dataset.index)].id;
+      renderPdfWorkspace();
     });
     grid.addEventListener("dragstart", (event) => {
       const card = event.target.closest(".pdf-workspace-page");
@@ -1042,12 +1081,25 @@
     });
   }
 
+  function selectPdfWorkspaceOffset(offset) {
+    const currentIndex = state.pdfWorkspacePages.findIndex((page) => page.id === state.pdfWorkspaceSelectedId);
+    const targetIndex = currentIndex + offset;
+    if (currentIndex < 0 || targetIndex < 0 || targetIndex >= state.pdfWorkspacePages.length) return;
+    state.pdfWorkspaceSelectedId = state.pdfWorkspacePages[targetIndex].id;
+    renderPdfWorkspace();
+  }
+
   function renderPdfWorkspace() {
     const surface = $("#pdf-workspace");
     if (!surface) return;
     const isWorkspace = $("#pdf-mode").value === "workspace";
     surface.hidden = !isWorkspace;
     const pages = state.pdfWorkspacePages;
+    if (pages.length && !pages.some((page) => page.id === state.pdfWorkspaceSelectedId)) {
+      state.pdfWorkspaceSelectedId = pages[0].id;
+    } else if (!pages.length) {
+      state.pdfWorkspaceSelectedId = null;
+    }
     const sourceCount = new Set(pages.filter((page) => !page.blank).map((page) => page.sourceId)).size;
     $("#pdf-workspace-count").textContent = pages.length
       ? `${sourceCount} 個 PDF · ${pages.length} 頁`
@@ -1061,17 +1113,19 @@
     if (!pages.length) {
       grid.classList.add("empty");
       grid.textContent = state.pdfWorkspaceLoading ? "正在建立頁面縮圖…" : "選擇 PDF 後，所有頁面會在這裡顯示";
+      renderPdfLivePreview();
       return;
     }
     grid.classList.remove("empty");
     grid.innerHTML = pages.map((page, index) => {
       const rotation = ((page.rotation % 360) + 360) % 360;
+      const selected = page.id === state.pdfWorkspaceSelectedId;
       const preview = page.blank
         ? '<div class="pdf-workspace-blank-preview"><span>空白頁</span></div>'
         : `<img src="${page.thumbnail}" alt="${escapeHtml(page.fileName)} 第 ${page.pageIndex + 1} 頁預覽" class="${rotation === 90 || rotation === 270 ? "is-sideways" : ""}" style="transform:rotate(${rotation}deg)">`;
       const pageLabel = page.blank ? "A4 空白頁" : `原第 ${page.pageIndex + 1} 頁${rotation ? ` · 旋轉 ${rotation}°` : ""}`;
       return [
-        `<article class="pdf-workspace-page" draggable="${!state.pdfWorkspaceLoading}" data-index="${index}">`,
+        `<article class="pdf-workspace-page${selected ? " is-selected" : ""}" draggable="${!state.pdfWorkspaceLoading}" data-index="${index}" tabindex="0" aria-label="預覽第 ${index + 1} 頁：${escapeHtml(page.fileName)}" aria-current="${selected ? "page" : "false"}">`,
         `<div class="pdf-workspace-preview"><span class="pdf-workspace-position">${index + 1}</span>${preview}</div>`,
         `<div class="pdf-workspace-meta"><strong title="${escapeHtml(page.fileName)}">${escapeHtml(page.fileName)}</strong><small>${pageLabel}</small></div>`,
         '<div class="pdf-workspace-page-actions">',
@@ -1084,6 +1138,90 @@
         "</article>"
       ].join("");
     }).join("");
+    renderPdfLivePreview();
+  }
+
+  async function renderPdfLivePreview() {
+    const preview = $("#pdf-live-preview");
+    const stage = $("#pdf-live-preview-stage");
+    if (!preview || !stage) return;
+    const pages = state.pdfWorkspacePages;
+    const index = pages.findIndex((page) => page.id === state.pdfWorkspaceSelectedId);
+    const page = index >= 0 ? pages[index] : null;
+    const token = ++pdfWorkspacePreviewToken;
+    preview.classList.toggle("empty", !page);
+    $("#pdf-preview-prev").disabled = !page || index === 0 || state.pdfWorkspaceLoading;
+    $("#pdf-preview-next").disabled = !page || index === pages.length - 1 || state.pdfWorkspaceLoading;
+    $("#pdf-preview-rotate").disabled = !page || state.pdfWorkspaceLoading;
+
+    if (!page) {
+      $("#pdf-live-preview-page").textContent = "尚未選擇頁面";
+      $("#pdf-live-preview-meta").textContent = state.pdfWorkspaceLoading ? "正在建立頁面縮圖…" : "載入 PDF 後可逐頁查看";
+      stage.className = "pdf-live-preview-stage empty";
+      stage.textContent = state.pdfWorkspaceLoading ? "正在載入預覽…" : "選擇頁面後在此預覽";
+      return;
+    }
+
+    const rotation = ((page.rotation % 360) + 360) % 360;
+    $("#pdf-live-preview-page").textContent = `第 ${index + 1} / ${pages.length} 頁`;
+    $("#pdf-live-preview-meta").textContent = page.blank
+      ? `A4 空白頁${rotation ? ` · 旋轉 ${rotation}°` : ""}`
+      : `${page.fileName} · 原第 ${page.pageIndex + 1} 頁${rotation ? ` · 旋轉 ${rotation}°` : ""}`;
+
+    if (page.blank) {
+      stage.className = "pdf-live-preview-stage";
+      stage.innerHTML = `<div class="pdf-live-preview-blank" style="transform:rotate(${rotation}deg)"><span>空白頁</span></div>`;
+      return;
+    }
+
+    const cacheKey = `${page.sourceId}:${page.pageIndex}`;
+    const cached = pdfWorkspacePreviewCache.get(cacheKey);
+    if (cached) {
+      showPdfLivePreviewImage(page, cached, rotation);
+      return;
+    }
+
+    stage.className = "pdf-live-preview-stage loading";
+    stage.textContent = "正在產生清晰預覽…";
+    let pdf;
+    let pdfPage;
+    try {
+      const pdfjs = await loadPdfJs();
+      const data = new Uint8Array(await page.sourceFile.arrayBuffer());
+      pdf = await pdfjs.getDocument(createPdfJsDocumentOptions(data)).promise;
+      pdfPage = await pdf.getPage(page.pageIndex + 1);
+      const naturalViewport = pdfPage.getViewport({ scale: 1 });
+      const scale = Math.min(680 / naturalViewport.width, 880 / naturalViewport.height, 1.4);
+      const viewport = pdfPage.getViewport({ scale });
+      const canvas = document.createElement("canvas");
+      const context = canvas.getContext("2d", { alpha: false });
+      if (!context) throw new Error("瀏覽器無法建立 PDF 即時預覽");
+      canvas.width = Math.max(1, Math.round(viewport.width));
+      canvas.height = Math.max(1, Math.round(viewport.height));
+      await pdfPage.render({ canvasContext: context, viewport }).promise;
+      const imageUrl = canvas.toDataURL("image/jpeg", 0.9);
+      pdfWorkspacePreviewCache.set(cacheKey, imageUrl);
+      if (pdfWorkspacePreviewCache.size > PDF_WORKSPACE_PREVIEW_CACHE_SIZE) {
+        pdfWorkspacePreviewCache.delete(pdfWorkspacePreviewCache.keys().next().value);
+      }
+      if (token === pdfWorkspacePreviewToken && state.pdfWorkspaceSelectedId === page.id) {
+        showPdfLivePreviewImage(page, imageUrl, rotation);
+      }
+    } catch (error) {
+      if (token === pdfWorkspacePreviewToken) {
+        stage.className = "pdf-live-preview-stage error";
+        stage.textContent = `預覽失敗：${readableError(error)}`;
+      }
+    } finally {
+      if (pdfPage && typeof pdfPage.cleanup === "function") pdfPage.cleanup();
+      if (pdf && typeof pdf.destroy === "function") await pdf.destroy();
+    }
+  }
+
+  function showPdfLivePreviewImage(page, imageUrl, rotation) {
+    const stage = $("#pdf-live-preview-stage");
+    stage.className = "pdf-live-preview-stage";
+    stage.innerHTML = `<img src="${imageUrl}" alt="${escapeHtml(page.fileName)} 第 ${page.pageIndex + 1} 頁即時預覽" class="${rotation === 90 || rotation === 270 ? "is-sideways" : ""}" style="transform:rotate(${rotation}deg)">`;
   }
 
   function pdfOrderFiles(stateKey) {

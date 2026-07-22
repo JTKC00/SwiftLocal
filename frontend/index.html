@@ -425,8 +425,26 @@
               <button id="pdf-workspace-redo" class="secondary-button compact" type="button" disabled>重做</button>
               <button id="pdf-workspace-clear" class="secondary-button compact danger-button" type="button" disabled>清空頁面</button>
             </div>
-            <p class="pdf-workspace-help">拖放縮圖重新排列；每頁亦可旋轉、複製或刪除。所有修改只影響新輸出的 PDF。</p>
-            <div id="pdf-workspace-grid" class="pdf-workspace-grid empty">選擇 PDF 後，所有頁面會在這裡顯示</div>
+            <p class="pdf-workspace-help">點選縮圖即時預覽；拖放縮圖重新排列。旋轉、複製或刪除會立即反映，所有修改只影響新輸出的 PDF。</p>
+            <div class="pdf-workspace-body">
+              <aside id="pdf-live-preview" class="pdf-live-preview empty" aria-labelledby="pdf-live-preview-title">
+                <div class="pdf-live-preview-heading">
+                  <div>
+                    <strong id="pdf-live-preview-title">即時預覽</strong>
+                    <small id="pdf-live-preview-page">尚未選擇頁面</small>
+                  </div>
+                  <span class="badge muted">同步更新</span>
+                </div>
+                <div id="pdf-live-preview-stage" class="pdf-live-preview-stage">選擇頁面後在此預覽</div>
+                <div id="pdf-live-preview-meta" class="pdf-live-preview-meta">載入 PDF 後可逐頁查看</div>
+                <div class="pdf-live-preview-actions">
+                  <button id="pdf-preview-prev" class="secondary-button compact" type="button" disabled>← 上一頁</button>
+                  <button id="pdf-preview-rotate" class="secondary-button compact" type="button" disabled>↻ 旋轉</button>
+                  <button id="pdf-preview-next" class="secondary-button compact" type="button" disabled>下一頁 →</button>
+                </div>
+              </aside>
+              <div id="pdf-workspace-grid" class="pdf-workspace-grid empty">選擇 PDF 後，所有頁面會在這裡顯示</div>
+            </div>
           </section>
         </div>
       </section>
