@@ -9,42 +9,100 @@
 <body>
   <div class="app-shell">
     <aside class="sidebar" aria-label="工具分類">
-      <div class="brand">
+      <div class="brand-row">
+      <button class="brand" type="button" data-panel="home-panel" aria-label="返回首頁">
         <img class="brand-mark" src="assets/swiftlocal-logo.png" alt="快轉通 SwiftLocal logo">
         <div>
           <h1>快轉通 SwiftLocal</h1>
-          <p>本地全能格式轉換工具箱</p>
+          <p>檔案處理，留在你的裝置</p>
         </div>
+      </button>
+      <button id="mobile-nav-close" class="mobile-nav-close" type="button" aria-label="關閉工具選單">×</button>
       </div>
+      <div class="runtime-chip"><span></span><strong id="runtime-label">瀏覽器模式</strong></div>
       <nav class="tool-nav" aria-label="工具選單">
-        <button class="nav-item is-active" type="button" data-panel="image-panel">圖片</button>
-        <button class="nav-item" type="button" data-panel="pdf-panel">PDF</button>
-        <button class="nav-item" type="button" data-panel="data-panel">資料</button>
-        <button class="nav-item" type="button" data-panel="text-panel">文字</button>
-        <button class="nav-item" type="button" data-panel="hash-panel">雜湊</button>
-        <button class="nav-item" type="button" data-panel="zip-panel">壓縮</button>
-        <button class="nav-item" type="button" data-panel="diff-panel">比對</button>
-        <button class="nav-item" type="button" data-panel="split-panel">分片</button>
-        <button class="nav-item" type="button" data-panel="rename-panel">改名</button>
-        <button class="nav-item" type="button" data-panel="media-panel">影音</button>
-        <button class="nav-item" type="button" data-panel="tools-panel">工具</button>
-        <button class="nav-item" type="button" data-panel="backend-panel">狀態</button>
+        <div class="nav-group">
+          <span class="nav-group-label">開始</span>
+          <button class="nav-item is-active" type="button" data-panel="home-panel">首頁</button>
+        </div>
+        <div class="nav-group">
+          <span class="nav-group-label">手機及瀏覽器可用</span>
+          <button class="nav-item" type="button" data-panel="image-panel">圖片</button>
+          <button class="nav-item" type="button" data-panel="pdf-panel">PDF</button>
+          <button class="nav-item" type="button" data-panel="zip-panel">壓縮</button>
+          <button class="nav-item" type="button" data-panel="data-panel">資料</button>
+          <button class="nav-item" type="button" data-panel="text-panel">文字</button>
+          <button class="nav-item" type="button" data-panel="diff-panel">比對</button>
+          <button class="nav-item" type="button" data-panel="hash-panel">驗證</button>
+          <button class="nav-item" type="button" data-panel="split-panel">分片</button>
+          <button class="nav-item" type="button" data-panel="tools-panel">小工具</button>
+        </div>
+        <div class="nav-group desktop-nav-group">
+          <span class="nav-group-label">桌面進階</span>
+          <button class="nav-item" type="button" data-panel="rename-panel">改名</button>
+          <button class="nav-item" type="button" data-panel="media-panel">影音</button>
+          <button class="nav-item" type="button" data-panel="backend-panel">狀態</button>
+        </div>
       </nav>
-      <button id="theme-toggle" class="ghost-button" type="button" title="切換暗色模式">☀</button>
+      <button id="theme-toggle" class="ghost-button sidebar-theme" type="button" title="切換暗色模式">☀</button>
       <div class="privacy-note">
         <strong>Your Local All-in-One File Converter</strong>
         <span>檔案只在瀏覽器記憶體內處理。</span>
       </div>
     </aside>
+    <button id="mobile-nav-backdrop" class="mobile-nav-backdrop" type="button" aria-label="關閉工具選單"></button>
 
     <main class="workspace">
       <section class="topbar" aria-label="狀態列">
-        <div>
-          <p class="eyebrow">本地全能格式轉換工具箱 · Your Local All-in-One File Converter</p>
-          <h2 id="panel-title">圖片轉換</h2>
+        <div class="topbar-title">
+          <button id="mobile-nav-toggle" class="mobile-nav-toggle" type="button" aria-label="開啟工具選單" aria-expanded="false">☰</button>
+          <div>
+            <p class="eyebrow">快轉通 SwiftLocal</p>
+            <h2 id="panel-title">首頁</h2>
+          </div>
         </div>
         <button id="clear-all" class="ghost-button" type="button">清除目前工具</button>
       </section>
+
+      <section id="home-panel" class="panel home-panel is-active" aria-labelledby="home-title">
+        <section class="home-hero">
+          <div class="home-hero-copy">
+            <div class="hero-kicker"><span>本機優先</span><span>無需上載</span><span>手機可用</span></div>
+            <p class="eyebrow">Your Local All-in-One File Converter</p>
+            <h1 id="home-title">檔案轉換，<br>留在你的裝置。</h1>
+            <p class="hero-lead">用手機瀏覽器處理圖片、PDF、ZIP、文字及資料；在電腦桌面版再解鎖影音轉檔、Office、OCR 與完整系統工具。</p>
+            <div class="hero-actions">
+              <button class="primary-button" type="button" data-home-panel="pdf-panel" data-home-focus="#pdf-files">開啟 PDF 工作台</button>
+              <button class="ghost-button" type="button" data-home-panel="image-panel" data-home-focus="#image-files">處理圖片</button>
+            </div>
+          </div>
+          <aside class="device-status-card" aria-label="目前裝置模式">
+            <div class="device-status-heading">
+              <span class="device-icon" aria-hidden="true">↗</span>
+              <div><small>目前執行模式</small><strong id="home-runtime-title">瀏覽器版</strong></div>
+            </div>
+            <p id="home-runtime-note">這部裝置可使用所有瀏覽器處理工具。</p>
+            <ul>
+              <li><span>圖片、PDF、ZIP、文字</span><strong>可用</strong></li>
+              <li><span>檔案不經雲端上載</span><strong>本機</strong></li>
+              <li><span>影音、Office、進階 OCR</span><strong>需桌面版</strong></li>
+            </ul>
+            <p class="device-network-note">手機需透過可連線網址開啟；電腦的 <code>127.0.0.1</code> 網址不能直接在手機使用。</p>
+          </aside>
+        </section>
+
+        <section class="platform-grid" aria-label="平台功能比較">
+          <article class="platform-card featured">
+            <span class="platform-tag">手機 · 平板 · 瀏覽器</span>
+            <h2>隨手處理常用檔案</h2>
+            <p>不用安裝程式，介面會配合小螢幕。適合圖片、PDF 視覺工作台、壓縮、文字及資料轉換。</p>
+          </article>
+          <article class="platform-card">
+            <span class="platform-tag desktop">Windows · macOS · Linux</span>
+            <h2>桌面版完整能力</h2>
+            <p>連接本機後端及系統工具，處理影音、Office、OCR、加密與更大型的工作。</p>
+          </article>
+        </section>
 
       <section class="quick-start" aria-label="快速開始">
         <div class="quick-start-heading">
@@ -61,25 +119,30 @@
           <button type="button" data-panel="image-panel" data-focus="#image-files">
             <strong>轉換或壓縮圖片</strong>
             <span>JPG、PNG、WebP，亦可調整尺寸與浮水印</span>
+            <em>手機及桌面</em>
           </button>
           <button type="button" data-panel="pdf-panel" data-focus="#pdf-files">
             <strong>處理 PDF</strong>
             <span>合併、分割、抽頁、轉成圖片、加頁碼</span>
+            <em>手機及桌面</em>
           </button>
           <button type="button" data-panel="media-panel" data-focus="#media-files">
             <strong>轉音訊 / 影片</strong>
             <span>MP3、WAV、MP4 等需要本地後端支援</span>
+            <em>桌面版</em>
           </button>
           <button type="button" data-panel="zip-panel" data-focus="#zip-files">
             <strong>把檔案打包成 ZIP</strong>
             <span>多個檔案一次壓縮，方便傳送或備份</span>
+            <em>手機及桌面</em>
           </button>
         </div>
+      </section>
       </section>
 
       <section class="panel-assist" id="panel-assist" aria-live="polite"></section>
 
-      <section id="image-panel" class="panel is-active" aria-labelledby="image-title">
+      <section id="image-panel" class="panel" aria-labelledby="image-title">
         <div class="tool-grid">
           <form id="image-form" class="tool-surface">
             <div class="surface-heading">
@@ -1058,6 +1121,13 @@
         </div>
       </section>
     </main>
+    <nav class="mobile-primary-nav" aria-label="手機主要導航">
+      <button class="is-active" type="button" data-mobile-panel="home-panel"><span>⌂</span>首頁</button>
+      <button type="button" data-mobile-panel="image-panel"><span>▧</span>圖片</button>
+      <button type="button" data-mobile-panel="pdf-panel"><span>▤</span>PDF</button>
+      <button type="button" data-mobile-panel="zip-panel"><span>◇</span>壓縮</button>
+      <button id="mobile-more-tools" type="button"><span>☰</span>更多</button>
+    </nav>
   </div>
 
   <script src="vendor/pdf-lib.min.js"></script>

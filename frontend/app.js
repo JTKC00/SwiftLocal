@@ -2,7 +2,7 @@
   "use strict";
 
   const state = {
-    activePanel: "image-panel",
+    activePanel: "home-panel",
     imageDownloads: [],
     pdfDownloads: [],
     pdfFiles: [],
@@ -30,6 +30,7 @@
   };
 
   const titles = {
+    "home-panel": "首頁",
     "image-panel": "圖片轉換",
     "pdf-panel": "PDF 處理",
     "data-panel": "資料格式",
@@ -45,6 +46,7 @@
   };
 
   Object.assign(titles, {
+    "home-panel": "首頁",
     "image-panel": "圖片轉換",
     "pdf-panel": "PDF 處理",
     "data-panel": "資料轉換",
@@ -60,6 +62,7 @@
   });
 
   const toolGuides = {
+    "home-panel": { nav: "首頁", hint: "選擇常用工具，並查看手機版與桌面版的功能差異。", steps: [], keywords: "home 首頁 開始 mobile 手機 desktop 桌面", platform: "web" },
     "image-panel": { nav: "圖片", hint: "轉 JPG / PNG / WebP、壓縮、縮放、加浮水印。", steps: ["選擇或拖放圖片", "保留預設或調整格式、品質、尺寸", "按「開始轉換」，在右邊下載結果"], keywords: "image 圖片 相片 jpg jpeg png webp 壓縮 縮小 浮水印 旋轉" },
     "pdf-panel": { nav: "PDF", hint: "逐頁視覺編排、轉換、OCR、壓縮及保護 PDF。", steps: ["選擇 PDF 工作台或其他處理方式", "在工作台拖放頁面，並旋轉、複製或刪除", "輸出新 PDF，或在任務區查看後端進度"], keywords: "pdf 工作台 縮圖 排序 合併 分割 抽頁 旋轉 頁碼 浮水印 壓縮 加密 解密 ocr office word docx" },
     "data-panel": { nav: "資料", hint: "JSON、CSV、XML 互轉與格式化。", steps: ["貼上資料內容", "選擇想轉成的格式", "按「執行」，再複製或下載輸出"], keywords: "json csv xml 資料 表格 格式化 壓縮" },
@@ -68,10 +71,10 @@
     "zip-panel": { nav: "壓縮", hint: "把多個檔案打包成一個 ZIP。", steps: ["選擇多個檔案", "確認 ZIP 檔名", "按「建立 ZIP」後下載"], keywords: "zip 壓縮 打包 archive" },
     "diff-panel": { nav: "比對", hint: "比較兩段文字有哪些新增、刪除或修改。", steps: ["貼上原文字", "貼上新文字", "按「開始比對」查看差異"], keywords: "diff compare 比對 差異 文字" },
     "split-panel": { nav: "分片", hint: "把原始檔案切成多個二進位 part 分片，需之後完整合併才能還原。", steps: ["選擇檔案", "設定每份大小", "按「產生分片檔」後下載全部 part 和 manifest"], keywords: "split 切割 分片 大檔 part binary manifest" },
-    "rename-panel": { nav: "改名", hint: "先預覽批量改名規則，再下載 PowerShell 腳本。", steps: ["選擇要改名的檔案", "輸入命名格式", "產生預覽，確認後下載腳本"], keywords: "rename 改名 批量 檔名 file name" },
-    "media-panel": { nav: "影音", hint: "音訊與影片轉檔，需要 FFmpeg 與本地後端。", steps: ["選擇音訊或影片", "選擇輸出格式", "按「加入轉換佇列」，等完成後下載"], keywords: "media audio video mp3 wav mp4 mov ffmpeg 影音 音訊 影片" },
+    "rename-panel": { nav: "改名", hint: "先預覽批量改名規則，再下載 PowerShell 腳本。", steps: ["選擇要改名的檔案", "輸入命名格式", "產生預覽，確認後下載腳本"], keywords: "rename 改名 批量 檔名 file name", platform: "desktop" },
+    "media-panel": { nav: "影音", hint: "音訊與影片轉檔，需要 FFmpeg 與本地後端。", steps: ["選擇音訊或影片", "選擇輸出格式", "按「加入轉換佇列」，等完成後下載"], keywords: "media audio video mp3 wav mp4 mov ffmpeg 影音 音訊 影片", platform: "desktop" },
     "tools-panel": { nav: "小工具", hint: "顏色格式、UUID、QR Code 等日常工具。", steps: ["選擇需要的小工具", "輸入內容或設定數量", "產生後複製或下載"], keywords: "color hex rgb hsl uuid qr qrcode 小工具 顏色" },
-    "backend-panel": { nav: "狀態", hint: "查看整體健康狀態、可用功能及清楚的修復建議。", steps: ["先看整體狀態與功能可用情況", "按「重新檢查系統」取得最新結果", "缺少工具時展開進階設定並指定路徑"], keywords: "backend 後端 系統 健康 狀態 libreoffice ffmpeg tesseract qpdf ocr 設定" }
+    "backend-panel": { nav: "狀態", hint: "查看整體健康狀態、可用功能及清楚的修復建議。", steps: ["先看整體狀態與功能可用情況", "按「重新檢查系統」取得最新結果", "缺少工具時展開進階設定並指定路徑"], keywords: "backend 後端 系統 健康 狀態 libreoffice ffmpeg tesseract qpdf ocr 設定", platform: "desktop" }
   };
 
   const PDF_BACKEND_JOB_TYPES = new Set(["office-to-pdf", "pdf-to-docx", "pdf-to-office", "ocr-pdf", "pdf-merge", "pdf-split", "pdf-rotate", "pdf-encrypt", "pdf-decrypt", "pdf-compress"]);
@@ -93,6 +96,8 @@
   function init() {
     initTheme();
     bindNavigation();
+    bindResponsiveNavigation();
+    updateRuntimeLabels();
     bindImageTool();
     bindPdfTool();
     bindDataTool();
@@ -107,8 +112,7 @@
     bindGlobalActions();
     enhanceNavigation();
     bindQuickStart();
-    $("#panel-title").textContent = titles[state.activePanel] || "SwiftLocal";
-    updatePanelAssist(state.activePanel);
+    activatePanel(state.activePanel);
     $$(".file-zone input[type='file']").forEach(bindFileZoneLabel);
     $$(".file-zone").forEach((label) => {
       const input = label.querySelector("input[type='file']");
@@ -212,11 +216,7 @@
   function bindNavigation() {
     $$(".nav-item").forEach((button) => {
       button.addEventListener("click", () => {
-        const panelId = button.dataset.panel;
-        state.activePanel = panelId;
-        $$(".nav-item").forEach((item) => item.classList.toggle("is-active", item === button));
-        $$(".panel").forEach((panel) => panel.classList.toggle("is-active", panel.id === panelId));
-        $("#panel-title").textContent = titles[panelId] || "快轉通 SwiftLocal";
+        activatePanel(button.dataset.panel);
       });
     });
   }
@@ -225,11 +225,63 @@
     if (!panelId) return;
     state.activePanel = panelId;
     $$(".nav-item").forEach((item) => item.classList.toggle("is-active", item.dataset.panel === panelId));
+    $$('[data-mobile-panel]').forEach((item) => item.classList.toggle("is-active", item.dataset.mobilePanel === panelId));
     $$(".panel").forEach((panel) => panel.classList.toggle("is-active", panel.id === panelId));
     $("#panel-title").textContent = titles[panelId] || "SwiftLocal";
+    const clearButton = $("#clear-all");
+    if (clearButton) clearButton.hidden = panelId === "home-panel";
     updatePanelAssist(panelId);
+    closeMobileNavigation();
     const target = focusSelector ? $(focusSelector) : null;
     if (target) window.setTimeout(() => target.focus({ preventScroll: true }), 120);
+  }
+
+  function bindResponsiveNavigation() {
+    const toggle = $("#mobile-nav-toggle");
+    const close = $("#mobile-nav-close");
+    const backdrop = $("#mobile-nav-backdrop");
+    const brand = $(".brand[data-panel]");
+    const more = $("#mobile-more-tools");
+
+    if (toggle) toggle.addEventListener("click", openMobileNavigation);
+    if (close) close.addEventListener("click", closeMobileNavigation);
+    if (backdrop) backdrop.addEventListener("click", closeMobileNavigation);
+    if (more) more.addEventListener("click", openMobileNavigation);
+    if (brand) brand.addEventListener("click", () => activatePanel(brand.dataset.panel));
+    $$('[data-mobile-panel]').forEach((button) => {
+      button.addEventListener("click", () => activatePanel(button.dataset.mobilePanel));
+    });
+    $$('[data-home-panel]').forEach((button) => {
+      button.addEventListener("click", () => activatePanel(button.dataset.homePanel, button.dataset.homeFocus));
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") closeMobileNavigation();
+    });
+  }
+
+  function openMobileNavigation() {
+    document.body.classList.add("nav-open");
+    const toggle = $("#mobile-nav-toggle");
+    if (toggle) toggle.setAttribute("aria-expanded", "true");
+  }
+
+  function closeMobileNavigation() {
+    document.body.classList.remove("nav-open");
+    const toggle = $("#mobile-nav-toggle");
+    if (toggle) toggle.setAttribute("aria-expanded", "false");
+  }
+
+  function updateRuntimeLabels() {
+    const isDesktop = electronBridgeAvailable();
+    const isTouch = navigator.maxTouchPoints > 0 || window.matchMedia("(pointer: coarse)").matches;
+    const runtimeLabel = $("#runtime-label");
+    const runtimeTitle = $("#home-runtime-title");
+    const runtimeNote = $("#home-runtime-note");
+    if (runtimeLabel) runtimeLabel.textContent = isDesktop ? "桌面版" : isTouch ? "手機瀏覽器" : "瀏覽器模式";
+    if (runtimeTitle) runtimeTitle.textContent = isDesktop ? "桌面完整版" : isTouch ? "手機瀏覽器版" : "瀏覽器版";
+    if (runtimeNote) runtimeNote.textContent = isDesktop
+      ? "已連接桌面環境；進階功能會按本機工具安裝狀態啟用。"
+      : "可使用所有瀏覽器處理工具；桌面進階功能需要在電腦版開啟。";
   }
 
   function enhanceNavigation() {
@@ -237,8 +289,8 @@
       const guide = toolGuides[button.dataset.panel];
       if (!guide) return;
       button.dataset.keywords = `${guide.nav} ${guide.hint} ${guide.keywords}`;
-      button.innerHTML = `<span>${escapeHtml(guide.nav)}</span><small>${escapeHtml(guide.hint)}</small>`;
-      button.addEventListener("click", () => updatePanelAssist(button.dataset.panel));
+      const platform = guide.platform === "desktop" ? '<em class="nav-platform">桌面</em>' : "";
+      button.innerHTML = `<span>${escapeHtml(guide.nav)}${platform}</span><small>${escapeHtml(guide.hint)}</small>`;
     });
   }
 
@@ -268,6 +320,7 @@
     function renderSearchResults(query) {
       const hasQuery = Boolean(query);
       const matches = Object.entries(toolGuides).filter(([panelId, guide]) => {
+        if (panelId === "home-panel") return false;
         const haystack = [guide.nav, guide.hint, guide.keywords, titles[panelId]].join(" ").toLowerCase();
         return !hasQuery || haystack.includes(query);
       });
@@ -275,6 +328,9 @@
       $$(".nav-item").forEach((button) => {
         const haystack = (button.dataset.keywords || button.textContent || "").toLowerCase();
         button.hidden = hasQuery && !haystack.includes(query);
+      });
+      $$(".nav-group").forEach((group) => {
+        group.hidden = hasQuery && !group.querySelector(".nav-item:not([hidden])");
       });
 
       quickActions.innerHTML = "";
@@ -306,7 +362,12 @@
   function updatePanelAssist(panelId) {
     const assist = $("#panel-assist");
     const guide = toolGuides[panelId];
-    if (!assist || !guide) return;
+    if (!assist) return;
+    if (panelId === "home-panel") {
+      assist.innerHTML = "";
+      return;
+    }
+    if (!guide) return;
     assist.innerHTML = [
       `<div><strong>${escapeHtml(titles[panelId] || guide.nav)}</strong><span>${escapeHtml(guide.hint)}</span></div>`,
       `<ol>${guide.steps.map((step) => `<li>${escapeHtml(step)}</li>`).join("")}</ol>`
