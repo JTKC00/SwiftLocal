@@ -738,6 +738,63 @@ td.code-cell {
   line-height: 1.6;
 }
 
+.pdf-mode-note {
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+
+.password-visibility-control {
+  align-content: start;
+}
+
+.password-visibility-control .check-row {
+  min-height: 42px;
+  margin: 0;
+  padding: 0 4px;
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.pdf-unified-output {
+  display: grid;
+  gap: 18px;
+}
+
+.pdf-unified-output > .surface-heading {
+  margin-bottom: 0;
+}
+
+.pdf-output-section {
+  display: grid;
+  gap: 10px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.output-subheading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.output-subheading > span {
+  color: var(--muted);
+  font-size: 12px;
+  text-align: right;
+}
+
+.pdf-unified-output .result-list {
+  min-height: 160px;
+}
+
+.pdf-unified-jobs {
+  min-height: 180px;
+}
+
 .backend-actions {
   margin-bottom: 16px;
 }
@@ -1227,6 +1284,15 @@ td.code-cell {
 
   .pdf-order-actions {
     grid-column: 2 / -1;
+  }
+
+  .output-subheading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .output-subheading > span {
+    text-align: left;
   }
 }
 

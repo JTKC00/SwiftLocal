@@ -12,7 +12,6 @@
     zipName: "",
     diffText: "",
     splitDownloads: [],
-    pdfBackendFiles: [],
     imgBackendFiles: [],
     mediaBackendFiles: [],
     backendConnected: false,
@@ -56,7 +55,7 @@
 
   const toolGuides = {
     "image-panel": { nav: "圖片", hint: "轉 JPG / PNG / WebP、壓縮、縮放、加浮水印。", steps: ["選擇或拖放圖片", "保留預設或調整格式、品質、尺寸", "按「開始轉換」，在右邊下載結果"], keywords: "image 圖片 相片 jpg jpeg png webp 壓縮 縮小 浮水印 旋轉" },
-    "pdf-panel": { nav: "PDF", hint: "合併、分割、抽頁、旋轉、加浮水印或轉圖片。", steps: ["選擇 PDF 檔案", "選擇處理模式，例如合併或抽頁", "按「執行」，完成後下載新 PDF"], keywords: "pdf 合併 分割 抽頁 旋轉 頁碼 浮水印 office word docx" },
+    "pdf-panel": { nav: "PDF", hint: "整理、轉換、OCR、壓縮及保護 PDF。", steps: ["先選擇想完成的工作", "選擇 PDF 或 Office 文件", "按「開始處理」，在右邊查看輸出或進度"], keywords: "pdf 合併 分割 抽頁 旋轉 頁碼 浮水印 壓縮 加密 解密 ocr office word docx" },
     "data-panel": { nav: "資料", hint: "JSON、CSV、XML 互轉與格式化。", steps: ["貼上資料內容", "選擇想轉成的格式", "按「執行」，再複製或下載輸出"], keywords: "json csv xml 資料 表格 格式化 壓縮" },
     "text-panel": { nav: "文字", hint: "Base64、URL、HTML 編碼，以及搜尋取代。", steps: ["貼上文字", "選擇處理方式", "按「執行」，再複製結果"], keywords: "文字 text base64 url html encode decode 搜尋 取代 繁簡" },
     "hash-panel": { nav: "驗證", hint: "產生檔案雜湊值，用來確認檔案沒有被改動。", steps: ["選擇檔案", "選擇雜湊演算法", "按「開始計算」，需要時下載 CSV"], keywords: "hash sha md5 雜湊 校驗 驗證 checksum" },
@@ -335,19 +334,13 @@
       $("#pdf-output-name").value = "swiftlocal-output.pdf";
       $("#pdf-watermark-opacity").value = "0.25";
       $("#pdf-watermark-opacity-output").textContent = "25%";
-      setEmpty("#pdf-results", "尚未產生 PDF");
+      $("#pdf-password").value = "";
+      $("#pdf-password").type = "password";
+      $("#pdf-password-visible").checked = false;
+      setEmpty("#pdf-results", "尚未產生檔案");
       $("#download-all-pdfs").disabled = true;
-      updatePdfControls();
-      // 後端子表單
-      state.pdfBackendFiles = [];
-      $("#pdf-backend-form").reset();
-      const pdfList = $("#pdf-backend-selected-files");
-      pdfList.classList.add("empty");
-      pdfList.textContent = "尚未選擇檔案";
       setEmpty("#pdf-backend-jobs", "尚未建立任務");
-      updatePdfBackendJobControls();
-      const pwdInput = $("#pdf-backend-password");
-      if (pwdInput) pwdInput.value = "";
+      updatePdfControls();
     }
     if (panelId === "data-panel") {
       $("#data-input").value = "";
@@ -649,24 +642,48 @@
   }
 
   function bindPdfTool() {
-    $("#pdf-mode").addEventListener("change", updatePdfControls);
+    $("#pdf-mode").addEventListener("change", () => {
+      const mode = $("#pdf-mode").value;
+      if (state.pdfFiles.length && !pdfFilesMatchMode(mode, state.pdfFiles)) {
+        state.pdfFiles = [];
+        $("#pdf-files").value = "";
+        renderPdfOrderList("#pdf-merge-order", "pdfFiles");
+        showToast("已清除不符合新工作類型的檔案，請重新選擇", "info");
+      }
+      updatePdfControls();
+    });
     $("#pdf-files").addEventListener("change", (event) => {
-      state.pdfFiles = Array.from(event.target.files || []);
+      const files = Array.from(event.target.files || []);
+      if (files.length && !pdfFilesMatchMode($("#pdf-mode").value, files)) {
+        state.pdfFiles = [];
+        event.target.value = "";
+        setEmpty("#pdf-results", "檔案類型或數量不符合目前工作");
+        showToast("請選擇符合目前工作類型的檔案", "error");
+        updatePdfControls();
+        return;
+      }
+      state.pdfFiles = files;
       renderPdfOrderList("#pdf-merge-order", "pdfFiles");
     });
     bindPdfOrderList("#pdf-merge-order", "pdfFiles");
-    bindPdfOrderList("#pdf-backend-merge-order", "pdfBackendFiles");
     $("#pdf-watermark-opacity").addEventListener("input", (event) => {
       $("#pdf-watermark-opacity-output").textContent = `${Math.round(Number(event.target.value) * 100)}%`;
+    });
+    $("#pdf-password-visible").addEventListener("change", (event) => {
+      $("#pdf-password").type = event.target.checked ? "text" : "password";
     });
 
     $("#pdf-form").addEventListener("submit", async (event) => {
       event.preventDefault();
       const mode = $("#pdf-mode").value;
-      const selectedFiles = Array.from($("#pdf-files").files || []);
-      const files = mode === "merge" ? state.pdfFiles : selectedFiles;
+      const files = state.pdfFiles;
       if (!files.length) {
-        setEmpty("#pdf-results", "請先選擇 PDF");
+        setEmpty("#pdf-results", mode === "office-to-pdf" ? "請先選擇 Office 文件" : "請先選擇 PDF");
+        showToast(mode === "office-to-pdf" ? "請先選擇 Office 文件" : "請先選擇 PDF", "error");
+        return;
+      }
+      if (PDF_BACKEND_JOB_TYPES.has(mode)) {
+        await enqueuePdfBackendJob();
         return;
       }
       if (!window.PDFLib) {
@@ -679,6 +696,7 @@
       container.classList.remove("empty");
       container.textContent = "處理中...";
       $("#download-all-pdfs").disabled = true;
+      setStatus("#pdf-backend-status", "處理中…");
 
       try {
         const results = await runPdfTool(mode, files);
@@ -689,9 +707,11 @@
           container.appendChild(renderFileResult(fileLabelFromName(result.name), result.name, result.blob.size, url));
         });
         $("#download-all-pdfs").disabled = state.pdfDownloads.length === 0;
+        setStatus("#pdf-backend-status", "處理完成");
       } catch (error) {
         container.textContent = "";
         container.appendChild(renderErrorItem(files[0].name, readableError(error)));
+        setStatus("#pdf-backend-status", "處理失敗");
       }
     });
 
@@ -706,17 +726,93 @@
 
   function updatePdfControls() {
     const mode = $("#pdf-mode").value;
+    const usesBackgroundTask = PDF_BACKEND_JOB_TYPES.has(mode);
     const showRange = mode === "extract" || mode === "rotate" || mode === "watermark" || mode === "text" || mode === "images" || mode === "page-numbers";
     const showRotation = mode === "rotate";
     const showWatermark = mode === "watermark";
     const showImages = mode === "images";
     const showPageNumbers = mode === "page-numbers";
+    const showOfficeFormat = mode === "pdf-to-office";
+    const showOcr = mode === "ocr-pdf";
+    const showPassword = mode === "pdf-encrypt" || mode === "pdf-decrypt";
     $(".pdf-range-controls").style.display = showRange ? "" : "none";
     $("#pdf-rotation").closest("label").style.display = showRotation ? "" : "none";
     $(".pdf-watermark-controls").style.display = showWatermark ? "" : "none";
     $(".pdf-image-controls").style.display = showImages ? "" : "none";
     $(".pdf-pagenumber-controls").style.display = showPageNumbers ? "" : "none";
+    $(".pdf-office-format-controls").style.display = showOfficeFormat ? "" : "none";
+    $(".pdf-ocr-controls").style.display = showOcr ? "" : "none";
+    $(".pdf-password-controls").style.display = showPassword ? "" : "none";
+    $(".pdf-output-name-control").style.display = usesBackgroundTask ? "none" : "";
+
+    const input = $("#pdf-files");
+    const isOfficeInput = mode === "office-to-pdf";
+    input.accept = isOfficeInput ? ".doc,.docx,.xls,.xlsx,.ppt,.pptx,.odt,.ods,.odp" : "application/pdf,.pdf";
+    input.multiple = mode === "merge" || usesBackgroundTask;
+    $("#pdf-file-zone-title").textContent = isOfficeInput ? "選擇 Office 文件" : "選擇 PDF";
+    if (!state.pdfFiles.length) {
+      $("#pdf-file-hint").textContent = isOfficeInput
+        ? "支援 Word、Excel、PowerPoint 及 OpenDocument"
+        : mode === "merge" ? "可一次選擇多個 PDF，再調整合併次序" : "可一次選擇多個 PDF";
+    }
+
+    const engineBadge = $("#pdf-engine-badge");
+    engineBadge.textContent = usesBackgroundTask ? "本機任務" : "本機即時";
+    engineBadge.classList.toggle("muted", usesBackgroundTask && !backendApiAvailable());
+    $("#pdf-submit-button").textContent = usesBackgroundTask ? "開始處理" : "處理 PDF";
+    if (!$("#pdf-backend-jobs").classList.contains("empty")) {
+      // 保留進行中任務的狀態文字。
+    } else {
+      setStatus("#pdf-backend-status", usesBackgroundTask
+        ? (backendApiAvailable() ? "本機服務已就緒" : "需要本機服務")
+        : "可即時處理");
+    }
+    updatePdfModeNote(mode);
     renderPdfOrderList("#pdf-merge-order", "pdfFiles");
+  }
+
+  function pdfFilesMatchMode(mode, files) {
+    const officeExtensions = new Set(["doc", "docx", "xls", "xlsx", "ppt", "pptx", "odt", "ods", "odp"]);
+    const extensions = files.map((file) => String(file.name || "").split(".").pop().toLowerCase());
+    if (mode === "office-to-pdf") {
+      return extensions.every((extension) => officeExtensions.has(extension));
+    }
+    if (!extensions.every((extension) => extension === "pdf")) {
+      return false;
+    }
+    return mode === "merge" || PDF_BACKEND_JOB_TYPES.has(mode) || files.length <= 1;
+  }
+
+  function updatePdfModeNote(mode) {
+    const note = $("#pdf-mode-note");
+    const notes = {
+      merge: "檔案會完全在本機記憶體內依照下方次序合併。",
+      split: "每一頁會輸出成獨立 PDF，毋須啟動本機服務。",
+      extract: "輸入頁碼範圍，只把需要的頁面輸出成新 PDF。",
+      rotate: "只旋轉指定頁面，原始檔案不會被修改。",
+      watermark: "文字浮水印會套用到指定頁面。",
+      "page-numbers": "頁碼會從指定數字開始，加到所選頁面。",
+      text: "直接抽取 PDF 內可搜尋的文字；掃描文件請選擇 OCR。",
+      images: "PDF 頁面會在本機轉成獨立圖片。",
+      "pdf-compress": "程式會自動在本機背景最佳化 PDF，完成後顯示輸出檔案。",
+      "pdf-to-docx": "適合文字型 PDF；會建立簡易 DOCX，但不保留原始版面。",
+      "pdf-to-office": isToolAvailable("libreOffice")
+        ? "使用本機文件引擎轉換並盡量保留版面；複雜或掃描文件效果可能不同。"
+        : "此工作需要本機文件引擎；目前未偵測到，請到「狀態」頁設定。",
+      "ocr-pdf": isToolAvailable("tesseract")
+        ? "適合掃描文件；程式會逐頁辨識文字並輸出 TXT。"
+        : "此工作需要本機 OCR；目前未偵測到，請到「狀態」頁檢查。",
+      "office-to-pdf": isToolAvailable("libreOffice")
+        ? "程式會自動使用本機文件引擎把 Office 文件轉成 PDF。"
+        : "此工作需要本機文件引擎；目前未偵測到，請到「狀態」頁設定。",
+      "pdf-encrypt": isToolAvailable("qpdf")
+        ? "使用本機安全工具加密 PDF；請妥善保存密碼。"
+        : "此工作需要本機 PDF 安全工具；目前未偵測到，請到「狀態」頁檢查。",
+      "pdf-decrypt": isToolAvailable("qpdf")
+        ? "輸入現有密碼以建立一份已解除加密的新 PDF。"
+        : "此工作需要本機 PDF 安全工具；目前未偵測到，請到「狀態」頁檢查。"
+    };
+    note.textContent = notes[mode] || "程式會自動選擇合適的本機處理方式。";
   }
 
   function pdfOrderFiles(stateKey) {
@@ -724,10 +820,7 @@
   }
 
   function pdfOrderIsVisible(stateKey) {
-    if (stateKey === "pdfFiles") {
-      return $("#pdf-mode").value === "merge";
-    }
-    return $("#pdf-backend-job-type").value === "pdf-merge";
+    return stateKey === "pdfFiles" && $("#pdf-mode").value === "merge";
   }
 
   function renderPdfOrderList(selector, stateKey) {
@@ -763,8 +856,7 @@
     if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0 || fromIndex >= files.length || toIndex >= files.length) return;
     const [file] = files.splice(fromIndex, 1);
     files.splice(toIndex, 0, file);
-    const selector = stateKey === "pdfFiles" ? "#pdf-merge-order" : "#pdf-backend-merge-order";
-    renderPdfOrderList(selector, stateKey);
+    renderPdfOrderList("#pdf-merge-order", stateKey);
   }
 
   function bindPdfOrderList(selector, stateKey) {
@@ -2094,9 +2186,6 @@
         list.classList.remove("empty");
         list.innerHTML = state[stateKey].map((f) => `<span>${escapeHtml(f.name)} · ${formatBytes(f.size)}</span>`).join("");
       }
-      if (stateKey === "pdfBackendFiles") {
-        renderPdfOrderList("#pdf-backend-merge-order", "pdfBackendFiles");
-      }
     }
 
     input.addEventListener("change", () => applyFiles(input.files || []));
@@ -2135,11 +2224,6 @@
       updateMediaAdvancedControls();
     }
 
-    // PDF 面板
-    $("#pdf-backend-job-type").addEventListener("change", updatePdfBackendJobControls);
-    bindFileDropZone("pdf-backend-drop", "pdf-backend-files", "pdf-backend-selected-files", "pdfBackendFiles");
-    $("#pdf-backend-form").addEventListener("submit", enqueuePdfBackendJob);
-
     // 圖片面板
     $("#img-backend-job-type").addEventListener("change", updateImgBackendJobControls);
     bindFileDropZone("img-backend-drop", "img-backend-files", "img-backend-selected-files", "imgBackendFiles");
@@ -2158,7 +2242,6 @@
 
     updateDesktopOutputDirVisibility();
     checkBackendHealth();
-    updatePdfBackendJobControls();
     updateImgBackendJobControls();
   }
 
@@ -2336,6 +2419,7 @@
         input.value = tool && tool.path ? tool.path : "";
       }
     });
+    updatePdfControls();
   }
 
   function toolStatusText(key, tool) {
@@ -2373,58 +2457,6 @@
     if (source === "system") return "系統安裝";
     if (source === "path") return "PATH";
     return "";
-  }
-
-  function updatePdfBackendJobControls() {
-    const type = $("#pdf-backend-job-type").value;
-    const engineBadge = $("#pdf-backend-engine");
-    const officeNote = $("#pdf-backend-office-note");
-    if (engineBadge) {
-      if (type === "office-to-pdf" || type === "pdf-to-office") {
-        engineBadge.textContent = "LibreOffice";
-      } else if (type === "pdf-to-docx") {
-        engineBadge.textContent = "pdf.js → 純文字 DOCX";
-      } else if (type === "ocr-pdf") {
-        engineBadge.textContent = "PDF 渲染 → Tesseract";
-      } else if (type === "pdf-encrypt" || type === "pdf-decrypt") {
-        engineBadge.textContent = "QPDF";
-      } else {
-        engineBadge.textContent = "pdf-lib";
-      }
-    }
-    if (officeNote) {
-      if (type === "office-to-pdf") {
-        officeNote.style.display = "";
-        officeNote.textContent = officeToPdfGuidance();
-      } else if (type === "pdf-to-office") {
-        officeNote.style.display = "";
-        officeNote.textContent = isToolAvailable("libreOffice")
-          ? "PDF → Office 透過 LibreOffice 轉版面。掃描型 PDF 可能效果不佳；純文字請改用「PDF → DOCX（純文字）」。"
-          : "此功能需要 LibreOffice。請安裝或更新後重新偵測工具。";
-      } else if (type === "pdf-to-docx") {
-        officeNote.style.display = "";
-        officeNote.textContent = "此模式只抽取文字組成簡易 DOCX，不保留原始版面。需要版面請選「PDF → Office（LibreOffice）」。";
-      } else if (type === "ocr-pdf") {
-        officeNote.style.display = "";
-        officeNote.textContent = isToolAvailable("tesseract")
-          ? "將 PDF 逐頁渲染後用 Tesseract OCR。適合掃描件；可搜尋文字型 PDF 請優先用「PDF → DOCX（純文字）」。"
-          : "此功能需要 Tesseract。請確認內建工具或重新偵測。";
-      } else {
-        officeNote.style.display = "none";
-      }
-    }
-    $(".pdf-backend-office-format-row").style.display = type === "pdf-to-office" ? "" : "none";
-    $(".pdf-backend-ocr-row").style.display = type === "ocr-pdf" ? "" : "none";
-    $(".pdf-backend-pages-row").style.display = type === "pdf-split" ? "" : "none";
-    $(".pdf-backend-angle-row").style.display = type === "pdf-rotate" ? "" : "none";
-    $(".pdf-backend-password-row").style.display = (type === "pdf-encrypt" || type === "pdf-decrypt") ? "" : "none";
-    const filesInput = $("#pdf-backend-files");
-    if (filesInput) {
-      filesInput.accept = type === "office-to-pdf"
-        ? ".doc,.docx,.xls,.xlsx,.ppt,.pptx,.odt,.ods,.odp"
-        : ".pdf";
-    }
-    renderPdfOrderList("#pdf-backend-merge-order", "pdfBackendFiles");
   }
 
   function updateImgBackendJobControls() {
@@ -2472,12 +2504,11 @@
     }
   }
 
-  async function enqueuePdfBackendJob(event) {
-    event.preventDefault();
+  async function enqueuePdfBackendJob() {
     if (!backendApiAvailable()) await checkBackendHealth();
     if (!backendApiAvailable()) { showToast("請先啟動 FastAPI 後端", "error"); return; }
-    if (!state.pdfBackendFiles.length) { showToast("請先選擇輸入檔案", "error"); return; }
-    const type = $("#pdf-backend-job-type").value;
+    if (!state.pdfFiles.length) { showToast("請先選擇輸入檔案", "error"); return; }
+    const type = $("#pdf-mode").value;
     if ((type === "office-to-pdf" || type === "pdf-to-office") && !isToolAvailable("libreOffice")) {
       setStatus("#pdf-backend-status", "缺少 LibreOffice");
       showToast("此功能需要 LibreOffice。請安裝或更新 LibreOffice，然後重新偵測工具。", "error");
@@ -2488,22 +2519,32 @@
       showToast("PDF OCR 需要 Tesseract。請確認內建工具或重新偵測。", "error");
       return;
     }
+    if ((type === "pdf-encrypt" || type === "pdf-decrypt") && !isToolAvailable("qpdf")) {
+      setStatus("#pdf-backend-status", "缺少 QPDF");
+      showToast("PDF 加密與解密需要 QPDF。請到「狀態」頁檢查本機工具。", "error");
+      return;
+    }
+    if (type === "pdf-encrypt" && !$("#pdf-password").value.trim()) {
+      setStatus("#pdf-backend-status", "請設定密碼");
+      showToast("PDF 加密需要設定密碼", "error");
+      $("#pdf-password").focus();
+      return;
+    }
     const payload = new FormData();
     payload.append("type", type);
-    state.pdfBackendFiles.forEach((file) => payload.append("files", file, file.name));
-    if (type === "pdf-to-office") payload.append("extension", $("#pdf-backend-office-format").value || "docx");
+    state.pdfFiles.forEach((file) => payload.append("files", file, file.name));
+    if (type === "pdf-to-office") payload.append("extension", $("#pdf-office-format").value || "docx");
     if (type === "ocr-pdf") {
-      payload.append("language", ($("#pdf-backend-ocr-language").value || "eng").trim() || "eng");
-      payload.append("maxPages", String($("#pdf-backend-ocr-max-pages").value || "50"));
+      payload.append("language", ($("#pdf-ocr-language").value || "eng").trim() || "eng");
+      payload.append("maxPages", String($("#pdf-ocr-max-pages").value || "50"));
     }
-    if (type === "pdf-split") payload.append("pages", $("#pdf-backend-pages").value.trim());
-    if (type === "pdf-rotate") payload.append("angle", $("#pdf-backend-angle").value);
-    if (type === "pdf-encrypt" || type === "pdf-decrypt") payload.append("password", $("#pdf-backend-password").value);
+    if (type === "pdf-encrypt" || type === "pdf-decrypt") payload.append("password", $("#pdf-password").value);
     try {
+      setStatus("#pdf-backend-status", "正在建立任務");
       await backendFetch("/jobs", { method: "POST", body: payload });
       await refreshBackendJobs();
       setStatus("#pdf-backend-status", "已加入佇列");
-      showToast("已加入後端佇列", "success");
+      showToast("已開始處理，進度會顯示在右側", "success");
     } catch (error) {
       showToast(readableError(error), "error");
     }
@@ -2604,7 +2645,12 @@
     container.innerHTML = "";
     jobs.forEach((job) => container.appendChild(buildJobElement(job)));
     const hasActive = jobs.some((j) => j.status === "queued" || j.status === "running");
-    if (hasActive) setStatus(statusSel, "處理中…");
+    if (hasActive) {
+      setStatus(statusSel, "處理中…");
+    } else {
+      const latest = jobs[0];
+      setStatus(statusSel, latest.status === "done" ? "最近任務已完成" : jobStatusLabel(latest.status));
+    }
   }
 
   function renderBackendJobs(jobs) {

@@ -235,34 +235,51 @@
         <div class="tool-grid">
           <form id="pdf-form" class="tool-surface">
             <div class="surface-heading">
-              <h3 id="pdf-title">PDF 基礎處理</h3>
-              <span class="badge">pdf-lib</span>
+              <h3 id="pdf-title">PDF 處理</h3>
+              <span id="pdf-engine-badge" class="badge">本機即時</span>
             </div>
-            <label class="file-zone" for="pdf-files">
-              <input id="pdf-files" type="file" accept="application/pdf,.pdf" multiple>
-              <span>選擇 PDF</span>
-              <small>合併可多選；其他模式使用第一個 PDF</small>
-            </label>
-
-            <div id="pdf-merge-order" class="pdf-order-panel" hidden></div>
-
             <div class="control-row">
               <label>
-                <span>處理模式</span>
+                <span>想完成的工作</span>
                 <select id="pdf-mode">
-                  <option value="merge">合併 PDF</option>
-                  <option value="split">逐頁分割</option>
-                  <option value="extract">抽出頁面</option>
-                  <option value="rotate">旋轉頁面</option>
-                  <option value="watermark">加文字浮水印</option>                  <option value="page-numbers">加頁碼</option>                  <option value="text">PDF → TXT</option>
-                  <option value="images">PDF → 圖片</option>
+                  <optgroup label="整理 PDF">
+                    <option value="merge">合併 PDF</option>
+                    <option value="split">逐頁分割</option>
+                    <option value="extract">抽出頁面</option>
+                    <option value="rotate">旋轉頁面</option>
+                    <option value="watermark">加文字浮水印</option>
+                    <option value="page-numbers">加頁碼</option>
+                    <option value="pdf-compress">壓縮 PDF</option>
+                  </optgroup>
+                  <optgroup label="轉換內容">
+                    <option value="text">PDF → TXT</option>
+                    <option value="images">PDF → 圖片</option>
+                    <option value="pdf-to-docx">PDF → DOCX（純文字）</option>
+                    <option value="pdf-to-office">PDF → Office（保留版面）</option>
+                    <option value="ocr-pdf">掃描 PDF → OCR 文字</option>
+                    <option value="office-to-pdf">Office → PDF</option>
+                  </optgroup>
+                  <optgroup label="安全性">
+                    <option value="pdf-encrypt">加密 PDF</option>
+                    <option value="pdf-decrypt">解密 PDF</option>
+                  </optgroup>
                 </select>
               </label>
-              <label>
+              <label class="pdf-output-name-control">
                 <span>輸出檔名</span>
                 <input id="pdf-output-name" type="text" value="swiftlocal-output.pdf">
               </label>
             </div>
+
+            <p id="pdf-mode-note" class="backend-inline-note pdf-mode-note"></p>
+
+            <label class="file-zone" for="pdf-files">
+              <input id="pdf-files" type="file" accept="application/pdf,.pdf" multiple>
+              <span id="pdf-file-zone-title">選擇 PDF</span>
+              <small id="pdf-file-hint">可一次選擇多個檔案</small>
+            </label>
+
+            <div id="pdf-merge-order" class="pdf-order-panel" hidden></div>
 
             <div class="control-row pdf-range-controls">
               <label>
@@ -328,48 +345,10 @@
               </label>
             </div>
 
-            <div class="actions">
-              <button class="primary-button" type="submit">處理 PDF</button>
-              <button class="secondary-button" type="button" data-clear-panel="pdf-panel">重設</button>
-            </div>
-          </form>
-
-          <div class="result-surface" aria-live="polite">
-            <div class="surface-heading">
-              <h3>輸出</h3>
-              <button id="download-all-pdfs" class="secondary-button compact" type="button" disabled>全部下載</button>
-            </div>
-            <div id="pdf-results" class="result-list empty">尚未產生 PDF</div>
-          </div>
-
-          <form id="pdf-backend-form" class="tool-surface">
-            <div class="surface-heading">
-              <h3>後端文件轉換</h3>
-              <span id="pdf-backend-engine" class="badge">LibreOffice / pdf.js / pdf-lib / QPDF</span>
-            </div>
-            <div class="control-row">
+            <div class="control-row pdf-office-format-controls">
               <label>
-                <span>轉換類型</span>
-                <select id="pdf-backend-job-type">
-                  <option value="office-to-pdf">Office → PDF</option>
-                  <option value="pdf-to-docx">PDF → DOCX（純文字）</option>
-                  <option value="pdf-to-office">PDF → Office（LibreOffice）</option>
-                  <option value="ocr-pdf">PDF OCR → TXT</option>
-                  <option value="pdf-merge">PDF 合併（後端）</option>
-                  <option value="pdf-split">PDF 分割（後端）</option>
-                  <option value="pdf-rotate">PDF 旋轉（後端）</option>
-                  <option value="pdf-encrypt">PDF 加密</option>
-                  <option value="pdf-decrypt">PDF 解密</option>
-                  <option value="pdf-compress">PDF 壓縮</option>
-                </select>
-              </label>
-              <div></div>
-            </div>
-            <p id="pdf-backend-office-note" class="backend-inline-note">Office → PDF 依賴 LibreOffice。若轉換失敗或版面異常，請確認 LibreOffice 可用，必要時更新。</p>
-            <div class="control-row pdf-backend-office-format-row" style="display:none">
-              <label>
-                <span>Office 格式</span>
-                <select id="pdf-backend-office-format">
+                <span>輸出 Office 格式</span>
+                <select id="pdf-office-format">
                   <option value="docx">DOCX（Word）</option>
                   <option value="xlsx">XLSX（Excel）</option>
                   <option value="pptx">PPTX（PowerPoint）</option>
@@ -378,58 +357,54 @@
               </label>
               <div></div>
             </div>
-            <div class="control-row pdf-backend-ocr-row" style="display:none">
+
+            <div class="control-row pdf-ocr-controls">
               <label>
                 <span>OCR 語言</span>
-                <input id="pdf-backend-ocr-language" type="text" value="eng" placeholder="例：eng 或 chi_tra+eng">
+                <input id="pdf-ocr-language" type="text" value="eng" placeholder="例：eng 或 chi_tra+eng">
               </label>
               <label>
                 <span>最多頁數</span>
-                <input id="pdf-backend-ocr-max-pages" type="number" min="1" max="100" value="50">
+                <input id="pdf-ocr-max-pages" type="number" min="1" max="100" value="50">
               </label>
             </div>
-            <div class="control-row pdf-backend-pages-row">
-              <label>
-                <span>頁碼範圍</span>
-                <input id="pdf-backend-pages" type="text" placeholder="例：1-3,5,7-9">
-              </label>
-              <div></div>
-            </div>
-            <div class="control-row pdf-backend-angle-row">
-              <label>
-                <span>旋轉角度</span>
-                <select id="pdf-backend-angle">
-                  <option value="90">90°（順時针）</option>
-                  <option value="180">180°（翻轉）</option>
-                  <option value="270">270°（逆時针）</option>
-                </select>
-              </label>
-              <div></div>
-            </div>
-            <div class="control-row pdf-backend-password-row">
+
+            <div class="control-row pdf-password-controls">
               <label>
                 <span>密碼</span>
-                <input id="pdf-backend-password" type="text" placeholder="加密 / 解密密碼" autocomplete="off">
+                <input id="pdf-password" type="password" placeholder="輸入加密或解密密碼" autocomplete="new-password">
               </label>
-              <div></div>
+              <label class="password-visibility-control">
+                <span>顯示設定</span>
+                <span class="check-row"><input id="pdf-password-visible" type="checkbox"> 顯示密碼</span>
+              </label>
             </div>
-            <label class="file-drop-zone" id="pdf-backend-drop" for="pdf-backend-files">
-              <input id="pdf-backend-files" type="file" multiple>
-              <span>選擇或拖放檔案</span>
-              <div id="pdf-backend-selected-files" class="drop-file-list empty">尚未選擇檔案</div>
-            </label>
-            <div id="pdf-backend-merge-order" class="pdf-order-panel" hidden></div>
+
             <div class="actions">
-              <button class="primary-button" type="submit">加入後端佇列</button>
+              <button id="pdf-submit-button" class="primary-button" type="submit">處理 PDF</button>
+              <button class="secondary-button" type="button" data-clear-panel="pdf-panel">重設</button>
             </div>
           </form>
 
-          <div class="result-surface" aria-live="polite">
+          <div class="result-surface pdf-unified-output" aria-live="polite">
             <div class="surface-heading">
-              <h3>文件轉換結果</h3>
-              <span id="pdf-backend-status" class="status-pill">待偵測</span>
+              <h3>輸出與任務</h3>
+              <span id="pdf-backend-status" class="status-pill">準備就緒</span>
             </div>
-            <div id="pdf-backend-jobs" class="backend-jobs empty">尚未建立任務</div>
+            <div class="pdf-output-section">
+              <div class="output-subheading">
+                <strong>已完成檔案</strong>
+                <button id="download-all-pdfs" class="secondary-button compact" type="button" disabled>全部下載</button>
+              </div>
+              <div id="pdf-results" class="result-list empty">尚未產生檔案</div>
+            </div>
+            <div class="pdf-output-section">
+              <div class="output-subheading">
+                <strong>任務紀錄</strong>
+                <span>需要較長時間的工作會在這裡顯示進度</span>
+              </div>
+              <div id="pdf-backend-jobs" class="backend-jobs pdf-unified-jobs empty">尚未建立任務</div>
+            </div>
           </div>
         </div>
       </section>
