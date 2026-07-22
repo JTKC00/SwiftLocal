@@ -795,6 +795,186 @@ td.code-cell {
   min-height: 180px;
 }
 
+.pdf-workspace-surface {
+  grid-column: 1 / -1;
+}
+
+.pdf-workspace-surface[hidden] {
+  display: none;
+}
+
+.pdf-workspace-heading > div {
+  display: grid;
+  gap: 3px;
+}
+
+.pdf-workspace-heading > div > span,
+.pdf-workspace-help {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.pdf-workspace-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.pdf-workspace-toolbar-spacer {
+  flex: 1 1 24px;
+}
+
+.pdf-workspace-help {
+  margin: 0 0 14px;
+  line-height: 1.5;
+}
+
+.pdf-workspace-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+  min-height: 240px;
+}
+
+.pdf-workspace-grid.empty {
+  place-items: center;
+  border: 1px dashed #99aaa2;
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--muted);
+  text-align: center;
+}
+
+.pdf-workspace-page {
+  display: grid;
+  min-width: 0;
+  gap: 9px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-2);
+  cursor: grab;
+  transition: border-color 0.15s, box-shadow 0.15s, opacity 0.15s, transform 0.15s;
+}
+
+.pdf-workspace-page:hover {
+  border-color: #9ab8ad;
+  box-shadow: 0 8px 20px rgba(31, 43, 38, 0.09);
+}
+
+.pdf-workspace-page.is-dragging {
+  opacity: 0.42;
+}
+
+.pdf-workspace-page.is-drag-target {
+  border-color: var(--accent);
+  transform: translateY(2px);
+}
+
+.pdf-workspace-preview {
+  position: relative;
+  display: grid;
+  height: 220px;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #dfe6e2;
+}
+
+.pdf-workspace-preview img {
+  display: block;
+  max-width: 150px;
+  max-height: 190px;
+  box-shadow: 0 3px 10px rgba(20, 30, 26, 0.2);
+  transform-origin: center;
+  transition: transform 0.18s;
+}
+
+.pdf-workspace-preview img.is-sideways {
+  max-width: 112px;
+  max-height: 152px;
+}
+
+.pdf-workspace-position {
+  position: absolute;
+  z-index: 1;
+  top: 8px;
+  left: 8px;
+  display: grid;
+  min-width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 999px;
+  padding: 0 7px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.pdf-workspace-blank-preview {
+  display: grid;
+  width: 132px;
+  height: 187px;
+  place-items: center;
+  border: 1px solid #cbd4cf;
+  background: #fff;
+  color: var(--muted);
+  box-shadow: 0 3px 10px rgba(20, 30, 26, 0.14);
+  font-size: 12px;
+}
+
+.pdf-workspace-meta {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.pdf-workspace-meta strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+.pdf-workspace-meta small {
+  color: var(--muted);
+}
+
+.pdf-workspace-page-actions {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.pdf-workspace-page-actions button {
+  min-width: 0;
+  min-height: 32px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: 750;
+}
+
+.pdf-workspace-page-actions button:hover:not(:disabled),
+.pdf-workspace-page-actions button:focus-visible {
+  border-color: var(--accent);
+  color: var(--accent-dark);
+}
+
+.pdf-workspace-page-actions button.danger {
+  color: var(--danger);
+}
+
+.pdf-workspace-page-actions button:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+}
+
 .backend-actions {
   margin-bottom: 16px;
 }
@@ -1293,6 +1473,42 @@ td.code-cell {
 
   .output-subheading > span {
     text-align: left;
+  }
+
+  .pdf-workspace-toolbar-spacer {
+    display: none;
+  }
+
+  .pdf-workspace-toolbar button {
+    flex: 1 1 calc(50% - 8px);
+  }
+
+  .pdf-workspace-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .pdf-workspace-page {
+    padding: 7px;
+  }
+
+  .pdf-workspace-preview {
+    height: 178px;
+  }
+
+  .pdf-workspace-preview img {
+    max-width: 112px;
+    max-height: 148px;
+  }
+
+  .pdf-workspace-preview img.is-sideways {
+    max-width: 86px;
+    max-height: 112px;
+  }
+
+  .pdf-workspace-blank-preview {
+    width: 101px;
+    height: 143px;
   }
 }
 

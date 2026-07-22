@@ -243,6 +243,7 @@
                 <span>想完成的工作</span>
                 <select id="pdf-mode">
                   <optgroup label="整理 PDF">
+                    <option value="workspace">視覺化 PDF 工作台</option>
                     <option value="merge">合併 PDF</option>
                     <option value="split">逐頁分割</option>
                     <option value="extract">抽出頁面</option>
@@ -406,6 +407,27 @@
               <div id="pdf-backend-jobs" class="backend-jobs pdf-unified-jobs empty">尚未建立任務</div>
             </div>
           </div>
+
+          <section id="pdf-workspace" class="tool-surface pdf-workspace-surface" aria-labelledby="pdf-workspace-title" hidden>
+            <div class="surface-heading pdf-workspace-heading">
+              <div>
+                <h3 id="pdf-workspace-title">頁面工作台</h3>
+                <span id="pdf-workspace-count">尚未載入頁面</span>
+              </div>
+              <span id="pdf-workspace-status" class="status-pill">準備就緒</span>
+            </div>
+            <div class="pdf-workspace-toolbar" aria-label="PDF 頁面工具">
+              <button id="pdf-workspace-add-files" class="secondary-button compact" type="button">＋ 加入 PDF</button>
+              <input id="pdf-workspace-add-input" class="visually-hidden" type="file" accept="application/pdf,.pdf" multiple tabindex="-1">
+              <button id="pdf-workspace-add-blank" class="secondary-button compact" type="button">＋ 空白頁</button>
+              <span class="pdf-workspace-toolbar-spacer"></span>
+              <button id="pdf-workspace-undo" class="secondary-button compact" type="button" disabled>復原</button>
+              <button id="pdf-workspace-redo" class="secondary-button compact" type="button" disabled>重做</button>
+              <button id="pdf-workspace-clear" class="secondary-button compact danger-button" type="button" disabled>清空頁面</button>
+            </div>
+            <p class="pdf-workspace-help">拖放縮圖重新排列；每頁亦可旋轉、複製或刪除。所有修改只影響新輸出的 PDF。</p>
+            <div id="pdf-workspace-grid" class="pdf-workspace-grid empty">選擇 PDF 後，所有頁面會在這裡顯示</div>
+          </section>
         </div>
       </section>
 

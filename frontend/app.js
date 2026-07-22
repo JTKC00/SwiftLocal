@@ -6,6 +6,10 @@
     imageDownloads: [],
     pdfDownloads: [],
     pdfFiles: [],
+    pdfWorkspacePages: [],
+    pdfWorkspaceUndo: [],
+    pdfWorkspaceRedo: [],
+    pdfWorkspaceLoading: false,
     dataMode: "json-format",
     textMode: "base64-encode",
     zipUrl: null,
@@ -55,7 +59,7 @@
 
   const toolGuides = {
     "image-panel": { nav: "圖片", hint: "轉 JPG / PNG / WebP、壓縮、縮放、加浮水印。", steps: ["選擇或拖放圖片", "保留預設或調整格式、品質、尺寸", "按「開始轉換」，在右邊下載結果"], keywords: "image 圖片 相片 jpg jpeg png webp 壓縮 縮小 浮水印 旋轉" },
-    "pdf-panel": { nav: "PDF", hint: "整理、轉換、OCR、壓縮及保護 PDF。", steps: ["先選擇想完成的工作", "選擇 PDF 或 Office 文件", "按「開始處理」，在右邊查看輸出或進度"], keywords: "pdf 合併 分割 抽頁 旋轉 頁碼 浮水印 壓縮 加密 解密 ocr office word docx" },
+    "pdf-panel": { nav: "PDF", hint: "逐頁視覺編排、轉換、OCR、壓縮及保護 PDF。", steps: ["選擇 PDF 工作台或其他處理方式", "在工作台拖放頁面，並旋轉、複製或刪除", "輸出新 PDF，或在任務區查看後端進度"], keywords: "pdf 工作台 縮圖 排序 合併 分割 抽頁 旋轉 頁碼 浮水印 壓縮 加密 解密 ocr office word docx" },
     "data-panel": { nav: "資料", hint: "JSON、CSV、XML 互轉與格式化。", steps: ["貼上資料內容", "選擇想轉成的格式", "按「執行」，再複製或下載輸出"], keywords: "json csv xml 資料 表格 格式化 壓縮" },
     "text-panel": { nav: "文字", hint: "Base64、URL、HTML 編碼，以及搜尋取代。", steps: ["貼上文字", "選擇處理方式", "按「執行」，再複製結果"], keywords: "文字 text base64 url html encode decode 搜尋 取代 繁簡" },
     "hash-panel": { nav: "驗證", hint: "產生檔案雜湊值，用來確認檔案沒有被改動。", steps: ["選擇檔案", "選擇雜湊演算法", "按「開始計算」，需要時下載 CSV"], keywords: "hash sha md5 雜湊 校驗 驗證 checksum" },
@@ -78,6 +82,8 @@
   const BACKEND_API_BASE = "http://127.0.0.1:8787/api";
   const BACKEND_ORIGIN = "http://127.0.0.1:8787";
   let pdfjsPromise = null;
+  let pdfWorkspacePageId = 0;
+  const PDF_WORKSPACE_MAX_PAGES = 250;
 
   function init() {
     initTheme();
@@ -337,6 +343,8 @@
       $("#pdf-password").value = "";
       $("#pdf-password").type = "password";
       $("#pdf-password-visible").checked = false;
+      $("#pdf-workspace-add-input").value = "";
+      resetPdfWorkspace();
       setEmpty("#pdf-results", "尚未產生檔案");
       $("#download-all-pdfs").disabled = true;
       setEmpty("#pdf-backend-jobs", "尚未建立任務");
@@ -652,7 +660,7 @@
       }
       updatePdfControls();
     });
-    $("#pdf-files").addEventListener("change", (event) => {
+    $("#pdf-files").addEventListener("change", async (event) => {
       const files = Array.from(event.target.files || []);
       if (files.length && !pdfFilesMatchMode($("#pdf-mode").value, files)) {
         state.pdfFiles = [];
@@ -663,9 +671,14 @@
         return;
       }
       state.pdfFiles = files;
-      renderPdfOrderList("#pdf-merge-order", "pdfFiles");
+      if ($("#pdf-mode").value === "workspace") {
+        await loadPdfWorkspaceFiles(files, false);
+      } else {
+        renderPdfOrderList("#pdf-merge-order", "pdfFiles");
+      }
     });
     bindPdfOrderList("#pdf-merge-order", "pdfFiles");
+    bindPdfWorkspace();
     $("#pdf-watermark-opacity").addEventListener("input", (event) => {
       $("#pdf-watermark-opacity-output").textContent = `${Math.round(Number(event.target.value) * 100)}%`;
     });
@@ -677,7 +690,12 @@
       event.preventDefault();
       const mode = $("#pdf-mode").value;
       const files = state.pdfFiles;
-      if (!files.length) {
+      if (mode === "workspace" && state.pdfWorkspaceLoading) {
+        showToast("PDF 頁面仍在載入，請稍候", "info");
+        return;
+      }
+      const hasInput = mode === "workspace" ? state.pdfWorkspacePages.length > 0 : files.length > 0;
+      if (!hasInput) {
         setEmpty("#pdf-results", mode === "office-to-pdf" ? "請先選擇 Office 文件" : "請先選擇 PDF");
         showToast(mode === "office-to-pdf" ? "請先選擇 Office 文件" : "請先選擇 PDF", "error");
         return;
@@ -710,7 +728,7 @@
         setStatus("#pdf-backend-status", "處理完成");
       } catch (error) {
         container.textContent = "";
-        container.appendChild(renderErrorItem(files[0].name, readableError(error)));
+        container.appendChild(renderErrorItem(files[0] ? files[0].name : "PDF 工作台", readableError(error)));
         setStatus("#pdf-backend-status", "處理失敗");
       }
     });
@@ -727,6 +745,7 @@
   function updatePdfControls() {
     const mode = $("#pdf-mode").value;
     const usesBackgroundTask = PDF_BACKEND_JOB_TYPES.has(mode);
+    const showWorkspace = mode === "workspace";
     const showRange = mode === "extract" || mode === "rotate" || mode === "watermark" || mode === "text" || mode === "images" || mode === "page-numbers";
     const showRotation = mode === "rotate";
     const showWatermark = mode === "watermark";
@@ -748,18 +767,19 @@
     const input = $("#pdf-files");
     const isOfficeInput = mode === "office-to-pdf";
     input.accept = isOfficeInput ? ".doc,.docx,.xls,.xlsx,.ppt,.pptx,.odt,.ods,.odp" : "application/pdf,.pdf";
-    input.multiple = mode === "merge" || usesBackgroundTask;
+    input.multiple = showWorkspace || mode === "merge" || usesBackgroundTask;
     $("#pdf-file-zone-title").textContent = isOfficeInput ? "選擇 Office 文件" : "選擇 PDF";
     if (!state.pdfFiles.length) {
       $("#pdf-file-hint").textContent = isOfficeInput
         ? "支援 Word、Excel、PowerPoint 及 OpenDocument"
-        : mode === "merge" ? "可一次選擇多個 PDF，再調整合併次序" : "可一次選擇多個 PDF";
+        : showWorkspace ? "選擇多個 PDF，載入後逐頁編排"
+          : mode === "merge" ? "可一次選擇多個 PDF，再調整合併次序" : "可一次選擇多個 PDF";
     }
 
     const engineBadge = $("#pdf-engine-badge");
-    engineBadge.textContent = usesBackgroundTask ? "本機任務" : "本機即時";
+    engineBadge.textContent = showWorkspace ? "視覺工作台" : usesBackgroundTask ? "本機任務" : "本機即時";
     engineBadge.classList.toggle("muted", usesBackgroundTask && !backendApiAvailable());
-    $("#pdf-submit-button").textContent = usesBackgroundTask ? "開始處理" : "處理 PDF";
+    $("#pdf-submit-button").textContent = showWorkspace ? "輸出工作台 PDF" : usesBackgroundTask ? "開始處理" : "處理 PDF";
     if (!$("#pdf-backend-jobs").classList.contains("empty")) {
       // 保留進行中任務的狀態文字。
     } else {
@@ -769,6 +789,7 @@
     }
     updatePdfModeNote(mode);
     renderPdfOrderList("#pdf-merge-order", "pdfFiles");
+    renderPdfWorkspace();
   }
 
   function pdfFilesMatchMode(mode, files) {
@@ -780,12 +801,13 @@
     if (!extensions.every((extension) => extension === "pdf")) {
       return false;
     }
-    return mode === "merge" || PDF_BACKEND_JOB_TYPES.has(mode) || files.length <= 1;
+    return mode === "workspace" || mode === "merge" || PDF_BACKEND_JOB_TYPES.has(mode) || files.length <= 1;
   }
 
   function updatePdfModeNote(mode) {
     const note = $("#pdf-mode-note");
     const notes = {
+      workspace: "把多份 PDF 展開成頁面縮圖，自由編排後輸出成一份新 PDF。",
       merge: "檔案會完全在本機記憶體內依照下方次序合併。",
       split: "每一頁會輸出成獨立 PDF，毋須啟動本機服務。",
       extract: "輸入頁碼範圍，只把需要的頁面輸出成新 PDF。",
@@ -813,6 +835,254 @@
         : "此工作需要本機 PDF 安全工具；目前未偵測到，請到「狀態」頁檢查。"
     };
     note.textContent = notes[mode] || "程式會自動選擇合適的本機處理方式。";
+  }
+
+  function clonePdfWorkspacePages(pages = state.pdfWorkspacePages) {
+    return pages.map((page) => ({ ...page }));
+  }
+
+  function resetPdfWorkspace() {
+    state.pdfWorkspacePages = [];
+    state.pdfWorkspaceUndo = [];
+    state.pdfWorkspaceRedo = [];
+    state.pdfWorkspaceLoading = false;
+    renderPdfWorkspace();
+  }
+
+  function recordPdfWorkspaceChange() {
+    state.pdfWorkspaceUndo.push(clonePdfWorkspacePages());
+    if (state.pdfWorkspaceUndo.length > 40) state.pdfWorkspaceUndo.shift();
+    state.pdfWorkspaceRedo = [];
+  }
+
+  function mutatePdfWorkspace(mutator) {
+    recordPdfWorkspaceChange();
+    mutator(state.pdfWorkspacePages);
+    renderPdfWorkspace();
+  }
+
+  async function loadPdfWorkspaceFiles(files, append) {
+    if (!files.length) {
+      if (!append) resetPdfWorkspace();
+      return;
+    }
+    state.pdfWorkspaceLoading = true;
+    if (!append) {
+      state.pdfWorkspacePages = [];
+      state.pdfWorkspaceUndo = [];
+      state.pdfWorkspaceRedo = [];
+    }
+    renderPdfWorkspace();
+    setStatus("#pdf-workspace-status", "正在讀取 PDF…");
+
+    try {
+      const pdfjs = await loadPdfJs();
+      const pagesToAdd = [];
+      for (let fileIndex = 0; fileIndex < files.length; fileIndex += 1) {
+        const file = files[fileIndex];
+        const data = new Uint8Array(await file.arrayBuffer());
+        assertPdfNotEncrypted(data, file.name);
+        const sourceId = `pdf-source-${Date.now()}-${fileIndex}-${++pdfWorkspacePageId}`;
+        let pdf;
+        try {
+          pdf = await pdfjs.getDocument(createPdfJsDocumentOptions(data)).promise;
+        } catch (error) {
+          throwFriendlyPdfLoadError(error, file.name);
+        }
+        if (state.pdfWorkspacePages.length + pagesToAdd.length + pdf.numPages > PDF_WORKSPACE_MAX_PAGES) {
+          if (pdf && typeof pdf.destroy === "function") await pdf.destroy();
+          throw new Error(`視覺工作台一次最多載入 ${PDF_WORKSPACE_MAX_PAGES} 頁`);
+        }
+
+        for (let pageIndex = 0; pageIndex < pdf.numPages; pageIndex += 1) {
+          setStatus("#pdf-workspace-status", `載入 ${fileIndex + 1}/${files.length} · 第 ${pageIndex + 1}/${pdf.numPages} 頁`);
+          const pdfPage = await pdf.getPage(pageIndex + 1);
+          const naturalViewport = pdfPage.getViewport({ scale: 1 });
+          const scale = Math.min(150 / naturalViewport.width, 190 / naturalViewport.height, 0.45);
+          const viewport = pdfPage.getViewport({ scale });
+          const canvas = document.createElement("canvas");
+          const context = canvas.getContext("2d", { alpha: false });
+          if (!context) throw new Error("瀏覽器無法建立 PDF 頁面預覽");
+          canvas.width = Math.max(1, Math.round(viewport.width));
+          canvas.height = Math.max(1, Math.round(viewport.height));
+          await pdfPage.render({ canvasContext: context, viewport }).promise;
+          pagesToAdd.push({
+            id: `pdf-page-${++pdfWorkspacePageId}`,
+            sourceId,
+            sourceFile: file,
+            fileName: file.name,
+            pageIndex,
+            rotation: 0,
+            width: naturalViewport.width,
+            height: naturalViewport.height,
+            thumbnail: canvas.toDataURL("image/jpeg", 0.8),
+            blank: false
+          });
+          if (typeof pdfPage.cleanup === "function") pdfPage.cleanup();
+        }
+        if (pdf && typeof pdf.destroy === "function") await pdf.destroy();
+      }
+
+      if (append && state.pdfWorkspacePages.length) recordPdfWorkspaceChange();
+      state.pdfWorkspacePages.push(...pagesToAdd);
+      state.pdfFiles = append ? [...state.pdfFiles, ...files] : Array.from(files);
+      setStatus("#pdf-workspace-status", `已載入 ${state.pdfWorkspacePages.length} 頁`);
+      $("#pdf-file-hint").textContent = `已載入 ${new Set(state.pdfWorkspacePages.filter((page) => !page.blank).map((page) => page.sourceId)).size} 個 PDF · ${state.pdfWorkspacePages.length} 頁`;
+    } catch (error) {
+      if (!append) state.pdfWorkspacePages = [];
+      setStatus("#pdf-workspace-status", "載入失敗");
+      setEmpty("#pdf-results", readableError(error));
+      showToast(readableError(error), "error", 6000);
+    } finally {
+      state.pdfWorkspaceLoading = false;
+      renderPdfWorkspace();
+    }
+  }
+
+  function bindPdfWorkspace() {
+    const addInput = $("#pdf-workspace-add-input");
+    $("#pdf-workspace-add-files").addEventListener("click", () => addInput.click());
+    addInput.addEventListener("change", async () => {
+      const files = Array.from(addInput.files || []);
+      addInput.value = "";
+      if (files.length && !pdfFilesMatchMode("workspace", files)) {
+        showToast("工作台只接受 PDF 檔案", "error");
+        return;
+      }
+      await loadPdfWorkspaceFiles(files, true);
+    });
+    $("#pdf-workspace-add-blank").addEventListener("click", () => {
+      mutatePdfWorkspace((pages) => pages.push({
+        id: `pdf-page-${++pdfWorkspacePageId}`,
+        sourceId: null,
+        sourceFile: null,
+        fileName: "空白頁",
+        pageIndex: null,
+        rotation: 0,
+        width: 595.28,
+        height: 841.89,
+        thumbnail: "",
+        blank: true
+      }));
+    });
+    $("#pdf-workspace-undo").addEventListener("click", () => {
+      if (!state.pdfWorkspaceUndo.length) return;
+      state.pdfWorkspaceRedo.push(clonePdfWorkspacePages());
+      state.pdfWorkspacePages = state.pdfWorkspaceUndo.pop();
+      renderPdfWorkspace();
+    });
+    $("#pdf-workspace-redo").addEventListener("click", () => {
+      if (!state.pdfWorkspaceRedo.length) return;
+      state.pdfWorkspaceUndo.push(clonePdfWorkspacePages());
+      state.pdfWorkspacePages = state.pdfWorkspaceRedo.pop();
+      renderPdfWorkspace();
+    });
+    $("#pdf-workspace-clear").addEventListener("click", () => {
+      if (!state.pdfWorkspacePages.length) return;
+      mutatePdfWorkspace((pages) => pages.splice(0, pages.length));
+    });
+
+    const grid = $("#pdf-workspace-grid");
+    let draggedIndex = -1;
+    grid.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-workspace-action]");
+      const card = event.target.closest(".pdf-workspace-page");
+      if (!button || !card) return;
+      const index = Number(card.dataset.index);
+      const action = button.dataset.workspaceAction;
+      if (action === "left" || action === "right") {
+        const targetIndex = index + (action === "left" ? -1 : 1);
+        if (targetIndex < 0 || targetIndex >= state.pdfWorkspacePages.length) return;
+        mutatePdfWorkspace((pages) => {
+          const [page] = pages.splice(index, 1);
+          pages.splice(targetIndex, 0, page);
+        });
+      } else if (action === "rotate") {
+        mutatePdfWorkspace((pages) => { pages[index].rotation = (pages[index].rotation + 90) % 360; });
+      } else if (action === "duplicate") {
+        mutatePdfWorkspace((pages) => pages.splice(index + 1, 0, { ...pages[index], id: `pdf-page-${++pdfWorkspacePageId}` }));
+      } else if (action === "delete") {
+        mutatePdfWorkspace((pages) => pages.splice(index, 1));
+      }
+    });
+    grid.addEventListener("dragstart", (event) => {
+      const card = event.target.closest(".pdf-workspace-page");
+      if (!card || state.pdfWorkspaceLoading) return;
+      draggedIndex = Number(card.dataset.index);
+      card.classList.add("is-dragging");
+      if (event.dataTransfer) {
+        event.dataTransfer.effectAllowed = "move";
+        event.dataTransfer.setData("text/plain", String(draggedIndex));
+      }
+    });
+    grid.addEventListener("dragover", (event) => {
+      const card = event.target.closest(".pdf-workspace-page");
+      if (!card || draggedIndex < 0) return;
+      event.preventDefault();
+      grid.querySelectorAll(".is-drag-target").forEach((item) => item.classList.remove("is-drag-target"));
+      card.classList.add("is-drag-target");
+    });
+    grid.addEventListener("drop", (event) => {
+      const card = event.target.closest(".pdf-workspace-page");
+      if (!card || draggedIndex < 0) return;
+      event.preventDefault();
+      const targetIndex = Number(card.dataset.index);
+      if (targetIndex !== draggedIndex) {
+        mutatePdfWorkspace((pages) => {
+          const [page] = pages.splice(draggedIndex, 1);
+          pages.splice(targetIndex, 0, page);
+        });
+      }
+      draggedIndex = -1;
+    });
+    grid.addEventListener("dragend", () => {
+      draggedIndex = -1;
+      grid.querySelectorAll(".is-dragging, .is-drag-target").forEach((item) => item.classList.remove("is-dragging", "is-drag-target"));
+    });
+  }
+
+  function renderPdfWorkspace() {
+    const surface = $("#pdf-workspace");
+    if (!surface) return;
+    const isWorkspace = $("#pdf-mode").value === "workspace";
+    surface.hidden = !isWorkspace;
+    const pages = state.pdfWorkspacePages;
+    const sourceCount = new Set(pages.filter((page) => !page.blank).map((page) => page.sourceId)).size;
+    $("#pdf-workspace-count").textContent = pages.length
+      ? `${sourceCount} 個 PDF · ${pages.length} 頁`
+      : "尚未載入頁面";
+    $("#pdf-workspace-undo").disabled = state.pdfWorkspaceLoading || !state.pdfWorkspaceUndo.length;
+    $("#pdf-workspace-redo").disabled = state.pdfWorkspaceLoading || !state.pdfWorkspaceRedo.length;
+    $("#pdf-workspace-clear").disabled = state.pdfWorkspaceLoading || !pages.length;
+    $("#pdf-workspace-add-files").disabled = state.pdfWorkspaceLoading;
+    $("#pdf-workspace-add-blank").disabled = state.pdfWorkspaceLoading;
+    const grid = $("#pdf-workspace-grid");
+    if (!pages.length) {
+      grid.classList.add("empty");
+      grid.textContent = state.pdfWorkspaceLoading ? "正在建立頁面縮圖…" : "選擇 PDF 後，所有頁面會在這裡顯示";
+      return;
+    }
+    grid.classList.remove("empty");
+    grid.innerHTML = pages.map((page, index) => {
+      const rotation = ((page.rotation % 360) + 360) % 360;
+      const preview = page.blank
+        ? '<div class="pdf-workspace-blank-preview"><span>空白頁</span></div>'
+        : `<img src="${page.thumbnail}" alt="${escapeHtml(page.fileName)} 第 ${page.pageIndex + 1} 頁預覽" class="${rotation === 90 || rotation === 270 ? "is-sideways" : ""}" style="transform:rotate(${rotation}deg)">`;
+      const pageLabel = page.blank ? "A4 空白頁" : `原第 ${page.pageIndex + 1} 頁${rotation ? ` · 旋轉 ${rotation}°` : ""}`;
+      return [
+        `<article class="pdf-workspace-page" draggable="${!state.pdfWorkspaceLoading}" data-index="${index}">`,
+        `<div class="pdf-workspace-preview"><span class="pdf-workspace-position">${index + 1}</span>${preview}</div>`,
+        `<div class="pdf-workspace-meta"><strong title="${escapeHtml(page.fileName)}">${escapeHtml(page.fileName)}</strong><small>${pageLabel}</small></div>`,
+        '<div class="pdf-workspace-page-actions">',
+        `<button type="button" data-workspace-action="left" aria-label="向前移動第 ${index + 1} 頁" title="向前移動"${index === 0 ? " disabled" : ""}>←</button>`,
+        `<button type="button" data-workspace-action="right" aria-label="向後移動第 ${index + 1} 頁" title="向後移動"${index === pages.length - 1 ? " disabled" : ""}>→</button>`,
+        `<button type="button" data-workspace-action="rotate" aria-label="順時針旋轉第 ${index + 1} 頁" title="旋轉">↻</button>`,
+        `<button type="button" data-workspace-action="duplicate" aria-label="複製第 ${index + 1} 頁" title="複製">⧉</button>`,
+        `<button type="button" data-workspace-action="delete" aria-label="刪除第 ${index + 1} 頁" title="刪除" class="danger">×</button>`,
+        "</div>",
+        "</article>"
+      ].join("");
+    }).join("");
   }
 
   function pdfOrderFiles(stateKey) {
@@ -904,6 +1174,9 @@
   }
 
   async function runPdfTool(mode, files) {
+    if (mode === "workspace") {
+      return [await exportPdfWorkspace()];
+    }
     if (mode === "merge") {
       return [await mergePdfs(files)];
     }
@@ -929,6 +1202,33 @@
       return renderPdfImages(files[0]);
     }
     throw new Error("未知 PDF 模式");
+  }
+
+  async function exportPdfWorkspace() {
+    const { PDFDocument, degrees } = window.PDFLib;
+    const output = await PDFDocument.create();
+    const sourceDocuments = new Map();
+    for (const item of state.pdfWorkspacePages) {
+      let outputPage;
+      if (item.blank) {
+        outputPage = output.addPage([item.width || 595.28, item.height || 841.89]);
+      } else {
+        let source = sourceDocuments.get(item.sourceId);
+        if (!source) {
+          source = await loadPdfDocument(item.sourceFile);
+          sourceDocuments.set(item.sourceId, source);
+        }
+        const [copiedPage] = await output.copyPages(source, [item.pageIndex]);
+        output.addPage(copiedPage);
+        outputPage = copiedPage;
+      }
+      if (item.rotation) {
+        const currentRotation = outputPage.getRotation().angle || 0;
+        outputPage.setRotation(degrees((currentRotation + item.rotation) % 360));
+      }
+    }
+    if (!output.getPageCount()) throw new Error("工作台沒有可輸出的頁面");
+    return makePdfResult(output, normalizePdfName($("#pdf-output-name").value || "swiftlocal-workspace.pdf"));
   }
 
   async function mergePdfs(files) {
