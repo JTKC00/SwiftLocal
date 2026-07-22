@@ -245,6 +245,97 @@ async def ocr_images(input_paths: list[Path], output_dir: Path, language: str) -
     return outputs, logs
 
 
+OCR_PDF_MAX_PAGES_DEFAULT = 50
+OCR_PDF_MAX_PAGES_HARD_LIMIT = 100
+OCR_PDF_RENDER_SCALE = 2.0
+
+
+async def ocr_pdf(
+    input_paths: list[Path],
+    output_dir: Path,
+    language: str,
+    max_pages: int = OCR_PDF_MAX_PAGES_DEFAULT,
+) -> tuple[list[Path], list[str]]:
+    """Rasterize PDF pages then OCR each page with Tesseract; one TXT per PDF."""
+    tool = await tools_service.require_tool("tesseract")
+    clean_language = (language or "eng").strip() or "eng"
+    page_limit = max(1, min(int(max_pages or OCR_PDF_MAX_PAGES_DEFAULT), OCR_PDF_MAX_PAGES_HARD_LIMIT))
+    logs: list[str] = []
+    outputs: list[Path] = []
+    tessdata_dir = resolve_tessdata_dir(Path(str(tool["path"])))
+
+    for input_path in input_paths:
+        ensure_not_cancelled()
+        require_unencrypted_pdf(input_path)
+        page_dir = output_dir / f"{input_path.stem}_ocr_pages"
+        page_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            page_images, render_log = await asyncio.to_thread(
+                _render_pdf_pages_sync, input_path, page_dir, page_limit, OCR_PDF_RENDER_SCALE
+            )
+        except Exception as error:
+            raise RuntimeError(f"PDF OCR 渲染失敗（{input_path.name}）：{error}") from error
+        logs.append(render_log)
+        if not page_images:
+            raise RuntimeError(f"PDF 沒有可 OCR 的頁面：{input_path.name}")
+
+        page_texts: list[str] = []
+        for index, image_path in enumerate(page_images, start=1):
+            ensure_not_cancelled()
+            page_base = page_dir / f"page_{index:03d}_ocr"
+            args = [str(image_path), str(page_base), "-l", clean_language]
+            if tessdata_dir:
+                args.extend(["--tessdata-dir", str(tessdata_dir)])
+            log = await run_process(str(tool["path"]), args, timeout=300)
+            if log:
+                logs.append(log)
+            text_path = page_base.with_suffix(".txt")
+            text = text_path.read_text(encoding="utf-8", errors="replace") if text_path.exists() else ""
+            page_texts.append(f"--- Page {index} ---\n{text.strip()}")
+
+        combined = "\n\n".join(page_texts).strip() + "\n"
+        output_path = output_dir / f"{input_path.stem}_ocr.txt"
+        output_path.write_text(combined, encoding="utf-8")
+        outputs.append(output_path)
+        logs.append(f"ocr-pdf: {input_path.name} -> {output_path.name} ({len(page_images)} page(s))")
+
+    return outputs, logs
+
+
+def _render_pdf_pages_sync(
+    input_path: Path,
+    page_dir: Path,
+    max_pages: int,
+    scale: float,
+) -> tuple[list[Path], str]:
+    try:
+        import pypdfium2 as pdfium  # lazy import
+    except ImportError as error:
+        raise RuntimeError("PDF OCR 需要 pypdfium2，請執行 pip install pypdfium2") from error
+
+    doc = pdfium.PdfDocument(str(input_path))
+    try:
+        total = len(doc)
+        if total == 0:
+            return [], f"render: {input_path.name} has 0 pages"
+        limit = min(total, max_pages)
+        images: list[Path] = []
+        for index in range(limit):
+            ensure_not_cancelled()
+            page = doc[index]
+            bitmap = page.render(scale=scale)
+            pil_image = bitmap.to_pil()
+            image_path = page_dir / f"page_{index + 1:03d}.png"
+            pil_image.save(image_path, format="PNG")
+            images.append(image_path)
+        note = f"render: {input_path.name} {limit}/{total} page(s) @ scale={scale}"
+        if total > max_pages:
+            note += f" (truncated at {max_pages})"
+        return images, note
+    finally:
+        doc.close()
+
+
 def resolve_tessdata_dir(tool_path: Path) -> Path | None:
     """Locate tessdata next to a portable/bundled Tesseract install."""
     exe_dir = tool_path.resolve().parent

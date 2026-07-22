@@ -45,6 +45,24 @@ class TessdataTests(unittest.TestCase):
         self.assertTrue(found.is_dir())
 
 
+class OcrPdfRenderTests(unittest.TestCase):
+    def test_render_pdf_pages_creates_png(self) -> None:
+        sample = ROOT / "smoke-temp" / "release-check" / "input" / "a.pdf"
+        if not sample.exists():
+            self.skipTest("sample PDF not present")
+        try:
+            import pypdfium2  # noqa: F401
+        except ImportError:
+            self.skipTest("pypdfium2 not installed")
+        with tempfile.TemporaryDirectory() as tmp:
+            page_dir = Path(tmp) / "pages"
+            page_dir.mkdir()
+            images, log = cs._render_pdf_pages_sync(sample, page_dir, max_pages=2, scale=1.0)
+            self.assertGreaterEqual(len(images), 1)
+            self.assertTrue(images[0].exists())
+            self.assertIn("render:", log)
+
+
 class LibreOfficeOutputTests(unittest.TestCase):
     def test_resolve_expected_and_renamed(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

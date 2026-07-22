@@ -9,6 +9,8 @@ from fastapi import UploadFile
 
 from .conversion_service import (
     ALLOWED_PDF_TO_OFFICE_EXTENSIONS,
+    OCR_PDF_MAX_PAGES_DEFAULT,
+    OCR_PDF_MAX_PAGES_HARD_LIMIT,
     JobCancelled,
     begin_job,
     compress_pdf,
@@ -23,6 +25,7 @@ from .conversion_service import (
     ensure_not_cancelled,
     merge_pdfs,
     ocr_images,
+    ocr_pdf,
     request_cancel,
     rotate_pdf,
     sanitize_extension,
@@ -34,7 +37,7 @@ ROOT_DIR = Path(__file__).resolve().parents[1]
 TEMP_DIR = ROOT_DIR / "temp"
 JOBS_DIR = TEMP_DIR / "jobs"
 SUPPORTED_JOB_TYPES = {
-    "office-to-pdf", "pdf-to-office", "media-convert", "ocr-image",
+    "office-to-pdf", "pdf-to-office", "media-convert", "ocr-image", "ocr-pdf",
     "pdf-to-docx", "pdf-merge", "pdf-split", "pdf-rotate",
     "image-convert", "pdf-encrypt", "pdf-decrypt", "pdf-compress",
 }
@@ -185,6 +188,13 @@ class JobService:
                 outputs, logs = await convert_media(job.input_paths, job.output_dir, job.options["extension"])
             elif job.type == "ocr-image":
                 outputs, logs = await ocr_images(job.input_paths, job.output_dir, job.options["language"])
+            elif job.type == "ocr-pdf":
+                outputs, logs = await ocr_pdf(
+                    job.input_paths,
+                    job.output_dir,
+                    job.options["language"],
+                    int(job.options.get("maxPages") or OCR_PDF_MAX_PAGES_DEFAULT),
+                )
             elif job.type == "pdf-to-docx":
                 outputs, logs = await convert_pdf_to_docx(job.input_paths, job.output_dir)
             elif job.type == "pdf-merge":
@@ -264,6 +274,17 @@ class JobService:
         if job_type == "ocr-image":
             language = (options.get("language") or "eng").strip()
             return {"language": language or "eng"}
+        if job_type == "ocr-pdf":
+            language = (options.get("language") or "eng").strip() or "eng"
+            raw_pages = (options.get("maxPages") or str(OCR_PDF_MAX_PAGES_DEFAULT)).strip()
+            try:
+                max_pages = int(raw_pages)
+            except ValueError as error:
+                raise ValueError("maxPages must be an integer") from error
+            if max_pages < 1:
+                raise ValueError("maxPages must be at least 1")
+            max_pages = min(max_pages, OCR_PDF_MAX_PAGES_HARD_LIMIT)
+            return {"language": language, "maxPages": str(max_pages)}
         if job_type == "pdf-to-docx":
             return {}
         if job_type == "pdf-to-office":

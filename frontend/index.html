@@ -352,6 +352,7 @@
                   <option value="office-to-pdf">Office → PDF</option>
                   <option value="pdf-to-docx">PDF → DOCX（純文字）</option>
                   <option value="pdf-to-office">PDF → Office（LibreOffice）</option>
+                  <option value="ocr-pdf">PDF OCR → TXT</option>
                   <option value="pdf-merge">PDF 合併（後端）</option>
                   <option value="pdf-split">PDF 分割（後端）</option>
                   <option value="pdf-rotate">PDF 旋轉（後端）</option>
@@ -374,6 +375,16 @@
                 </select>
               </label>
               <div></div>
+            </div>
+            <div class="control-row pdf-backend-ocr-row" style="display:none">
+              <label>
+                <span>OCR 語言</span>
+                <input id="pdf-backend-ocr-language" type="text" value="eng" placeholder="例：eng 或 chi_tra+eng">
+              </label>
+              <label>
+                <span>最多頁數</span>
+                <input id="pdf-backend-ocr-max-pages" type="number" min="1" max="100" value="50">
+              </label>
             </div>
             <div class="control-row pdf-backend-pages-row">
               <label>

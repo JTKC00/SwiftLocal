@@ -5,3 +5,4 @@ pdf2docx
 pypdf
 Pillow
 zhconv
+pypdfium2

@@ -25,6 +25,7 @@
 | PDF 加密 / 解密 | pypdf | QPDF |
 | 影音 / 圖片轉檔 | FFmpeg | FFmpeg |
 | 圖片 OCR | Tesseract（含 tessdata 解析） | Tesseract（含 tessdata 解析） |
+| PDF OCR | pypdfium2 渲染頁面 → Tesseract | pdf.js + `@napi-rs/canvas` 渲染 → Tesseract |
 | 繁簡轉換 | `POST /api/convert-text`（zhconv） | 本機 `vendor/zh-maps.js` 單字表 |
 | 任務取消 | `POST /api/jobs/{id}/cancel` | IPC `cancelJob` |
 | 輸出下載 | HTTP 檔案回應 | 本機路徑 `openPath` |
@@ -98,7 +99,10 @@ pdf-compress
 media-convert
 image-convert
 ocr-image
+ocr-pdf
 ```
+
+`ocr-pdf` 選填：`language`（預設 `eng`）、`maxPages`（預設 50、上限 100）。
 
 ### 任務狀態
 
@@ -173,6 +177,8 @@ npm run test:py   # tests/backend/test_core.py
 
 涵蓋：tessdata、LibreOffice 輸出解析、PDF split 空 range、加密訊息、任務取消、佇列 drain、桌面 merge / cancel 等。
 
+CI：GitHub Actions 工作流程 `.github/workflows/ci.yml` 在 `main` / `master` 的 push 與 PR 上執行 `npm ci`、`pip install -r backend/requirements.txt`、`npm test`，以及主要 JS 語法檢查。
+
 ## 依賴（Python）
 
 見 `backend/requirements.txt`：
@@ -182,10 +188,8 @@ npm run test:py   # tests/backend/test_core.py
 
 ## 待擴充（尚未做）
 
-- PDF OCR 一條龍（PDF → 圖 → Tesseract）
 - 影音進階參數（碼率、解析度、裁切、GIF FPS）
 - 任務持久化（重開 app 仍保留佇列）
-- CI 自動跑 `npm test`
 - 取消時對純 Python 長步驟的更細粒度中斷
 
 ## 相關檔案速查

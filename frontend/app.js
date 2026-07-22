@@ -67,7 +67,7 @@
     "backend-panel": { nav: "狀態", hint: "查看工具狀態，必要時手動指定 LibreOffice、FFmpeg、Tesseract、QPDF。", steps: ["按「偵測工具」", "確認需要的工具顯示可用", "缺少時到進階區手動指定路徑"], keywords: "backend 後端 狀態 libreoffice ffmpeg tesseract qpdf ocr 設定" }
   };
 
-  const PDF_BACKEND_JOB_TYPES = new Set(["office-to-pdf", "pdf-to-docx", "pdf-to-office", "pdf-merge", "pdf-split", "pdf-rotate", "pdf-encrypt", "pdf-decrypt", "pdf-compress"]);
+  const PDF_BACKEND_JOB_TYPES = new Set(["office-to-pdf", "pdf-to-docx", "pdf-to-office", "ocr-pdf", "pdf-merge", "pdf-split", "pdf-rotate", "pdf-encrypt", "pdf-decrypt", "pdf-compress"]);
   const IMG_BACKEND_JOB_TYPES = new Set(["image-convert", "ocr-image"]);
   const MEDIA_BACKEND_JOB_TYPES = new Set(["media-convert"]);
 
@@ -2210,6 +2210,8 @@
         engineBadge.textContent = "LibreOffice";
       } else if (type === "pdf-to-docx") {
         engineBadge.textContent = "pdf.js → 純文字 DOCX";
+      } else if (type === "ocr-pdf") {
+        engineBadge.textContent = "PDF 渲染 → Tesseract";
       } else if (type === "pdf-encrypt" || type === "pdf-decrypt") {
         engineBadge.textContent = "QPDF";
       } else {
@@ -2228,11 +2230,17 @@
       } else if (type === "pdf-to-docx") {
         officeNote.style.display = "";
         officeNote.textContent = "此模式只抽取文字組成簡易 DOCX，不保留原始版面。需要版面請選「PDF → Office（LibreOffice）」。";
+      } else if (type === "ocr-pdf") {
+        officeNote.style.display = "";
+        officeNote.textContent = isToolAvailable("tesseract")
+          ? "將 PDF 逐頁渲染後用 Tesseract OCR。適合掃描件；可搜尋文字型 PDF 請優先用「PDF → DOCX（純文字）」。"
+          : "此功能需要 Tesseract。請確認內建工具或重新偵測。";
       } else {
         officeNote.style.display = "none";
       }
     }
     $(".pdf-backend-office-format-row").style.display = type === "pdf-to-office" ? "" : "none";
+    $(".pdf-backend-ocr-row").style.display = type === "ocr-pdf" ? "" : "none";
     $(".pdf-backend-pages-row").style.display = type === "pdf-split" ? "" : "none";
     $(".pdf-backend-angle-row").style.display = type === "pdf-rotate" ? "" : "none";
     $(".pdf-backend-password-row").style.display = (type === "pdf-encrypt" || type === "pdf-decrypt") ? "" : "none";
@@ -2300,10 +2308,19 @@
       showToast("此功能需要 LibreOffice。請安裝或更新 LibreOffice，然後重新偵測工具。", "error");
       return;
     }
+    if (type === "ocr-pdf" && !isToolAvailable("tesseract")) {
+      setStatus("#pdf-backend-status", "缺少 Tesseract");
+      showToast("PDF OCR 需要 Tesseract。請確認內建工具或重新偵測。", "error");
+      return;
+    }
     const payload = new FormData();
     payload.append("type", type);
     state.pdfBackendFiles.forEach((file) => payload.append("files", file, file.name));
     if (type === "pdf-to-office") payload.append("extension", $("#pdf-backend-office-format").value || "docx");
+    if (type === "ocr-pdf") {
+      payload.append("language", ($("#pdf-backend-ocr-language").value || "eng").trim() || "eng");
+      payload.append("maxPages", String($("#pdf-backend-ocr-max-pages").value || "50"));
+    }
     if (type === "pdf-split") payload.append("pages", $("#pdf-backend-pages").value.trim());
     if (type === "pdf-rotate") payload.append("angle", $("#pdf-backend-angle").value);
     if (type === "pdf-encrypt" || type === "pdf-decrypt") payload.append("password", $("#pdf-backend-password").value);
@@ -2600,7 +2617,8 @@
         language: String(formData.get("language") || ""),
         pages: String(formData.get("pages") || ""),
         angle: String(formData.get("angle") || ""),
-        password: String(formData.get("password") || "")
+        password: String(formData.get("password") || ""),
+        maxPages: String(formData.get("maxPages") || "")
       }
     };
   }
@@ -2622,6 +2640,9 @@
     }
     if (type === "pdf-to-office") {
       return "PDF → Office（LibreOffice）";
+    }
+    if (type === "ocr-pdf") {
+      return "PDF OCR → TXT";
     }
     if (type === "pdf-merge") {
       return "PDF 合併";

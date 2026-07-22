@@ -16,12 +16,20 @@ async def create_job(
     pages: str = Form(""),
     angle: str = Form(""),
     password: str = Form(""),
+    maxPages: str = Form(""),
 ):
     try:
         return await job_service.create_job(
             job_type=type,
             files=files or [],
-            options={"extension": extension, "language": language, "pages": pages, "angle": angle, "password": password},
+            options={
+                "extension": extension,
+                "language": language,
+                "pages": pages,
+                "angle": angle,
+                "password": password,
+                "maxPages": maxPages,
+            },
         )
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error

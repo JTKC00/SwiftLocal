@@ -283,6 +283,10 @@ class BackendService {
       await this.runPdfCompress(job);
       return;
     }
+    if (job.type === "ocr-pdf") {
+      await this.runOcrPdf(job);
+      return;
+    }
     if (job.type === "media-convert") {
       await this.runMediaConvert(job);
       return;
@@ -506,6 +510,53 @@ class BackendService {
       const outputPath = `${outputBase}.txt`;
       ensureOutputFile(outputPath, inputPath);
       job.outputPaths.push(outputPath);
+    }
+  }
+
+  async runOcrPdf(job) {
+    const tool = requireTool(this.tools, "tesseract");
+    ensureOutputDir(job.outputDir);
+    const language = String(job.options.language || "eng").trim() || "eng";
+    const maxPages = sanitizeOcrPdfMaxPages(job.options.maxPages);
+    const tessdataDir = bundledTessdataDir(tool.path);
+
+    for (const inputPath of job.inputPaths) {
+      ensureJobNotCancelled(job);
+      const probe = fs.readFileSync(inputPath);
+      if (pdfBytesLookEncrypted(probe)) {
+        throw encryptedPdfError(path.basename(inputPath));
+      }
+
+      const pageDir = path.join(job.outputDir, `${path.parse(inputPath).name}_ocr_pages`);
+      fs.mkdirSync(pageDir, { recursive: true });
+      const pageImages = await renderPdfPagesToPng(inputPath, pageDir, maxPages, job);
+      if (!pageImages.length) {
+        throw new Error(`PDF 沒有可 OCR 的頁面：${path.basename(inputPath)}`);
+      }
+      job.log.push(`render: ${path.basename(inputPath)} ${pageImages.length} page(s)`);
+
+      const pageTexts = [];
+      for (let i = 0; i < pageImages.length; i += 1) {
+        ensureJobNotCancelled(job);
+        const pageBase = path.join(pageDir, `page_${String(i + 1).padStart(3, "0")}_ocr`);
+        const args = [pageImages[i], pageBase, "-l", language];
+        if (tessdataDir) {
+          args.push("--tessdata-dir", tessdataDir);
+        }
+        const result = await runProcess(tool.path, args, job);
+        if (result.output) {
+          job.log.push(result.output);
+        }
+        const textPath = `${pageBase}.txt`;
+        const text = fs.existsSync(textPath) ? fs.readFileSync(textPath, "utf8") : "";
+        pageTexts.push(`--- Page ${i + 1} ---\n${text.trim()}`);
+      }
+
+      const outputPath = path.join(job.outputDir, `${path.parse(inputPath).name}_ocr.txt`);
+      fs.writeFileSync(outputPath, `${pageTexts.join("\n\n").trim()}\n`, "utf8");
+      ensureOutputFile(outputPath, inputPath);
+      job.outputPaths.push(outputPath);
+      job.log.push(`ocr-pdf: ${path.basename(inputPath)} -> ${path.basename(outputPath)} (${pageImages.length} page(s))`);
     }
   }
 
@@ -848,6 +899,72 @@ function sanitizeOfficeExtension(extension) {
 function officeConvertTarget(extension) {
   const clean = sanitizeOfficeExtension(extension);
   return `${clean}:${OFFICE_FILTER_MAP[clean]}`;
+}
+
+const OCR_PDF_MAX_PAGES_DEFAULT = 50;
+const OCR_PDF_MAX_PAGES_HARD_LIMIT = 100;
+const OCR_PDF_RENDER_SCALE = 2;
+
+function sanitizeOcrPdfMaxPages(value) {
+  const parsed = Number.parseInt(String(value || OCR_PDF_MAX_PAGES_DEFAULT), 10);
+  if (!Number.isFinite(parsed) || parsed < 1) {
+    return OCR_PDF_MAX_PAGES_DEFAULT;
+  }
+  return Math.min(parsed, OCR_PDF_MAX_PAGES_HARD_LIMIT);
+}
+
+async function renderPdfPagesToPng(inputPath, pageDir, maxPages, job) {
+  ensureJobNotCancelled(job);
+  let createCanvas;
+  try {
+    ({ createCanvas } = require("@napi-rs/canvas"));
+  } catch (error) {
+    throw new Error("PDF OCR 需要 @napi-rs/canvas，請執行 npm install");
+  }
+
+  const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  const data = new Uint8Array(fs.readFileSync(inputPath));
+  const loadingTask = pdfjs.getDocument({
+    data,
+    disableWorker: true,
+    useWorkerFetch: false,
+    isEvalSupported: false,
+    verbosity: 0
+  });
+
+  let pdf;
+  try {
+    pdf = await loadingTask.promise;
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    if (isEncryptedPdfMessage(detail)) {
+      throw encryptedPdfError(path.basename(inputPath));
+    }
+    throw new Error(`無法讀取 PDF「${path.basename(inputPath)}」：${detail}`);
+  }
+
+  const limit = Math.min(pdf.numPages, maxPages);
+  const images = [];
+  try {
+    for (let pageNumber = 1; pageNumber <= limit; pageNumber += 1) {
+      ensureJobNotCancelled(job);
+      const page = await pdf.getPage(pageNumber);
+      const viewport = page.getViewport({ scale: OCR_PDF_RENDER_SCALE });
+      const width = Math.max(1, Math.ceil(viewport.width));
+      const height = Math.max(1, Math.ceil(viewport.height));
+      const canvas = createCanvas(width, height);
+      const context = canvas.getContext("2d");
+      context.fillStyle = "#ffffff";
+      context.fillRect(0, 0, width, height);
+      await page.render({ canvasContext: context, viewport, canvas }).promise;
+      const imagePath = path.join(pageDir, `page_${String(pageNumber).padStart(3, "0")}.png`);
+      fs.writeFileSync(imagePath, canvas.toBuffer("image/png"));
+      images.push(imagePath);
+    }
+  } finally {
+    await loadingTask.destroy();
+  }
+  return images;
 }
 
 function sanitizeRotation(angle) {
