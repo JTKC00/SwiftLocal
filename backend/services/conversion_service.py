@@ -27,9 +27,11 @@ async def convert_office_to_pdf(input_paths: list[Path], output_dir: Path) -> tu
             str(output_dir),
             str(input_path),
         ]
+        before = snapshot_output_dir(output_dir)
         log = await run_process(str(tool["path"]), args, timeout=180)
-        logs.append(log)
-        outputs.append(output_dir / f"{input_path.stem}.pdf")
+        output_path = resolve_libreoffice_output(output_dir, input_path, "pdf", before)
+        logs.append(log or f"converted: {input_path.name} -> {output_path.name}")
+        outputs.append(output_path)
 
     return outputs, logs
 
@@ -71,11 +73,97 @@ async def convert_pdf_to_office(input_paths: list[Path], output_dir: Path, exten
             str(output_dir),
             str(input_path),
         ]
+        before = snapshot_output_dir(output_dir)
         log = await run_process(str(tool["path"]), args, timeout=180)
-        logs.append(log)
-        outputs.append(output_dir / f"{input_path.stem}.{clean_extension}")
+        output_path = resolve_libreoffice_output(output_dir, input_path, clean_extension, before)
+        logs.append(log or f"converted: {input_path.name} -> {output_path.name}")
+        outputs.append(output_path)
 
     return outputs, logs
+
+
+def snapshot_output_dir(output_dir: Path) -> dict[str, tuple[int, int]]:
+    """Capture name -> (mtime_ns, size) for files currently in the output dir."""
+    snap: dict[str, tuple[int, int]] = {}
+    try:
+        entries = list(output_dir.iterdir())
+    except OSError:
+        return snap
+    for entry in entries:
+        if not entry.is_file():
+            continue
+        try:
+            stat = entry.stat()
+            snap[entry.name] = (stat.st_mtime_ns, stat.st_size)
+        except OSError:
+            continue
+    return snap
+
+
+def resolve_libreoffice_output(
+    output_dir: Path,
+    input_path: Path,
+    extension: str,
+    before: dict[str, tuple[int, int]],
+) -> Path:
+    """
+    LibreOffice usually writes {stem}.{ext}, but special characters / multi-dot
+    names can produce a different basename. Prefer the expected name, else pick
+    a newly created/updated file with the target extension.
+    """
+    clean_ext = extension.lower().lstrip(".")
+    expected_name = f"{input_path.stem}.{clean_ext}"
+    expected_path = output_dir / expected_name
+
+    def is_new_or_updated(path: Path) -> bool:
+        try:
+            stat = path.stat()
+        except OSError:
+            return False
+        prev = before.get(path.name)
+        current = (stat.st_mtime_ns, stat.st_size)
+        return prev is None or prev != current
+
+    if expected_path.is_file() and (is_new_or_updated(expected_path) or expected_name not in before):
+        return expected_path
+
+    candidates: list[Path] = []
+    try:
+        entries = list(output_dir.iterdir())
+    except OSError as error:
+        raise RuntimeError(f"LibreOffice 輸出目錄無法讀取：{output_dir}") from error
+
+    for entry in entries:
+        if not entry.is_file():
+            continue
+        if entry.suffix.lower().lstrip(".") != clean_ext:
+            continue
+        if entry.name.lower().endswith(f"_lo_profile.{clean_ext}"):
+            continue
+        if is_new_or_updated(entry):
+            candidates.append(entry)
+
+    if not candidates and expected_path.is_file():
+        # Conversion may rewrite identical content with same mtime resolution.
+        return expected_path
+
+    if not candidates:
+        raise RuntimeError(
+            f"LibreOffice 轉換完成但找不到輸出檔（預期 {expected_name}）。"
+            f" 輸入：{input_path.name}"
+        )
+
+    # Prefer same stem (case-insensitive), then stem contained in name, then newest.
+    stem_lower = input_path.stem.lower()
+    same_stem = [p for p in candidates if p.stem.lower() == stem_lower]
+    if same_stem:
+        return max(same_stem, key=lambda p: p.stat().st_mtime_ns)
+
+    partial = [p for p in candidates if stem_lower in p.stem.lower() or p.stem.lower() in stem_lower]
+    if partial:
+        return max(partial, key=lambda p: p.stat().st_mtime_ns)
+
+    return max(candidates, key=lambda p: p.stat().st_mtime_ns)
 
 
 async def convert_media(input_paths: list[Path], output_dir: Path, extension: str) -> tuple[list[Path], list[str]]:
@@ -177,6 +265,32 @@ async def merge_pdfs(input_paths: list[Path], output_dir: Path) -> tuple[list[Pa
     return [output_path], [f"merged {len(input_paths)} file(s) -> {output_path.name}"]
 
 
+def encrypted_pdf_error(name: str) -> RuntimeError:
+    return RuntimeError(f"「{name}」已加密，請先使用「PDF 解密」後再處理")
+
+
+def require_unencrypted_pdf(input_path: Path) -> None:
+    """Raise a clear error if the PDF is encrypted (operations that need open content)."""
+    try:
+        from pypdf import PdfReader  # lazy import
+    except ImportError:
+        return
+    try:
+        reader = PdfReader(str(input_path))
+    except Exception as error:
+        detail = str(error)
+        if re_search_encrypted(detail):
+            raise encrypted_pdf_error(input_path.name) from error
+        raise RuntimeError(f"無法讀取 PDF「{input_path.name}」：{detail}") from error
+    if getattr(reader, "is_encrypted", False):
+        raise encrypted_pdf_error(input_path.name)
+
+
+def re_search_encrypted(message: str) -> bool:
+    text = (message or "").lower()
+    return "encrypt" in text or "password" in text or "加密" in text or "密碼" in text
+
+
 def _merge_pdfs_sync(input_paths: list[Path], output_path: Path) -> None:
     try:
         from pypdf import PdfWriter  # lazy import
@@ -184,6 +298,7 @@ def _merge_pdfs_sync(input_paths: list[Path], output_path: Path) -> None:
         raise RuntimeError("PDF merge failed: pypdf is not installed") from error
     writer = PdfWriter()
     for input_path in input_paths:
+        require_unencrypted_pdf(input_path)
         writer.append(str(input_path))
     with open(output_path, "wb") as f:
         writer.write(f)
@@ -228,6 +343,7 @@ def _split_pdf_sync(input_path: Path, output_dir: Path, ranges: list[tuple[int, 
         from pypdf import PdfReader, PdfWriter  # lazy import
     except ImportError as error:
         raise RuntimeError("PDF split failed: pypdf is not installed") from error
+    require_unencrypted_pdf(input_path)
     reader = PdfReader(str(input_path))
     total = len(reader.pages)
     if total == 0:
@@ -274,6 +390,7 @@ def _rotate_pdf_sync(input_path: Path, output_path: Path, angle: int) -> None:
         from pypdf import PdfReader, PdfWriter  # lazy import
     except ImportError as error:
         raise RuntimeError("PDF rotate failed: pypdf is not installed") from error
+    require_unencrypted_pdf(input_path)
     reader = PdfReader(str(input_path))
     writer = PdfWriter()
     for page in reader.pages:
@@ -302,6 +419,7 @@ async def convert_pdf_to_docx(input_paths: list[Path], output_dir: Path) -> tupl
 
 
 def _pdf_to_docx_sync(input_path: Path, output_path: Path) -> None:
+    require_unencrypted_pdf(input_path)
     from pdf2docx import Converter  # lazy import
     converter = Converter(str(input_path))
     converter.convert(str(output_path))
@@ -407,6 +525,7 @@ def _compress_pdf_sync(input_path: Path, output_path: Path) -> None:
         from pypdf import PdfReader, PdfWriter  # lazy import
     except ImportError as error:
         raise RuntimeError("PDF compress failed: pypdf is not installed") from error
+    require_unencrypted_pdf(input_path)
     reader = PdfReader(str(input_path))
     writer = PdfWriter()
     for page in reader.pages:

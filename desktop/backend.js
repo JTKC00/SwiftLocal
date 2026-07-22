@@ -255,10 +255,10 @@ class BackendService {
     ensureOutputDir(job.outputDir);
     for (const inputPath of job.inputPaths) {
       const args = libreOfficeArgs(job.outputDir, inputPath, "pdf");
+      const before = snapshotOutputDir(job.outputDir);
       const result = await runProcess(tool.path, args);
-      job.log.push(result.output);
-      const outputPath = path.join(job.outputDir, `${path.parse(inputPath).name}.pdf`);
-      ensureOutputFile(outputPath, inputPath);
+      const outputPath = resolveLibreOfficeOutput(job.outputDir, inputPath, "pdf", before);
+      job.log.push(result.output || `converted: ${path.basename(inputPath)} -> ${path.basename(outputPath)}`);
       job.outputPaths.push(outputPath);
     }
   }
@@ -642,6 +642,114 @@ function ensureOutputFile(outputPath, inputPath) {
   }
 }
 
+function snapshotOutputDir(outputDir) {
+  const snap = new Map();
+  if (!outputDir || !fs.existsSync(outputDir)) {
+    return snap;
+  }
+  let entries = [];
+  try {
+    entries = fs.readdirSync(outputDir, { withFileTypes: true });
+  } catch {
+    return snap;
+  }
+  for (const entry of entries) {
+    if (!entry.isFile()) {
+      continue;
+    }
+    const fullPath = path.join(outputDir, entry.name);
+    try {
+      const stat = fs.statSync(fullPath);
+      snap.set(entry.name, { mtimeMs: stat.mtimeMs, size: stat.size });
+    } catch {
+      // ignore unreadable entries
+    }
+  }
+  return snap;
+}
+
+function resolveLibreOfficeOutput(outputDir, inputPath, extension, before) {
+  const cleanExt = String(extension || "").replace(/^\./, "").toLowerCase();
+  const expectedName = `${path.parse(inputPath).name}.${cleanExt}`;
+  const expectedPath = path.join(outputDir, expectedName);
+
+  const isNewOrUpdated = (filePath, name) => {
+    if (!fs.existsSync(filePath)) {
+      return false;
+    }
+    try {
+      const stat = fs.statSync(filePath);
+      const prev = before && before.get(name);
+      if (!prev) {
+        return true;
+      }
+      return prev.mtimeMs !== stat.mtimeMs || prev.size !== stat.size;
+    } catch {
+      return false;
+    }
+  };
+
+  if (fs.existsSync(expectedPath) && (isNewOrUpdated(expectedPath, expectedName) || !before.has(expectedName))) {
+    return expectedPath;
+  }
+
+  let entries = [];
+  try {
+    entries = fs.readdirSync(outputDir, { withFileTypes: true });
+  } catch (error) {
+    throw new Error(`LibreOffice 輸出目錄無法讀取：${outputDir}`);
+  }
+
+  const candidates = [];
+  for (const entry of entries) {
+    if (!entry.isFile()) {
+      continue;
+    }
+    const ext = path.extname(entry.name).replace(/^\./, "").toLowerCase();
+    if (ext !== cleanExt) {
+      continue;
+    }
+    if (entry.name.toLowerCase().endsWith(`_lo_profile.${cleanExt}`)) {
+      continue;
+    }
+    const fullPath = path.join(outputDir, entry.name);
+    if (isNewOrUpdated(fullPath, entry.name)) {
+      candidates.push(fullPath);
+    }
+  }
+
+  if (!candidates.length && fs.existsSync(expectedPath)) {
+    return expectedPath;
+  }
+
+  if (!candidates.length) {
+    throw new Error(
+      `LibreOffice 轉換完成但找不到輸出檔（預期 ${expectedName}）。輸入：${path.basename(inputPath)}`
+    );
+  }
+
+  const stemLower = path.parse(inputPath).name.toLowerCase();
+  const rank = (filePath) => {
+    const stem = path.parse(filePath).name.toLowerCase();
+    let score = 0;
+    if (stem === stemLower) {
+      score += 2;
+    } else if (stem.includes(stemLower) || stemLower.includes(stem)) {
+      score += 1;
+    }
+    return score;
+  };
+
+  candidates.sort((a, b) => {
+    const scoreDiff = rank(b) - rank(a);
+    if (scoreDiff !== 0) {
+      return scoreDiff;
+    }
+    return fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs;
+  });
+  return candidates[0];
+}
+
 function sanitizeExtension(extension) {
   const clean = String(extension).replace(/[^a-z0-9]/gi, "").toLowerCase();
   if (!clean) {
@@ -709,12 +817,35 @@ function flattenPageRanges(ranges) {
 
 async function loadPdf(inputPath) {
   const bytes = fs.readFileSync(inputPath);
+  const name = path.basename(inputPath);
+  if (pdfBytesLookEncrypted(bytes)) {
+    throw encryptedPdfError(name);
+  }
   try {
     return await PDFDocument.load(bytes);
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
-    throw new Error(`PDF processing failed for ${path.basename(inputPath)}: ${detail}`);
+    if (isEncryptedPdfMessage(detail)) {
+      throw encryptedPdfError(name);
+    }
+    throw new Error(`無法讀取 PDF「${name}」：${detail}`);
   }
+}
+
+function encryptedPdfError(name) {
+  return new Error(`「${name}」已加密，請先使用「PDF 解密」後再處理`);
+}
+
+function isEncryptedPdfMessage(message) {
+  return /encrypt|password|密[碼码]|加密/i.test(String(message || ""));
+}
+
+function pdfBytesLookEncrypted(bytes) {
+  // Fast path: most encrypted PDFs declare /Encrypt in the trailer or body.
+  const sample = Buffer.isBuffer(bytes)
+    ? bytes.subarray(0, Math.min(bytes.length, 512 * 1024))
+    : Buffer.from(bytes.buffer, bytes.byteOffset, Math.min(bytes.byteLength, 512 * 1024));
+  return sample.includes(Buffer.from("/Encrypt"));
 }
 
 async function savePdf(pdfDoc, outputPath) {
@@ -723,8 +854,12 @@ async function savePdf(pdfDoc, outputPath) {
 }
 
 async function extractPdfText(inputPath) {
-  const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  const name = path.basename(inputPath);
   const data = new Uint8Array(fs.readFileSync(inputPath));
+  if (pdfBytesLookEncrypted(data)) {
+    throw encryptedPdfError(name);
+  }
+  const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
   const loadingTask = pdfjs.getDocument({
     data,
     disableWorker: true,
@@ -732,7 +867,16 @@ async function extractPdfText(inputPath) {
     isEvalSupported: false,
     verbosity: 0
   });
-  const pdf = await loadingTask.promise;
+  let pdf;
+  try {
+    pdf = await loadingTask.promise;
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    if (isEncryptedPdfMessage(detail)) {
+      throw encryptedPdfError(name);
+    }
+    throw new Error(`無法讀取 PDF「${name}」：${detail}`);
+  }
   const pages = [];
   try {
     for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {

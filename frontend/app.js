@@ -740,7 +740,7 @@
     const { PDFDocument } = window.PDFLib;
     const output = await PDFDocument.create();
     for (const file of files) {
-      const input = await PDFDocument.load(await file.arrayBuffer());
+      const input = await loadPdfDocument(file);
       const copiedPages = await output.copyPages(input, input.getPageIndices());
       copiedPages.forEach((page) => output.addPage(page));
     }
@@ -749,7 +749,7 @@
 
   async function splitPdf(file) {
     const { PDFDocument } = window.PDFLib;
-    const input = await PDFDocument.load(await file.arrayBuffer());
+    const input = await loadPdfDocument(file);
     const pageCount = input.getPageCount();
     if (pageCount > 300) {
       throw new Error("逐頁分割最多支援 300 頁，請先抽頁縮小範圍");
@@ -770,7 +770,7 @@
 
   async function extractPdf(file) {
     const { PDFDocument } = window.PDFLib;
-    const input = await PDFDocument.load(await file.arrayBuffer());
+    const input = await loadPdfDocument(file);
     const pageIndexes = parsePageRanges($("#pdf-pages").value, input.getPageCount());
     const output = await PDFDocument.create();
     const pages = await output.copyPages(input, pageIndexes);
@@ -780,7 +780,7 @@
 
   async function rotatePdf(file) {
     const { PDFDocument, degrees } = window.PDFLib;
-    const input = await PDFDocument.load(await file.arrayBuffer());
+    const input = await loadPdfDocument(file);
     const pageIndexes = parsePageRanges($("#pdf-pages").value, input.getPageCount());
     const rotation = Number($("#pdf-rotation").value) || 90;
     pageIndexes.forEach((index) => {
@@ -793,7 +793,7 @@
 
   async function watermarkPdf(file) {
     const { PDFDocument, StandardFonts, degrees, rgb } = window.PDFLib;
-    const input = await PDFDocument.load(await file.arrayBuffer());
+    const input = await loadPdfDocument(file);
     const pageIndexes = parsePageRanges($("#pdf-pages").value, input.getPageCount());
     const text = $("#pdf-watermark-text").value.trim();
     if (!text) {
@@ -823,7 +823,7 @@
 
   async function addPdfPageNumbers(file) {
     const { PDFDocument, StandardFonts, rgb } = window.PDFLib;
-    const input = await PDFDocument.load(await file.arrayBuffer());
+    const input = await loadPdfDocument(file);
     const pageCount = input.getPageCount();
     const pageIndexes = parsePageRanges($("#pdf-pages").value, pageCount);
     const position = $("#pdf-pagenumber-position").value || "bottom-center";
@@ -854,7 +854,13 @@
   async function extractPdfText(file) {
     const pdfjs = await loadPdfJs();
     const data = await file.arrayBuffer();
-    const pdf = await pdfjs.getDocument(createPdfJsDocumentOptions(data)).promise;
+    assertPdfNotEncrypted(data, file.name);
+    let pdf;
+    try {
+      pdf = await pdfjs.getDocument(createPdfJsDocumentOptions(data)).promise;
+    } catch (error) {
+      throwFriendlyPdfLoadError(error, file.name);
+    }
     const pageIndexes = parsePageRanges($("#pdf-pages").value, pdf.numPages);
     const sections = [];
 
@@ -876,7 +882,13 @@
   async function renderPdfImages(file) {
     const pdfjs = await loadPdfJs();
     const data = await file.arrayBuffer();
-    const pdf = await pdfjs.getDocument(createPdfJsDocumentOptions(data)).promise;
+    assertPdfNotEncrypted(data, file.name);
+    let pdf;
+    try {
+      pdf = await pdfjs.getDocument(createPdfJsDocumentOptions(data)).promise;
+    } catch (error) {
+      throwFriendlyPdfLoadError(error, file.name);
+    }
     const pageIndexes = parsePageRanges($("#pdf-pages").value, pdf.numPages);
     if (pageIndexes.length > 100) {
       throw new Error("PDF 轉圖片一次最多處理 100 頁，請指定較小頁碼範圍");
@@ -918,6 +930,62 @@
       name: normalizePdfName(name),
       blob: new Blob([bytes], { type: "application/pdf" })
     };
+  }
+
+  async function loadPdfDocument(file) {
+    const { PDFDocument } = window.PDFLib;
+    const data = await file.arrayBuffer();
+    assertPdfNotEncrypted(data, file.name);
+    try {
+      return await PDFDocument.load(data);
+    } catch (error) {
+      throwFriendlyPdfLoadError(error, file.name);
+    }
+  }
+
+  function encryptedPdfUserMessage(name) {
+    return `「${name || "此 PDF"}」已加密，請先到後端工具使用「PDF 解密」，或解除密碼後再處理`;
+  }
+
+  function isEncryptedPdfMessage(message) {
+    return /encrypt|password|密[碼码]|加密/i.test(String(message || ""));
+  }
+
+  function pdfBytesLookEncrypted(data) {
+    const bytes = data instanceof ArrayBuffer ? new Uint8Array(data) : data;
+    if (!bytes || !bytes.length) {
+      return false;
+    }
+    const limit = Math.min(bytes.length, 512 * 1024);
+    // Match ASCII "/Encrypt" without allocating a full string for large files.
+    const needle = [0x2f, 0x45, 0x6e, 0x63, 0x72, 0x79, 0x70, 0x74]; // /Encrypt
+    for (let i = 0; i <= limit - needle.length; i += 1) {
+      let matched = true;
+      for (let j = 0; j < needle.length; j += 1) {
+        if (bytes[i + j] !== needle[j]) {
+          matched = false;
+          break;
+        }
+      }
+      if (matched) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  function assertPdfNotEncrypted(data, name) {
+    if (pdfBytesLookEncrypted(data)) {
+      throw new Error(encryptedPdfUserMessage(name));
+    }
+  }
+
+  function throwFriendlyPdfLoadError(error, name) {
+    const detail = error instanceof Error ? error.message : String(error);
+    if (isEncryptedPdfMessage(detail)) {
+      throw new Error(encryptedPdfUserMessage(name));
+    }
+    throw new Error(`無法讀取 PDF「${name || "檔案"}」：${detail}`);
   }
 
   function parsePageRanges(value, pageCount) {
