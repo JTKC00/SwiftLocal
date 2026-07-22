@@ -10,6 +10,8 @@ const hasNotarizationCredentials = Boolean(
 module.exports = {
   appId: "com.swiftlocal.converter",
   productName: "快轉通 SwiftLocal",
+  // Large tools/ tree (~2GB+) — maximum compression often fails or hangs on Windows 7za.
+  compression: "normal",
   directories: {
     buildResources: "build",
     output: "dist"

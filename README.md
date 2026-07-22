@@ -1,43 +1,55 @@
-# SwiftLocal
+# 快轉通 SwiftLocal
 
-SwiftLocal 是一個本機優先的檔案工具箱。它把常用的圖片、PDF、文件、影音、文字、資料格式、ZIP、雜湊與小工具集中到一個介面中，讓使用者不用記命令列也能完成日常檔案處理。
+**版本 0.2.0** · 本機優先的檔案工具箱。把常用的圖片、PDF、文件、影音、文字、資料格式、ZIP、雜湊與小工具集中到一個介面，不用記命令列也能完成日常檔案處理。
 
-它不是要取代 LibreOffice、FFmpeg、Tesseract 或 QPDF，而是把這些成熟工具整合成比較容易使用的桌面工作台。Windows 打包版可以隨 app 內建 FFmpeg、Tesseract 與 QPDF，因此一般使用者通常不需要另外安裝這三個工具。LibreOffice 因為體積較大，建議做成可選安裝或可選內建。
+它不是要取代 LibreOffice、FFmpeg、Tesseract 或 QPDF，而是把這些工具整合成較好用的桌面工作台。Windows 打包版可內建 FFmpeg、Tesseract 與 QPDF；LibreOffice 體積較大，建議可選安裝或 Full 版內建。
+
+變更摘要見 [CHANGELOG.md](./CHANGELOG.md)。
 
 ## 平台狀態
 
 | 平台 | 目前狀態 | 說明 |
 | --- | --- | --- |
-| Windows | 已支援桌面打包 | 可產生 portable EXE 與 installer。 |
-| macOS | 已支援本機打包 | 可在 macOS 上產生 unsigned `.dmg`。 |
-| Linux | 未正式整理 | Electron / 瀏覽器模式理論上可跑，但尚未整理正式發佈流程。 |
+| Windows | 已支援桌面打包 | portable EXE 與 installer（一般版／Full 版）。 |
+| macOS | 已支援本機打包 | 可在 Mac 上產生 unsigned `.dmg`；簽章需本機憑證。 |
+| Linux | 未正式整理 | Electron／瀏覽器理論可跑，尚未整理正式發佈流程。 |
 
 ## 功能總覽
 
-### 內建功能
+### 瀏覽器內建（不依賴外部工具）
 
 | 類別 | 功能 |
 | --- | --- |
 | 圖片 | JPG / PNG / WebP 轉換、壓縮、縮放、旋轉、浮水印 |
-| PDF | 合併、分割、抽頁、旋轉、加浮水印、加頁碼、轉圖片、抽文字 |
-| PDF 後端 | 合併、分割、旋轉、壓縮、PDF 文字匯出成 DOCX |
+| PDF | 合併、分割、抽頁、旋轉、浮水印、頁碼、轉圖片、抽文字 |
 | 資料格式 | JSON / CSV / XML 格式化與互轉 |
-| 文字 | Base64、URL 編碼、HTML escape、搜尋取代、行處理、統計 |
-| ZIP / Hash | 建立 ZIP、計算檔案校驗值 |
-| 進階分片 | 將原始檔案切成多個 part 分片；需之後完整合併才能還原 |
-| 小工具 | 顏色格式、UUID、QR Code |
+| 文字 | Base64、URL、HTML、搜尋取代、行處理、統計、**離線繁簡** |
+| ZIP / Hash | 建立 ZIP、檔案校驗 |
+| 進階分片 | 切成 part 分片（需完整合併才能還原） |
+| 小工具 | 顏色、UUID、QR Code |
 
-### 依賴本機工具的功能
+### 本機後端／桌面任務（依賴工具或內建引擎）
 
-| 功能 | 工具 | Windows 建議策略 | 常見執行檔 |
-| --- | --- | --- | --- |
-| Office → PDF | LibreOffice | 可選安裝或可選內建 | `soffice.exe` / `soffice` |
-| 音訊 / 影片格式轉換 | FFmpeg | 建議內建 | `ffmpeg.exe` / `ffmpeg` |
-| 圖片格式轉換（後端） | FFmpeg | 建議內建 | `ffmpeg.exe` / `ffmpeg` |
-| 圖片 OCR → TXT | Tesseract | 建議內建 | `tesseract.exe` / `tesseract` |
-| PDF 加密 / 解密 | QPDF | 建議內建 | `qpdf.exe` / `qpdf` |
+| 功能 | 工具／引擎 | 備註 |
+| --- | --- | --- |
+| Office → PDF | LibreOffice | 可選 |
+| PDF → Office（版面） | LibreOffice | docx / xlsx / pptx / odt |
+| PDF → DOCX（純文字） | pdf.js 或 pdf2docx | 不保留版面 |
+| PDF 合併／分割／旋轉／壓縮 | pdf-lib 或 pypdf | 加密檔會提示先解密 |
+| PDF 加密／解密 | QPDF（桌面）／pypdf（FastAPI） | |
+| PDF OCR → TXT | 渲染 + Tesseract | 適合掃描件 |
+| 圖片 OCR → TXT | Tesseract | 語言碼如 `eng`、`chi_tra` |
+| 音訊／影片轉換 | FFmpeg | 可設碼率、解析度、裁切、GIF FPS |
+| 圖片格式轉換（後端） | FFmpeg 或 Pillow | |
 
-工具找不到時，SwiftLocal 會顯示清楚狀態與錯誤，不會直接崩潰。
+### 任務系統（0.2）
+
+- 佇列狀態中文：排隊中／處理中／已完成／失敗／已取消
+- **取消**：排隊立刻取消；執行中可中止外部工具（部分本機步驟需稍候）
+- **持久化**：重開 app 保留任務列表與結果
+- **桌面輸出資料夾**：在「狀態」面板設定（預設下載目錄下的 `SwiftLocal`）
+
+工具找不到時會顯示清楚錯誤，不會直接崩潰。
 
 ## 一般使用者
 
@@ -49,21 +61,23 @@ SwiftLocal 是一個本機優先的檔案工具箱。它把常用的圖片、PDF
 | --- | --- | --- |
 | Windows installer | FFmpeg、Tesseract、QPDF、LibreOffice | 一般朋友試用與日常使用 |
 
-目前建議交付的 Windows 成品會在 `dist/` 產生：
+目前建議交付的 Windows 成品會在 `dist/` 產生（版本號隨 `package.json`）：
 
-- `SwiftLocal-0.1.0-portable-x64.exe`：免安裝版，雙擊即可使用。
-- `SwiftLocal-0.1.0-installer-x64.exe`：安裝版，會建立開始功能表與桌面捷徑。
+- `SwiftLocal-0.2.0-portable-x64.exe`：免安裝版，雙擊即可使用。
+- `SwiftLocal-0.2.0-installer-x64.exe`：安裝版，會建立開始功能表與桌面捷徑。
 - `win-unpacked/`：未封裝資料夾，主要供開發測試，不建議作為正式發佈檔。
+
+Full 版（含可選大量工具）可用 `npm run pack:win:full`，產物在 `dist-full/`。
 
 第一次使用建議：
 
 1. 開啟 SwiftLocal。
-2. 到「工具狀態」面板按「偵測工具」。
-3. 如果 FFmpeg、Tesseract、QPDF、LibreOffice 顯示「內建」或「可用」，可直接使用相關功能。
-4. 如果 LibreOffice 顯示未找到，只有 Office → PDF 會受影響；可另外安裝 LibreOffice 後再偵測一次工具。
-5. 回到需要的功能面板執行轉換。
+2. 到「狀態」面板按「偵測工具」。
+3. 確認 FFmpeg、Tesseract、QPDF（與需要的 LibreOffice）為「內建」或「可用」。
+4. （桌面版）可在同一頁設定**輸出資料夾**。
+5. 到 PDF／影音／圖片等面板加入佇列並執行轉換。
 
-目前沒有程式碼簽章，所以 Windows SmartScreen 可能顯示「未知發行者」。這是未簽章 App 的正常提醒，不代表檔案損壞。
+目前沒有程式碼簽章，Windows SmartScreen 可能顯示「未知發行者」。這是未簽章 App 的正常提醒，不代表檔案損壞。
 
 ### macOS
 
@@ -206,7 +220,7 @@ C:\Program Files\LibreOffice\program\soffice.exe
 
 #### FFmpeg
 
-用途：音訊 / 影片格式轉換
+用途：音訊／影片轉換（含碼率、解析度、裁切、GIF FPS 等進階參數）
 
 1. 到 [FFmpeg 官方下載頁](https://ffmpeg.org/download.html)。
 2. 在 `Windows EXE Files` 區域選擇 Windows build，例如 `gyan.dev` 或 `BtbN`。
@@ -220,7 +234,7 @@ C:\ffmpeg\bin\ffmpeg.exe
 
 #### Tesseract
 
-用途：圖片 OCR → TXT
+用途：圖片 OCR → TXT、**PDF OCR → TXT**
 
 1. 到 [Tesseract Downloads](https://tesseract-ocr.github.io/tessdoc/Downloads.html)。
 2. 依文件前往 `UB Mannheim` 的 Windows installer。
@@ -493,47 +507,69 @@ tools/      可選的內建 FFmpeg、Tesseract、QPDF 與 LibreOffice
 dist/       打包輸出，不納入版本控制
 ```
 
+## 開發與測試
+
+```bash
+npm install
+npm run desktop          # Electron 桌面版
+npm run start            # 僅前端靜態（預設 http://127.0.0.1:4173）
+npm run backend          # FastAPI（瀏覽器模式需要時）
+npm test                 # Node + Python 單元測試
+npm run smoke            # 發佈 smoke：語法 + 單元測試 + 本機轉換
+```
+
+Python 後端依賴：
+
+```bash
+pip install -r backend/requirements.txt
+```
+
 ## FastAPI API
 
-瀏覽器模式可使用 FastAPI 後端。主要 API：
+瀏覽器模式可使用 FastAPI。主要端點：
 
 - `GET /api/health`
-- `GET /api/tools`
-- `PUT /api/tools/{key}`
-- `DELETE /api/tools/{key}`
-- `POST /api/jobs`
-- `GET /api/jobs`
-- `GET /api/jobs/{job_id}`
-- `GET /api/jobs/{job_id}/outputs/{filename}`
-- `DELETE /api/jobs/{job_id}`
+- `GET /api/tools` · `PUT|DELETE /api/tools/{key}`
+- `POST /api/jobs` · `GET /api/jobs` · `GET /api/jobs/{id}`
+- `POST /api/jobs/{id}/cancel` · `DELETE /api/jobs/{id}`
+- `GET /api/jobs/{id}/outputs/{filename}`
+- `POST /api/convert-text`（繁簡，zhconv）
 
-FastAPI 暫存檔案位於 `backend/temp/jobs/{job_id}`。任務佇列只存在記憶體中，重啟後任務狀態不保留。
+暫存：`backend/temp/jobs/{job_id}`。任務狀態會寫入 `backend/temp/jobs-state.json`（重啟後可還原；執行中被中斷的任務會標為失敗）。
+
+架構細節：[docs/backend-architecture.md](./docs/backend-architecture.md)。
 
 ## 發佈前檢查
 
-- `package.json` 的 `version` 已更新
-- `npm run desktop` 可正常開啟
-- 以下語法檢查通過：
+1. 更新 `package.json` 的 `version` 與 [CHANGELOG.md](./CHANGELOG.md)
+2. 執行：
 
 ```bash
-node --check frontend/app.js
-node --check desktop/main.js
-node --check desktop/preload.js
-node --check desktop/backend.js
+npm run smoke
+npm run desktop   # 手動確認 UI：狀態中文、輸出資料夾、取消提示
 ```
 
-- PDF 後端任務可執行：合併、分割、旋轉、壓縮、Office → PDF、PDF → DOCX（文字）
-- 缺少 LibreOffice、FFmpeg、Tesseract 或 QPDF 時，App 會顯示清楚狀態與錯誤
-- 手動指定外部工具路徑後，相關任務可正常執行
-- Windows 打包成功產生 portable 與 installer
-- macOS 打包成功產生 `.dmg`
-- 若要正式外發，macOS signed build 可成功完成 code signing；有 `APPLE_*` 憑證時可完成 notarization
+3. 建議手動點一次：PDF 合併、OCR、影音轉 MP3、取消排隊中任務、重開 app 看佇列是否還在
+4. Windows 打包：
+
+```bash
+npm run pack:win
+# 或 Full 版
+npm run pack:win:full
+```
+
+5. 確認 `dist/`（或 `dist-full/`）產物檔名版本正確
+6. macOS：`npm run pack:mac`（簽章／公證見下方維護備註）
+
+### Smoke 涵蓋（`npm run smoke`）
+
+- JS 語法檢查、`npm test`
+- 桌面後端：PDF 合併／分割／旋轉／壓縮、加密解密（有 QPDF 時）、OCR、影音、取消排隊
 
 ## 維護備註
 
-- Windows 與 macOS 都已整理基本打包腳本
-- LibreOffice 體積很大，一般 installer 預設不建議內建
-- 內建 FFmpeg、Tesseract、QPDF 前，需要確認各工具授權、更新方式與防毒誤判風險
-- 正式公開發佈 Windows 前，建議加入 code signing certificate，降低 SmartScreen 警告
-- 正式公開發佈 macOS 前，需要處理 Developer ID 簽章與 notarization
-- 若要穩定長期維護，建議將 `electron` 與 `electron-builder` 從 `latest` 改成固定版本
+- LibreOffice 體積大：一般版可不內建；Full 版或系統安裝皆可
+- 內建 FFmpeg、Tesseract、QPDF 前請確認授權與防毒誤判
+- 正式外發 Windows 建議 code signing，降低 SmartScreen 警告
+- 正式外發 macOS 需 Developer ID 簽章與 notarization
+- `electron` / `electron-builder` 已固定版本（見 `package.json`），升級時請一併跑 `npm run smoke`
