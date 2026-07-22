@@ -23,6 +23,8 @@
     detectedTools: null,
     backendLastChecked: null,
     backendPollTimer: null,
+    backendJobs: [],
+    taskFilter: "all",
     desktopOutputDir: "",
     hashRows: [],
     renameRows: [],
@@ -31,6 +33,7 @@
 
   const titles = {
     "home-panel": "首頁",
+    "tasks-panel": "全域任務中心",
     "image-panel": "圖片轉換",
     "pdf-panel": "PDF 處理",
     "data-panel": "資料格式",
@@ -47,6 +50,7 @@
 
   Object.assign(titles, {
     "home-panel": "首頁",
+    "tasks-panel": "全域任務中心",
     "image-panel": "圖片轉換",
     "pdf-panel": "PDF 處理",
     "data-panel": "資料轉換",
@@ -63,6 +67,7 @@
 
   const toolGuides = {
     "home-panel": { nav: "首頁", hint: "選擇常用工具，並查看手機版與桌面版的功能差異。", steps: [], keywords: "home 首頁 開始 mobile 手機 desktop 桌面", platform: "web" },
+    "tasks-panel": { nav: "任務中心", hint: "集中追蹤所有進階處理、下載結果及處理失敗任務。", steps: [], keywords: "task job queue 任務 工作 佇列 進度 下載 失敗", platform: "desktop" },
     "image-panel": { nav: "圖片", hint: "轉 JPG / PNG / WebP、壓縮、縮放、加浮水印。", steps: ["選擇或拖放圖片", "保留預設或調整格式、品質、尺寸", "按「開始轉換」，在右邊下載結果"], keywords: "image 圖片 相片 jpg jpeg png webp 壓縮 縮小 浮水印 旋轉" },
     "pdf-panel": { nav: "PDF", hint: "逐頁視覺編排、轉換、OCR、壓縮及保護 PDF。", steps: ["選擇 PDF 工作台或其他處理方式", "在工作台拖放頁面，並旋轉、複製或刪除", "輸出新 PDF，或在任務區查看後端進度"], keywords: "pdf 工作台 縮圖 排序 合併 分割 抽頁 旋轉 頁碼 浮水印 壓縮 加密 解密 ocr office word docx" },
     "data-panel": { nav: "資料", hint: "JSON、CSV、XML 互轉與格式化。", steps: ["貼上資料內容", "選擇想轉成的格式", "按「執行」，再複製或下載輸出"], keywords: "json csv xml 資料 表格 格式化 壓縮" },
@@ -97,6 +102,7 @@
     initTheme();
     bindNavigation();
     bindResponsiveNavigation();
+    bindTaskCenter();
     updateRuntimeLabels();
     bindImageTool();
     bindPdfTool();
@@ -229,9 +235,10 @@
     $$(".panel").forEach((panel) => panel.classList.toggle("is-active", panel.id === panelId));
     $("#panel-title").textContent = titles[panelId] || "SwiftLocal";
     const clearButton = $("#clear-all");
-    if (clearButton) clearButton.hidden = panelId === "home-panel";
+    if (clearButton) clearButton.hidden = panelId === "home-panel" || panelId === "tasks-panel";
     updatePanelAssist(panelId);
     closeMobileNavigation();
+    if (panelId === "tasks-panel" && state.backendConnected) refreshBackendJobs();
     const target = focusSelector ? $(focusSelector) : null;
     if (target) window.setTimeout(() => target.focus({ preventScroll: true }), 120);
   }
@@ -242,11 +249,13 @@
     const backdrop = $("#mobile-nav-backdrop");
     const brand = $(".brand[data-panel]");
     const more = $("#mobile-more-tools");
+    const taskShortcut = $("#task-center-shortcut");
 
     if (toggle) toggle.addEventListener("click", openMobileNavigation);
     if (close) close.addEventListener("click", closeMobileNavigation);
     if (backdrop) backdrop.addEventListener("click", closeMobileNavigation);
     if (more) more.addEventListener("click", openMobileNavigation);
+    if (taskShortcut) taskShortcut.addEventListener("click", () => activatePanel("tasks-panel"));
     if (brand) brand.addEventListener("click", () => activatePanel(brand.dataset.panel));
     $$('[data-mobile-panel]').forEach((button) => {
       button.addEventListener("click", () => activatePanel(button.dataset.mobilePanel));
@@ -257,6 +266,22 @@
     document.addEventListener("keydown", (event) => {
       if (event.key === "Escape") closeMobileNavigation();
     });
+  }
+
+  function bindTaskCenter() {
+    const refresh = $("#refresh-task-center");
+    const search = $("#task-search");
+    const clear = $("#clear-task-history");
+    if (refresh) refresh.addEventListener("click", refreshBackendJobs);
+    if (search) search.addEventListener("input", renderGlobalTaskCenter);
+    $$('[data-task-filter]').forEach((button) => {
+      button.addEventListener("click", () => {
+        state.taskFilter = button.dataset.taskFilter || "all";
+        $$('[data-task-filter]').forEach((item) => item.classList.toggle("is-active", item === button));
+        renderGlobalTaskCenter();
+      });
+    });
+    if (clear) clear.addEventListener("click", clearFinishedTaskHistory);
   }
 
   function openMobileNavigation() {
@@ -290,7 +315,8 @@
       if (!guide) return;
       button.dataset.keywords = `${guide.nav} ${guide.hint} ${guide.keywords}`;
       const platform = guide.platform === "desktop" ? '<em class="nav-platform">桌面</em>' : "";
-      button.innerHTML = `<span>${escapeHtml(guide.nav)}${platform}</span><small>${escapeHtml(guide.hint)}</small>`;
+      const taskCount = button.dataset.panel === "tasks-panel" ? '<b id="sidebar-task-count">0</b>' : "";
+      button.innerHTML = `<span>${escapeHtml(guide.nav)}${platform}</span>${taskCount}<small>${escapeHtml(guide.hint)}</small>`;
     });
   }
 
@@ -363,7 +389,7 @@
     const assist = $("#panel-assist");
     const guide = toolGuides[panelId];
     if (!assist) return;
-    if (panelId === "home-panel") {
+    if (panelId === "home-panel" || panelId === "tasks-panel") {
       assist.innerHTML = "";
       return;
     }
@@ -2846,6 +2872,8 @@
       setStatus("#img-backend-status", "FastAPI 未連線");
       setStatus("#media-backend-status", "FastAPI 未連線");
       renderBackendTools(null);
+      state.backendJobs = [];
+      renderGlobalTaskCenter();
       renderBackendJobs([]);
       renderPanelBackendJobs("#pdf-backend-jobs", "#pdf-backend-status", [], PDF_BACKEND_JOB_TYPES);
       renderPanelBackendJobs("#img-backend-jobs", "#img-backend-status", [], IMG_BACKEND_JOB_TYPES);
@@ -3194,6 +3222,8 @@
     }
     try {
       const jobs = await backendFetch("/jobs");
+      state.backendJobs = jobs;
+      renderGlobalTaskCenter();
       renderBackendJobs(jobs);
       renderPanelBackendJobs("#pdf-backend-jobs", "#pdf-backend-status", jobs, PDF_BACKEND_JOB_TYPES);
       renderPanelBackendJobs("#img-backend-jobs", "#img-backend-status", jobs, IMG_BACKEND_JOB_TYPES);
@@ -3201,6 +3231,8 @@
       scheduleBackendPolling(jobs);
     } catch (error) {
       state.backendConnected = false;
+      state.backendJobs = [];
+      renderGlobalTaskCenter();
       setStatus("#backend-status", "FastAPI 未連線");
       renderBackendJobs([]);
       renderPanelBackendJobs("#pdf-backend-jobs", "#pdf-backend-status", [], PDF_BACKEND_JOB_TYPES);
@@ -3227,6 +3259,100 @@
     } else {
       const latest = jobs[0];
       setStatus(statusSel, latest.status === "done" ? "最近任務已完成" : jobStatusLabel(latest.status));
+    }
+  }
+
+  function renderGlobalTaskCenter() {
+    const jobs = Array.isArray(state.backendJobs) ? state.backendJobs : [];
+    const activeJobs = jobs.filter((job) => job.status === "queued" || job.status === "running");
+    const doneJobs = jobs.filter((job) => job.status === "done");
+    const attentionJobs = jobs.filter((job) => job.status === "failed" || job.status === "cancelled");
+    setTextIfPresent("#task-count-all", jobs.length);
+    setTextIfPresent("#task-count-active", activeJobs.length);
+    setTextIfPresent("#task-count-done", doneJobs.length);
+    setTextIfPresent("#task-count-attention", attentionJobs.length);
+    setTextIfPresent("#global-task-count", activeJobs.length);
+    setTextIfPresent("#sidebar-task-count", activeJobs.length);
+
+    const shortcut = $("#task-center-shortcut");
+    if (shortcut) shortcut.classList.toggle("has-active", activeJobs.length > 0);
+    const search = $("#task-search");
+    const query = search ? search.value.trim().toLowerCase() : "";
+    const filtered = jobs.filter((job) => {
+      const statusMatches = state.taskFilter === "all"
+        || (state.taskFilter === "active" && (job.status === "queued" || job.status === "running"))
+        || (state.taskFilter === "done" && job.status === "done")
+        || (state.taskFilter === "attention" && (job.status === "failed" || job.status === "cancelled"));
+      const haystack = [jobTypeLabel(job.type), jobStatusLabel(job.status), ...(job.inputPaths || [])].join(" ").toLowerCase();
+      return statusMatches && (!query || haystack.includes(query));
+    });
+
+    const container = $("#global-task-list");
+    const resultLabel = $("#task-result-label");
+    const clear = $("#clear-task-history");
+    if (resultLabel) resultLabel.textContent = jobs.length ? `顯示 ${filtered.length}／${jobs.length} 個任務` : "尚未建立任務";
+    if (clear) clear.disabled = !jobs.some((job) => !["queued", "running"].includes(job.status));
+    if (!container) return;
+    container.innerHTML = "";
+    container.classList.toggle("empty", filtered.length === 0);
+    if (!filtered.length) {
+      const empty = document.createElement("div");
+      empty.className = "task-empty-state";
+      empty.innerHTML = jobs.length
+        ? "<strong>沒有符合條件的任務</strong><span>請更改篩選條件或搜尋字詞。</span>"
+        : "<strong>暫時沒有任務</strong><span>從 PDF、圖片或影音工具建立進階處理任務後，會在這裡顯示。</span>";
+      container.appendChild(empty);
+      return;
+    }
+    filtered.forEach((job) => container.appendChild(buildGlobalTaskElement(job)));
+  }
+
+  function buildGlobalTaskElement(job) {
+    const card = buildJobElement(job);
+    card.classList.add("global-task-card");
+    const header = card.firstElementChild;
+    const meta = document.createElement("div");
+    meta.className = "task-card-meta";
+    const created = job.createdAt ? new Date(job.createdAt) : null;
+    const finished = job.finishedAt ? new Date(job.finishedAt) : null;
+    const elapsedStart = job.startedAt ? new Date(job.startedAt) : created;
+    const elapsedEnd = finished || new Date();
+    const duration = elapsedStart && !Number.isNaN(elapsedStart.getTime()) ? formatTaskDuration(elapsedEnd - elapsedStart) : "—";
+    meta.innerHTML = `<span>建立 ${created && !Number.isNaN(created.getTime()) ? escapeHtml(created.toLocaleString([], { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })) : "—"}</span><span>歷時 ${escapeHtml(duration)}</span><code>${escapeHtml(String(job.id || "").slice(-8))}</code>`;
+    if (header) header.insertAdjacentElement("afterend", meta);
+    if (job.status === "running" || job.status === "queued") {
+      const progress = document.createElement("div");
+      progress.className = `task-progress ${job.status}`;
+      progress.innerHTML = `<span></span><small>${job.status === "running" ? "正在由本機工具處理" : "等待前方任務完成"}</small>`;
+      meta.insertAdjacentElement("afterend", progress);
+    }
+    return card;
+  }
+
+  function setTextIfPresent(selector, value) {
+    const element = $(selector);
+    if (element) element.textContent = String(value);
+  }
+
+  function formatTaskDuration(milliseconds) {
+    const seconds = Math.max(0, Math.floor(milliseconds / 1000));
+    if (seconds < 60) return `${seconds} 秒`;
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes} 分 ${seconds % 60} 秒`;
+    return `${Math.floor(minutes / 60)} 小時 ${minutes % 60} 分`;
+  }
+
+  async function clearFinishedTaskHistory() {
+    const finished = state.backendJobs.filter((job) => !["queued", "running"].includes(job.status));
+    if (!finished.length) return;
+    try {
+      for (const job of finished) {
+        await backendFetch(`/jobs/${encodeURIComponent(job.id)}`, { method: "DELETE" });
+      }
+      await refreshBackendJobs();
+      showToast(`已清除 ${finished.length} 個已結束任務`, "success");
+    } catch (error) {
+      showToast(readableError(error), "error");
     }
   }
 

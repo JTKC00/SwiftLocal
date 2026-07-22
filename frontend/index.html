@@ -24,6 +24,7 @@
         <div class="nav-group">
           <span class="nav-group-label">開始</span>
           <button class="nav-item is-active" type="button" data-panel="home-panel">首頁</button>
+          <button class="nav-item task-nav-item" type="button" data-panel="tasks-panel">任務中心 <b id="sidebar-task-count">0</b></button>
         </div>
         <div class="nav-group">
           <span class="nav-group-label">手機及瀏覽器可用</span>
@@ -61,7 +62,12 @@
             <h2 id="panel-title">首頁</h2>
           </div>
         </div>
-        <button id="clear-all" class="ghost-button" type="button">清除目前工具</button>
+        <div class="topbar-actions">
+          <button id="task-center-shortcut" class="task-center-shortcut" type="button" aria-label="開啟任務中心">
+            <span class="task-pulse"></span><strong>任務</strong><b id="global-task-count">0</b>
+          </button>
+          <button id="clear-all" class="ghost-button" type="button">清除目前工具</button>
+        </div>
       </section>
 
       <section id="home-panel" class="panel home-panel is-active" aria-labelledby="home-title">
@@ -141,6 +147,43 @@
       </section>
 
       <section class="panel-assist" id="panel-assist" aria-live="polite"></section>
+
+      <section id="tasks-panel" class="panel tasks-panel" aria-labelledby="tasks-title">
+        <header class="tasks-hero">
+          <div>
+            <p class="eyebrow">跨工具持續追蹤</p>
+            <h1 id="tasks-title">全域任務中心</h1>
+            <p>PDF、圖片、影音及 Office 的進階處理都集中在這裡。離開原本工具後，任務仍會繼續執行。</p>
+          </div>
+          <button id="refresh-task-center" class="primary-button" type="button">重新整理</button>
+        </header>
+
+        <div class="task-summary" aria-label="任務摘要">
+          <article><span>全部</span><strong id="task-count-all">0</strong><small>任務紀錄</small></article>
+          <article class="active"><span>進行中</span><strong id="task-count-active">0</strong><small>排隊及處理中</small></article>
+          <article class="success"><span>已完成</span><strong id="task-count-done">0</strong><small>可開啟輸出</small></article>
+          <article class="danger"><span>需要處理</span><strong id="task-count-attention">0</strong><small>失敗或已取消</small></article>
+        </div>
+
+        <section class="task-board">
+          <div class="task-board-toolbar">
+            <div class="task-filters" role="group" aria-label="篩選任務">
+              <button class="is-active" type="button" data-task-filter="all">全部</button>
+              <button type="button" data-task-filter="active">進行中</button>
+              <button type="button" data-task-filter="done">已完成</button>
+              <button type="button" data-task-filter="attention">需要處理</button>
+            </div>
+            <label class="task-search"><span class="visually-hidden">搜尋任務</span><input id="task-search" type="search" placeholder="搜尋類型或檔名"></label>
+          </div>
+          <div class="task-board-meta">
+            <p id="task-result-label">尚未建立任務</p>
+            <button id="clear-task-history" class="ghost-button compact" type="button" disabled>清除已結束紀錄</button>
+          </div>
+          <div id="global-task-list" class="global-task-list empty" aria-live="polite">
+            <div class="task-empty-state"><strong>暫時沒有任務</strong><span>從 PDF、圖片或影音工具建立進階處理任務後，會在這裡顯示。</span></div>
+          </div>
+        </section>
+      </section>
 
       <section id="image-panel" class="panel" aria-labelledby="image-title">
         <div class="tool-grid">
@@ -1125,7 +1168,7 @@
       <button class="is-active" type="button" data-mobile-panel="home-panel"><span>⌂</span>首頁</button>
       <button type="button" data-mobile-panel="image-panel"><span>▧</span>圖片</button>
       <button type="button" data-mobile-panel="pdf-panel"><span>▤</span>PDF</button>
-      <button type="button" data-mobile-panel="zip-panel"><span>◇</span>壓縮</button>
+      <button type="button" data-mobile-panel="tasks-panel"><span>◷</span>任務</button>
       <button id="mobile-more-tools" type="button"><span>☰</span>更多</button>
     </nav>
   </div>
