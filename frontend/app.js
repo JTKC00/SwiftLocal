@@ -5,6 +5,7 @@
     activePanel: "image-panel",
     imageDownloads: [],
     pdfDownloads: [],
+    pdfFiles: [],
     dataMode: "json-format",
     textMode: "base64-encode",
     zipUrl: null,
@@ -329,6 +330,7 @@
     }
     if (panelId === "pdf-panel") {
       revokePdfUrls();
+      state.pdfFiles = [];
       $("#pdf-form").reset();
       $("#pdf-output-name").value = "swiftlocal-output.pdf";
       $("#pdf-watermark-opacity").value = "0.25";
@@ -648,14 +650,21 @@
 
   function bindPdfTool() {
     $("#pdf-mode").addEventListener("change", updatePdfControls);
+    $("#pdf-files").addEventListener("change", (event) => {
+      state.pdfFiles = Array.from(event.target.files || []);
+      renderPdfOrderList("#pdf-merge-order", "pdfFiles");
+    });
+    bindPdfOrderList("#pdf-merge-order", "pdfFiles");
+    bindPdfOrderList("#pdf-backend-merge-order", "pdfBackendFiles");
     $("#pdf-watermark-opacity").addEventListener("input", (event) => {
       $("#pdf-watermark-opacity-output").textContent = `${Math.round(Number(event.target.value) * 100)}%`;
     });
 
     $("#pdf-form").addEventListener("submit", async (event) => {
       event.preventDefault();
-      const files = Array.from($("#pdf-files").files || []);
       const mode = $("#pdf-mode").value;
+      const selectedFiles = Array.from($("#pdf-files").files || []);
+      const files = mode === "merge" ? state.pdfFiles : selectedFiles;
       if (!files.length) {
         setEmpty("#pdf-results", "請先選擇 PDF");
         return;
@@ -707,6 +716,99 @@
     $(".pdf-watermark-controls").style.display = showWatermark ? "" : "none";
     $(".pdf-image-controls").style.display = showImages ? "" : "none";
     $(".pdf-pagenumber-controls").style.display = showPageNumbers ? "" : "none";
+    renderPdfOrderList("#pdf-merge-order", "pdfFiles");
+  }
+
+  function pdfOrderFiles(stateKey) {
+    return Array.isArray(state[stateKey]) ? state[stateKey] : [];
+  }
+
+  function pdfOrderIsVisible(stateKey) {
+    if (stateKey === "pdfFiles") {
+      return $("#pdf-mode").value === "merge";
+    }
+    return $("#pdf-backend-job-type").value === "pdf-merge";
+  }
+
+  function renderPdfOrderList(selector, stateKey) {
+    const container = $(selector);
+    if (!container) return;
+    const files = pdfOrderFiles(stateKey);
+    container.hidden = !pdfOrderIsVisible(stateKey) || files.length === 0;
+    if (container.hidden) {
+      container.textContent = "";
+      return;
+    }
+
+    const rows = files.map((file, index) => [
+      `<li class="pdf-order-item" draggable="true" data-index="${index}">`,
+      '<span class="pdf-order-handle" aria-hidden="true">⋮⋮</span>',
+      `<span class="pdf-order-number">${index + 1}</span>`,
+      `<span class="pdf-order-file"><strong>${escapeHtml(file.name)}</strong><small>${formatBytes(file.size)}</small></span>`,
+      '<span class="pdf-order-actions">',
+      `<button class="secondary-button compact" type="button" data-order-move="up" aria-label="上移 ${escapeHtml(file.name)}"${index === 0 ? " disabled" : ""}>↑</button>`,
+      `<button class="secondary-button compact" type="button" data-order-move="down" aria-label="下移 ${escapeHtml(file.name)}"${index === files.length - 1 ? " disabled" : ""}>↓</button>`,
+      "</span>",
+      "</li>"
+    ].join("")).join("");
+
+    container.innerHTML = [
+      '<div class="pdf-order-heading"><strong>合併次序</strong><span>拖放檔案，或使用箭咀調整</span></div>',
+      `<ol class="pdf-order-list" aria-label="PDF 合併次序">${rows}</ol>`
+    ].join("");
+  }
+
+  function movePdfOrderFile(stateKey, fromIndex, toIndex) {
+    const files = pdfOrderFiles(stateKey);
+    if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0 || fromIndex >= files.length || toIndex >= files.length) return;
+    const [file] = files.splice(fromIndex, 1);
+    files.splice(toIndex, 0, file);
+    const selector = stateKey === "pdfFiles" ? "#pdf-merge-order" : "#pdf-backend-merge-order";
+    renderPdfOrderList(selector, stateKey);
+  }
+
+  function bindPdfOrderList(selector, stateKey) {
+    const container = $(selector);
+    if (!container) return;
+    let draggedIndex = -1;
+
+    container.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-order-move]");
+      const row = event.target.closest(".pdf-order-item");
+      if (!button || !row) return;
+      const fromIndex = Number(row.dataset.index);
+      const offset = button.dataset.orderMove === "up" ? -1 : 1;
+      movePdfOrderFile(stateKey, fromIndex, fromIndex + offset);
+    });
+    container.addEventListener("dragstart", (event) => {
+      const row = event.target.closest(".pdf-order-item");
+      if (!row) return;
+      draggedIndex = Number(row.dataset.index);
+      row.classList.add("is-dragging");
+      if (event.dataTransfer) {
+        event.dataTransfer.effectAllowed = "move";
+        event.dataTransfer.setData("text/plain", String(draggedIndex));
+      }
+    });
+    container.addEventListener("dragover", (event) => {
+      const row = event.target.closest(".pdf-order-item");
+      if (!row || draggedIndex < 0) return;
+      event.preventDefault();
+      if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
+      container.querySelectorAll(".is-drag-target").forEach((item) => item.classList.remove("is-drag-target"));
+      row.classList.add("is-drag-target");
+    });
+    container.addEventListener("drop", (event) => {
+      const row = event.target.closest(".pdf-order-item");
+      if (!row || draggedIndex < 0) return;
+      event.preventDefault();
+      movePdfOrderFile(stateKey, draggedIndex, Number(row.dataset.index));
+      draggedIndex = -1;
+    });
+    container.addEventListener("dragend", () => {
+      draggedIndex = -1;
+      container.querySelectorAll(".is-dragging, .is-drag-target").forEach((item) => item.classList.remove("is-dragging", "is-drag-target"));
+    });
   }
 
   async function runPdfTool(mode, files) {
@@ -1992,6 +2094,9 @@
         list.classList.remove("empty");
         list.innerHTML = state[stateKey].map((f) => `<span>${escapeHtml(f.name)} · ${formatBytes(f.size)}</span>`).join("");
       }
+      if (stateKey === "pdfBackendFiles") {
+        renderPdfOrderList("#pdf-backend-merge-order", "pdfBackendFiles");
+      }
     }
 
     input.addEventListener("change", () => applyFiles(input.files || []));
@@ -2319,6 +2424,7 @@
         ? ".doc,.docx,.xls,.xlsx,.ppt,.pptx,.odt,.ods,.odp"
         : ".pdf";
     }
+    renderPdfOrderList("#pdf-backend-merge-order", "pdfBackendFiles");
   }
 
   function updateImgBackendJobControls() {
