@@ -20,6 +20,7 @@
     mediaBackendFiles: [],
     backendConnected: false,
     detectedTools: null,
+    backendLastChecked: null,
     backendPollTimer: null,
     desktopOutputDir: "",
     hashRows: [],
@@ -69,7 +70,7 @@
     "rename-panel": { nav: "改名", hint: "先預覽批量改名規則，再下載 PowerShell 腳本。", steps: ["選擇要改名的檔案", "輸入命名格式", "產生預覽，確認後下載腳本"], keywords: "rename 改名 批量 檔名 file name" },
     "media-panel": { nav: "影音", hint: "音訊與影片轉檔，需要 FFmpeg 與本地後端。", steps: ["選擇音訊或影片", "選擇輸出格式", "按「加入轉換佇列」，等完成後下載"], keywords: "media audio video mp3 wav mp4 mov ffmpeg 影音 音訊 影片" },
     "tools-panel": { nav: "小工具", hint: "顏色格式、UUID、QR Code 等日常工具。", steps: ["選擇需要的小工具", "輸入內容或設定數量", "產生後複製或下載"], keywords: "color hex rgb hsl uuid qr qrcode 小工具 顏色" },
-    "backend-panel": { nav: "狀態", hint: "查看工具狀態，必要時手動指定 LibreOffice、FFmpeg、Tesseract、QPDF。", steps: ["按「偵測工具」", "確認需要的工具顯示可用", "缺少時到進階區手動指定路徑"], keywords: "backend 後端 狀態 libreoffice ffmpeg tesseract qpdf ocr 設定" }
+    "backend-panel": { nav: "狀態", hint: "查看整體健康狀態、可用功能及清楚的修復建議。", steps: ["先看整體狀態與功能可用情況", "按「重新檢查系統」取得最新結果", "缺少工具時展開進階設定並指定路徑"], keywords: "backend 後端 系統 健康 狀態 libreoffice ffmpeg tesseract qpdf ocr 設定" }
   };
 
   const PDF_BACKEND_JOB_TYPES = new Set(["office-to-pdf", "pdf-to-docx", "pdf-to-office", "ocr-pdf", "pdf-merge", "pdf-split", "pdf-rotate", "pdf-encrypt", "pdf-decrypt", "pdf-compress"]);
@@ -2610,6 +2611,7 @@
   }
 
   async function checkBackendHealth() {
+    renderSystemStatusDashboard("checking");
     if (electronBridgeAvailable()) {
       state.backendConnected = true;
       $("#backend-mode").textContent = "桌面版";
@@ -2638,6 +2640,7 @@
       await refreshBackendJobs();
     } catch (error) {
       state.backendConnected = false;
+      state.backendLastChecked = new Date();
       $("#backend-mode").textContent = "FastAPI 未連線";
       setStatus("#backend-status", "FastAPI 未連線");
       setStatus("#pdf-backend-status", "FastAPI 未連線");
@@ -2648,6 +2651,7 @@
       renderPanelBackendJobs("#pdf-backend-jobs", "#pdf-backend-status", [], PDF_BACKEND_JOB_TYPES);
       renderPanelBackendJobs("#img-backend-jobs", "#img-backend-status", [], IMG_BACKEND_JOB_TYPES);
       renderPanelBackendJobs("#media-backend-jobs", "#media-backend-status", [], MEDIA_BACKEND_JOB_TYPES);
+      renderSystemStatusDashboard("offline");
     }
   }
 
@@ -2657,16 +2661,20 @@
       return;
     }
     setStatus("#backend-status", "偵測中");
+    renderSystemStatusDashboard("checking");
     try {
       const tools = await backendFetch("/tools");
       state.detectedTools = tools;
+      state.backendLastChecked = new Date();
       renderBackendTools(tools);
       setStatus("#backend-status", "已偵測");
     } catch (error) {
       state.backendConnected = false;
       state.detectedTools = null;
+      state.backendLastChecked = new Date();
       setStatus("#backend-status", "偵測失敗");
       renderBackendTools(null);
+      renderSystemStatusDashboard("offline");
       showToast(readableError(error), "error");
     }
   }
@@ -2694,21 +2702,21 @@
     state.detectedTools = tools || null;
     const container = $("#backend-tools");
     const items = [
-      ["libreOffice", "LibreOffice"],
-      ["ffmpeg", "FFmpeg"],
-      ["tesseract", "Tesseract"],
-      ["qpdf", "QPDF"]
+      ["libreOffice", "LibreOffice", "Office 轉 PDF、PDF 轉 Office"],
+      ["ffmpeg", "FFmpeg", "影音及進階圖片轉換"],
+      ["tesseract", "Tesseract", "圖片及掃描 PDF 文字辨識"],
+      ["qpdf", "QPDF", "PDF 加密、解密及安全處理"]
     ];
 
     container.innerHTML = "";
-    items.forEach(([key, label]) => {
+    items.forEach(([key, label, purpose]) => {
       const tool = tools && tools[key];
       const available = Boolean(tool && tool.available);
       const optional = key === "libreOffice" && !available && backendApiAvailable();
       const row = document.createElement("div");
       row.className = `tool-status ${available ? "available" : optional ? "optional" : "missing"}`;
       row.innerHTML = [
-        `<strong>${label}</strong>`,
+        `<div class="tool-status-heading"><span class="tool-status-indicator" aria-hidden="true">${available ? "✓" : optional ? "!" : "×"}</span><div><strong>${label}</strong><small>${purpose}</small></div></div>`,
         `<span>${toolStatusText(key, tool)}</span>`,
         toolGuidanceText(key, tool) ? `<small>${toolGuidanceText(key, tool)}</small>` : "",
         tool && tool.path ? `<small>${escapeHtml(tool.path)}</small>` : ""
@@ -2719,7 +2727,77 @@
         input.value = tool && tool.path ? tool.path : "";
       }
     });
+    renderSystemStatusDashboard();
     updatePdfControls();
+  }
+
+  function renderSystemStatusDashboard(mode = "ready") {
+    const health = $("#system-health");
+    if (!health) return;
+    const tools = state.detectedTools || {};
+    const keys = ["libreOffice", "ffmpeg", "tesseract", "qpdf"];
+    const availableCount = keys.filter((key) => tools[key] && tools[key].available).length;
+    const connected = state.backendConnected;
+    const checking = mode === "checking";
+    let healthClass = "offline";
+    let icon = "!";
+    let title = "基礎功能可用，進階處理未連線";
+    let detail = "PDF 工作台、圖片、文字與資料工具仍可使用；啟動本機服務後可解鎖進階轉換。";
+
+    if (checking) {
+      healthClass = "checking";
+      icon = "…";
+      title = "正在檢查系統…";
+      detail = "確認本機處理服務與進階工具是否可用。";
+    } else if (connected && availableCount === keys.length) {
+      healthClass = "ready";
+      icon = "✓";
+      title = "所有功能均可使用";
+      detail = "基礎處理、背景任務及所有進階轉換工具已準備就緒。";
+    } else if (connected) {
+      healthClass = "degraded";
+      icon = "!";
+      title = "系統可用，部分進階功能受限";
+      detail = `${availableCount}/${keys.length} 個外部工具可用；查看下方功能與工具詳情了解影響。`;
+    }
+
+    health.className = `system-health ${healthClass}`;
+    health.querySelector(".system-health-icon").textContent = icon;
+    $("#system-health-title").textContent = title;
+    $("#system-health-detail").textContent = detail;
+    $("#system-health-time").textContent = checking
+      ? "檢查進行中"
+      : state.backendLastChecked
+        ? `最後檢查：${state.backendLastChecked.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}`
+        : "尚未完成檢查";
+
+    updateSystemSummaryCard("#system-backend-card", connected ? "good" : checking ? "checking" : "bad");
+    $("#system-backend-status").textContent = checking ? "檢查中" : connected ? "已連線" : "未連線";
+    $("#system-backend-note").textContent = connected
+      ? electronBridgeAvailable() ? "桌面版內置服務正常" : "FastAPI 本機服務正常"
+      : checking ? "正在連接本機服務" : "基礎工具不受影響";
+    updateSystemSummaryCard("#system-tools-card", checking ? "checking" : availableCount === keys.length ? "good" : availableCount ? "warn" : "bad");
+    $("#system-tools-status").textContent = checking ? "檢查中" : `${availableCount}/${keys.length} 可用`;
+    $("#system-tools-note").textContent = checking ? "正在讀取工具版本" : availableCount === keys.length ? "所有進階功能已解鎖" : "缺少工具的功能會標示於下方";
+
+    renderCapabilityStatus("#capability-office", checking, connected && Boolean(tools.libreOffice && tools.libreOffice.available), "LibreOffice 已就緒", "需要安裝或指定 LibreOffice");
+    renderCapabilityStatus("#capability-media", checking, connected && Boolean(tools.ffmpeg && tools.ffmpeg.available), "FFmpeg 已就緒", "需要 FFmpeg");
+    renderCapabilityStatus("#capability-ocr", checking, connected && Boolean(tools.tesseract && tools.tesseract.available), "Tesseract 已就緒", "需要 Tesseract");
+    renderCapabilityStatus("#capability-security", checking, connected && Boolean(tools.qpdf && tools.qpdf.available), "QPDF 已就緒", "需要 QPDF");
+  }
+
+  function updateSystemSummaryCard(selector, status) {
+    const card = $(selector);
+    if (card) card.className = `system-summary-item ${status}`;
+  }
+
+  function renderCapabilityStatus(selector, checking, available, readyText, missingText) {
+    const row = $(selector);
+    if (!row) return;
+    const status = checking ? "pending" : available ? "available" : "missing";
+    row.className = `system-capability ${status}`;
+    row.querySelector(":scope > span").textContent = checking ? "○" : available ? "✓" : "×";
+    row.querySelector("small").textContent = checking ? "等待檢查" : available ? readyText : missingText;
   }
 
   function toolStatusText(key, tool) {

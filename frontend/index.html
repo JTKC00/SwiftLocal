@@ -908,8 +908,50 @@
         <div class="tool-grid">
           <form id="backend-form" class="tool-surface">
             <div class="surface-heading">
-              <h3 id="backend-title">工具狀態</h3>
+              <h3 id="backend-title">系統狀態</h3>
               <span id="backend-mode" class="badge muted">FastAPI</span>
+            </div>
+
+            <section id="system-health" class="system-health checking" aria-live="polite">
+              <div class="system-health-icon" aria-hidden="true">…</div>
+              <div>
+                <strong id="system-health-title">正在檢查系統…</strong>
+                <p id="system-health-detail">確認本機處理服務與進階工具是否可用。</p>
+                <small id="system-health-time">尚未完成檢查</small>
+              </div>
+            </section>
+
+            <div class="system-summary" aria-label="系統摘要">
+              <div class="system-summary-item good">
+                <span>基礎處理</span>
+                <strong id="system-local-status">可用</strong>
+                <small>圖片、PDF 工作台、文字與資料工具</small>
+              </div>
+              <div id="system-backend-card" class="system-summary-item checking">
+                <span>進階處理服務</span>
+                <strong id="system-backend-status">檢查中</strong>
+                <small id="system-backend-note">正在連接本機服務</small>
+              </div>
+              <div id="system-tools-card" class="system-summary-item checking">
+                <span>外部工具</span>
+                <strong id="system-tools-status">檢查中</strong>
+                <small id="system-tools-note">LibreOffice、FFmpeg、OCR、QPDF</small>
+              </div>
+            </div>
+
+            <div class="system-capabilities" aria-label="功能可用狀態">
+              <div id="capability-office" class="system-capability pending"><span aria-hidden="true">○</span><div><strong>Office 與高保真 PDF</strong><small>等待檢查</small></div></div>
+              <div id="capability-media" class="system-capability pending"><span aria-hidden="true">○</span><div><strong>影音與進階圖片轉換</strong><small>等待檢查</small></div></div>
+              <div id="capability-ocr" class="system-capability pending"><span aria-hidden="true">○</span><div><strong>圖片及掃描 PDF OCR</strong><small>等待檢查</small></div></div>
+              <div id="capability-security" class="system-capability pending"><span aria-hidden="true">○</span><div><strong>PDF 加密與解密</strong><small>等待檢查</small></div></div>
+            </div>
+
+            <div class="system-section-heading">
+              <div>
+                <strong>工具詳情</strong>
+                <small>版本、來源及需要處理的問題</small>
+              </div>
+              <button class="primary-button compact" type="button" id="detect-backend-tools">重新檢查系統</button>
             </div>
             <div class="backend-tools" id="backend-tools">
               <div class="tool-status pending">
@@ -928,10 +970,6 @@
                 <strong>QPDF</strong>
                 <span>未偵測</span>
               </div>
-            </div>
-
-            <div class="actions backend-actions">
-              <button class="secondary-button" type="button" id="detect-backend-tools">偵測工具</button>
             </div>
 
             <div id="desktop-output-dir-block" class="desktop-output-dir" style="display:none">
@@ -986,18 +1024,16 @@
               </div>
             </details>
 
-            <div class="surface-heading" style="margin-top:16px;padding-top:16px;border-top:1px solid var(--line)">
-              <h3>後端工具診斷</h3>
-            </div>
-            <div class="actions" style="margin-top:8px">
-              <button class="secondary-button" type="button" id="refresh-backend-jobs">刷新佇列</button>
-            </div>
           </form>
 
           <div class="result-surface">
             <div class="surface-heading">
               <h3>任務佇列</h3>
               <span id="backend-status" class="status-pill">待偵測</span>
+            </div>
+            <p class="backend-inline-note">進階處理會在背景執行；你可以離開此頁，完成後再回來下載。</p>
+            <div class="actions backend-queue-actions">
+              <button class="secondary-button compact" type="button" id="refresh-backend-jobs">刷新任務</button>
             </div>
             <div id="backend-jobs" class="backend-jobs empty">尚未建立任務</div>
           </div>
