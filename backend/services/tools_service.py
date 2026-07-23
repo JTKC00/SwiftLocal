@@ -170,7 +170,7 @@ class ToolsService:
                 continue
             normalized = self._normalize_tool_path(definition, resolved)
             version = await self._read_version(normalized, definition.version_args)
-            return key, {
+            entry: dict[str, str | bool] = {
                 "available": True,
                 "label": definition.label,
                 "path": normalized,
@@ -178,6 +178,14 @@ class ToolsService:
                 "source": source,
                 "message": "available",
             }
+            if key == "tesseract":
+                langs = self._list_tessdata_languages(Path(normalized))
+                entry["languages"] = ",".join(langs)
+                entry["hasChiTra"] = "chi_tra" in langs
+                entry["hasEng"] = "eng" in langs
+                if langs and "chi_tra" not in langs:
+                    entry["message"] = "available (missing chi_tra language pack)"
+            return key, entry
 
         return key, {
             "available": False,
@@ -251,6 +259,46 @@ class ToolsService:
             if entry.is_dir():
                 matches.extend(self._walk_bundled_tool_dir(entry, executable_names, depth - 1))
         return matches
+
+    def _list_tessdata_languages(self, tool_path: Path) -> list[str]:
+        """List *.traineddata basenames next to a Tesseract install (for Full chi_tra checks)."""
+        try:
+            from .conversion_service import resolve_tessdata_dir
+        except Exception:
+            resolve_tessdata_dir = None  # type: ignore[assignment]
+        tessdata_dir = None
+        if resolve_tessdata_dir:
+            tessdata_dir = resolve_tessdata_dir(tool_path)
+        if tessdata_dir is None:
+            exe_dir = tool_path.resolve().parent
+            for candidate in (
+                exe_dir / "tessdata",
+                exe_dir / "share" / "tessdata",
+                exe_dir.parent / "tessdata",
+                exe_dir.parent / "share" / "tessdata",
+            ):
+                if candidate.is_dir():
+                    tessdata_dir = candidate
+                    break
+        if tessdata_dir is None or not tessdata_dir.is_dir():
+            return []
+        langs: list[str] = []
+        try:
+            for entry in tessdata_dir.iterdir():
+                if not entry.is_file():
+                    continue
+                name = entry.name
+                if not name.endswith(".traineddata"):
+                    continue
+                try:
+                    if entry.stat().st_size < 50_000:
+                        continue
+                except OSError:
+                    continue
+                langs.append(name[: -len(".traineddata")])
+        except OSError:
+            return []
+        return sorted(langs)
 
     async def _resolve_candidate(self, candidate: str) -> str:
         path = Path(candidate)

@@ -3668,7 +3668,18 @@
     renderCapabilityStatus("#capability-office", checking, connected && Boolean(tools.libreOffice && tools.libreOffice.available), "LibreOffice 已就緒", "需要安裝或指定 LibreOffice");
     renderCapabilityStatus("#capability-pdf2docx", checking, connected && Boolean(tools.pdf2docx && tools.pdf2docx.available), "相容引擎已就緒（pdf2docx）", "未安裝 pdf2docx（見 backend/requirements.txt）");
     renderCapabilityStatus("#capability-media", checking, connected && Boolean(tools.ffmpeg && tools.ffmpeg.available), "FFmpeg 已就緒", "需要 FFmpeg");
-    renderCapabilityStatus("#capability-ocr", checking, connected && Boolean(tools.tesseract && tools.tesseract.available), "Tesseract 已就緒", "需要 Tesseract");
+    {
+      const tess = tools.tesseract;
+      const tessOk = connected && Boolean(tess && tess.available);
+      const hasChi = Boolean(tess && (tess.hasChiTra === true || (typeof tess.languages === "string" && tess.languages.split(",").includes("chi_tra"))));
+      renderCapabilityStatus(
+        "#capability-ocr",
+        checking,
+        tessOk,
+        hasChi ? "Tesseract 已就緒（含繁中 chi_tra）" : tessOk ? "Tesseract 可用，但缺少 chi_tra 繁中包" : "需要 Tesseract",
+        "需要 Tesseract"
+      );
+    }
     renderCapabilityStatus("#capability-security", checking, connected && Boolean(tools.qpdf && tools.qpdf.available), "QPDF 已就緒", "需要 QPDF");
   }
 
@@ -3690,7 +3701,20 @@
     if (tool && tool.available) {
       const source = toolSourceLabel(tool.source);
       const version = escapeHtml(tool.version || tool.path || "available");
-      return source ? `${source} · ${version}` : version;
+      let text = source ? `${source} · ${version}` : version;
+      if (key === "tesseract") {
+        const hasChi = tool.hasChiTra === true || (typeof tool.languages === "string" && tool.languages.split(",").includes("chi_tra"));
+        const hasEng = tool.hasEng === true || (typeof tool.languages === "string" && tool.languages.split(",").includes("eng"));
+        if (hasChi && hasEng) {
+          text += " · 語言：chi_tra+eng 已就緒";
+        } else if (typeof tool.languages === "string" && tool.languages) {
+          text += ` · 語言：${escapeHtml(tool.languages.split(",").slice(0, 8).join(", "))}`;
+          if (!hasChi) text += "（缺 chi_tra）";
+        } else if (!hasChi) {
+          text += " · 警告：未偵測到 chi_tra 繁中語言包";
+        }
+      }
+      return text;
     }
     if (!backendApiAvailable()) {
       return "後端未啟動";

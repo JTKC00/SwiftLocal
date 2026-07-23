@@ -69,6 +69,13 @@
 
 Full 版（含可選大量工具）可用 `npm run pack:win:full`，產物在 `dist-full/`。
 
+Full 打包前會強制檢查並補齊 Tesseract 語言包（**`eng` + `chi_tra` + `osd`**），確保安裝後預設 `chi_tra+eng` OCR 可用：
+
+```bash
+npm run tools:tessdata          # 下載／複製語言包到 tools/**/tessdata
+npm run pack:win:full           # 內含 ensure-tessdata --require-full
+```
+
 第一次使用建議：
 
 1. 開啟 SwiftLocal。
@@ -237,6 +244,7 @@ C:\ffmpeg\bin\ffmpeg.exe
 用途：圖片 OCR → TXT、**PDF OCR → TXT**
 
 1. 到 [Tesseract Downloads](https://tesseract-ocr.github.io/tessdoc/Downloads.html)。
+   安裝時勾選 **Additional language data → Chinese - Traditional**（`chi_tra`），或之後用下面指令把語言包補進 `tools/`。
 2. 依文件前往 `UB Mannheim` 的 Windows installer。
 3. 安裝時勾選需要的語言資料。
 

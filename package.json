@@ -36,7 +36,9 @@
     "test:js": "node --test tests/desktop/backend.test.js",
     "test:py": "node -e \"const {spawnSync}=require('child_process'); const r=spawnSync(process.platform==='win32'?'py':'python3', process.platform==='win32'?['-3','-m','unittest','tests.backend.test_core','-v']:['-m','unittest','tests.backend.test_core','-v'],{stdio:'inherit',shell:true}); process.exit(r.status||0)\"",
     "smoke": "node scripts/smoke-release.js",
-    "typecheck": "node --check frontend/app.js && node --check desktop/main.js && node --check desktop/preload.js && node --check desktop/backend.js && node --check scripts/smoke-release.js && node --check scripts/run-tests.js"
+    "typecheck": "node --check frontend/app.js && node --check desktop/main.js && node --check desktop/preload.js && node --check desktop/backend.js && node --check scripts/smoke-release.js && node --check scripts/run-tests.js && node --check scripts/ensure-tessdata.js && node --check scripts/build-win-full.js",
+    "tools:tessdata": "node scripts/ensure-tessdata.js --download",
+    "tools:tessdata:check": "node scripts/ensure-tessdata.js --require-full"
   },
   "devDependencies": {
     "electron": "41.3.0",

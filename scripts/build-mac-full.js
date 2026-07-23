@@ -2,7 +2,7 @@
 
 const fs = require("node:fs");
 const path = require("node:path");
-const { spawn } = require("node:child_process");
+const { spawn, spawnSync } = require("node:child_process");
 
 const projectRoot = path.resolve(__dirname, "..");
 const toolsRoot = path.join(projectRoot, "tools");
@@ -31,13 +31,30 @@ bundleTools.on("error", (error) => {
   process.exit(1);
 });
 
-const sofficePath = findExecutable(toolsRoot, new Set(["soffice"]), 8);
-if (!sofficePath) {
-  console.error("Mac full build requires LibreOffice in tools/. Expected a bundled soffice executable under tools/LibreOffice.app/Contents/MacOS/soffice or another tools/ subfolder.");
-  process.exit(1);
-}
-
 function startBuild() {
+  const sofficePath = findExecutable(toolsRoot, new Set(["soffice"]), 8);
+  if (!sofficePath) {
+    console.error(
+      "Mac full build requires LibreOffice in tools/. Expected a bundled soffice executable under tools/LibreOffice.app/Contents/MacOS/soffice or another tools/ subfolder."
+    );
+    process.exit(1);
+  }
+
+  // Ensure eng + chi_tra language packs ship with Full (default OCR: chi_tra+eng).
+  console.log("=== ensure tessdata (eng, chi_tra) for Mac Full build ===");
+  const tessdataResult = spawnSync(
+    process.execPath,
+    [path.join(__dirname, "ensure-tessdata.js"), "--require-full", "--download"],
+    { cwd: projectRoot, stdio: "inherit" }
+  );
+  if (tessdataResult.status !== 0) {
+    console.error(
+      "Mac full build aborted: required Tesseract language packs missing (eng + chi_tra).\n" +
+        "Run: npm run tools:tessdata"
+    );
+    process.exit(tessdataResult.status || 1);
+  }
+
   const builderArgs = [
     electronBuilderCli,
     "--config",

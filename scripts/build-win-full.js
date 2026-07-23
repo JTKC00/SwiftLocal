@@ -2,7 +2,7 @@
 
 const fs = require("node:fs");
 const path = require("node:path");
-const { spawn } = require("node:child_process");
+const { spawn, spawnSync } = require("node:child_process");
 
 const projectRoot = path.resolve(__dirname, "..");
 const toolsRoot = path.join(projectRoot, "tools");
@@ -16,6 +16,30 @@ const sofficePath = findExecutable(toolsRoot, new Set(["soffice.exe", "soffice"]
 if (!sofficePath) {
   console.error("Full build requires LibreOffice in tools/. Expected a bundled soffice executable under tools/libreoffice/ or another tools/ subfolder.");
   process.exit(1);
+}
+
+const tesseractPath = findExecutable(toolsRoot, new Set(["tesseract.exe", "tesseract"]), 6);
+if (!tesseractPath) {
+  console.error(
+    "Full build requires Tesseract in tools/ (tesseract.exe + tessdata/). See tools/README.md."
+  );
+  process.exit(1);
+}
+
+// Ensure eng + chi_tra (+ osd) language packs are present for default chi_tra+eng OCR.
+console.log("=== ensure tessdata (eng, chi_tra) for Full build ===");
+const tessdataResult = spawnSync(
+  process.execPath,
+  [path.join(__dirname, "ensure-tessdata.js"), "--require-full", "--download"],
+  { cwd: projectRoot, stdio: "inherit" }
+);
+if (tessdataResult.status !== 0) {
+  console.error(
+    "Full build aborted: required Tesseract language packs missing (need at least eng + chi_tra).\n" +
+      "Run: npm run tools:tessdata\n" +
+      "Or place chi_tra.traineddata under tools/tesseract/tessdata/"
+  );
+  process.exit(tessdataResult.status || 1);
 }
 
 const builderArgs = [

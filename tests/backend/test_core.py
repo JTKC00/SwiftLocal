@@ -38,12 +38,25 @@ class TessdataTests(unittest.TestCase):
     def test_resolve_bundled_tessdata(self) -> None:
         tool = ROOT / "tools" / "tesseract" / "tesseract.exe"
         if not tool.exists():
+            # Fall back to tessdata folder alone (ensure-tessdata may populate without exe)
+            tess = ROOT / "tools" / "tesseract" / "tessdata"
+            if tess.is_dir() and (tess / "chi_tra.traineddata").is_file():
+                self.assertGreater((tess / "chi_tra.traineddata").stat().st_size, 50_000)
+                return
             self.skipTest("bundled tesseract not present")
         found = cs.resolve_tessdata_dir(tool)
         self.assertIsNotNone(found)
         assert found is not None
         self.assertEqual(found.name, "tessdata")
         self.assertTrue(found.is_dir())
+
+    def test_chi_tra_pack_present_when_tools_tessdata_populated(self) -> None:
+        chi = ROOT / "tools" / "tesseract" / "tessdata" / "chi_tra.traineddata"
+        eng = ROOT / "tools" / "tesseract" / "tessdata" / "eng.traineddata"
+        if not chi.is_file() or not eng.is_file():
+            self.skipTest("tools tessdata not populated (run npm run tools:tessdata)")
+        self.assertGreater(chi.stat().st_size, 50_000)
+        self.assertGreater(eng.stat().st_size, 50_000)
 
 
 class JobPersistenceTests(unittest.IsolatedAsyncioTestCase):
