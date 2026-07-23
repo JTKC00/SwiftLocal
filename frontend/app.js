@@ -29,6 +29,10 @@
     workflowSteps: [],
     workflowRuns: [],
     workflowAdvancing: new Set(),
+    userPresets: [],
+    presetFilter: "all",
+    pendingPreset: null,
+    lastPresetPanel: null,
     desktopOutputDir: "",
     hashRows: [],
     renameRows: [],
@@ -39,6 +43,7 @@
     "home-panel": "首頁",
     "tasks-panel": "全域任務中心",
     "workflow-panel": "工作流程串連",
+    "presets-panel": "常用預設",
     "image-panel": "圖片轉換",
     "pdf-panel": "PDF 處理",
     "data-panel": "資料格式",
@@ -57,6 +62,7 @@
     "home-panel": "首頁",
     "tasks-panel": "全域任務中心",
     "workflow-panel": "工作流程串連",
+    "presets-panel": "常用預設",
     "image-panel": "圖片轉換",
     "pdf-panel": "PDF 處理",
     "data-panel": "資料轉換",
@@ -75,6 +81,7 @@
     "home-panel": { nav: "首頁", hint: "選擇常用工具，並查看手機版與桌面版的功能差異。", steps: [], keywords: "home 首頁 開始 mobile 手機 desktop 桌面", platform: "web" },
     "tasks-panel": { nav: "任務中心", hint: "集中追蹤所有進階處理、下載結果及處理失敗任務。", steps: [], keywords: "task job queue 任務 工作 佇列 進度 下載 失敗", platform: "desktop" },
     "workflow-panel": { nav: "流程", hint: "把多個進階處理步驟串連，以上一步輸出自動啟動下一步。", steps: ["選擇範本及來源檔案", "調整步驟和選項", "啟動後在右側或任務中心追蹤"], keywords: "workflow pipeline automation 流程 串連 自動 接力", platform: "desktop" },
+    "presets-panel": { nav: "常用預設", hint: "一按套用常見組合，或保存目前工具的安全選項。", steps: [], keywords: "preset favorite 常用 預設 設定 快捷", platform: "web" },
     "image-panel": { nav: "圖片", hint: "轉 JPG / PNG / WebP、壓縮、縮放、加浮水印。", steps: ["選擇或拖放圖片", "保留預設或調整格式、品質、尺寸", "按「開始轉換」，在右邊下載結果"], keywords: "image 圖片 相片 jpg jpeg png webp 壓縮 縮小 浮水印 旋轉" },
     "pdf-panel": { nav: "PDF", hint: "逐頁視覺編排、轉換、OCR、壓縮及保護 PDF。", steps: ["選擇 PDF 工作台或其他處理方式", "在工作台拖放頁面，並旋轉、複製或刪除", "輸出新 PDF，或在任務區查看後端進度"], keywords: "pdf 工作台 縮圖 排序 合併 分割 抽頁 旋轉 頁碼 浮水印 壓縮 加密 解密 ocr office word docx" },
     "data-panel": { nav: "資料", hint: "JSON、CSV、XML 互轉與格式化。", steps: ["貼上資料內容", "選擇想轉成的格式", "按「執行」，再複製或下載輸出"], keywords: "json csv xml 資料 表格 格式化 壓縮" },
@@ -88,6 +95,18 @@
     "tools-panel": { nav: "小工具", hint: "顏色格式、UUID、QR Code 等日常工具。", steps: ["選擇需要的小工具", "輸入內容或設定數量", "產生後複製或下載"], keywords: "color hex rgb hsl uuid qr qrcode 小工具 顏色" },
     "backend-panel": { nav: "狀態", hint: "查看整體健康狀態、可用功能及清楚的修復建議。", steps: ["先看整體狀態與功能可用情況", "按「重新檢查系統」取得最新結果", "缺少工具時展開進階設定並指定路徑"], keywords: "backend 後端 系統 健康 狀態 libreoffice ffmpeg tesseract qpdf ocr 設定", platform: "desktop" }
   };
+
+  const BUILT_IN_PRESETS = [
+    { id: "builtin-image-web", name: "網頁分享圖片", description: "WebP、80% 品質、最大寬度 1600px。", category: "image", panelId: "image-panel", badge: "圖片", settings: { "#image-format": "image/webp", "#image-quality": "0.8", "#image-width": "1600", "#image-height": "", "#image-keep-ratio": true, "#image-rotate": "0", "#image-flip": "none" } },
+    { id: "builtin-image-email", name: "電郵輕量附件", description: "JPEG、70% 品質、最大寬度 1280px。", category: "image", panelId: "image-panel", badge: "圖片", settings: { "#image-format": "image/jpeg", "#image-quality": "0.7", "#image-width": "1280", "#image-height": "", "#image-keep-ratio": true, "#image-rotate": "0", "#image-flip": "none" } },
+    { id: "builtin-pdf-merge", name: "合併整理 PDF", description: "開啟合併模式，加入多份 PDF 後可視覺排序。", category: "pdf", panelId: "pdf-panel", badge: "PDF", settings: { "#pdf-mode": "merge" } },
+    { id: "builtin-pdf-compress", name: "輕量 PDF", description: "直接切換至本機 PDF 壓縮任務。", category: "pdf", panelId: "pdf-panel", badge: "PDF", settings: { "#pdf-mode": "pdf-compress" } },
+    { id: "builtin-pdf-images", name: "PDF 高清圖片", description: "每頁輸出 JPEG，使用 2× 渲染倍率。", category: "pdf", panelId: "pdf-panel", badge: "PDF", settings: { "#pdf-mode": "images", "#pdf-image-format": "image/jpeg", "#pdf-image-scale": "2" } },
+    { id: "builtin-text-clean", name: "清理文字空行", description: "移除空白行，保留其餘文字內容。", category: "text", panelId: "text-panel", badge: "文字", actions: ["[data-text-mode='remove-empty-lines']"] },
+    { id: "builtin-text-dedupe", name: "文字去除重複", description: "依出現次序保留唯一文字行。", category: "text", panelId: "text-panel", badge: "文字", actions: ["[data-text-mode='dedupe-lines']"] },
+    { id: "builtin-workflow-office", name: "Office 歸檔流程", description: "Office 轉 PDF，再自動壓縮。", category: "desktop", panelId: "workflow-panel", badge: "桌面流程", settings: { "#workflow-template": "office-archive" } },
+    { id: "builtin-media-mp3", name: "標準 MP3 音訊", description: "輸出 MP3；其他進階參數保持空白。", category: "desktop", panelId: "media-panel", badge: "桌面影音", settings: { "#media-output-extension": "mp3", "#media-video-bitrate": "", "#media-audio-bitrate": "", "#media-scale": "", "#media-crop": "", "#media-start": "", "#media-duration": "", "#media-gif-fps": "10" } }
+  ];
 
   const PDF_BACKEND_JOB_TYPES = new Set(["office-to-pdf", "pdf-to-docx", "pdf-to-office", "ocr-pdf", "pdf-merge", "pdf-split", "pdf-rotate", "pdf-encrypt", "pdf-decrypt", "pdf-compress"]);
   const IMG_BACKEND_JOB_TYPES = new Set(["image-convert", "ocr-image"]);
@@ -107,6 +126,7 @@
 
   function init() {
     initTheme();
+    bindAccessibilityAndPrivacy();
     bindNavigation();
     bindResponsiveNavigation();
     bindTaskCenter();
@@ -123,10 +143,11 @@
     bindRenameTool();
     bindBackendTool();
     bindToolsPanel();
+    bindPresetCenter();
     bindGlobalActions();
     enhanceNavigation();
     bindQuickStart();
-    activatePanel(state.activePanel);
+    activatePanel(state.activePanel, null, false);
     $$(".file-zone input[type='file']").forEach(bindFileZoneLabel);
     $$(".file-zone").forEach((label) => {
       const input = label.querySelector("input[type='file']");
@@ -144,6 +165,7 @@
     if (!container) { return; }
     const toast = document.createElement("div");
     toast.className = `toast ${type}`;
+    toast.setAttribute("role", type === "error" ? "alert" : "status");
     toast.textContent = message;
     container.appendChild(toast);
     const dismiss = () => {
@@ -172,7 +194,326 @@
     state.theme = theme;
     document.documentElement.setAttribute("data-theme", theme);
     const btn = $("#theme-toggle");
-    if (btn) btn.textContent = theme === "dark" ? "☀" : "🌙";
+    if (btn) {
+      btn.textContent = theme === "dark" ? "☀" : "🌙";
+      btn.setAttribute("aria-label", theme === "dark" ? "切換至亮色模式" : "切換至暗色模式");
+      btn.setAttribute("aria-pressed", String(theme === "dark"));
+    }
+  }
+
+  function bindAccessibilityAndPrivacy() {
+    const preferences = loadAccessibilityPreferences();
+    applyAccessibilityPreferences(preferences);
+    $$('[data-open-privacy]').forEach((button) => button.addEventListener("click", () => openInfoDialog("#privacy-dialog")));
+    $$('[data-open-accessibility]').forEach((button) => button.addEventListener("click", () => openInfoDialog("#accessibility-dialog")));
+    const controls = {
+      "#accessibility-large-text": "largeText",
+      "#accessibility-high-contrast": "highContrast",
+      "#accessibility-reduce-motion": "reduceMotion"
+    };
+    Object.entries(controls).forEach(([selector, key]) => {
+      const input = $(selector);
+      if (!input) return;
+      input.checked = Boolean(preferences[key]);
+      input.addEventListener("change", () => {
+        const next = loadAccessibilityPreferences();
+        next[key] = input.checked;
+        saveAccessibilityPreferences(next);
+        applyAccessibilityPreferences(next);
+      });
+    });
+    const reset = $("#accessibility-reset");
+    if (reset) reset.addEventListener("click", () => {
+      const next = { largeText: false, highContrast: false, reduceMotion: false };
+      saveAccessibilityPreferences(next);
+      applyAccessibilityPreferences(next);
+      Object.entries(controls).forEach(([selector]) => { const input = $(selector); if (input) input.checked = false; });
+      showToast("無障礙顯示設定已恢復預設", "success");
+    });
+    enhanceToggleGroups();
+  }
+
+  function openInfoDialog(selector) {
+    const dialog = $(selector);
+    if (!dialog) return;
+    if (typeof dialog.showModal === "function") dialog.showModal();
+    else dialog.setAttribute("open", "");
+  }
+
+  function loadAccessibilityPreferences() {
+    try {
+      return { largeText: false, highContrast: false, reduceMotion: false, ...JSON.parse(localStorage.getItem("swiftlocal-accessibility") || "{}") };
+    } catch {
+      return { largeText: false, highContrast: false, reduceMotion: false };
+    }
+  }
+
+  function saveAccessibilityPreferences(preferences) {
+    try {
+      localStorage.setItem("swiftlocal-accessibility", JSON.stringify(preferences));
+    } catch {
+      // Preferences still apply for the current session if storage is unavailable.
+    }
+  }
+
+  function applyAccessibilityPreferences(preferences) {
+    document.documentElement.classList.toggle("a11y-large-text", Boolean(preferences.largeText));
+    document.documentElement.classList.toggle("a11y-high-contrast", Boolean(preferences.highContrast));
+    document.documentElement.classList.toggle("a11y-reduce-motion", Boolean(preferences.reduceMotion));
+  }
+
+  function enhanceToggleGroups() {
+    $$(".segmented[role='group'], .task-filters[role='group']").forEach((group) => {
+      const buttons = Array.from(group.querySelectorAll("button"));
+      buttons.forEach((button) => {
+        button.setAttribute("aria-pressed", String(button.classList.contains("is-active")));
+        button.addEventListener("click", () => {
+          buttons.forEach((item) => item.setAttribute("aria-pressed", String(item === button)));
+        });
+      });
+    });
+  }
+
+  function bindPresetCenter() {
+    try {
+      const saved = JSON.parse(localStorage.getItem("swiftlocal-presets") || "[]");
+      state.userPresets = Array.isArray(saved) ? saved.filter(isValidUserPreset).slice(0, 50) : [];
+    } catch {
+      state.userPresets = [];
+    }
+    const shortcut = $("#preset-shortcut");
+    const save = $("#save-current-preset");
+    const search = $("#preset-search");
+    const form = $("#preset-dialog-form");
+    const close = $("#preset-dialog-close");
+    const cancel = $("#preset-dialog-cancel");
+    if (shortcut) shortcut.addEventListener("click", () => activatePanel("presets-panel", null, true));
+    if (save) save.addEventListener("click", openSavePresetDialog);
+    if (search) search.addEventListener("input", renderPresetLibrary);
+    if (form) form.addEventListener("submit", savePresetFromDialog);
+    if (close) close.addEventListener("click", closePresetDialog);
+    if (cancel) cancel.addEventListener("click", closePresetDialog);
+    $$('[data-preset-filter]').forEach((button) => button.addEventListener("click", () => {
+      state.presetFilter = button.dataset.presetFilter || "all";
+      $$('[data-preset-filter]').forEach((item) => {
+        const active = item === button;
+        item.classList.toggle("is-active", active);
+        item.setAttribute("aria-pressed", String(active));
+      });
+      renderPresetLibrary();
+    }));
+    renderPresetLibrary();
+  }
+
+  function presetPanelMeta(panelId) {
+    const map = {
+      "image-panel": { title: "圖片轉換", category: "image", badge: "圖片" },
+      "pdf-panel": { title: "PDF 處理", category: "pdf", badge: "PDF" },
+      "data-panel": { title: "資料轉換", category: "text", badge: "資料" },
+      "text-panel": { title: "文字處理", category: "text", badge: "文字" },
+      "hash-panel": { title: "檔案驗證", category: "custom", badge: "驗證" },
+      "split-panel": { title: "進階分片", category: "custom", badge: "分片" },
+      "workflow-panel": { title: "工作流程", category: "desktop", badge: "桌面流程" },
+      "media-panel": { title: "影音轉換", category: "desktop", badge: "桌面影音" }
+    };
+    return map[panelId] || null;
+  }
+
+  function collectSafePresetSettings(panelId) {
+    const panel = document.getElementById(panelId);
+    if (!panel) return { settings: {}, actions: [] };
+    const settings = {};
+    panel.querySelectorAll("select[id], input[id]").forEach((control) => {
+      if (control.disabled || control.readOnly || /password|path|file/i.test(control.id)) return;
+      const type = String(control.type || "").toLowerCase();
+      const safe = control.tagName === "SELECT" || ["number", "range", "checkbox", "radio"].includes(type);
+      if (!safe) return;
+      settings[`#${control.id}`] = type === "checkbox" || type === "radio" ? control.checked : control.value;
+    });
+    const actions = [];
+    if (panelId === "data-panel") {
+      const active = panel.querySelector("[data-data-mode].is-active");
+      if (active) actions.push(`[data-data-mode='${active.dataset.dataMode}']`);
+    }
+    if (panelId === "text-panel") {
+      const active = panel.querySelector("[data-text-mode].is-active");
+      if (active) actions.push(`[data-text-mode='${active.dataset.textMode}']`);
+    }
+    return { settings, actions };
+  }
+
+  function openSavePresetDialog() {
+    const panelId = state.lastPresetPanel;
+    const meta = presetPanelMeta(panelId);
+    if (!meta) {
+      showToast("請先開啟一個支援的工具並調整設定", "info");
+      return;
+    }
+    const captured = collectSafePresetSettings(panelId);
+    const count = Object.keys(captured.settings).length + captured.actions.length;
+    if (!count) {
+      showToast("目前工具沒有可安全保存的選項", "info");
+      return;
+    }
+    state.pendingPreset = { mode: "create", panelId, meta, ...captured };
+    const title = $("#preset-dialog-title");
+    const name = $("#preset-name");
+    if (title) title.textContent = "儲存目前設定";
+    if (name) name.value = `${meta.title}預設`;
+    setTextIfPresent("#preset-source-tool", meta.title);
+    setTextIfPresent("#preset-field-count", `${count} 項安全選項`);
+    openInfoDialog("#preset-dialog");
+    if (name) name.select();
+  }
+
+  function openRenamePresetDialog(preset) {
+    state.pendingPreset = { mode: "rename", presetId: preset.id };
+    const title = $("#preset-dialog-title");
+    const name = $("#preset-name");
+    if (title) title.textContent = "重新命名預設";
+    if (name) name.value = preset.name;
+    setTextIfPresent("#preset-source-tool", titles[preset.panelId] || preset.badge || "工具");
+    setTextIfPresent("#preset-field-count", `${Object.keys(preset.settings || {}).length + (preset.actions || []).length} 項安全選項`);
+    openInfoDialog("#preset-dialog");
+    if (name) name.select();
+  }
+
+  function closePresetDialog() {
+    const dialog = $("#preset-dialog");
+    if (dialog && dialog.open) dialog.close();
+    state.pendingPreset = null;
+  }
+
+  function savePresetFromDialog(event) {
+    event.preventDefault();
+    const pending = state.pendingPreset;
+    const nameInput = $("#preset-name");
+    const name = nameInput ? nameInput.value.trim() : "";
+    if (!pending || !name) return;
+    if (pending.mode === "rename") {
+      const preset = state.userPresets.find((item) => item.id === pending.presetId);
+      if (preset) preset.name = name;
+      showToast("預設已重新命名", "success");
+    } else {
+      state.userPresets.unshift({
+        id: `preset-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+        name,
+        description: `從「${pending.meta.title}」保存的自訂選項。`,
+        category: pending.meta.category,
+        badge: pending.meta.badge,
+        panelId: pending.panelId,
+        settings: pending.settings,
+        actions: pending.actions,
+        custom: true,
+        createdAt: new Date().toISOString()
+      });
+      state.userPresets = state.userPresets.slice(0, 50);
+      showToast("常用預設已儲存到這部裝置", "success");
+    }
+    persistUserPresets();
+    closePresetDialog();
+    renderPresetLibrary();
+  }
+
+  function persistUserPresets() {
+    try {
+      localStorage.setItem("swiftlocal-presets", JSON.stringify(state.userPresets));
+    } catch {
+      showToast("無法保存預設；目前瀏覽器可能禁止本機儲存", "error");
+    }
+  }
+
+  function isValidUserPreset(preset) {
+    if (!preset || typeof preset.id !== "string" || typeof preset.name !== "string" || typeof preset.panelId !== "string" || !preset.settings || typeof preset.settings !== "object") return false;
+    const safeSettings = Object.keys(preset.settings).every((selector) => /^#[A-Za-z][\w:-]*$/.test(selector));
+    const safeActions = !preset.actions || (Array.isArray(preset.actions) && preset.actions.every((selector) => /^\[data-(data|text)-mode='[\w-]+'\]$/.test(selector)));
+    return safeSettings && safeActions && Boolean(presetPanelMeta(preset.panelId));
+  }
+
+  function renderPresetLibrary() {
+    const container = $("#preset-list");
+    if (!container) return;
+    const search = $("#preset-search");
+    const query = search ? search.value.trim().toLowerCase() : "";
+    const all = [...state.userPresets, ...BUILT_IN_PRESETS];
+    const visible = all.filter((preset) => {
+      const filterMatches = state.presetFilter === "all"
+        || (state.presetFilter === "custom" && preset.custom)
+        || preset.category === state.presetFilter;
+      const haystack = [preset.name, preset.description, preset.badge].join(" ").toLowerCase();
+      return filterMatches && (!query || haystack.includes(query));
+    });
+    setTextIfPresent("#preset-total-count", all.length);
+    setTextIfPresent("#preset-custom-count", state.userPresets.length);
+    container.innerHTML = "";
+    container.classList.toggle("empty", visible.length === 0);
+    if (!visible.length) {
+      container.innerHTML = '<div class="task-empty-state"><strong>找不到預設</strong><span>請更改分類或搜尋字詞。</span></div>';
+      return;
+    }
+    visible.forEach((preset) => container.appendChild(buildPresetCard(preset)));
+  }
+
+  function buildPresetCard(preset) {
+    const card = document.createElement("article");
+    card.className = `preset-card${preset.custom ? " custom" : ""}`;
+    card.innerHTML = `<div class="preset-card-heading"><span class="preset-card-icon" aria-hidden="true">${preset.custom ? "★" : "◆"}</span><div><span class="preset-card-badge">${escapeHtml(preset.badge || "預設")}</span><h3>${escapeHtml(preset.name)}</h3></div></div><p>${escapeHtml(preset.description || "")}</p><div class="preset-card-meta"><span>${preset.custom ? "我的預設 · 儲存在本機" : "SwiftLocal 內置"}</span></div>`;
+    const actions = document.createElement("div");
+    actions.className = "preset-card-actions";
+    const apply = document.createElement("button");
+    apply.type = "button";
+    apply.className = "primary-button compact";
+    apply.textContent = "套用預設";
+    apply.addEventListener("click", () => applyPreset(preset));
+    actions.appendChild(apply);
+    if (preset.custom) {
+      const rename = document.createElement("button");
+      rename.type = "button";
+      rename.className = "secondary-button compact";
+      rename.textContent = "改名";
+      rename.addEventListener("click", () => openRenamePresetDialog(preset));
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "ghost-button compact danger-button";
+      remove.textContent = "刪除";
+      remove.addEventListener("click", () => {
+        if (remove.dataset.confirm !== "true") {
+          remove.dataset.confirm = "true";
+          remove.textContent = "再次按下確認";
+          window.setTimeout(() => {
+            if (remove.isConnected) {
+              remove.dataset.confirm = "false";
+              remove.textContent = "刪除";
+            }
+          }, 4000);
+          return;
+        }
+        state.userPresets = state.userPresets.filter((item) => item.id !== preset.id);
+        persistUserPresets();
+        renderPresetLibrary();
+        showToast("預設已刪除", "success");
+      });
+      actions.append(rename, remove);
+    }
+    card.appendChild(actions);
+    return card;
+  }
+
+  function applyPreset(preset) {
+    activatePanel(preset.panelId, null, true);
+    (preset.actions || []).forEach((selector) => {
+      const button = $(selector);
+      if (button) button.click();
+    });
+    Object.entries(preset.settings || {}).forEach(([selector, value]) => {
+      const control = $(selector);
+      if (!control || control.type === "file" || /password|path/i.test(control.id || "")) return;
+      if (control.type === "checkbox" || control.type === "radio") control.checked = Boolean(value);
+      else control.value = String(value);
+      control.dispatchEvent(new Event("input", { bubbles: true }));
+      control.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    showToast(`已套用「${preset.name}」`, "success");
   }
 
   // ─── file-zone drag-and-drop ──────────────────────────────────────
@@ -230,25 +571,44 @@
   function bindNavigation() {
     $$(".nav-item").forEach((button) => {
       button.addEventListener("click", () => {
-        activatePanel(button.dataset.panel);
+        activatePanel(button.dataset.panel, null, true);
       });
     });
   }
 
-  function activatePanel(panelId, focusSelector) {
+  function activatePanel(panelId, focusSelector, moveFocus = true) {
     if (!panelId) return;
+    if (presetPanelMeta(panelId)) state.lastPresetPanel = panelId;
     state.activePanel = panelId;
-    $$(".nav-item").forEach((item) => item.classList.toggle("is-active", item.dataset.panel === panelId));
-    $$('[data-mobile-panel]').forEach((item) => item.classList.toggle("is-active", item.dataset.mobilePanel === panelId));
-    $$(".panel").forEach((panel) => panel.classList.toggle("is-active", panel.id === panelId));
+    $$(".nav-item").forEach((item) => {
+      const active = item.dataset.panel === panelId;
+      item.classList.toggle("is-active", active);
+      if (active) item.setAttribute("aria-current", "page");
+      else item.removeAttribute("aria-current");
+    });
+    $$('[data-mobile-panel]').forEach((item) => {
+      const active = item.dataset.mobilePanel === panelId;
+      item.classList.toggle("is-active", active);
+      if (active) item.setAttribute("aria-current", "page");
+      else item.removeAttribute("aria-current");
+    });
+    $$(".panel").forEach((panel) => {
+      const active = panel.id === panelId;
+      panel.classList.toggle("is-active", active);
+      panel.setAttribute("aria-hidden", String(!active));
+    });
     $("#panel-title").textContent = titles[panelId] || "SwiftLocal";
     const clearButton = $("#clear-all");
-    if (clearButton) clearButton.hidden = panelId === "home-panel" || panelId === "tasks-panel" || panelId === "workflow-panel";
+    if (clearButton) clearButton.hidden = panelId === "home-panel" || panelId === "tasks-panel" || panelId === "workflow-panel" || panelId === "presets-panel";
     updatePanelAssist(panelId);
     closeMobileNavigation();
     if (panelId === "tasks-panel" && state.backendConnected) refreshBackendJobs();
     const target = focusSelector ? $(focusSelector) : null;
-    if (target) window.setTimeout(() => target.focus({ preventScroll: true }), 120);
+    if (target) target.focus({ preventScroll: true });
+    else if (moveFocus) {
+      const heading = $("#panel-title");
+      if (heading) heading.focus({ preventScroll: true });
+    }
   }
 
   function bindResponsiveNavigation() {
@@ -260,20 +620,22 @@
     const taskShortcut = $("#task-center-shortcut");
 
     if (toggle) toggle.addEventListener("click", openMobileNavigation);
-    if (close) close.addEventListener("click", closeMobileNavigation);
-    if (backdrop) backdrop.addEventListener("click", closeMobileNavigation);
+    if (close) close.addEventListener("click", () => closeMobileNavigation(true));
+    if (backdrop) backdrop.addEventListener("click", () => closeMobileNavigation(true));
     if (more) more.addEventListener("click", openMobileNavigation);
-    if (taskShortcut) taskShortcut.addEventListener("click", () => activatePanel("tasks-panel"));
-    if (brand) brand.addEventListener("click", () => activatePanel(brand.dataset.panel));
+    if (taskShortcut) taskShortcut.addEventListener("click", () => activatePanel("tasks-panel", null, true));
+    if (brand) brand.addEventListener("click", () => activatePanel(brand.dataset.panel, null, true));
     $$('[data-mobile-panel]').forEach((button) => {
-      button.addEventListener("click", () => activatePanel(button.dataset.mobilePanel));
+      button.addEventListener("click", () => activatePanel(button.dataset.mobilePanel, null, true));
     });
     $$('[data-home-panel]').forEach((button) => {
       button.addEventListener("click", () => activatePanel(button.dataset.homePanel, button.dataset.homeFocus));
     });
     document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape") closeMobileNavigation();
+      if (event.key === "Escape" && document.body.classList.contains("nav-open")) closeMobileNavigation(true);
     });
+    window.addEventListener("resize", syncMobileNavigationAccessibility);
+    syncMobileNavigationAccessibility();
   }
 
   function bindTaskCenter() {
@@ -478,12 +840,25 @@
     document.body.classList.add("nav-open");
     const toggle = $("#mobile-nav-toggle");
     if (toggle) toggle.setAttribute("aria-expanded", "true");
+    const sidebar = $(".sidebar");
+    if (sidebar) sidebar.setAttribute("aria-hidden", "false");
+    const close = $("#mobile-nav-close");
+    if (close && window.matchMedia("(max-width: 940px)").matches) close.focus();
   }
 
-  function closeMobileNavigation() {
+  function closeMobileNavigation(restoreFocus = false) {
     document.body.classList.remove("nav-open");
     const toggle = $("#mobile-nav-toggle");
     if (toggle) toggle.setAttribute("aria-expanded", "false");
+    syncMobileNavigationAccessibility();
+    if (restoreFocus && toggle && window.matchMedia("(max-width: 940px)").matches) toggle.focus();
+  }
+
+  function syncMobileNavigationAccessibility() {
+    const sidebar = $(".sidebar");
+    if (!sidebar) return;
+    const hidden = window.matchMedia("(max-width: 940px)").matches && !document.body.classList.contains("nav-open");
+    sidebar.setAttribute("aria-hidden", String(hidden));
   }
 
   function updateRuntimeLabels() {
@@ -528,7 +903,10 @@
         button.addEventListener("click", () => {
           activatePanel(button.dataset.panel, button.dataset.focus);
           const panel = $(`#${button.dataset.panel}`);
-          if (panel) panel.scrollIntoView({ behavior: "smooth", block: "start" });
+          if (panel) {
+            const reduceMotion = document.documentElement.classList.contains("a11y-reduce-motion") || window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+            panel.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+          }
         });
       });
     }
@@ -579,15 +957,28 @@
     const assist = $("#panel-assist");
     const guide = toolGuides[panelId];
     if (!assist) return;
-    if (panelId === "home-panel" || panelId === "tasks-panel") {
+    if (panelId === "home-panel" || panelId === "tasks-panel" || panelId === "presets-panel") {
       assist.innerHTML = "";
       return;
     }
     if (!guide) return;
+    const privacy = panelPrivacyInfo(panelId);
     assist.innerHTML = [
-      `<div><strong>${escapeHtml(titles[panelId] || guide.nav)}</strong><span>${escapeHtml(guide.hint)}</span></div>`,
+      `<div><strong>${escapeHtml(titles[panelId] || guide.nav)}</strong><span>${escapeHtml(guide.hint)}</span><button class="assist-privacy ${privacy.kind}" type="button" data-open-privacy-inline><b>${escapeHtml(privacy.label)}</b><small>${escapeHtml(privacy.note)}</small></button></div>`,
       `<ol>${guide.steps.map((step) => `<li>${escapeHtml(step)}</li>`).join("")}</ol>`
     ].join("");
+    const privacyButton = assist.querySelector("[data-open-privacy-inline]");
+    if (privacyButton) privacyButton.addEventListener("click", () => openInfoDialog("#privacy-dialog"));
+  }
+
+  function panelPrivacyInfo(panelId) {
+    if (panelId === "workflow-panel" || panelId === "media-panel" || panelId === "backend-panel") {
+      return { kind: "disk", label: "本機磁碟", note: "由這部電腦的本機服務讀寫" };
+    }
+    if (panelId === "pdf-panel" || panelId === "image-panel") {
+      return { kind: "mixed", label: "按處理方式", note: "即時工具用記憶體；進階任務寫入本機" };
+    }
+    return { kind: "memory", label: "瀏覽器記憶體", note: "不會上載；下載時才寫入檔案" };
   }
 
   function bindGlobalActions() {

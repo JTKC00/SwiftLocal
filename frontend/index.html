@@ -7,8 +7,9 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <a class="skip-link" href="#main-content">跳到主要內容</a>
   <div class="app-shell">
-    <aside class="sidebar" aria-label="工具分類">
+    <aside id="app-sidebar" class="sidebar" aria-label="工具分類">
       <div class="brand-row">
       <button class="brand" type="button" data-panel="home-panel" aria-label="返回首頁">
         <img class="brand-mark" src="assets/swiftlocal-logo.png" alt="快轉通 SwiftLocal logo">
@@ -17,13 +18,14 @@
           <p>檔案處理，留在你的裝置</p>
         </div>
       </button>
-      <button id="mobile-nav-close" class="mobile-nav-close" type="button" aria-label="關閉工具選單">×</button>
+      <button id="mobile-nav-close" class="mobile-nav-close" type="button" aria-label="關閉工具選單" aria-controls="app-sidebar">×</button>
       </div>
       <div class="runtime-chip"><span></span><strong id="runtime-label">瀏覽器模式</strong></div>
       <nav class="tool-nav" aria-label="工具選單">
         <div class="nav-group">
           <span class="nav-group-label">開始</span>
           <button class="nav-item is-active" type="button" data-panel="home-panel">首頁</button>
+          <button class="nav-item" type="button" data-panel="presets-panel">常用預設</button>
           <button class="nav-item task-nav-item" type="button" data-panel="tasks-panel">任務中心 <b id="sidebar-task-count">0</b></button>
         </div>
         <div class="nav-group">
@@ -47,25 +49,34 @@
         </div>
       </nav>
       <button id="theme-toggle" class="ghost-button sidebar-theme" type="button" title="切換暗色模式">☀</button>
-      <div class="privacy-note">
-        <strong>Your Local All-in-One File Converter</strong>
-        <span>檔案只在瀏覽器記憶體內處理。</span>
+      <div class="privacy-note" aria-label="私隱摘要">
+        <strong>本機優先處理</strong>
+        <span>不設雲端上載或分析追蹤。</span>
+        <div>
+          <button type="button" data-open-privacy>私隱詳情</button>
+          <button type="button" data-open-accessibility>顯示設定</button>
+        </div>
       </div>
     </aside>
     <button id="mobile-nav-backdrop" class="mobile-nav-backdrop" type="button" aria-label="關閉工具選單"></button>
 
-    <main class="workspace">
+    <main id="main-content" class="workspace" tabindex="-1">
       <section class="topbar" aria-label="狀態列">
         <div class="topbar-title">
-          <button id="mobile-nav-toggle" class="mobile-nav-toggle" type="button" aria-label="開啟工具選單" aria-expanded="false">☰</button>
+          <button id="mobile-nav-toggle" class="mobile-nav-toggle" type="button" aria-label="開啟工具選單" aria-controls="app-sidebar" aria-expanded="false">☰</button>
           <div>
             <p class="eyebrow">快轉通 SwiftLocal</p>
-            <h2 id="panel-title">首頁</h2>
+            <h2 id="panel-title" tabindex="-1">首頁</h2>
           </div>
         </div>
         <div class="topbar-actions">
+          <button id="preset-shortcut" class="preset-shortcut" type="button" aria-label="開啟常用預設"><span aria-hidden="true">★</span><strong>預設</strong></button>
+          <button class="privacy-shortcut" type="button" data-open-privacy aria-label="查看私隱及資料處理詳情">
+            <span aria-hidden="true">◉</span><strong>本機私隱</strong>
+          </button>
+          <button class="accessibility-shortcut" type="button" data-open-accessibility aria-label="開啟無障礙顯示設定"><span aria-hidden="true">Aa</span></button>
           <button id="task-center-shortcut" class="task-center-shortcut" type="button" aria-label="開啟任務中心">
-            <span class="task-pulse"></span><strong>任務</strong><b id="global-task-count">0</b>
+            <span class="task-pulse" aria-hidden="true"></span><strong>任務</strong><b id="global-task-count">0</b>
           </button>
           <button id="clear-all" class="ghost-button" type="button">清除目前工具</button>
         </div>
@@ -147,7 +158,39 @@
       </section>
       </section>
 
-      <section class="panel-assist" id="panel-assist" aria-live="polite"></section>
+      <section class="panel-assist" id="panel-assist" role="status" aria-live="polite" aria-atomic="true"></section>
+
+      <section id="presets-panel" class="panel presets-panel" aria-labelledby="presets-title">
+        <header class="presets-hero">
+          <div>
+            <p class="eyebrow">一按套用常用設定</p>
+            <h1 id="presets-title">常用預設</h1>
+            <p>快速套用內置組合，或把目前工具的安全選項保存到這部裝置，下次毋須逐項設定。</p>
+          </div>
+          <button id="save-current-preset" class="primary-button" type="button">儲存目前設定</button>
+        </header>
+
+        <div class="preset-summary" aria-label="預設摘要">
+          <div><strong id="preset-total-count">0</strong><span>全部預設</span></div>
+          <div><strong id="preset-custom-count">0</strong><span>我的預設</span></div>
+          <div class="preset-privacy"><strong>只存選項</strong><span>不保存檔案、內容、密碼或路徑</span></div>
+        </div>
+
+        <section class="preset-library" aria-label="預設庫">
+          <div class="preset-toolbar">
+            <div class="preset-filters" role="group" aria-label="篩選預設">
+              <button class="is-active" type="button" data-preset-filter="all" aria-pressed="true">全部</button>
+              <button type="button" data-preset-filter="image" aria-pressed="false">圖片</button>
+              <button type="button" data-preset-filter="pdf" aria-pressed="false">PDF</button>
+              <button type="button" data-preset-filter="text" aria-pressed="false">文字</button>
+              <button type="button" data-preset-filter="desktop" aria-pressed="false">桌面進階</button>
+              <button type="button" data-preset-filter="custom" aria-pressed="false">我的預設</button>
+            </div>
+            <label class="preset-search"><span class="visually-hidden">搜尋預設</span><input id="preset-search" type="search" placeholder="搜尋預設"></label>
+          </div>
+          <div id="preset-list" class="preset-list" aria-live="polite"></div>
+        </section>
+      </section>
 
       <section id="workflow-panel" class="panel workflow-panel" aria-labelledby="workflow-title">
         <header class="workflow-hero">
@@ -619,7 +662,7 @@
               <h3 id="data-title">JSON / CSV</h3>
               <span class="badge">文字資料</span>
             </div>
-            <div class="segmented" role="tablist" aria-label="資料模式">
+            <div class="segmented" role="group" aria-label="資料處理模式">
               <button type="button" class="segment is-active" data-data-mode="json-format">JSON 美化</button>
               <button type="button" class="segment" data-data-mode="json-minify">JSON 壓縮</button>
               <button type="button" class="segment" data-data-mode="csv-json">CSV → JSON</button>
@@ -670,7 +713,7 @@
               <h3 id="text-title">文字編碼</h3>
               <span class="badge">Base64 / URL / HTML</span>
             </div>
-            <div class="segmented compact-segments" role="tablist" aria-label="文字模式">
+            <div class="segmented compact-segments" role="group" aria-label="文字處理模式">
               <button type="button" class="segment is-active" data-text-mode="base64-encode">Base64 編碼</button>
               <button type="button" class="segment" data-text-mode="base64-decode">Base64 解碼</button>
               <button type="button" class="segment" data-text-mode="url-encode">URL 編碼</button>
@@ -1222,13 +1265,64 @@
       </section>
     </main>
     <nav class="mobile-primary-nav" aria-label="手機主要導航">
-      <button class="is-active" type="button" data-mobile-panel="home-panel"><span>⌂</span>首頁</button>
-      <button type="button" data-mobile-panel="image-panel"><span>▧</span>圖片</button>
-      <button type="button" data-mobile-panel="pdf-panel"><span>▤</span>PDF</button>
-      <button type="button" data-mobile-panel="tasks-panel"><span>◷</span>任務</button>
-      <button id="mobile-more-tools" type="button"><span>☰</span>更多</button>
+      <button class="is-active" type="button" data-mobile-panel="home-panel"><span aria-hidden="true">⌂</span>首頁</button>
+      <button type="button" data-mobile-panel="image-panel"><span aria-hidden="true">▧</span>圖片</button>
+      <button type="button" data-mobile-panel="pdf-panel"><span aria-hidden="true">▤</span>PDF</button>
+      <button type="button" data-mobile-panel="tasks-panel"><span aria-hidden="true">◷</span>任務</button>
+      <button id="mobile-more-tools" type="button"><span aria-hidden="true">☰</span>更多</button>
     </nav>
   </div>
+
+  <dialog id="preset-dialog" class="info-dialog preset-dialog" aria-labelledby="preset-dialog-title">
+    <form id="preset-dialog-form" class="dialog-card">
+      <header>
+        <div><p class="eyebrow">保存到這部裝置</p><h2 id="preset-dialog-title">儲存目前設定</h2></div>
+        <button id="preset-dialog-close" class="dialog-close" type="button" aria-label="關閉預設視窗">×</button>
+      </header>
+      <label><span>預設名稱</span><input id="preset-name" type="text" maxlength="40" required autocomplete="off" placeholder="例如：每週報告 PDF"></label>
+      <div class="preset-save-preview">
+        <span>來源工具</span><strong id="preset-source-tool">—</strong>
+        <span>將會保存</span><strong id="preset-field-count">0 項安全選項</strong>
+      </div>
+      <p class="dialog-lead">不會保存選擇的檔案、文字內容、浮水印文字、密碼、檔名或本機路徑。</p>
+      <footer><button id="preset-dialog-cancel" class="secondary-button" type="button">取消</button><button class="primary-button" type="submit">儲存預設</button></footer>
+    </form>
+  </dialog>
+
+  <dialog id="privacy-dialog" class="info-dialog" aria-labelledby="privacy-dialog-title" aria-describedby="privacy-dialog-summary">
+    <form method="dialog" class="dialog-card">
+      <header>
+        <div><p class="eyebrow">清楚交代資料去向</p><h2 id="privacy-dialog-title">私隱與資料處理</h2></div>
+        <button class="dialog-close" type="submit" value="close" aria-label="關閉私隱說明">×</button>
+      </header>
+      <p id="privacy-dialog-summary" class="dialog-lead">SwiftLocal 不設帳戶、雲端上載或使用分析。不同處理模式仍有以下本機資料差異。</p>
+      <div class="privacy-grid">
+        <section><span class="privacy-mode memory">瀏覽器記憶體</span><h3>基礎工具</h3><p>圖片、PDF 工作台、ZIP、文字及資料主要在目前頁面的記憶體處理。只有按下下載後，結果才會寫入你選擇的下載位置。</p></section>
+        <section><span class="privacy-mode disk">本機磁碟</span><h3>桌面進階處理</h3><p>影音、Office、OCR、工作流程及進階 PDF 會把選定檔案交給這部電腦的本機服務，並把結果寫入本機輸出資料夾。</p></section>
+        <section><span class="privacy-mode history">本機紀錄</span><h3>設定與任務歷史</h3><p>主題、顯示偏好、常用預設、工作流程、檔名及本機路徑可能儲存在此裝置，方便恢復狀態。預設不保存內容或密碼，工作流程的 PDF 密碼亦不會寫入歷史。</p></section>
+        <section><span class="privacy-mode network">只連本機</span><h3>網絡連線</h3><p>程式只會按需要連接這部電腦的 <code>127.0.0.1</code> 處理服務；目前沒有第三方分析、廣告或遙測連線。</p></section>
+      </div>
+      <div class="dialog-note"><strong>你可以控制的資料</strong><span>任務中心可刪除已結束任務；重新整理頁面會清除未下載的瀏覽器記憶體結果。桌面輸出檔需由你在檔案系統自行刪除。</span></div>
+      <footer><button class="primary-button" type="submit" value="close">明白</button></footer>
+    </form>
+  </dialog>
+
+  <dialog id="accessibility-dialog" class="info-dialog accessibility-dialog" aria-labelledby="accessibility-dialog-title">
+    <form method="dialog" class="dialog-card">
+      <header>
+        <div><p class="eyebrow">依你的需要顯示</p><h2 id="accessibility-dialog-title">無障礙顯示設定</h2></div>
+        <button class="dialog-close" type="submit" value="close" aria-label="關閉顯示設定">×</button>
+      </header>
+      <fieldset class="accessibility-options">
+        <legend class="visually-hidden">顯示選項</legend>
+        <label><input id="accessibility-large-text" type="checkbox"><span><strong>放大文字</strong><small>增加介面文字及控制項尺寸</small></span></label>
+        <label><input id="accessibility-high-contrast" type="checkbox"><span><strong>高對比</strong><small>加深文字及邊框，減少低對比背景</small></span></label>
+        <label><input id="accessibility-reduce-motion" type="checkbox"><span><strong>減少動畫</strong><small>停止進度脈衝及滑動效果</small></span></label>
+      </fieldset>
+      <p class="dialog-lead">鍵盤使用者可按 <kbd>Tab</kbd> 移動、按 <kbd>Enter</kbd> 操作，並隨時用頁首的「跳到主要內容」連結略過導航。</p>
+      <footer><button class="secondary-button" id="accessibility-reset" type="button">恢復預設</button><button class="primary-button" type="submit" value="close">完成</button></footer>
+    </form>
+  </dialog>
 
   <script src="vendor/pdf-lib.min.js"></script>
   <script src="vendor/qrcode.min.js"></script>
