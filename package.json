@@ -39,6 +39,7 @@
     "typecheck": "node --check frontend/app.js && node --check desktop/main.js && node --check desktop/preload.js && node --check desktop/backend.js && node --check scripts/smoke-release.js && node --check scripts/run-tests.js && node --check scripts/ensure-tessdata.js && node --check scripts/build-win-full.js && node --check scripts/pack-win.js && node --check scripts/check-pack-ready.js",
     "tools:tessdata": "node scripts/ensure-tessdata.js --download",
     "tools:tessdata:check": "node scripts/ensure-tessdata.js --require-full",
+    "tools:populate": "node scripts/populate-tools-from-system.js",
     "check:pack": "node scripts/check-pack-ready.js",
     "check:pack:full": "node scripts/check-pack-ready.js --full"
   },

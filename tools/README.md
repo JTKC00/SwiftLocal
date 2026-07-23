@@ -44,6 +44,16 @@ npm run tools:tessdata
 npm run tools:tessdata:check
 ```
 
+### 從本機安裝一鍵複製到 tools/（Windows）
+
+若已用官方安裝程式裝過 Tesseract／FFmpeg／QPDF／LibreOffice：
+
+```bash
+npm run tools:populate    # 複製到 tools/（LibreOffice 較大，需數分鐘）
+npm run tools:tessdata    # 確保 eng + chi_tra + osd
+npm run check:pack        # 或 check:pack:full
+```
+
 ### 打包前一鍵檢查（建議）
 
 ```bash
