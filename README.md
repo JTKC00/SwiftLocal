@@ -1,6 +1,6 @@
 # 快轉通 SwiftLocal
 
-**版本 0.2.0** · 本機優先的檔案工具箱。把常用的圖片、PDF、文件、影音、文字、資料格式、ZIP、雜湊與小工具集中到一個介面，不用記命令列也能完成日常檔案處理。
+**版本 0.3.0** · 本機優先的檔案工具箱。把常用的圖片、PDF、文件、影音、文字、資料格式、ZIP、雜湊與小工具集中到一個介面，不用記命令列也能完成日常檔案處理。
 
 它不是要取代 LibreOffice、FFmpeg、Tesseract 或 QPDF，而是把這些工具整合成較好用的桌面工作台。Windows 打包版可內建 FFmpeg、Tesseract 與 QPDF；LibreOffice 體積較大，建議可選安裝或 Full 版內建。
 
@@ -63,8 +63,8 @@
 
 目前建議交付的 Windows 成品會在 `dist/` 產生（版本號隨 `package.json`）：
 
-- `SwiftLocal-0.2.0-portable-x64.exe`：免安裝版，雙擊即可使用。
-- `SwiftLocal-0.2.0-installer-x64.exe`：安裝版，會建立開始功能表與桌面捷徑。
+- `SwiftLocal-0.3.0-portable-x64.exe`：免安裝版，雙擊即可使用。
+- `SwiftLocal-0.3.0-installer-x64.exe`：安裝版，會建立開始功能表與桌面捷徑。
 - `win-unpacked/`：未封裝資料夾，主要供開發測試，不建議作為正式發佈檔。
 
 Full 版（含可選大量工具）可用 `npm run pack:win:full`，產物在 `dist-full/`。

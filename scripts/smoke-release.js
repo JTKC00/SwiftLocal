@@ -16,6 +16,7 @@ const root = path.resolve(__dirname, "..");
 const fixtureDir = path.join(root, "smoke-temp", "release-queue-check", "input");
 const outRoot = path.join(root, "smoke-temp", "release-smoke-out");
 const version = require("../package.json").version;
+const skipUnitTests = process.argv.includes("--skip-tests");
 
 function fail(message) {
   console.error(`FAIL: ${message}`);
@@ -256,9 +257,13 @@ async function main() {
   console.log(`root: ${root}`);
 
   syntaxChecks();
-  const testsOk = runUnitTests();
-  if (!testsOk) {
-    process.exit(1);
+  if (skipUnitTests) {
+    console.log("\n=== unit tests skipped (already run separately) ===");
+  } else {
+    const testsOk = runUnitTests();
+    if (!testsOk) {
+      process.exit(1);
+    }
   }
   await conversionSmoke();
 

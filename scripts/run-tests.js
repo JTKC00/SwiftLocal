@@ -15,7 +15,8 @@ function run(command, args, label) {
   const result = spawnSync(command, args, {
     cwd: root,
     stdio: "inherit",
-    shell: process.platform === "win32"
+    shell: false,
+    windowsHide: true
   });
   if (result.error) {
     console.error(result.error);
@@ -25,18 +26,26 @@ function run(command, args, label) {
 }
 
 function pythonCmd() {
-  // Prefer py -3 on Windows, else python3 / python
+  const candidates = [];
+  if (process.env.SWIFTLOCAL_PYTHON) {
+    candidates.push({ cmd: process.env.SWIFTLOCAL_PYTHON, prefix: [] });
+  }
   if (process.platform === "win32") {
-    const probe = spawnSync("py", ["-3", "-c", "print(1)"], { shell: true });
+    candidates.push({ cmd: "py", prefix: ["-3"] });
+  }
+  candidates.push({ cmd: "python3", prefix: [] }, { cmd: "python", prefix: [] });
+
+  for (const candidate of candidates) {
+    const probe = spawnSync(
+      candidate.cmd,
+      [...candidate.prefix, "-c", "import sys, unittest, pypdf; print(sys.executable)"],
+      { shell: false, windowsHide: true, encoding: "utf8" }
+    );
     if (probe.status === 0) {
-      return { cmd: "py", prefix: ["-3"] };
+      return candidate;
     }
   }
-  const py3 = spawnSync("python3", ["-c", "print(1)"], { shell: true });
-  if (py3.status === 0) {
-    return { cmd: "python3", prefix: [] };
-  }
-  return { cmd: "python", prefix: [] };
+  return null;
 }
 
 let code = 0;
@@ -44,9 +53,14 @@ let code = 0;
 code = run("node", ["--test", "tests/desktop/backend.test.js"], "Desktop (Node)") || code;
 
 const py = pythonCmd();
-code =
-  run(py.cmd, [...py.prefix, "-m", "unittest", "tests.backend.test_core", "-v"], "Backend (Python)") ||
-  code;
+if (!py) {
+  console.error("\nNo compatible Python runtime found. Install backend/requirements.txt or set SWIFTLOCAL_PYTHON.");
+  code = 1;
+} else {
+  code =
+    run(py.cmd, [...py.prefix, "-m", "unittest", "tests.backend.test_core", "-v"], "Backend (Python)") ||
+    code;
+}
 
 console.log(code === 0 ? "\nAll tests passed." : "\nSome tests failed.");
 process.exit(code);

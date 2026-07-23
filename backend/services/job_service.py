@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import json
 import shutil
@@ -5,8 +7,10 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from fastapi import UploadFile
+if TYPE_CHECKING:
+    from fastapi import UploadFile
 
 from .conversion_service import (
     ALLOWED_PDF_TO_OFFICE_EXTENSIONS,
