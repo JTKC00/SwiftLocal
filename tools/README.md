@@ -44,6 +44,23 @@ npm run tools:tessdata
 npm run tools:tessdata:check
 ```
 
+### 打包前一鍵檢查（建議）
+
+```bash
+npm run check:pack        # 一般版：tesseract.exe + chi_tra/eng/osd + ffmpeg + qpdf
+npm run check:pack:full   # Full：上述 + LibreOffice soffice
+```
+
+缺什麼會用中文列出並 exit 1；通過後再：
+
+```bash
+npm run pack:win
+# 或
+npm run pack:win:full
+```
+
+`pack:win` / `pack:win:full` 也會自動跑此檢查。
+
 Optional LibreOffice layout:
 
 ```text

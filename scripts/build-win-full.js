@@ -26,7 +26,18 @@ if (!tesseractPath) {
   process.exit(1);
 }
 
-// Ensure eng + chi_tra (+ osd) language packs are present for default chi_tra+eng OCR.
+console.log("=== Full pack readiness check ===");
+const ready = spawnSync(
+  process.execPath,
+  [path.join(__dirname, "check-pack-ready.js"), "--full"],
+  { cwd: projectRoot, stdio: "inherit" }
+);
+if (ready.status !== 0) {
+  console.error("Full build aborted. Fix items above, then: npm run check:pack:full");
+  process.exit(ready.status || 1);
+}
+
+// Refresh eng + chi_tra (+ osd) for default chi_tra+eng OCR.
 console.log("=== ensure tessdata (eng, chi_tra) for Full build ===");
 const tessdataResult = spawnSync(
   process.execPath,

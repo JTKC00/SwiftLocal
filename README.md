@@ -67,7 +67,13 @@
 
 SmartScreen 若提示「未知發行者」：選「仍要執行」即可（目前未做程式碼簽章）。
 
-開發者打包時才需：`npm run tools:tessdata`（Full 會強制檢查繁中語言包）。
+開發者打包前建議：
+
+```bash
+npm run check:pack        # 或缺什麼會紅字列出
+npm run tools:tessdata    # 補齊 chi_tra/eng
+npm run pack:win          # 或 pack:win:full
+```
 
 ### macOS
 

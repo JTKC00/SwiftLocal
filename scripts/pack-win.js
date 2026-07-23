@@ -11,7 +11,18 @@ const projectRoot = path.resolve(__dirname, "..");
 const electronBuilderCli = require.resolve("electron-builder/out/cli/cli.js");
 const builderArgs = process.argv.slice(2);
 
-console.log("=== ensure tessdata (best-effort for end-user OCR defaults) ===");
+console.log("=== pack readiness check ===");
+const ready = spawnSync(
+  process.execPath,
+  [path.join(__dirname, "check-pack-ready.js")],
+  { cwd: projectRoot, stdio: "inherit" }
+);
+if (ready.status !== 0) {
+  console.error("Pack aborted: fix items above, then re-run npm run pack:win");
+  process.exit(ready.status || 1);
+}
+
+console.log("=== ensure tessdata (best-effort refresh) ===");
 const tess = spawnSync(
   process.execPath,
   [path.join(__dirname, "ensure-tessdata.js"), "--download"],
