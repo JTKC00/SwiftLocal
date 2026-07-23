@@ -1,10 +1,19 @@
 import asyncio
 import re
+import shutil
 import subprocess
+import zipfile
 from contextvars import ContextVar
 from pathlib import Path
+from xml.sax.saxutils import escape as xml_escape
 
 from .tools_service import tools_service
+
+# Windows STATUS_STACK_BUFFER_OVERRUN / fail-fast abort (ucrtbase.dll).
+# Unsigned decimal 3221226505 == signed -1073740791 == 0xC0000409.
+WIN_STATUS_STACK_BUFFER_OVERRUN = 0xC0000409
+WIN_STATUS_STACK_BUFFER_OVERRUN_SIGNED = -1073740791
+WIN_STATUS_STACK_BUFFER_OVERRUN_UNSIGNED = 3221226505
 
 # Job cancellation: set by JobService, checked/killed inside run_process.
 _current_job_id: ContextVar[str | None] = ContextVar("swiftlocal_job_id", default=None)
@@ -55,6 +64,8 @@ async def convert_office_to_pdf(input_paths: list[Path], output_dir: Path) -> tu
     for input_path in input_paths:
         ensure_not_cancelled()
         profile_dir = output_dir / f"{input_path.stem}_lo_profile"
+        if profile_dir.exists():
+            cleanup_lo_profile(profile_dir)
         profile_dir.mkdir(parents=True, exist_ok=True)
         profile_uri = profile_dir.resolve().as_posix()
         args = [
@@ -71,10 +82,13 @@ async def convert_office_to_pdf(input_paths: list[Path], output_dir: Path) -> tu
             str(input_path),
         ]
         before = snapshot_output_dir(output_dir)
-        log = await run_process(str(tool["path"]), args, timeout=180)
-        output_path = resolve_libreoffice_output(output_dir, input_path, "pdf", before)
-        logs.append(log or f"converted: {input_path.name} -> {output_path.name}")
-        outputs.append(output_path)
+        try:
+            log = await run_process(str(tool["path"]), args, timeout=180, tool_label="LibreOffice")
+            output_path = resolve_libreoffice_output(output_dir, input_path, "pdf", before)
+            logs.append(log or f"converted: {input_path.name} -> {output_path.name}")
+            outputs.append(output_path)
+        finally:
+            cleanup_lo_profile(profile_dir)
 
     return outputs, logs
 
@@ -88,20 +102,517 @@ _OFFICE_FILTER_MAP: dict[str, str] = {
 
 ALLOWED_PDF_TO_OFFICE_EXTENSIONS = frozenset(_OFFICE_FILTER_MAP.keys())
 
+OCR_PDF_MAX_PAGES_DEFAULT = 50
+OCR_PDF_MAX_PAGES_HARD_LIMIT = 100
+OCR_PDF_RENDER_SCALE = 2.0
 
-async def convert_pdf_to_office(input_paths: list[Path], output_dir: Path, extension: str) -> tuple[list[Path], list[str]]:
-    tool = await tools_service.require_tool("libreOffice")
+
+DOCX_FALLBACK_LOG = (
+    "LibreOffice 無法完成轉換，已改用相容模式建立 DOCX；版面可能與原 PDF 不完全一致。"
+)
+DOCX_COMPAT_DIRECT_LOG = (
+    "已依設定直接使用相容模式建立 DOCX（略過 LibreOffice）；版面可能與原 PDF 不完全一致。"
+)
+DOCX_FALLBACK_MISSING_ENGINE = (
+    "LibreOffice 無法完成轉換，而且 PDF→DOCX 相容引擎未安裝。"
+    "請安裝 backend/requirements.txt 後重試。"
+)
+DOCX_SCAN_OCR_HINT = (
+    "此 PDF 可抽取文字很少（可能是掃描件）。若 DOCX 幾乎空白，"
+    "請改用「掃描 PDF → OCR 文字」後再處理，或先以 OCR 建立可搜尋 PDF。"
+)
+DOCX_OCR_PIPELINE_LOG = (
+    "已使用 OCR→DOCX 管線建立文件（掃描／低文字 PDF）；內容為純文字段落，版面與原圖不同。"
+)
+EXPERIMENTAL_OFFICE_NOTE = (
+    "實驗性轉換：PDF 並非試算表／簡報／原始 Office 文件，版面及內容結構可能不完整。"
+    "正式用途建議輸出 DOCX（可自動相容模式）。"
+)
+
+
+def pdf2docx_available() -> bool:
+    try:
+        import pdf2docx  # noqa: F401
+        return True
+    except ImportError:
+        return False
+
+
+def pdf2docx_status() -> dict[str, str | bool]:
+    """Status entry for tools / capability UI."""
+    try:
+        import pdf2docx
+
+        version = getattr(pdf2docx, "__version__", "") or ""
+        return {
+            "available": True,
+            "label": "PDF→DOCX 相容引擎",
+            "path": "",
+            "version": str(version) if version else "pdf2docx",
+            "source": "python",
+        }
+    except ImportError:
+        return {
+            "available": False,
+            "label": "PDF→DOCX 相容引擎",
+            "path": "",
+            "version": "",
+            "source": "python",
+        }
+
+
+def is_windows_stack_buffer_overrun(returncode: int | None) -> bool:
+    if returncode is None:
+        return False
+    if returncode in (
+        WIN_STATUS_STACK_BUFFER_OVERRUN_SIGNED,
+        WIN_STATUS_STACK_BUFFER_OVERRUN_UNSIGNED,
+        WIN_STATUS_STACK_BUFFER_OVERRUN,
+    ):
+        return True
+    # Normalize signed 32-bit codes to unsigned.
+    unsigned = returncode & 0xFFFFFFFF
+    return unsigned == WIN_STATUS_STACK_BUFFER_OVERRUN
+
+
+def normalize_returncode_display(returncode: int | None) -> str:
+    if returncode is None:
+        return "unknown"
+    unsigned = returncode & 0xFFFFFFFF
+    if unsigned == WIN_STATUS_STACK_BUFFER_OVERRUN or is_windows_stack_buffer_overrun(returncode):
+        return f"0xC0000409 ({returncode})"
+    if returncode < 0 or unsigned > 0x7FFFFFFF:
+        return f"0x{unsigned:08X} ({returncode})"
+    return str(returncode)
+
+
+def looks_like_libreoffice_store_failure(text: str) -> bool:
+    lowered = (text or "").lower()
+    return (
+        "impl_store" in lowered
+        or "sfxbasemodel::impl_store" in lowered
+        or ("error area:io" in lowered and "class:write" in lowered)
+        or "class:write code:16" in lowered
+        or "io class:write" in lowered
+    )
+
+
+def looks_like_unsupported_export_filter(text: str) -> bool:
+    lowered = (text or "").lower()
+    return (
+        "unknown export filter" in lowered
+        or "no export filter" in lowered
+        or "could not find filter" in lowered
+        or "unsupported filter" in lowered
+        or "filter not found" in lowered
+    )
+
+
+def format_process_error(
+    *,
+    returncode: int | None = None,
+    stdout: str = "",
+    stderr: str = "",
+    timeout: bool = False,
+    timeout_seconds: int | None = None,
+    executable: str = "",
+    tool_label: str = "LibreOffice",
+    not_found: bool = False,
+    permission_denied: bool = False,
+    output_missing: bool = False,
+    expected_output: str = "",
+) -> str:
+    """
+    Build a user-facing Traditional Chinese process error with optional technical details.
+    Never return only a raw exit code.
+    """
+    combined = f"{stdout or ''}\n{stderr or ''}".strip()
+    summary = ""
+    suggestion = ""
+
+    if timeout:
+        secs = timeout_seconds if timeout_seconds is not None else "?"
+        summary = f"{tool_label} 轉換逾時（{secs} 秒）。檔案可能過大或文件引擎卡住。"
+        suggestion = "請縮短頁數後重試，或改用較簡單的 PDF／其他輸出格式。"
+    elif not_found:
+        path_hint = f"（{executable}）" if executable else ""
+        summary = f"找不到 {tool_label} 執行檔{path_hint}。"
+        suggestion = "請到「狀態」頁安裝或指定正確的工具路徑後重試。"
+    elif permission_denied:
+        path_hint = f"（{executable}）" if executable else ""
+        summary = f"沒有權限執行 {tool_label}{path_hint}。"
+        suggestion = "請以具足夠權限的帳戶執行，或檢查防毒／檔案權限設定。"
+    elif output_missing:
+        expected = expected_output or "輸出檔"
+        summary = f"{tool_label} 執行結束，但未產生輸出檔（預期：{expected}）。"
+        suggestion = "原始檔案未被修改。請確認 PDF 未損壞，或改試其他格式／相容模式。"
+    elif is_windows_stack_buffer_overrun(returncode):
+        summary = (
+            "LibreOffice 轉換程序意外崩潰（Windows 0xC0000409）。"
+            "這通常表示 LibreOffice 無法把此 PDF 匯出成所選 Office 格式。"
+            "原始 PDF 並未被修改。"
+        )
+        suggestion = "若目標為 DOCX，系統會自動嘗試相容模式；其他格式請改試 DOCX 或更新 LibreOffice。"
+    elif looks_like_libreoffice_store_failure(combined):
+        summary = (
+            "LibreOffice 無法寫入 Office 輸出檔（SfxBaseModel::impl_store / Io Class:Write）。"
+            "原始 PDF 並未被修改。"
+        )
+        suggestion = "請確認輸出資料夾可寫入；DOCX 將自動嘗試相容模式。"
+    elif looks_like_unsupported_export_filter(combined):
+        summary = f"{tool_label} 不支援此匯出篩選器或格式。"
+        suggestion = "請改選其他 Office 格式，或更新 LibreOffice。"
+    elif returncode not in (None, 0):
+        summary = f"{tool_label} 轉換失敗（退出碼 {normalize_returncode_display(returncode)}）。原始檔案並未被修改。"
+        suggestion = "請檢查輸入檔是否完整，或改試其他輸出格式。"
+    else:
+        summary = f"{tool_label} 轉換失敗。原始檔案並未被修改。"
+        suggestion = "請檢查輸入檔後重試。"
+
+    parts = [summary]
+    if suggestion:
+        parts.append(f"建議：{suggestion}")
+    if combined:
+        # Cap technical dump so job cards stay usable.
+        detail = combined if len(combined) <= 4000 else combined[:4000] + "\n…（已截斷）"
+        parts.append(f"【技術詳情】\n{detail}")
+    elif returncode not in (None, 0) and not timeout:
+        parts.append(f"【技術詳情】\nexit code={normalize_returncode_display(returncode)}")
+        if executable:
+            parts.append(f"executable={executable}")
+    return "\n".join(parts)
+
+
+def should_try_docx_fallback(error: BaseException | str) -> bool:
+    """DOCX-only: any LibreOffice failure may fall back to pdf2docx."""
+    text = str(error or "")
+    if not text:
+        return True
+    # Explicit signals (crash / store / missing output / non-zero) — all LO failures qualify.
+    return True
+
+
+def remove_incomplete_office_output(path: Path, *, min_bytes: int = 64, force: bool = False) -> bool:
+    """Delete zero-byte / incomplete Office outputs (or any file if force=True). Returns True if removed."""
+    try:
+        if not path.is_file():
+            return False
+        size = path.stat().st_size
+        if force or size < min_bytes:
+            path.unlink(missing_ok=True)
+            return True
+    except OSError:
+        return False
+    return False
+
+
+def cleanup_lo_profile(profile_dir: Path) -> None:
+    try:
+        if profile_dir.exists():
+            shutil.rmtree(profile_dir, ignore_errors=True)
+    except OSError:
+        pass
+
+
+def sanitize_docx_engine(value: str | None) -> str:
+    """auto = LibreOffice then pdf2docx; compat = skip LibreOffice (DOCX only)."""
+    text = (value or "auto").strip().lower()
+    if text in {"auto", "compat", "compatible", "pdf2docx"}:
+        return "compat" if text in {"compat", "compatible", "pdf2docx"} else "auto"
+    raise ValueError("docxEngine must be 'auto' or 'compat'")
+
+
+def sanitize_scan_ocr(value: str | None) -> str:
+    """auto = OCR when low text; force = always OCR→DOCX; off = never."""
+    text = (value or "auto").strip().lower()
+    if text in {"", "auto"}:
+        return "auto"
+    if text in {"force", "on", "1", "true", "yes"}:
+        return "force"
+    if text in {"off", "0", "false", "no", "never"}:
+        return "off"
+    raise ValueError("scanOcr must be 'auto', 'force', or 'off'")
+
+
+def pdf_extractable_text_chars(input_path: Path, max_pages: int = 3) -> int:
+    """Rough count of extractable text; low values often mean scanned/image-only PDFs."""
+    try:
+        from pypdf import PdfReader  # lazy import
+    except ImportError:
+        return -1
+    try:
+        reader = PdfReader(str(input_path))
+        total = 0
+        for index, page in enumerate(reader.pages):
+            if index >= max_pages:
+                break
+            try:
+                total += len((page.extract_text() or "").strip())
+            except Exception:
+                continue
+        return total
+    except Exception:
+        return -1
+
+
+def maybe_scan_ocr_hint(input_path: Path) -> str | None:
+    chars = pdf_extractable_text_chars(input_path)
+    if chars >= 0 and chars < 40:
+        return DOCX_SCAN_OCR_HINT
+    return None
+
+
+def write_text_docx_sync(output_path: Path, text: str, *, title: str = "SwiftLocal OCR Export") -> None:
+    """Write a minimal OOXML .docx from plain text (no python-docx dependency)."""
+    body = (text or "").replace("\r\n", "\n").replace("\r", "\n")
+    paragraphs = body.split("\n") if body else [""]
+    runs: list[str] = []
+    for line in paragraphs:
+        # Empty lines become empty paragraphs for spacing.
+        runs.append(
+            f'<w:p><w:r><w:t xml:space="preserve">{xml_escape(line)}</w:t></w:r></w:p>'
+        )
+    document_xml = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
+        f'<w:body>{"".join(runs)}<w:sectPr/></w:body></w:document>'
+    )
+    content_types = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>
+  <Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>
+</Types>"""
+    rels = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/>
+  <Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/>
+</Relationships>"""
+    doc_rels = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"/>"""
+    safe_title = xml_escape(title or "SwiftLocal")
+    core = f"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <dc:title>{safe_title}</dc:title>
+  <dc:creator>SwiftLocal</dc:creator>
+  <cp:lastModifiedBy>SwiftLocal</cp:lastModifiedBy>
+</cp:coreProperties>"""
+    app = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties">
+  <Application>SwiftLocal</Application>
+</Properties>"""
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with zipfile.ZipFile(output_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("[Content_Types].xml", content_types)
+        zf.writestr("_rels/.rels", rels)
+        zf.writestr("word/document.xml", document_xml)
+        zf.writestr("word/_rels/document.xml.rels", doc_rels)
+        zf.writestr("docProps/core.xml", core)
+        zf.writestr("docProps/app.xml", app)
+
+
+async def tesseract_available() -> bool:
+    try:
+        tools = await tools_service.detect_tools()
+        tool = tools.get("tesseract")
+        return bool(tool and tool.get("available"))
+    except Exception:
+        return False
+
+
+async def convert_pdf_to_docx_via_ocr(
+    input_path: Path,
+    output_dir: Path,
+    *,
+    language: str = "eng",
+    max_pages: int = OCR_PDF_MAX_PAGES_DEFAULT,
+    prior_error: BaseException | None = None,
+) -> tuple[Path, list[str]]:
+    """Rasterize + Tesseract OCR, then write a plain-text DOCX."""
+    ensure_not_cancelled()
+    require_unencrypted_pdf(input_path)
+    ocr_work = output_dir / f"{input_path.stem}_ocr_docx_work"
+    if ocr_work.exists():
+        shutil.rmtree(ocr_work, ignore_errors=True)
+    ocr_work.mkdir(parents=True, exist_ok=True)
+    logs: list[str] = []
+    if prior_error is not None:
+        logs.append(str(prior_error))
+    try:
+        txt_paths, ocr_logs = await ocr_pdf([input_path], ocr_work, language, max_pages)
+        logs.extend(ocr_logs)
+        if not txt_paths or not txt_paths[0].is_file():
+            raise RuntimeError("OCR 未產生文字檔")
+        text = txt_paths[0].read_text(encoding="utf-8", errors="replace")
+        if not text.strip():
+            raise RuntimeError("OCR 結果為空（請確認語言代碼或影像品質）")
+        final_path = output_dir / f"{input_path.stem}.docx"
+        if final_path.exists():
+            remove_incomplete_office_output(final_path, force=True)
+        await asyncio.to_thread(
+            write_text_docx_sync, final_path, text, title=f"{input_path.stem} (OCR)"
+        )
+        if not final_path.is_file() or final_path.stat().st_size < 64:
+            raise RuntimeError("OCR→DOCX 未產生有效輸出檔")
+        logs.append(DOCX_OCR_PIPELINE_LOG)
+        logs.append(f"converted (ocr): {input_path.name} -> {final_path.name}")
+        return final_path, logs
+    finally:
+        shutil.rmtree(ocr_work, ignore_errors=True)
+
+
+async def _convert_pdf_to_docx_compat(
+    input_path: Path,
+    output_dir: Path,
+    *,
+    reason_log: str,
+    prior_error: BaseException | None = None,
+    scan_ocr: str = "auto",
+    language: str = "eng",
+    max_pages: int = OCR_PDF_MAX_PAGES_DEFAULT,
+) -> tuple[Path, list[str]]:
+    """pdf2docx and/or OCR→DOCX depending on scanOcr and extractable text."""
+    ensure_not_cancelled()
+    mode = sanitize_scan_ocr(scan_ocr)
+    low_text = maybe_scan_ocr_hint(input_path) is not None
+    want_ocr = mode == "force" or (mode == "auto" and low_text)
+    can_ocr = await tesseract_available()
+
+    if want_ocr and can_ocr:
+        try:
+            return await convert_pdf_to_docx_via_ocr(
+                input_path,
+                output_dir,
+                language=language,
+                max_pages=max_pages,
+                prior_error=prior_error,
+            )
+        except Exception as ocr_error:
+            if mode == "force":
+                detail = f"\n【技術詳情】\n{ocr_error}"
+                if prior_error:
+                    detail += f"\n先前：{prior_error}"
+                raise RuntimeError(
+                    "OCR→DOCX 失敗。請確認 Tesseract 與語言資料已安裝，並檢查影像品質。"
+                    + detail
+                ) from ocr_error
+            # auto: fall through to pdf2docx
+            prior_error = ocr_error if prior_error is None else prior_error
+
+    if not pdf2docx_available():
+        if want_ocr and not can_ocr:
+            raise RuntimeError(
+                "此 PDF 文字很少，需要 OCR→DOCX，但 Tesseract 不可用。"
+                "請到「狀態」頁安裝／指定 Tesseract，或關閉掃描 OCR 並安裝 pdf2docx。"
+            ) from prior_error
+        detail = f"\n【技術詳情】\n{prior_error}" if prior_error else ""
+        raise RuntimeError(DOCX_FALLBACK_MISSING_ENGINE + detail) from prior_error
+
+    ensure_not_cancelled()
+    expected_name = f"{input_path.stem}.docx"
+    final_path = output_dir / expected_name
+    temp_path = output_dir / f"{input_path.stem}.pdf2docx.tmp.docx"
+    logs: list[str] = []
+    if prior_error is not None:
+        logs.append(str(prior_error))
+    logs.append(reason_log)
+    try:
+        if temp_path.exists():
+            temp_path.unlink(missing_ok=True)
+        await asyncio.to_thread(_pdf_to_docx_sync, input_path, temp_path)
+        if not temp_path.is_file() or temp_path.stat().st_size < 64:
+            remove_incomplete_office_output(temp_path)
+            raise RuntimeError("相容模式未產生有效的 DOCX 輸出檔")
+        if final_path.exists():
+            remove_incomplete_office_output(final_path, force=True)
+        temp_path.replace(final_path)
+    except Exception as fallback_error:
+        remove_incomplete_office_output(temp_path)
+        remove_incomplete_office_output(final_path)
+        # Last resort: OCR if allowed and not yet forced-only failure path
+        if mode != "off" and can_ocr:
+            try:
+                return await convert_pdf_to_docx_via_ocr(
+                    input_path,
+                    output_dir,
+                    language=language,
+                    max_pages=max_pages,
+                    prior_error=fallback_error,
+                )
+            except Exception:
+                pass
+        if isinstance(fallback_error, RuntimeError) and "相容引擎未安裝" in str(fallback_error):
+            raise
+        if prior_error is not None:
+            raise RuntimeError(
+                "LibreOffice 與相容模式皆無法完成 PDF→DOCX 轉換。"
+                f"\n建議：確認 PDF 未加密／未損毀；掃描件請開啟 OCR→DOCX。並安裝 backend/requirements.txt。\n"
+                f"【技術詳情】\nLibreOffice：{prior_error}\n相容模式：{fallback_error}"
+            ) from fallback_error
+        raise RuntimeError(
+            f"相容模式無法完成 PDF→DOCX 轉換。\n建議：確認 PDF 未加密；掃描件請用 OCR→DOCX。\n【技術詳情】\n{fallback_error}"
+        ) from fallback_error
+
+    hint = maybe_scan_ocr_hint(input_path)
+    if hint:
+        logs.append(hint)
+    logs.append(f"converted (compat): {input_path.name} -> {final_path.name}")
+    return final_path, logs
+
+
+async def convert_pdf_to_office(
+    input_paths: list[Path],
+    output_dir: Path,
+    extension: str,
+    docx_engine: str = "auto",
+    scan_ocr: str = "auto",
+    language: str = "eng",
+    max_pages: int = OCR_PDF_MAX_PAGES_DEFAULT,
+) -> tuple[list[Path], list[str]]:
     clean_extension = sanitize_extension(extension or "docx")
     if clean_extension not in ALLOWED_PDF_TO_OFFICE_EXTENSIONS:
         raise ValueError(f"Unsupported Office extension: {clean_extension}. Allowed: {sorted(ALLOWED_PDF_TO_OFFICE_EXTENSIONS)}")
-    filter_name = _OFFICE_FILTER_MAP[clean_extension]
-    convert_to = f"{clean_extension}:{filter_name}"
+    engine = sanitize_docx_engine(docx_engine)
+    ocr_mode = sanitize_scan_ocr(scan_ocr)
+    if engine == "compat" and clean_extension != "docx":
+        raise ValueError("docxEngine=compat 僅適用於 DOCX 輸出")
+
     logs: list[str] = []
     outputs: list[Path] = []
+    lo_timeout = 180
+    page_limit = max(1, min(int(max_pages or OCR_PDF_MAX_PAGES_DEFAULT), OCR_PDF_MAX_PAGES_HARD_LIMIT))
+
+    # Direct compat / OCR path (skip LibreOffice) — useful when LO crashes on certain PDFs.
+    if clean_extension == "docx" and engine == "compat":
+        for input_path in input_paths:
+            ensure_not_cancelled()
+            require_unencrypted_pdf(input_path)
+            path, item_logs = await _convert_pdf_to_docx_compat(
+                input_path,
+                output_dir,
+                reason_log=DOCX_COMPAT_DIRECT_LOG,
+                scan_ocr=ocr_mode,
+                language=language or "eng",
+                max_pages=page_limit,
+            )
+            logs.extend(item_logs)
+            outputs.append(path)
+        return outputs, logs
+
+    tool = await tools_service.require_tool("libreOffice")
+    filter_name = _OFFICE_FILTER_MAP[clean_extension]
+    convert_to = f"{clean_extension}:{filter_name}"
 
     for input_path in input_paths:
         ensure_not_cancelled()
+        require_unencrypted_pdf(input_path)
+        # Unique profile per input so concurrent/parallel LO instances never share user config.
         profile_dir = output_dir / f"{input_path.stem}_lo_profile"
+        if profile_dir.exists():
+            cleanup_lo_profile(profile_dir)
         profile_dir.mkdir(parents=True, exist_ok=True)
         profile_uri = profile_dir.resolve().as_posix()
         args = [
@@ -117,11 +628,113 @@ async def convert_pdf_to_office(input_paths: list[Path], output_dir: Path, exten
             str(output_dir),
             str(input_path),
         ]
+        expected_name = f"{input_path.stem}.{clean_extension}"
+        expected_path = output_dir / expected_name
         before = snapshot_output_dir(output_dir)
-        log = await run_process(str(tool["path"]), args, timeout=180)
-        output_path = resolve_libreoffice_output(output_dir, input_path, clean_extension, before)
-        logs.append(log or f"converted: {input_path.name} -> {output_path.name}")
-        outputs.append(output_path)
+        lo_error: BaseException | None = None
+        lo_log = ""
+
+        try:
+            try:
+                lo_log = await run_process(
+                    str(tool["path"]),
+                    args,
+                    timeout=lo_timeout,
+                    tool_label="LibreOffice",
+                )
+            except JobCancelled:
+                raise
+            except Exception as error:
+                lo_error = error
+
+            output_path: Path | None = None
+            if lo_error is None:
+                try:
+                    output_path = resolve_libreoffice_output(output_dir, input_path, clean_extension, before)
+                    if not output_path.is_file() or output_path.stat().st_size < 64:
+                        remove_incomplete_office_output(output_path)
+                        lo_error = RuntimeError(
+                            format_process_error(
+                                output_missing=True,
+                                expected_output=expected_name,
+                                stdout=lo_log,
+                                tool_label="LibreOffice",
+                            )
+                        )
+                        output_path = None
+                except Exception as resolve_error:
+                    remove_incomplete_office_output(expected_path)
+                    lo_error = resolve_error
+                    # Enrich bare "not found" messages.
+                    if "找不到輸出檔" in str(resolve_error) and "【技術詳情】" not in str(resolve_error):
+                        lo_error = RuntimeError(
+                            format_process_error(
+                                output_missing=True,
+                                expected_output=expected_name,
+                                stdout=str(resolve_error),
+                                stderr=lo_log,
+                                tool_label="LibreOffice",
+                            )
+                        )
+
+            if lo_error is None and output_path is not None:
+                logs.append(lo_log or f"converted: {input_path.name} -> {output_path.name}")
+                outputs.append(output_path)
+                continue
+
+            # LibreOffice failed — DOCX may fall back to pdf2docx; other formats fail clearly.
+            assert lo_error is not None
+            remove_incomplete_office_output(expected_path)
+            # Drop incomplete/new LO artifacts (target ext or .tmp leftovers) created this attempt.
+            try:
+                for entry in output_dir.iterdir():
+                    if not entry.is_file():
+                        continue
+                    name_lower = entry.name.lower()
+                    ext = entry.suffix.lower().lstrip(".")
+                    is_target = ext == clean_extension
+                    is_lo_tmp = name_lower.endswith(".tmp") or ".tmp." in name_lower
+                    if not (is_target or is_lo_tmp):
+                        continue
+                    prev = before.get(entry.name)
+                    try:
+                        st = entry.stat()
+                    except OSError:
+                        continue
+                    if prev is None or prev != (st.st_mtime_ns, st.st_size):
+                        if is_lo_tmp or st.st_size < 64:
+                            remove_incomplete_office_output(entry, force=is_lo_tmp or st.st_size < 64)
+            except OSError:
+                pass
+
+            if clean_extension == "docx" and should_try_docx_fallback(lo_error):
+                path, item_logs = await _convert_pdf_to_docx_compat(
+                    input_path,
+                    output_dir,
+                    reason_log=DOCX_FALLBACK_LOG,
+                    prior_error=lo_error,
+                    scan_ocr=ocr_mode,
+                    language=language or "eng",
+                    max_pages=page_limit,
+                )
+                logs.extend(item_logs)
+                outputs.append(path)
+                continue
+
+            # Non-DOCX or fallback not applicable: surface a clear error.
+            message = str(lo_error)
+            if "【技術詳情】" not in message and "Process exited" in message:
+                message = format_process_error(
+                    stdout=message,
+                    tool_label="LibreOffice",
+                )
+            if clean_extension in {"xlsx", "pptx", "odt"}:
+                experimental_note = f"\n說明：PDF→{clean_extension.upper()} — {EXPERIMENTAL_OFFICE_NOTE}"
+                if "實驗性" not in message:
+                    message = message + experimental_note
+            raise RuntimeError(message) from lo_error
+        finally:
+            cleanup_lo_profile(profile_dir)
 
     return outputs, logs
 
@@ -368,11 +981,6 @@ async def ocr_images(input_paths: list[Path], output_dir: Path, language: str) -
         outputs.append(output_base.with_suffix(".txt"))
 
     return outputs, logs
-
-
-OCR_PDF_MAX_PAGES_DEFAULT = 50
-OCR_PDF_MAX_PAGES_HARD_LIMIT = 100
-OCR_PDF_RENDER_SCALE = 2.0
 
 
 async def ocr_pdf(
@@ -687,21 +1295,52 @@ def _pdf_to_docx_sync(input_path: Path, output_path: Path) -> None:
     converter.close()
 
 
-async def run_process(executable: str, args: list[str], timeout: int = 300) -> str:
+async def run_process(
+    executable: str,
+    args: list[str],
+    timeout: int = 300,
+    tool_label: str = "外部程序",
+) -> str:
     ensure_not_cancelled()
     job_id = _current_job_id.get()
-    return await asyncio.to_thread(_run_process_sync, executable, args, timeout, job_id)
+    return await asyncio.to_thread(
+        _run_process_sync, executable, args, timeout, job_id, tool_label
+    )
 
 
-def _run_process_sync(executable: str, args: list[str], timeout: int, job_id: str | None) -> str:
+def _run_process_sync(
+    executable: str,
+    args: list[str],
+    timeout: int,
+    job_id: str | None,
+    tool_label: str = "外部程序",
+) -> str:
     if job_id and _cancel_requested.get(job_id):
         raise JobCancelled("任務已取消")
-    proc = subprocess.Popen(
-        [executable, *args],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-    )
+    try:
+        proc = subprocess.Popen(
+            [executable, *args],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+    except FileNotFoundError as error:
+        raise RuntimeError(
+            format_process_error(
+                not_found=True,
+                executable=executable,
+                tool_label=tool_label,
+            )
+        ) from error
+    except PermissionError as error:
+        raise RuntimeError(
+            format_process_error(
+                permission_denied=True,
+                executable=executable,
+                tool_label=tool_label,
+            )
+        ) from error
+
     if job_id:
         _active_processes[job_id] = proc
     try:
@@ -710,8 +1349,16 @@ def _run_process_sync(executable: str, args: list[str], timeout: int, job_id: st
         except subprocess.TimeoutExpired:
             proc.kill()
             stdout, stderr = proc.communicate()
-            output = f"{stdout or ''}{stderr or ''}".strip()
-            raise RuntimeError(output or f"Process timed out after {timeout}s") from None
+            raise RuntimeError(
+                format_process_error(
+                    timeout=True,
+                    timeout_seconds=timeout,
+                    stdout=stdout or "",
+                    stderr=stderr or "",
+                    executable=executable,
+                    tool_label=tool_label,
+                )
+            ) from None
     finally:
         if job_id:
             _active_processes.pop(job_id, None)
@@ -720,7 +1367,26 @@ def _run_process_sync(executable: str, args: list[str], timeout: int, job_id: st
     if job_id and _cancel_requested.get(job_id):
         raise JobCancelled("任務已取消")
     if proc.returncode != 0:
-        raise RuntimeError(output or f"Process exited with code {proc.returncode}")
+        raise RuntimeError(
+            format_process_error(
+                returncode=proc.returncode,
+                stdout=stdout or "",
+                stderr=stderr or "",
+                executable=executable,
+                tool_label=tool_label,
+            )
+        )
+    # LibreOffice sometimes exits 0 but still logs store failures.
+    if looks_like_libreoffice_store_failure(output):
+        raise RuntimeError(
+            format_process_error(
+                returncode=proc.returncode,
+                stdout=stdout or "",
+                stderr=stderr or "",
+                executable=executable,
+                tool_label=tool_label,
+            )
+        )
     return output
 
 

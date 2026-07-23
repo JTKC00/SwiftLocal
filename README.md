@@ -564,7 +564,19 @@ npm run pack:win:full
 ### Smoke 涵蓋（`npm run smoke`）
 
 - JS 語法檢查、`npm test`
+- 自動產生 `smoke-temp/` 測試 fixtures（無需手動放檔）
 - 桌面後端：PDF 合併／分割／旋轉／壓縮、加密解密（有 QPDF 時）、OCR、影音、取消排隊
+
+### 已知限制（PDF → Office）
+
+| 情況 | 建議 |
+|------|------|
+| LibreOffice 崩潰或 `impl_store` 寫入失敗 | DOCX 會自動改用相容模式；可勾選「直接相容模式」略過 LO |
+| 掃描／影像型 PDF 幾乎無文字 | PDF→Office（DOCX）可「掃描件 OCR→DOCX」：自動／一律／關閉（需 Tesseract） |
+| XLSX／PPTX／ODT | 實驗性，無第二引擎；正式用途請用 DOCX |
+| 版面 100% 還原 | 不保證；「嘗試保留版面」僅盡力 |
+
+`jobs-state.json`、`smoke-temp/`、`backend/temp/` 為本機執行／測試產物，已列入 `.gitignore`，**請勿提交**。
 
 ## 維護備註
 
@@ -573,3 +585,4 @@ npm run pack:win:full
 - 正式外發 Windows 建議 code signing，降低 SmartScreen 警告
 - 正式外發 macOS 需 Developer ID 簽章與 notarization
 - `electron` / `electron-builder` 已固定版本（見 `package.json`），升級時請一併跑 `npm run smoke`
+- 語法檢查：`npm run typecheck`（node --check，非 TypeScript）

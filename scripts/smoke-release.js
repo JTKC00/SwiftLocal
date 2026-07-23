@@ -106,16 +106,116 @@ function syntaxChecks() {
   return true;
 }
 
-async function conversionSmoke() {
-  console.log("\n=== conversion smoke ===");
-  fs.rmSync(outRoot, { recursive: true, force: true });
-  fs.mkdirSync(outRoot, { recursive: true });
+const zlib = require("node:zlib");
+const { PDFDocument } = require("pdf-lib");
 
+/** One-page PDF via pdf-lib (already a project dependency). */
+async function writeMinimalPdf(filePath) {
+  const doc = await PDFDocument.create();
+  doc.addPage([200, 200]);
+  const bytes = await doc.save();
+  fs.writeFileSync(filePath, bytes);
+}
+
+/** Valid 1×1 RGB PNG built with zlib so Tesseract/libpng accept it. */
+function writeMinimalPng(filePath) {
+  function crc32(buf) {
+    let c = 0xffffffff;
+    for (let i = 0; i < buf.length; i += 1) {
+      c ^= buf[i];
+      for (let k = 0; k < 8; k += 1) {
+        c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+      }
+    }
+    return (c ^ 0xffffffff) >>> 0;
+  }
+  function chunk(type, data) {
+    const typeBuf = Buffer.from(type, "ascii");
+    const len = Buffer.alloc(4);
+    len.writeUInt32BE(data.length, 0);
+    const crcBuf = Buffer.alloc(4);
+    crcBuf.writeUInt32BE(crc32(Buffer.concat([typeBuf, data])), 0);
+    return Buffer.concat([len, typeBuf, data, crcBuf]);
+  }
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(1, 0); // width
+  ihdr.writeUInt32BE(1, 4); // height
+  ihdr[8] = 8; // bit depth
+  ihdr[9] = 2; // RGB
+  ihdr[10] = 0;
+  ihdr[11] = 0;
+  ihdr[12] = 0;
+  // filter byte 0 + 3 RGB samples
+  const raw = Buffer.from([0, 0, 0, 0]);
+  const idat = zlib.deflateSync(raw);
+  const png = Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    chunk("IHDR", ihdr),
+    chunk("IDAT", idat),
+    chunk("IEND", Buffer.alloc(0))
+  ]);
+  fs.writeFileSync(filePath, png);
+}
+
+/** Short silent WAV (PCM 8kHz mono). */
+function writeMinimalWav(filePath, seconds = 0.1) {
+  const sampleRate = 8000;
+  const numSamples = Math.max(1, Math.floor(sampleRate * seconds));
+  const dataSize = numSamples * 2;
+  const buffer = Buffer.alloc(44 + dataSize);
+  buffer.write("RIFF", 0);
+  buffer.writeUInt32LE(36 + dataSize, 4);
+  buffer.write("WAVE", 8);
+  buffer.write("fmt ", 12);
+  buffer.writeUInt32LE(16, 16);
+  buffer.writeUInt16LE(1, 20); // PCM
+  buffer.writeUInt16LE(1, 22); // mono
+  buffer.writeUInt32LE(sampleRate, 24);
+  buffer.writeUInt32LE(sampleRate * 2, 28);
+  buffer.writeUInt16LE(2, 32);
+  buffer.writeUInt16LE(16, 34);
+  buffer.write("data", 36);
+  buffer.writeUInt32LE(dataSize, 40);
+  fs.writeFileSync(filePath, buffer);
+}
+
+async function ensureSmokeFixtures() {
+  fs.mkdirSync(fixtureDir, { recursive: true });
   const aPdf = path.join(fixtureDir, "a.pdf");
   const bPdf = path.join(fixtureDir, "b.pdf");
   const ocrPng = path.join(fixtureDir, "ocr.png");
   const tone = path.join(fixtureDir, "tone.wav");
 
+  const force = process.argv.includes("--refresh-fixtures");
+  const needs = (file, minBytes = 20) =>
+    force || !fs.existsSync(file) || fs.statSync(file).size < minBytes;
+
+  // pdf-lib PDFs are typically >300 bytes; tiny/hand-rolled files are regenerated.
+  if (needs(aPdf, 300)) {
+    await writeMinimalPdf(aPdf);
+    ok("generated fixture a.pdf");
+  }
+  if (needs(bPdf, 300)) {
+    await writeMinimalPdf(bPdf);
+    ok("generated fixture b.pdf");
+  }
+  if (needs(ocrPng, 50)) {
+    writeMinimalPng(ocrPng);
+    ok("generated fixture ocr.png");
+  }
+  if (needs(tone, 44)) {
+    writeMinimalWav(tone);
+    ok("generated fixture tone.wav");
+  }
+  return { aPdf, bPdf, ocrPng, tone };
+}
+
+async function conversionSmoke() {
+  console.log("\n=== conversion smoke ===");
+  fs.rmSync(outRoot, { recursive: true, force: true });
+  fs.mkdirSync(outRoot, { recursive: true });
+
+  const { aPdf, bPdf, ocrPng, tone } = await ensureSmokeFixtures();
   if (![aPdf, bPdf, ocrPng, tone].every((file) => requireFile(file, "fixture"))) {
     return;
   }

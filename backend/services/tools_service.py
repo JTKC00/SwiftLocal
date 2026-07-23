@@ -105,7 +105,35 @@ class ToolsService:
         entries = await asyncio.gather(
             *(self._detect_tool(key, definition) for key, definition in TOOL_DEFINITIONS.items())
         )
-        return dict(entries)
+        tools = dict(entries)
+        # Python package engines (bundled via backend/requirements.txt in Standard/Full builds).
+        tools["pdf2docx"] = self._detect_pdf2docx()
+        return tools
+
+    def _detect_pdf2docx(self) -> dict[str, str | bool]:
+        try:
+            from .conversion_service import pdf2docx_status
+
+            return pdf2docx_status()
+        except Exception:
+            try:
+                import pdf2docx  # noqa: F401
+
+                return {
+                    "available": True,
+                    "label": "PDF→DOCX 相容引擎",
+                    "path": "",
+                    "version": getattr(pdf2docx, "__version__", "") or "pdf2docx",
+                    "source": "python",
+                }
+            except ImportError:
+                return {
+                    "available": False,
+                    "label": "PDF→DOCX 相容引擎",
+                    "path": "",
+                    "version": "",
+                    "source": "python",
+                }
 
     async def set_tool_path(self, key: str, tool_path: str) -> dict[str, dict[str, str | bool]]:
         if key not in TOOL_DEFINITIONS:

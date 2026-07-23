@@ -345,5 +345,451 @@ class JobCancelledProcessTests(unittest.TestCase):
             cs.end_job("x")
 
 
+class ProcessErrorFormatterTests(unittest.TestCase):
+    def test_unsigned_crash_code_3221226505(self) -> None:
+        msg = cs.format_process_error(returncode=3221226505)
+        self.assertIn("0xC0000409", msg)
+        self.assertIn("意外崩潰", msg)
+        self.assertNotRegex(msg, r"^Process exited with code")
+        self.assertIn("【技術詳情】", msg)
+
+    def test_signed_crash_code_minus_1073740791(self) -> None:
+        self.assertTrue(cs.is_windows_stack_buffer_overrun(-1073740791))
+        self.assertTrue(cs.is_windows_stack_buffer_overrun(3221226505))
+        self.assertTrue(cs.is_windows_stack_buffer_overrun(0xC0000409))
+        msg = cs.format_process_error(returncode=-1073740791, stdout="faulting module ucrtbase.dll")
+        self.assertIn("0xC0000409", msg)
+        self.assertIn("ucrtbase.dll", msg)
+
+    def test_timeout_message(self) -> None:
+        msg = cs.format_process_error(timeout=True, timeout_seconds=180)
+        self.assertIn("逾時", msg)
+        self.assertIn("180", msg)
+
+    def test_not_found_and_permission(self) -> None:
+        nf = cs.format_process_error(not_found=True, executable=r"C:\missing\soffice.exe")
+        self.assertIn("找不到", nf)
+        perm = cs.format_process_error(permission_denied=True, executable="soffice")
+        self.assertIn("權限", perm)
+
+    def test_output_missing(self) -> None:
+        msg = cs.format_process_error(output_missing=True, expected_output="a.docx")
+        self.assertIn("未產生輸出檔", msg)
+        self.assertIn("a.docx", msg)
+
+    def test_impl_store_and_filter(self) -> None:
+        store = cs.format_process_error(
+            returncode=1,
+            stderr="SfxBaseModel::impl_store failed\nError Area:Io Class:Write Code:16",
+        )
+        self.assertIn("無法寫入", store)
+        filt = cs.format_process_error(returncode=1, stderr="Unknown export filter for foobar")
+        self.assertIn("匯出篩選器", filt)
+
+    def test_run_process_sync_maps_crash_code(self) -> None:
+        class FakeProc:
+            def __init__(self) -> None:
+                self.returncode = 3221226505
+
+            def communicate(self, timeout=None):  # noqa: ANN001
+                return ("", "crash")
+
+            def kill(self) -> None:
+                return None
+
+            def poll(self):  # noqa: ANN001
+                return self.returncode
+
+        original = cs.subprocess.Popen
+
+        def fake_popen(*_a, **_k):  # noqa: ANN001
+            return FakeProc()
+
+        cs.subprocess.Popen = fake_popen  # type: ignore[assignment]
+        try:
+            with self.assertRaises(RuntimeError) as ctx:
+                cs._run_process_sync("soffice", ["--version"], 30, None, "LibreOffice")
+            self.assertIn("0xC0000409", str(ctx.exception))
+            self.assertIn("crash", str(ctx.exception))
+        finally:
+            cs.subprocess.Popen = original  # type: ignore[assignment]
+
+    def test_run_process_sync_timeout(self) -> None:
+        class FakeProc:
+            returncode = -1
+
+            def communicate(self, timeout=None):  # noqa: ANN001
+                if timeout is not None:
+                    raise cs.subprocess.TimeoutExpired(cmd="x", timeout=timeout)
+                return ("partial", "out")
+
+            def kill(self) -> None:
+                return None
+
+        original = cs.subprocess.Popen
+        cs.subprocess.Popen = lambda *a, **k: FakeProc()  # type: ignore[assignment,misc]
+        try:
+            with self.assertRaises(RuntimeError) as ctx:
+                cs._run_process_sync("soffice", [], 12, None, "LibreOffice")
+            self.assertIn("逾時", str(ctx.exception))
+            self.assertIn("12", str(ctx.exception))
+        finally:
+            cs.subprocess.Popen = original  # type: ignore[assignment]
+
+
+class PdfToOfficeFallbackTests(unittest.IsolatedAsyncioTestCase):
+    async def test_libreoffice_success_path(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            src = base / "doc.pdf"
+            out = base / "out"
+            out.mkdir()
+            _make_pdf(src, pages=1)
+
+            async def fake_require(_key: str):
+                return {"path": "fake-soffice", "available": True}
+
+            async def fake_run(executable, args, timeout=300, tool_label="外部程序"):  # noqa: ANN001
+                # Simulate LO writing the expected docx.
+                target = out / "doc.docx"
+                target.write_bytes(b"PK" + b"\0" * 100)
+                return "ok"
+
+            original_require = cs.tools_service.require_tool
+            original_run = cs.run_process
+            cs.tools_service.require_tool = fake_require  # type: ignore[method-assign]
+            cs.run_process = fake_run  # type: ignore[assignment]
+            try:
+                outputs, logs = await cs.convert_pdf_to_office([src], out, "docx")
+                self.assertEqual(len(outputs), 1)
+                self.assertTrue(outputs[0].exists())
+                self.assertGreater(outputs[0].stat().st_size, 64)
+                self.assertFalse((out / "doc_lo_profile").exists())
+            finally:
+                cs.tools_service.require_tool = original_require  # type: ignore[method-assign]
+                cs.run_process = original_run  # type: ignore[assignment]
+
+    async def test_crash_falls_back_to_pdf2docx(self) -> None:
+        try:
+            import pdf2docx  # noqa: F401
+        except ImportError:
+            self.skipTest("pdf2docx not installed")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            src = base / "scan.pdf"
+            out = base / "out"
+            out.mkdir()
+            _make_pdf(src, pages=1)
+
+            async def fake_require(_key: str):
+                return {"path": "fake-soffice", "available": True}
+
+            async def fake_run(executable, args, timeout=300, tool_label="外部程序"):  # noqa: ANN001
+                # Incomplete/zero-byte artifact then crash.
+                bad = out / "scan.docx"
+                bad.write_bytes(b"")
+                raise RuntimeError(cs.format_process_error(returncode=3221226505, stderr="ucrtbase"))
+
+            def fake_pdf2docx_sync(input_path: Path, output_path: Path) -> None:
+                output_path.write_bytes(b"PK" + b"compat" * 20)
+
+            original_require = cs.tools_service.require_tool
+            original_run = cs.run_process
+            original_sync = cs._pdf_to_docx_sync
+            cs.tools_service.require_tool = fake_require  # type: ignore[method-assign]
+            async def no_tess() -> bool:
+                return False
+
+            original_tess = cs.tesseract_available
+            cs.run_process = fake_run  # type: ignore[assignment]
+            cs._pdf_to_docx_sync = fake_pdf2docx_sync  # type: ignore[assignment]
+            cs.tesseract_available = no_tess  # type: ignore[assignment]
+            try:
+                outputs, logs = await cs.convert_pdf_to_office(
+                    [src], out, "docx", scan_ocr="off"
+                )
+                self.assertEqual(len(outputs), 1)
+                self.assertTrue(outputs[0].exists())
+                self.assertGreater(outputs[0].stat().st_size, 64)
+                self.assertTrue(any(cs.DOCX_FALLBACK_LOG in item for item in logs))
+                self.assertFalse((out / "scan_lo_profile").exists())
+                # Incomplete empty docx must not remain as the only product (replaced by fallback).
+                self.assertNotEqual(outputs[0].stat().st_size, 0)
+            finally:
+                cs.tools_service.require_tool = original_require  # type: ignore[method-assign]
+                cs.run_process = original_run  # type: ignore[assignment]
+                cs._pdf_to_docx_sync = original_sync  # type: ignore[assignment]
+                cs.tesseract_available = original_tess  # type: ignore[assignment]
+
+    async def test_fallback_missing_pdf2docx(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            src = base / "a.pdf"
+            out = base / "out"
+            out.mkdir()
+            _make_pdf(src, pages=1)
+
+            async def fake_require(_key: str):
+                return {"path": "fake-soffice", "available": True}
+
+            async def fake_run(executable, args, timeout=300, tool_label="外部程序"):  # noqa: ANN001
+                raise RuntimeError(cs.format_process_error(returncode=-1073740791))
+
+            original_require = cs.tools_service.require_tool
+            original_run = cs.run_process
+            original_avail = cs.pdf2docx_available
+            cs.tools_service.require_tool = fake_require  # type: ignore[method-assign]
+            cs.run_process = fake_run  # type: ignore[assignment]
+            cs.pdf2docx_available = lambda: False  # type: ignore[assignment]
+            try:
+                with self.assertRaises(RuntimeError) as ctx:
+                    await cs.convert_pdf_to_office([src], out, "docx")
+                self.assertIn("相容引擎未安裝", str(ctx.exception))
+                self.assertIn("requirements.txt", str(ctx.exception))
+            finally:
+                cs.tools_service.require_tool = original_require  # type: ignore[method-assign]
+                cs.run_process = original_run  # type: ignore[assignment]
+                cs.pdf2docx_available = original_avail  # type: ignore[assignment]
+
+    async def test_xlsx_does_not_use_docx_fallback(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            src = base / "sheet.pdf"
+            out = base / "out"
+            out.mkdir()
+            _make_pdf(src, pages=1)
+            fallback_called = {"n": 0}
+
+            async def fake_require(_key: str):
+                return {"path": "fake-soffice", "available": True}
+
+            async def fake_run(executable, args, timeout=300, tool_label="外部程序"):  # noqa: ANN001
+                raise RuntimeError(cs.format_process_error(returncode=3221226505))
+
+            def fake_pdf2docx_sync(input_path: Path, output_path: Path) -> None:
+                fallback_called["n"] += 1
+                output_path.write_bytes(b"PK" + b"x" * 40)
+
+            original_require = cs.tools_service.require_tool
+            original_run = cs.run_process
+            original_sync = cs._pdf_to_docx_sync
+            cs.tools_service.require_tool = fake_require  # type: ignore[method-assign]
+            cs.run_process = fake_run  # type: ignore[assignment]
+            cs._pdf_to_docx_sync = fake_pdf2docx_sync  # type: ignore[assignment]
+            try:
+                with self.assertRaises(RuntimeError) as ctx:
+                    await cs.convert_pdf_to_office([src], out, "xlsx")
+                self.assertEqual(fallback_called["n"], 0)
+                self.assertIn("實驗性", str(ctx.exception))
+                self.assertIn("0xC0000409", str(ctx.exception))
+            finally:
+                cs.tools_service.require_tool = original_require  # type: ignore[method-assign]
+                cs.run_process = original_run  # type: ignore[assignment]
+                cs._pdf_to_docx_sync = original_sync  # type: ignore[assignment]
+
+    async def test_pptx_odt_no_fallback(self) -> None:
+        for ext in ("pptx", "odt"):
+            with tempfile.TemporaryDirectory() as tmp:
+                base = Path(tmp)
+                src = base / f"p.{ext}.pdf"
+                # stem will be "p.pptx" if name is p.pptx.pdf — use simple name
+                src = base / "deck.pdf"
+                out = base / "out"
+                out.mkdir()
+                _make_pdf(src, pages=1)
+                called = {"n": 0}
+
+                async def fake_require(_key: str):
+                    return {"path": "fake-soffice", "available": True}
+
+                async def fake_run(executable, args, timeout=300, tool_label="外部程序"):  # noqa: ANN001
+                    raise RuntimeError("LibreOffice failed hard")
+
+                def fake_pdf2docx_sync(input_path: Path, output_path: Path) -> None:
+                    called["n"] += 1
+
+                original_require = cs.tools_service.require_tool
+                original_run = cs.run_process
+                original_sync = cs._pdf_to_docx_sync
+                cs.tools_service.require_tool = fake_require  # type: ignore[method-assign]
+                cs.run_process = fake_run  # type: ignore[assignment]
+                cs._pdf_to_docx_sync = fake_pdf2docx_sync  # type: ignore[assignment]
+                try:
+                    with self.assertRaises(RuntimeError) as ctx:
+                        await cs.convert_pdf_to_office([src], out, ext)
+                    self.assertEqual(called["n"], 0)
+                    self.assertIn("實驗性", str(ctx.exception))
+                finally:
+                    cs.tools_service.require_tool = original_require  # type: ignore[method-assign]
+                    cs.run_process = original_run  # type: ignore[assignment]
+                    cs._pdf_to_docx_sync = original_sync  # type: ignore[assignment]
+
+    async def test_missing_output_triggers_cleanup_and_fallback(self) -> None:
+        try:
+            import pdf2docx  # noqa: F401
+        except ImportError:
+            self.skipTest("pdf2docx not installed")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            src = base / "emptyout.pdf"
+            out = base / "out"
+            out.mkdir()
+            _make_pdf(src, pages=1)
+
+            async def fake_require(_key: str):
+                return {"path": "fake-soffice", "available": True}
+
+            async def fake_run(executable, args, timeout=300, tool_label="外部程序"):  # noqa: ANN001
+                # Exit 0 but create incomplete file only.
+                (out / "emptyout.docx").write_bytes(b"xx")
+                return "done"
+
+            def fake_pdf2docx_sync(input_path: Path, output_path: Path) -> None:
+                output_path.write_bytes(b"PK" + b"ok" * 40)
+
+            original_require = cs.tools_service.require_tool
+            original_run = cs.run_process
+            original_sync = cs._pdf_to_docx_sync
+            cs.tools_service.require_tool = fake_require  # type: ignore[method-assign]
+            cs.run_process = fake_run  # type: ignore[assignment]
+            cs._pdf_to_docx_sync = fake_pdf2docx_sync  # type: ignore[assignment]
+            async def no_tess() -> bool:
+                return False
+
+            original_tess = cs.tesseract_available
+            cs.tesseract_available = no_tess  # type: ignore[assignment]
+            try:
+                outputs, logs = await cs.convert_pdf_to_office(
+                    [src], out, "docx", scan_ocr="off"
+                )
+                self.assertEqual(len(outputs), 1)
+                self.assertTrue(any(cs.DOCX_FALLBACK_LOG in item for item in logs))
+                self.assertGreater(outputs[0].stat().st_size, 64)
+            finally:
+                cs.tools_service.require_tool = original_require  # type: ignore[method-assign]
+                cs.run_process = original_run  # type: ignore[assignment]
+                cs._pdf_to_docx_sync = original_sync  # type: ignore[assignment]
+                cs.tesseract_available = original_tess  # type: ignore[assignment]
+
+    def test_remove_incomplete_and_profile_cleanup(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            tiny = base / "a.docx"
+            tiny.write_bytes(b"")
+            self.assertTrue(cs.remove_incomplete_office_output(tiny))
+            self.assertFalse(tiny.exists())
+
+            profile = base / "stem_lo_profile"
+            (profile / "user").mkdir(parents=True)
+            (profile / "user" / "x").write_text("y", encoding="utf-8")
+            cs.cleanup_lo_profile(profile)
+            self.assertFalse(profile.exists())
+
+    def test_pdf2docx_status_shape(self) -> None:
+        status = cs.pdf2docx_status()
+        self.assertIn("available", status)
+        self.assertIn("label", status)
+        self.assertEqual(status["label"], "PDF→DOCX 相容引擎")
+
+    def test_sanitize_docx_engine(self) -> None:
+        self.assertEqual(cs.sanitize_docx_engine("auto"), "auto")
+        self.assertEqual(cs.sanitize_docx_engine("compat"), "compat")
+        self.assertEqual(cs.sanitize_docx_engine("pdf2docx"), "compat")
+        with self.assertRaises(ValueError):
+            cs.sanitize_docx_engine("magic")
+
+    async def test_docx_engine_compat_skips_libreoffice(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            src = base / "a.pdf"
+            out = base / "out"
+            out.mkdir()
+            _make_pdf(src, pages=1)
+            lo_calls = {"n": 0}
+
+            async def boom_run(*_a, **_k):  # noqa: ANN001
+                lo_calls["n"] += 1
+                raise RuntimeError("should not call LO")
+
+            def fake_pdf2docx(input_path: Path, output_path: Path) -> None:
+                output_path.write_bytes(b"PK" + b"c" * 80)
+
+            original_run = cs.run_process
+            original_sync = cs._pdf_to_docx_sync
+            original_tess = cs.tesseract_available
+            cs.run_process = boom_run  # type: ignore[assignment]
+            cs._pdf_to_docx_sync = fake_pdf2docx  # type: ignore[assignment]
+
+            async def no_tess() -> bool:
+                return False
+
+            cs.tesseract_available = no_tess  # type: ignore[assignment]
+            try:
+                outputs, logs = await cs.convert_pdf_to_office(
+                    [src], out, "docx", docx_engine="compat", scan_ocr="off"
+                )
+                self.assertEqual(lo_calls["n"], 0)
+                self.assertEqual(len(outputs), 1)
+                self.assertTrue(any(cs.DOCX_COMPAT_DIRECT_LOG in item for item in logs))
+            finally:
+                cs.run_process = original_run  # type: ignore[assignment]
+                cs._pdf_to_docx_sync = original_sync  # type: ignore[assignment]
+                cs.tesseract_available = original_tess  # type: ignore[assignment]
+
+    def test_scan_hint_on_blank_pdf(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            src = Path(tmp) / "blank.pdf"
+            _make_pdf(src, pages=1)
+            hint = cs.maybe_scan_ocr_hint(src)
+            self.assertIsNotNone(hint)
+            assert hint is not None
+            self.assertIn("掃描", hint)
+
+    def test_sanitize_scan_ocr(self) -> None:
+        self.assertEqual(cs.sanitize_scan_ocr("auto"), "auto")
+        self.assertEqual(cs.sanitize_scan_ocr("force"), "force")
+        self.assertEqual(cs.sanitize_scan_ocr("off"), "off")
+        with self.assertRaises(ValueError):
+            cs.sanitize_scan_ocr("maybe")
+
+    def test_write_text_docx_minimal(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "t.docx"
+            cs.write_text_docx_sync(out, "Hello\nWorld", title="Test")
+            self.assertTrue(out.is_file())
+            self.assertGreater(out.stat().st_size, 64)
+            # ZIP signature
+            self.assertEqual(out.read_bytes()[:2], b"PK")
+
+    async def test_ocr_pipeline_mocked(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            src = base / "scan.pdf"
+            out = base / "out"
+            out.mkdir()
+            _make_pdf(src, pages=1)
+
+            async def fake_ocr(paths, odir, language, max_pages=50):  # noqa: ANN001
+                txt = odir / f"{paths[0].stem}_ocr.txt"
+                txt.parent.mkdir(parents=True, exist_ok=True)
+                # ocr_pdf writes into odir; simulate
+                work_txt = list(odir.glob("**/*"))
+                target = odir / f"{paths[0].stem}_ocr.txt"
+                # place where convert_pdf_to_docx_via_ocr expects first output
+                target.write_text("--- Page 1 ---\nOCR HELLO\n", encoding="utf-8")
+                return [target], ["ocr-mock"]
+
+            original = cs.ocr_pdf
+            cs.ocr_pdf = fake_ocr  # type: ignore[assignment]
+            try:
+                path, logs = await cs.convert_pdf_to_docx_via_ocr(src, out, language="eng", max_pages=2)
+                self.assertTrue(path.exists())
+                self.assertTrue(any(cs.DOCX_OCR_PIPELINE_LOG in x for x in logs))
+            finally:
+                cs.ocr_pdf = original  # type: ignore[assignment]
+
+
 if __name__ == "__main__":
     unittest.main()

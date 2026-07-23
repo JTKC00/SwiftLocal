@@ -462,7 +462,7 @@
                     <option value="text">PDF → TXT</option>
                     <option value="images">PDF → 圖片</option>
                     <option value="pdf-to-docx">PDF → DOCX（純文字）</option>
-                    <option value="pdf-to-office">PDF → Office（保留版面）</option>
+                    <option value="pdf-to-office">PDF → Office（嘗試保留版面）</option>
                     <option value="ocr-pdf">掃描 PDF → OCR 文字</option>
                     <option value="office-to-pdf">Office → PDF</option>
                   </optgroup>
@@ -557,13 +557,34 @@
                 <span>輸出 Office 格式</span>
                 <select id="pdf-office-format">
                   <option value="docx">DOCX（Word）</option>
-                  <option value="xlsx">XLSX（Excel）</option>
-                  <option value="pptx">PPTX（PowerPoint）</option>
-                  <option value="odt">ODT（OpenDocument）</option>
+                  <option value="xlsx">XLSX（Excel，實驗性）</option>
+                  <option value="pptx">PPTX（PowerPoint，實驗性）</option>
+                  <option value="odt">ODT（OpenDocument，實驗性）</option>
                 </select>
               </label>
-              <div></div>
+              <label id="pdf-office-compat-label" class="pdf-office-compat-control">
+                <span>DOCX 引擎</span>
+                <span class="check-row">
+                  <input id="pdf-office-compat-only" type="checkbox">
+                  直接相容模式（略過 LibreOffice）
+                </span>
+              </label>
             </div>
+            <div class="control-row pdf-office-scan-controls" id="pdf-office-scan-row" hidden>
+              <label>
+                <span>掃描件 OCR→DOCX</span>
+                <select id="pdf-office-scan-ocr">
+                  <option value="auto" selected>自動（文字少時）</option>
+                  <option value="force">一律使用 OCR</option>
+                  <option value="off">關閉</option>
+                </select>
+              </label>
+              <label>
+                <span>OCR 語言</span>
+                <input id="pdf-office-ocr-language" type="text" value="eng" placeholder="例：eng 或 chi_tra+eng">
+              </label>
+            </div>
+            <p id="pdf-office-format-note" class="backend-inline-note pdf-office-format-note" hidden></p>
 
             <div class="control-row pdf-ocr-controls">
               <label>
@@ -1164,7 +1185,8 @@
             </div>
 
             <div class="system-capabilities" aria-label="功能可用狀態">
-              <div id="capability-office" class="system-capability pending"><span aria-hidden="true">○</span><div><strong>Office 與高保真 PDF</strong><small>等待檢查</small></div></div>
+              <div id="capability-office" class="system-capability pending"><span aria-hidden="true">○</span><div><strong>LibreOffice（版面轉換）</strong><small>等待檢查</small></div></div>
+              <div id="capability-pdf2docx" class="system-capability pending"><span aria-hidden="true">○</span><div><strong>PDF→DOCX 相容引擎</strong><small>等待檢查</small></div></div>
               <div id="capability-media" class="system-capability pending"><span aria-hidden="true">○</span><div><strong>影音與進階圖片轉換</strong><small>等待檢查</small></div></div>
               <div id="capability-ocr" class="system-capability pending"><span aria-hidden="true">○</span><div><strong>圖片及掃描 PDF OCR</strong><small>等待檢查</small></div></div>
               <div id="capability-security" class="system-capability pending"><span aria-hidden="true">○</span><div><strong>PDF 加密與解密</strong><small>等待檢查</small></div></div>

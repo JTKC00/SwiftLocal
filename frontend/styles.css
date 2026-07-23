@@ -1109,12 +1109,55 @@ td.code-cell {
 
 .backend-queue-actions { margin: 0 0 12px; }
 
-.pdf-mode-note {
+.pdf-mode-note,
+.pdf-office-format-note {
   min-height: 44px;
   padding: 10px 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--surface-2);
+}
+
+.job-failure-details {
+  margin-top: 10px;
+  display: grid;
+  gap: 6px;
+}
+
+.job-error-summary {
+  margin: 0;
+  color: #9f3d31;
+  font-weight: 600;
+  white-space: pre-wrap;
+}
+
+.job-error-suggestion {
+  margin: 0;
+  color: var(--muted, #5c6b66);
+  font-size: 0.92em;
+}
+
+.job-error-technical {
+  margin-top: 4px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 10px;
+  background: var(--surface-2);
+}
+
+.job-error-technical summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.job-error-technical pre {
+  margin: 8px 0 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 0.85em;
+  max-height: 220px;
+  overflow: auto;
 }
 
 .password-visibility-control {

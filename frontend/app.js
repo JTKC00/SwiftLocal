@@ -1333,6 +1333,24 @@
       }
       updatePdfControls();
     });
+    const officeFormat = $("#pdf-office-format");
+    if (officeFormat) {
+      officeFormat.addEventListener("change", () => {
+        updatePdfOfficeFormatNote($("#pdf-mode").value);
+      });
+    }
+    const compatOnly = $("#pdf-office-compat-only");
+    if (compatOnly) {
+      compatOnly.addEventListener("change", () => {
+        updatePdfOfficeFormatNote($("#pdf-mode").value);
+      });
+    }
+    const scanOcr = $("#pdf-office-scan-ocr");
+    if (scanOcr) {
+      scanOcr.addEventListener("change", () => {
+        updatePdfOfficeFormatNote($("#pdf-mode").value);
+      });
+    }
     $("#pdf-files").addEventListener("change", async (event) => {
       const files = Array.from(event.target.files || []);
       if (files.length && !pdfFilesMatchMode($("#pdf-mode").value, files)) {
@@ -1433,6 +1451,11 @@
     $(".pdf-image-controls").style.display = showImages ? "" : "none";
     $(".pdf-pagenumber-controls").style.display = showPageNumbers ? "" : "none";
     $(".pdf-office-format-controls").style.display = showOfficeFormat ? "" : "none";
+    const scanRow = $("#pdf-office-scan-row");
+    if (scanRow) {
+      const fmt = ($("#pdf-office-format") && $("#pdf-office-format").value) || "docx";
+      scanRow.hidden = !(showOfficeFormat && fmt === "docx");
+    }
     $(".pdf-ocr-controls").style.display = showOcr ? "" : "none";
     $(".pdf-password-controls").style.display = showPassword ? "" : "none";
     $(".pdf-output-name-control").style.display = usesBackgroundTask ? "none" : "";
@@ -1491,9 +1514,9 @@
       images: "PDF 頁面會在本機轉成獨立圖片。",
       "pdf-compress": "程式會自動在本機背景最佳化 PDF，完成後顯示輸出檔案。",
       "pdf-to-docx": "適合文字型 PDF；會建立簡易 DOCX，但不保留原始版面。",
-      "pdf-to-office": isToolAvailable("libreOffice")
-        ? "使用本機文件引擎轉換並盡量保留版面；複雜或掃描文件效果可能不同。"
-        : "此工作需要本機文件引擎；目前未偵測到，請到「狀態」頁設定。",
+      "pdf-to-office": isToolAvailable("libreOffice") || isToolAvailable("pdf2docx")
+        ? "先嘗試以 LibreOffice 保留版面；DOCX 失敗可自動相容模式，也可勾選直接相容模式。XLSX／PPTX／ODT 為實驗性。"
+        : "需要 LibreOffice 或 pdf2docx 相容引擎；請到「狀態」頁檢查。",
       "ocr-pdf": isToolAvailable("tesseract")
         ? "適合掃描文件；程式會逐頁辨識文字並輸出 TXT。"
         : "此工作需要本機 OCR；目前未偵測到，請到「狀態」頁檢查。",
@@ -1508,6 +1531,40 @@
         : "此工作需要本機 PDF 安全工具；目前未偵測到，請到「狀態」頁檢查。"
     };
     note.textContent = notes[mode] || "程式會自動選擇合適的本機處理方式。";
+    updatePdfOfficeFormatNote(mode);
+  }
+
+  function updatePdfOfficeFormatNote(mode) {
+    const note = $("#pdf-office-format-note");
+    if (!note) return;
+    const compatLabel = $("#pdf-office-compat-label");
+    const compatCheck = $("#pdf-office-compat-only");
+    if (mode !== "pdf-to-office") {
+      note.hidden = true;
+      note.textContent = "";
+      if (compatLabel) compatLabel.style.display = "none";
+      return;
+    }
+    const format = ($("#pdf-office-format") && $("#pdf-office-format").value) || "docx";
+    note.hidden = false;
+    if (compatLabel) {
+      compatLabel.style.display = format === "docx" ? "" : "none";
+    }
+    const scanRow = $("#pdf-office-scan-row");
+    if (scanRow) scanRow.hidden = format !== "docx";
+    if (format === "docx") {
+      const direct = Boolean(compatCheck && compatCheck.checked);
+      const scanMode = ($("#pdf-office-scan-ocr") && $("#pdf-office-scan-ocr").value) || "auto";
+      let scanHint = "掃描件：文字很少時可自動走 OCR→DOCX（需 Tesseract）。";
+      if (scanMode === "force") scanHint = "將一律使用 OCR→DOCX（純文字段落，需 Tesseract）。";
+      if (scanMode === "off") scanHint = "已關閉 OCR→DOCX；掃描件可能產出近乎空白文件。";
+      note.textContent = direct
+        ? `將直接使用相容／OCR 管線（略過 LibreOffice）。${scanHint}`
+        : `先嘗試 LibreOffice 保留版面；失敗後相容模式。${scanHint}`;
+    } else {
+      if (compatCheck) compatCheck.checked = false;
+      note.textContent = "實驗性轉換：PDF 並非原始 Office 文件，版面及內容結構可能不完整。正式用途請選 DOCX。";
+    }
   }
 
   function clonePdfWorkspacePages(pages = state.pdfWorkspacePages) {
@@ -3510,7 +3567,8 @@
     state.detectedTools = tools || null;
     const container = $("#backend-tools");
     const items = [
-      ["libreOffice", "LibreOffice", "Office 轉 PDF、PDF 轉 Office"],
+      ["libreOffice", "LibreOffice", "Office 轉 PDF、PDF → Office（嘗試保留版面）"],
+      ["pdf2docx", "PDF→DOCX 相容引擎", "LibreOffice 失敗時自動建立 DOCX（版面可能不同）"],
       ["ffmpeg", "FFmpeg", "影音及進階圖片轉換"],
       ["tesseract", "Tesseract", "圖片及掃描 PDF 文字辨識"],
       ["qpdf", "QPDF", "PDF 加密、解密及安全處理"]
@@ -3520,7 +3578,7 @@
     items.forEach(([key, label, purpose]) => {
       const tool = tools && tools[key];
       const available = Boolean(tool && tool.available);
-      const optional = key === "libreOffice" && !available && backendApiAvailable();
+      const optional = (key === "libreOffice" || key === "pdf2docx") && !available && backendApiAvailable();
       const row = document.createElement("div");
       row.className = `tool-status ${available ? "available" : optional ? "optional" : "missing"}`;
       row.innerHTML = [
@@ -3589,6 +3647,7 @@
     $("#system-tools-note").textContent = checking ? "正在讀取工具版本" : availableCount === keys.length ? "所有進階功能已解鎖" : "缺少工具的功能會標示於下方";
 
     renderCapabilityStatus("#capability-office", checking, connected && Boolean(tools.libreOffice && tools.libreOffice.available), "LibreOffice 已就緒", "需要安裝或指定 LibreOffice");
+    renderCapabilityStatus("#capability-pdf2docx", checking, connected && Boolean(tools.pdf2docx && tools.pdf2docx.available), "相容引擎已就緒（pdf2docx）", "未安裝 pdf2docx（見 backend/requirements.txt）");
     renderCapabilityStatus("#capability-media", checking, connected && Boolean(tools.ffmpeg && tools.ffmpeg.available), "FFmpeg 已就緒", "需要 FFmpeg");
     renderCapabilityStatus("#capability-ocr", checking, connected && Boolean(tools.tesseract && tools.tesseract.available), "Tesseract 已就緒", "需要 Tesseract");
     renderCapabilityStatus("#capability-security", checking, connected && Boolean(tools.qpdf && tools.qpdf.available), "QPDF 已就緒", "需要 QPDF");
@@ -3620,15 +3679,25 @@
     if (key === "libreOffice") {
       return "此功能需要 LibreOffice";
     }
+    if (key === "pdf2docx") {
+      return "DOCX 自動 fallback 不可用";
+    }
     return "未找到內建工具，請確認打包內容";
   }
 
   function toolGuidanceText(key, tool) {
+    if (key === "pdf2docx") {
+      if (tool && tool.available) {
+        return "PDF → Office 選 DOCX 時，若 LibreOffice 失敗會自動改用此相容引擎。";
+      }
+      if (!backendApiAvailable()) return "";
+      return "請安裝 backend/requirements.txt（含 pdf2docx），Standard／Full 打包版應已內建。";
+    }
     if (key !== "libreOffice") {
       return "";
     }
     if (tool && tool.available) {
-      return "Office → PDF 依賴 LibreOffice。若轉換失敗或版面異常，請確認 LibreOffice 可用，必要時更新。";
+      return "Office → PDF 與 PDF → Office 依賴 LibreOffice。DOCX 失敗時可自動改用相容引擎。";
     }
     if (!backendApiAvailable()) {
       return "";
@@ -3642,6 +3711,7 @@
     if (source === "env") return "環境變數";
     if (source === "system") return "系統安裝";
     if (source === "path") return "PATH";
+    if (source === "python") return "Python 套件";
     return "";
   }
 
@@ -3695,9 +3765,18 @@
     if (!backendApiAvailable()) { showToast("請先啟動 FastAPI 後端", "error"); return; }
     if (!state.pdfFiles.length) { showToast("請先選擇輸入檔案", "error"); return; }
     const type = $("#pdf-mode").value;
-    if ((type === "office-to-pdf" || type === "pdf-to-office") && !isToolAvailable("libreOffice")) {
+    const officeExt = ($("#pdf-office-format") && $("#pdf-office-format").value) || "docx";
+    const docxCompatOnly = Boolean($("#pdf-office-compat-only") && $("#pdf-office-compat-only").checked);
+    const pdfToOfficeNeedsLibre =
+      type === "pdf-to-office" && !(officeExt === "docx" && docxCompatOnly);
+    if ((type === "office-to-pdf" || pdfToOfficeNeedsLibre) && !isToolAvailable("libreOffice")) {
       setStatus("#pdf-backend-status", "缺少 LibreOffice");
       showToast("此功能需要 LibreOffice。請安裝或更新 LibreOffice，然後重新偵測工具。", "error");
+      return;
+    }
+    if (type === "pdf-to-office" && officeExt === "docx" && docxCompatOnly && !isToolAvailable("pdf2docx")) {
+      setStatus("#pdf-backend-status", "缺少相容引擎");
+      showToast("DOCX 相容模式需要 pdf2docx（見 backend/requirements.txt）。", "error");
       return;
     }
     if (type === "ocr-pdf" && !isToolAvailable("tesseract")) {
@@ -3719,7 +3798,17 @@
     const payload = new FormData();
     payload.append("type", type);
     state.pdfFiles.forEach((file) => payload.append("files", file, file.name));
-    if (type === "pdf-to-office") payload.append("extension", $("#pdf-office-format").value || "docx");
+    if (type === "pdf-to-office") {
+      const ext = $("#pdf-office-format").value || "docx";
+      payload.append("extension", ext);
+      const compat = Boolean($("#pdf-office-compat-only") && $("#pdf-office-compat-only").checked);
+      payload.append("docxEngine", compat && ext === "docx" ? "compat" : "auto");
+      if (ext === "docx") {
+        payload.append("scanOcr", ($("#pdf-office-scan-ocr") && $("#pdf-office-scan-ocr").value) || "auto");
+        payload.append("language", ($("#pdf-office-ocr-language") && $("#pdf-office-ocr-language").value.trim()) || "eng");
+        payload.append("maxPages", ($("#pdf-ocr-max-pages") && $("#pdf-ocr-max-pages").value) || "50");
+      }
+    }
     if (type === "ocr-pdf") {
       payload.append("language", ($("#pdf-ocr-language").value || "eng").trim() || "eng");
       payload.append("maxPages", String($("#pdf-ocr-max-pages").value || "50"));
@@ -4188,14 +4277,86 @@
     }
     div.appendChild(outputsDiv);
 
-    const log = job.error || (job.log && job.log.length ? job.log[job.log.length - 1] : "");
-    if (log) {
-      const pre = document.createElement("pre");
-      pre.textContent = log;
-      div.appendChild(pre);
+    if (job.status === "failed" || job.status === "cancelled") {
+      div.appendChild(buildJobFailureDetails(job));
+    } else {
+      const log = job.error || (job.log && job.log.length ? job.log[job.log.length - 1] : "");
+      if (log) {
+        const pre = document.createElement("pre");
+        pre.textContent = log;
+        div.appendChild(pre);
+      }
     }
 
     return div;
+  }
+
+  function splitJobErrorParts(text) {
+    const raw = String(text || "").trim();
+    if (!raw) {
+      return { summary: "", suggestion: "", technical: "" };
+    }
+    const techMarker = "【技術詳情】";
+    let main = raw;
+    let technical = "";
+    const techIndex = raw.indexOf(techMarker);
+    if (techIndex >= 0) {
+      main = raw.slice(0, techIndex).trim();
+      technical = raw.slice(techIndex + techMarker.length).trim();
+    }
+    let summary = main;
+    let suggestion = "";
+    const suggestMatch = main.match(/(?:^|\n)建議[：:]\s*([\s\S]+)$/);
+    if (suggestMatch) {
+      suggestion = suggestMatch[1].trim();
+      summary = main.slice(0, suggestMatch.index).trim();
+    }
+    // Soften bare process exit codes if they somehow slip through.
+    if (/^Process exited with code\s+-?\d+\s*$/i.test(summary)) {
+      summary = "外部轉換程序異常結束。原始檔案並未被修改。";
+      if (!suggestion) {
+        suggestion = "請查看技術詳情，或改試其他輸出格式／更新 LibreOffice。";
+      }
+      if (!technical) technical = raw;
+    }
+    return { summary, suggestion, technical };
+  }
+
+  function buildJobFailureDetails(job) {
+    const wrap = document.createElement("div");
+    wrap.className = "job-failure-details";
+    const source = job.error || (job.log && job.log.length ? job.log[job.log.length - 1] : "") || "";
+    const parts = splitJobErrorParts(source);
+    const summary = document.createElement("p");
+    summary.className = "job-error-summary";
+    summary.textContent = parts.summary || (job.status === "cancelled" ? "任務已取消" : "轉換失敗");
+    wrap.appendChild(summary);
+    if (parts.suggestion) {
+      const tip = document.createElement("p");
+      tip.className = "job-error-suggestion";
+      tip.textContent = `建議：${parts.suggestion}`;
+      wrap.appendChild(tip);
+    } else if (job.status === "failed") {
+      const tip = document.createElement("p");
+      tip.className = "job-error-suggestion";
+      tip.textContent = "建議：確認輸入檔完整後重試；DOCX 可依賴相容模式，XLSX／PPTX／ODT 為實驗性。";
+      wrap.appendChild(tip);
+    }
+    const techBody = parts.technical
+      || (job.log && job.log.length ? job.log.join("\n") : "")
+      || (source && source !== parts.summary ? source : "");
+    if (techBody && techBody.trim() && techBody.trim() !== parts.summary) {
+      const details = document.createElement("details");
+      details.className = "job-error-technical";
+      const summaryEl = document.createElement("summary");
+      summaryEl.textContent = "技術詳情";
+      details.appendChild(summaryEl);
+      const pre = document.createElement("pre");
+      pre.textContent = techBody;
+      details.appendChild(pre);
+      wrap.appendChild(details);
+    }
+    return wrap;
   }
 
   function renderBackendOutputAction(item) {
@@ -4323,6 +4484,8 @@
       outputDir: state.desktopOutputDir || undefined,
       options: {
         extension: String(formData.get("extension") || ""),
+        docxEngine: String(formData.get("docxEngine") || "auto"),
+        scanOcr: String(formData.get("scanOcr") || "auto"),
         language: String(formData.get("language") || ""),
         pages: String(formData.get("pages") || ""),
         angle: String(formData.get("angle") || ""),
@@ -4364,7 +4527,7 @@
       return "PDF → DOCX（純文字）";
     }
     if (type === "pdf-to-office") {
-      return "PDF → Office（LibreOffice）";
+      return "PDF → Office（嘗試保留版面）";
     }
     if (type === "ocr-pdf") {
       return "PDF OCR → TXT";

@@ -111,6 +111,14 @@ class BackendService {
       ])
     );
     this.tools = Object.fromEntries(entries);
+    // Desktop fallback uses built-in text DOCX writer (always available in this process).
+    this.tools.pdf2docx = {
+      available: true,
+      label: "PDF→DOCX 相容引擎",
+      path: "",
+      version: "desktop-text",
+      source: "python"
+    };
     return this.tools;
   }
 
@@ -367,9 +375,32 @@ class BackendService {
   }
 
   async runPdfToOffice(job) {
-    const tool = requireTool(this.tools, "libreOffice");
     ensureOutputDir(job.outputDir);
     const extension = sanitizeOfficeExtension(job.options.extension || "docx");
+    const engineRaw = String(job.options.docxEngine || "auto").trim().toLowerCase();
+    const scanOcr = String(job.options.scanOcr || "auto").trim().toLowerCase();
+    const useCompatDirect =
+      extension === "docx" && (engineRaw === "compat" || engineRaw === "compatible" || engineRaw === "pdf2docx");
+    if (useCompatDirect) {
+      for (const inputPath of job.inputPaths) {
+        ensureJobNotCancelled(job);
+        const probe = fs.readFileSync(inputPath);
+        if (pdfBytesLookEncrypted(probe)) {
+          throw encryptedPdfError(path.basename(inputPath));
+        }
+        const outputPath = path.join(job.outputDir, `${path.parse(inputPath).name}.docx`);
+        const usedOcr = await writeDocxWithScanStrategy(this, job, inputPath, outputPath, scanOcr);
+        ensureOutputFile(outputPath, inputPath);
+        if (!usedOcr) {
+          job.log.push("已依設定直接使用相容模式建立 DOCX（略過 LibreOffice）；版面可能與原 PDF 不完全一致。");
+          job.log.push(`converted (compat): ${path.basename(inputPath)} -> ${path.basename(outputPath)}`);
+        }
+        job.outputPaths.push(outputPath);
+      }
+      return;
+    }
+
+    const tool = requireTool(this.tools, "libreOffice");
     const convertTo = officeConvertTarget(extension);
     for (const inputPath of job.inputPaths) {
       ensureJobNotCancelled(job);
@@ -378,12 +409,60 @@ class BackendService {
       if (pdfBytesLookEncrypted(probe)) {
         throw encryptedPdfError(path.basename(inputPath));
       }
+      const profileDir = path.join(job.outputDir, `${path.parse(inputPath).name}_lo_profile`);
+      cleanupLoProfile(profileDir);
       const before = snapshotOutputDir(job.outputDir);
-      const args = libreOfficeArgs(job.outputDir, inputPath, convertTo);
-      const result = await runProcess(tool.path, args, job);
-      const outputPath = resolveLibreOfficeOutput(job.outputDir, inputPath, extension, before);
-      job.log.push(result.output || `converted: ${path.basename(inputPath)} -> ${path.basename(outputPath)}`);
-      job.outputPaths.push(outputPath);
+      const args = libreOfficeArgs(job.outputDir, inputPath, convertTo, profileDir);
+      let loError = null;
+      let loOutput = "";
+      try {
+        const result = await runProcess(tool.path, args, job, "LibreOffice");
+        loOutput = result.output || "";
+        const outputPath = resolveLibreOfficeOutput(job.outputDir, inputPath, extension, before);
+        if (!fs.existsSync(outputPath) || fs.statSync(outputPath).size < 64) {
+          removeIncompleteOfficeOutput(outputPath);
+          throw new Error(formatProcessError({
+            outputMissing: true,
+            expectedOutput: path.basename(outputPath),
+            stdout: loOutput,
+            toolLabel: "LibreOffice"
+          }));
+        }
+        job.log.push(loOutput || `converted: ${path.basename(inputPath)} -> ${path.basename(outputPath)}`);
+        job.outputPaths.push(outputPath);
+        continue;
+      } catch (error) {
+        if (isJobCancelledError(error)) {
+          throw error;
+        }
+        loError = error;
+      } finally {
+        cleanupLoProfile(profileDir);
+      }
+
+      const expectedPath = path.join(job.outputDir, `${path.parse(inputPath).name}.${extension}`);
+      removeIncompleteOfficeOutput(expectedPath);
+
+      if (extension === "docx") {
+        job.log.push(String(loError && loError.message ? loError.message : loError || "LibreOffice failed"));
+        const outputPath = path.join(job.outputDir, `${path.parse(inputPath).name}.docx`);
+        const usedOcr = await writeDocxWithScanStrategy(this, job, inputPath, outputPath, scanOcr);
+        ensureOutputFile(outputPath, inputPath);
+        if (!usedOcr) {
+          job.log.push("LibreOffice 無法完成轉換，已改用相容模式建立 DOCX；版面可能與原 PDF 不完全一致。");
+          job.log.push(`converted (compat): ${path.basename(inputPath)} -> ${path.basename(outputPath)}`);
+        }
+        job.outputPaths.push(outputPath);
+        continue;
+      }
+
+      let message = String(loError && loError.message ? loError.message : loError || "LibreOffice 轉換失敗");
+      if (["xlsx", "pptx", "odt"].includes(extension)) {
+        message +=
+          `\n說明：PDF→${extension.toUpperCase()} 為實驗性轉換；PDF 並非試算表／簡報／原始 Office 格式，結果可能不完整。` +
+          "正式用途建議輸出 DOCX（可自動相容模式）。";
+      }
+      throw new Error(message);
     }
   }
 
@@ -1370,6 +1449,85 @@ function textItemsToLines(items) {
     .filter(Boolean);
 }
 
+/**
+ * @returns {Promise<boolean>} true if OCR→DOCX was used
+ */
+async function writeDocxWithScanStrategy(service, job, inputPath, outputPath, scanOcr) {
+  const mode = String(scanOcr || "auto").toLowerCase();
+  const text = await extractPdfText(inputPath);
+  const lowText = !String(text || "").trim() || String(text).trim().length < 40;
+  const force = mode === "force" || mode === "on" || mode === "true" || mode === "1";
+  const off = mode === "off" || mode === "false" || mode === "0" || mode === "never";
+  const wantOcr = !off && (force || ((mode === "auto" || !mode) && lowText));
+
+  if (wantOcr) {
+    try {
+      const tools = service && service.tools ? service.tools : {};
+      if (!tools.tesseract || !tools.tesseract.available) {
+        throw new Error("Tesseract 不可用");
+      }
+      const ocrText = await ocrPdfToText(service, job, inputPath);
+      if (String(ocrText || "").trim()) {
+        writeTextDocx(outputPath, ocrText);
+        job.log.push("已使用 OCR→DOCX 管線建立文件（掃描／低文字 PDF）；內容為純文字段落，版面與原圖不同。");
+        job.log.push(`converted (ocr): ${path.basename(inputPath)} -> ${path.basename(outputPath)}`);
+        return true;
+      }
+      if (force) {
+        throw new Error("OCR 結果為空（請確認語言代碼或影像品質）");
+      }
+    } catch (error) {
+      if (force) {
+        throw error;
+      }
+      job.log.push(`OCR→DOCX 略過：${error && error.message ? error.message : error}`);
+    }
+  }
+
+  writeTextDocx(outputPath, text || path.basename(inputPath));
+  if (lowText && !off) {
+    job.log.push(
+      "此 PDF 可抽取文字很少（可能是掃描件）。若 DOCX 幾乎空白，請將「掃描件 OCR→DOCX」設為「一律」並確認 Tesseract。"
+    );
+  }
+  return false;
+}
+
+async function ocrPdfToText(service, job, inputPath) {
+  const tool = requireTool(service.tools, "tesseract");
+  const language = String(job.options.language || "eng").trim() || "eng";
+  const maxPages = sanitizeOcrPdfMaxPages(job.options.maxPages);
+  const tessdataDir = bundledTessdataDir(tool.path);
+  const pageDir = path.join(job.outputDir, `${path.parse(inputPath).name}_ocr_docx_pages`);
+  fs.mkdirSync(pageDir, { recursive: true });
+  try {
+    const pageImages = await renderPdfPagesToPng(inputPath, pageDir, maxPages, job);
+    if (!pageImages.length) {
+      throw new Error(`PDF 沒有可 OCR 的頁面：${path.basename(inputPath)}`);
+    }
+    const pageTexts = [];
+    for (let i = 0; i < pageImages.length; i += 1) {
+      ensureJobNotCancelled(job);
+      const pageBase = path.join(pageDir, `page_${String(i + 1).padStart(3, "0")}_ocr`);
+      const args = [pageImages[i], pageBase, "-l", language];
+      if (tessdataDir) {
+        args.push("--tessdata-dir", tessdataDir);
+      }
+      await runProcess(tool.path, args, job, "Tesseract");
+      const textPath = `${pageBase}.txt`;
+      const pageText = fs.existsSync(textPath) ? fs.readFileSync(textPath, "utf8") : "";
+      pageTexts.push(`--- Page ${i + 1} ---\n${pageText.trim()}`);
+    }
+    return `${pageTexts.join("\n\n").trim()}\n`;
+  } finally {
+    try {
+      fs.rmSync(pageDir, { recursive: true, force: true });
+    } catch {
+      // ignore
+    }
+  }
+}
+
 function writeTextDocx(outputPath, text) {
   const files = [
     {
@@ -1535,10 +1693,10 @@ function crc32(bytes) {
   return (crc ^ 0xffffffff) >>> 0;
 }
 
-function libreOfficeArgs(outputDir, inputPath, convertTo) {
-  const profileDir = path.join(outputDir, `${path.parse(inputPath).name}_lo_profile`);
-  fs.mkdirSync(profileDir, { recursive: true });
-  const profileUri = path.resolve(profileDir).replace(/\\/g, "/");
+function libreOfficeArgs(outputDir, inputPath, convertTo, profileDir) {
+  const resolvedProfile = profileDir || path.join(outputDir, `${path.parse(inputPath).name}_lo_profile`);
+  fs.mkdirSync(resolvedProfile, { recursive: true });
+  const profileUri = path.resolve(resolvedProfile).replace(/\\/g, "/");
   return [
     "--headless",
     "--nologo",
@@ -1552,6 +1710,103 @@ function libreOfficeArgs(outputDir, inputPath, convertTo) {
     outputDir,
     inputPath
   ];
+}
+
+function cleanupLoProfile(profileDir) {
+  try {
+    if (profileDir && fs.existsSync(profileDir)) {
+      fs.rmSync(profileDir, { recursive: true, force: true });
+    }
+  } catch {
+    // ignore cleanup failures
+  }
+}
+
+function removeIncompleteOfficeOutput(filePath, minBytes = 64) {
+  try {
+    if (!filePath || !fs.existsSync(filePath)) {
+      return false;
+    }
+    const size = fs.statSync(filePath).size;
+    if (size < minBytes) {
+      fs.unlinkSync(filePath);
+      return true;
+    }
+  } catch {
+    return false;
+  }
+  return false;
+}
+
+function isWindowsStackBufferOverrun(code) {
+  if (code === null || code === undefined) {
+    return false;
+  }
+  const asNumber = Number(code);
+  if (asNumber === -1073740791 || asNumber === 3221226505 || asNumber === 0xc0000409) {
+    return true;
+  }
+  return (asNumber >>> 0) === 0xc0000409;
+}
+
+function formatProcessError({
+  returncode = null,
+  stdout = "",
+  stderr = "",
+  timeout = false,
+  timeoutSeconds = null,
+  executable = "",
+  toolLabel = "LibreOffice",
+  notFound = false,
+  permissionDenied = false,
+  outputMissing = false,
+  expectedOutput = ""
+} = {}) {
+  const combined = `${stdout || ""}\n${stderr || ""}`.trim();
+  let summary = "";
+  let suggestion = "";
+  if (timeout) {
+    summary = `${toolLabel} 轉換逾時（${timeoutSeconds != null ? timeoutSeconds : "?"} 秒）。檔案可能過大或文件引擎卡住。`;
+    suggestion = "請縮短頁數後重試，或改用較簡單的 PDF／其他輸出格式。";
+  } else if (notFound) {
+    summary = `找不到 ${toolLabel} 執行檔${executable ? `（${executable}）` : ""}。`;
+    suggestion = "請到「狀態」頁安裝或指定正確的工具路徑後重試。";
+  } else if (permissionDenied) {
+    summary = `沒有權限執行 ${toolLabel}${executable ? `（${executable}）` : ""}。`;
+    suggestion = "請以具足夠權限的帳戶執行，或檢查防毒／檔案權限設定。";
+  } else if (outputMissing) {
+    summary = `${toolLabel} 執行結束，但未產生輸出檔（預期：${expectedOutput || "輸出檔"}）。`;
+    suggestion = "原始檔案未被修改。請確認 PDF 未損壞，或改試其他格式／相容模式。";
+  } else if (isWindowsStackBufferOverrun(returncode)) {
+    summary =
+      "LibreOffice 轉換程序意外崩潰（Windows 0xC0000409）。" +
+      "這通常表示 LibreOffice 無法把此 PDF 匯出成所選 Office 格式。" +
+      "原始 PDF 並未被修改。";
+    suggestion = "若目標為 DOCX，系統會自動嘗試相容模式；其他格式請改試 DOCX 或更新 LibreOffice。";
+  } else if (/impl_store|error area:io|class:write/i.test(combined)) {
+    summary = "LibreOffice 無法寫入 Office 輸出檔（SfxBaseModel::impl_store / Io Class:Write）。原始 PDF 並未被修改。";
+    suggestion = "請確認輸出資料夾可寫入；DOCX 將自動嘗試相容模式。";
+  } else if (returncode !== null && returncode !== 0) {
+    const codeLabel = isWindowsStackBufferOverrun(returncode)
+      ? `0xC0000409 (${returncode})`
+      : String(returncode);
+    summary = `${toolLabel} 轉換失敗（退出碼 ${codeLabel}）。原始檔案並未被修改。`;
+    suggestion = "請檢查輸入檔是否完整，或改試其他輸出格式。";
+  } else {
+    summary = `${toolLabel} 轉換失敗。原始檔案並未被修改。`;
+    suggestion = "請檢查輸入檔後重試。";
+  }
+  const parts = [summary];
+  if (suggestion) {
+    parts.push(`建議：${suggestion}`);
+  }
+  if (combined) {
+    const detail = combined.length > 4000 ? `${combined.slice(0, 4000)}\n…（已截斷）` : combined;
+    parts.push(`【技術詳情】\n${detail}`);
+  } else if (returncode !== null && returncode !== 0 && !timeout) {
+    parts.push(`【技術詳情】\nexit code=${returncode}`);
+  }
+  return parts.join("\n");
 }
 
 function publicJob(job) {
@@ -1609,13 +1864,27 @@ function isJobCancelledError(error) {
   return Boolean(error && (error.cancelled || error.name === "JobCancelledError"));
 }
 
-function runProcess(file, args, job) {
+function runProcess(file, args, job, toolLabel = "外部程序") {
   return new Promise((resolve, reject) => {
     if (job && job.cancelRequested) {
       reject(new JobCancelledError());
       return;
     }
-    const child = spawn(file, args, { windowsHide: true });
+    let child;
+    try {
+      child = spawn(file, args, { windowsHide: true });
+    } catch (error) {
+      const notFound = error && (error.code === "ENOENT" || /ENOENT/i.test(String(error)));
+      const permissionDenied = error && (error.code === "EACCES" || /EACCES|permission/i.test(String(error)));
+      reject(new Error(formatProcessError({
+        notFound,
+        permissionDenied,
+        executable: file,
+        toolLabel,
+        stdout: String(error && error.message ? error.message : error || "")
+      })));
+      return;
+    }
     if (job) {
       job._child = child;
     }
@@ -1626,7 +1895,15 @@ function runProcess(file, args, job) {
       if (job) {
         job._child = null;
       }
-      reject(error);
+      const notFound = error && (error.code === "ENOENT" || /ENOENT/i.test(String(error)));
+      const permissionDenied = error && (error.code === "EACCES" || /EACCES|permission/i.test(String(error)));
+      reject(new Error(formatProcessError({
+        notFound,
+        permissionDenied,
+        executable: file,
+        toolLabel,
+        stdout: String(error && error.message ? error.message : error || "")
+      })));
     });
     child.on("close", (code) => {
       if (job) {
@@ -1637,10 +1914,27 @@ function runProcess(file, args, job) {
         reject(new JobCancelledError());
         return;
       }
-      if (code === 0) {
+      // qpdf uses exit 3 for "succeeded with warnings" (still produced output).
+      const isQpdf = /qpdf/i.test(path.basename(file || ""));
+      const qpdfWarningOk = isQpdf && code === 3 && /succeeded with warnings/i.test(output);
+      if (code === 0 || qpdfWarningOk) {
+        if (/impl_store|error area:io|class:write/i.test(output)) {
+          reject(new Error(formatProcessError({
+            returncode: code,
+            stdout: output,
+            executable: file,
+            toolLabel
+          })));
+          return;
+        }
         resolve({ output });
       } else {
-        reject(new Error(output || `Process exited with code ${code}`));
+        reject(new Error(formatProcessError({
+          returncode: code,
+          stdout: output,
+          executable: file,
+          toolLabel: isQpdf ? "QPDF" : toolLabel
+        })));
       }
     });
   });
@@ -1657,6 +1951,10 @@ module.exports = {
   sanitizeOfficeExtension,
   officeConvertTarget,
   buildFfmpegMediaArgs,
+  formatProcessError,
+  isWindowsStackBufferOverrun,
+  removeIncompleteOfficeOutput,
+  cleanupLoProfile,
   sanitizeMediaBitrate,
   sanitizeGifFps,
   loadJobsState,

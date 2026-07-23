@@ -350,7 +350,15 @@ class JobService:
             elif job.type == "pdf-rotate":
                 outputs, logs = await rotate_pdf(job.input_paths, job.output_dir, int(job.options["angle"]))
             elif job.type == "pdf-to-office":
-                outputs, logs = await convert_pdf_to_office(job.input_paths, job.output_dir, job.options["extension"])
+                outputs, logs = await convert_pdf_to_office(
+                    job.input_paths,
+                    job.output_dir,
+                    job.options["extension"],
+                    job.options.get("docxEngine") or "auto",
+                    job.options.get("scanOcr") or "auto",
+                    job.options.get("language") or "eng",
+                    int(job.options.get("maxPages") or OCR_PDF_MAX_PAGES_DEFAULT),
+                )
             elif job.type == "image-convert":
                 outputs, logs = await convert_image(job.input_paths, job.output_dir, job.options["extension"])
             elif job.type == "pdf-encrypt":
@@ -452,10 +460,29 @@ class JobService:
         if job_type == "pdf-to-docx":
             return {}
         if job_type == "pdf-to-office":
+            from .conversion_service import sanitize_docx_engine, sanitize_scan_ocr
+
             ext = sanitize_extension(options.get("extension") or "docx")
             if ext not in ALLOWED_PDF_TO_OFFICE_EXTENSIONS:
                 raise ValueError(f"Unsupported Office format: {ext}. Allowed: docx, xlsx, pptx, odt")
-            return {"extension": ext}
+            engine = sanitize_docx_engine(options.get("docxEngine") or "auto")
+            if engine == "compat" and ext != "docx":
+                raise ValueError("相容模式（docxEngine=compat）僅適用於 DOCX")
+            scan = sanitize_scan_ocr(options.get("scanOcr") or "auto")
+            language = (options.get("language") or "eng").strip() or "eng"
+            raw_pages = (options.get("maxPages") or str(OCR_PDF_MAX_PAGES_DEFAULT)).strip()
+            try:
+                max_pages = int(raw_pages)
+            except ValueError as error:
+                raise ValueError("maxPages must be an integer") from error
+            max_pages = max(1, min(max_pages, OCR_PDF_MAX_PAGES_HARD_LIMIT))
+            return {
+                "extension": ext,
+                "docxEngine": engine,
+                "scanOcr": scan,
+                "language": language,
+                "maxPages": str(max_pages),
+            }
         if job_type == "pdf-merge":
             return {}
         if job_type == "pdf-split":

@@ -16,6 +16,10 @@ const {
   BackendService,
   snapshotOutputDir,
   resolveLibreOfficeOutput,
+  formatProcessError,
+  isWindowsStackBufferOverrun,
+  removeIncompleteOfficeOutput,
+  cleanupLoProfile,
   pdfBytesLookEncrypted,
   isEncryptedPdfMessage,
   parsePageRanges,
@@ -123,6 +127,42 @@ describe("office convert targets", () => {
     assert.equal(sanitizeOfficeExtension("DOCX"), "docx");
     assert.equal(officeConvertTarget("xlsx"), "xlsx:Calc MS Excel 2007 XML");
     assert.throws(() => sanitizeOfficeExtension("pdf"), /Unsupported Office format/);
+  });
+});
+
+describe("process error formatter", () => {
+  test("maps 3221226505 and signed -1073740791 to 0xC0000409 message", () => {
+    assert.equal(isWindowsStackBufferOverrun(3221226505), true);
+    assert.equal(isWindowsStackBufferOverrun(-1073740791), true);
+    const msg = formatProcessError({ returncode: 3221226505, stderr: "ucrtbase.dll" });
+    assert.match(msg, /0xC0000409/);
+    assert.match(msg, /意外崩潰/);
+    assert.match(msg, /【技術詳情】/);
+    assert.doesNotMatch(msg, /^Process exited with code/);
+    const signed = formatProcessError({ returncode: -1073740791 });
+    assert.match(signed, /0xC0000409/);
+  });
+
+  test("timeout and missing output messages", () => {
+    assert.match(formatProcessError({ timeout: true, timeoutSeconds: 180 }), /逾時/);
+    assert.match(formatProcessError({ outputMissing: true, expectedOutput: "a.docx" }), /未產生輸出檔/);
+  });
+
+  test("removes incomplete outputs and cleans profiles", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "swiftlocal-lo-"));
+    try {
+      const tiny = path.join(dir, "a.docx");
+      fs.writeFileSync(tiny, "");
+      assert.equal(removeIncompleteOfficeOutput(tiny), true);
+      assert.equal(fs.existsSync(tiny), false);
+      const profile = path.join(dir, "p_lo_profile");
+      fs.mkdirSync(path.join(profile, "user"), { recursive: true });
+      fs.writeFileSync(path.join(profile, "user", "x"), "y");
+      cleanupLoProfile(profile);
+      assert.equal(fs.existsSync(profile), false);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
 

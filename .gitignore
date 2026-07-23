@@ -7,6 +7,9 @@ __pycache__/
 *.pyc
 backend/tools.json
 .swiftlocal-tools.json
+# Local job queue state (runtime only; never commit)
+jobs-state.json
+backend/temp/
 SwiftLocal-output/
 smoke-temp/
 tools/*
