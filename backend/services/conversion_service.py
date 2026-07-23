@@ -124,6 +124,9 @@ DOCX_SCAN_OCR_HINT = (
 DOCX_OCR_PIPELINE_LOG = (
     "已使用 OCR→DOCX 管線建立文件（掃描／低文字 PDF）；內容為純文字段落，版面與原圖不同。"
 )
+DOCX_SEARCHABLE_OCR_LOG = (
+    "已先建立可搜尋 PDF（OCR 文字層），再匯出 DOCX；並保留 *_ocr_searchable.pdf 中間產物。"
+)
 EXPERIMENTAL_OFFICE_NOTE = (
     "實驗性轉換：PDF 並非試算表／簡報／原始 Office 文件，版面及內容結構可能不完整。"
     "正式用途建議輸出 DOCX（可自動相容模式）。"
@@ -423,6 +426,120 @@ async def tesseract_available() -> bool:
         return False
 
 
+def _merge_pdf_files_sync(page_pdfs: list[Path], output_path: Path) -> None:
+    try:
+        from pypdf import PdfWriter  # lazy import
+    except ImportError as error:
+        raise RuntimeError("合併可搜尋 PDF 需要 pypdf") from error
+    writer = PdfWriter()
+    for page_pdf in page_pdfs:
+        writer.append(str(page_pdf))
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(output_path, "wb") as handle:
+        writer.write(handle)
+
+
+async def create_searchable_pdf_via_ocr(
+    input_path: Path,
+    output_dir: Path,
+    *,
+    language: str = "eng",
+    max_pages: int = OCR_PDF_MAX_PAGES_DEFAULT,
+) -> tuple[Path, list[str]]:
+    """
+    Rasterize PDF pages, run Tesseract PDF output per page, merge into one searchable PDF.
+    Output: {stem}_ocr_searchable.pdf in output_dir.
+    """
+    ensure_not_cancelled()
+    require_unencrypted_pdf(input_path)
+    tool = await tools_service.require_tool("tesseract")
+    clean_language = (language or "eng").strip() or "eng"
+    page_limit = max(1, min(int(max_pages or OCR_PDF_MAX_PAGES_DEFAULT), OCR_PDF_MAX_PAGES_HARD_LIMIT))
+    tessdata_dir = resolve_tessdata_dir(Path(str(tool["path"])))
+    work = output_dir / f"{input_path.stem}_ocr_searchable_work"
+    if work.exists():
+        shutil.rmtree(work, ignore_errors=True)
+    work.mkdir(parents=True, exist_ok=True)
+    logs: list[str] = []
+    try:
+        page_images, render_log = await asyncio.to_thread(
+            _render_pdf_pages_sync, input_path, work, page_limit, OCR_PDF_RENDER_SCALE
+        )
+        logs.append(render_log)
+        if not page_images:
+            raise RuntimeError(f"PDF 沒有可 OCR 的頁面：{input_path.name}")
+
+        page_pdfs: list[Path] = []
+        for index, image_path in enumerate(page_images, start=1):
+            ensure_not_cancelled()
+            page_base = work / f"page_{index:03d}_searchable"
+            args = [str(image_path), str(page_base), "-l", clean_language, "pdf"]
+            if tessdata_dir:
+                args.extend(["--tessdata-dir", str(tessdata_dir)])
+            log = await run_process(str(tool["path"]), args, timeout=300, tool_label="Tesseract")
+            if log:
+                logs.append(log)
+            page_pdf = page_base.with_suffix(".pdf")
+            if not page_pdf.is_file() or page_pdf.stat().st_size < 64:
+                raise RuntimeError(f"Tesseract 未產生第 {index} 頁可搜尋 PDF")
+            page_pdfs.append(page_pdf)
+
+        final_path = output_dir / f"{input_path.stem}_ocr_searchable.pdf"
+        if final_path.exists():
+            remove_incomplete_office_output(final_path, force=True)
+        await asyncio.to_thread(_merge_pdf_files_sync, page_pdfs, final_path)
+        if not final_path.is_file() or final_path.stat().st_size < 64:
+            raise RuntimeError("合併可搜尋 PDF 失敗")
+        logs.append(
+            f"ocr-searchable-pdf: {input_path.name} -> {final_path.name} ({len(page_pdfs)} page(s))"
+        )
+        return final_path, logs
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+
+async def convert_pdf_to_docx_via_searchable_ocr(
+    input_path: Path,
+    output_dir: Path,
+    *,
+    language: str = "eng",
+    max_pages: int = OCR_PDF_MAX_PAGES_DEFAULT,
+    prior_error: BaseException | None = None,
+) -> tuple[Path, list[str]]:
+    """OCR → searchable PDF intermediate → pdf2docx (preferred scan path)."""
+    logs: list[str] = []
+    if prior_error is not None:
+        logs.append(str(prior_error))
+    searchable, ocr_logs = await create_searchable_pdf_via_ocr(
+        input_path, output_dir, language=language, max_pages=max_pages
+    )
+    logs.extend(ocr_logs)
+    if not pdf2docx_available():
+        raise RuntimeError(
+            "已建立可搜尋 PDF，但 pdf2docx 未安裝，無法繼續匯出 DOCX。"
+            "請安裝 backend/requirements.txt；可搜尋 PDF 已保留於輸出目錄。"
+        )
+    final_path = output_dir / f"{input_path.stem}.docx"
+    temp_path = output_dir / f"{input_path.stem}.searchable.pdf2docx.tmp.docx"
+    try:
+        if temp_path.exists():
+            temp_path.unlink(missing_ok=True)
+        await asyncio.to_thread(_pdf_to_docx_sync, searchable, temp_path)
+        if not temp_path.is_file() or temp_path.stat().st_size < 64:
+            remove_incomplete_office_output(temp_path)
+            raise RuntimeError("可搜尋 PDF → DOCX 未產生有效輸出")
+        if final_path.exists():
+            remove_incomplete_office_output(final_path, force=True)
+        temp_path.replace(final_path)
+    except Exception:
+        remove_incomplete_office_output(temp_path)
+        raise
+    logs.append(DOCX_SEARCHABLE_OCR_LOG)
+    logs.append(f"converted (ocr-searchable): {input_path.name} -> {final_path.name}")
+    logs.append(f"intermediate: {searchable.name}")
+    return final_path, logs
+
+
 async def convert_pdf_to_docx_via_ocr(
     input_path: Path,
     output_dir: Path,
@@ -431,7 +548,7 @@ async def convert_pdf_to_docx_via_ocr(
     max_pages: int = OCR_PDF_MAX_PAGES_DEFAULT,
     prior_error: BaseException | None = None,
 ) -> tuple[Path, list[str]]:
-    """Rasterize + Tesseract OCR, then write a plain-text DOCX."""
+    """Rasterize + Tesseract OCR, then write a plain-text DOCX (fallback of searchable path)."""
     ensure_not_cancelled()
     require_unencrypted_pdf(input_path)
     ocr_work = output_dir / f"{input_path.stem}_ocr_docx_work"
@@ -474,7 +591,7 @@ async def _convert_pdf_to_docx_compat(
     language: str = "eng",
     max_pages: int = OCR_PDF_MAX_PAGES_DEFAULT,
 ) -> tuple[Path, list[str]]:
-    """pdf2docx and/or OCR→DOCX depending on scanOcr and extractable text."""
+    """pdf2docx and/or OCR paths depending on scanOcr and extractable text."""
     ensure_not_cancelled()
     mode = sanitize_scan_ocr(scan_ocr)
     low_text = maybe_scan_ocr_hint(input_path) is not None
@@ -482,25 +599,35 @@ async def _convert_pdf_to_docx_compat(
     can_ocr = await tesseract_available()
 
     if want_ocr and can_ocr:
+        # Preferred: searchable PDF intermediate → DOCX; fallback: plain-text OCR DOCX.
         try:
-            return await convert_pdf_to_docx_via_ocr(
+            return await convert_pdf_to_docx_via_searchable_ocr(
                 input_path,
                 output_dir,
                 language=language,
                 max_pages=max_pages,
                 prior_error=prior_error,
             )
-        except Exception as ocr_error:
-            if mode == "force":
-                detail = f"\n【技術詳情】\n{ocr_error}"
-                if prior_error:
-                    detail += f"\n先前：{prior_error}"
-                raise RuntimeError(
-                    "OCR→DOCX 失敗。請確認 Tesseract 與語言資料已安裝，並檢查影像品質。"
-                    + detail
-                ) from ocr_error
-            # auto: fall through to pdf2docx
-            prior_error = ocr_error if prior_error is None else prior_error
+        except Exception as searchable_error:
+            try:
+                return await convert_pdf_to_docx_via_ocr(
+                    input_path,
+                    output_dir,
+                    language=language,
+                    max_pages=max_pages,
+                    prior_error=searchable_error,
+                )
+            except Exception as ocr_error:
+                if mode == "force":
+                    detail = f"\n【技術詳情】\nsearchable: {searchable_error}\ntext: {ocr_error}"
+                    if prior_error:
+                        detail += f"\n先前：{prior_error}"
+                    raise RuntimeError(
+                        "OCR 管線失敗（可搜尋 PDF 與純文字 DOCX 皆未成功）。"
+                        "請確認 Tesseract、語言資料與影像品質。"
+                        + detail
+                    ) from ocr_error
+                prior_error = ocr_error if prior_error is None else prior_error
 
     if not pdf2docx_available():
         if want_ocr and not can_ocr:
@@ -585,6 +712,12 @@ async def convert_pdf_to_office(
     lo_timeout = 180
     page_limit = max(1, min(int(max_pages or OCR_PDF_MAX_PAGES_DEFAULT), OCR_PDF_MAX_PAGES_HARD_LIMIT))
 
+    def append_docx_and_side_products(input_path: Path, docx_path: Path) -> None:
+        outputs.append(docx_path)
+        side = output_dir / f"{input_path.stem}_ocr_searchable.pdf"
+        if side.is_file() and side.resolve() != docx_path.resolve():
+            outputs.append(side)
+
     # Direct compat / OCR path (skip LibreOffice) — useful when LO crashes on certain PDFs.
     if clean_extension == "docx" and engine == "compat":
         for input_path in input_paths:
@@ -599,7 +732,7 @@ async def convert_pdf_to_office(
                 max_pages=page_limit,
             )
             logs.extend(item_logs)
-            outputs.append(path)
+            append_docx_and_side_products(input_path, path)
         return outputs, logs
 
     tool = await tools_service.require_tool("libreOffice")
@@ -718,7 +851,7 @@ async def convert_pdf_to_office(
                     max_pages=page_limit,
                 )
                 logs.extend(item_logs)
-                outputs.append(path)
+                append_docx_and_side_products(input_path, path)
                 continue
 
             # Non-DOCX or fallback not applicable: surface a clear error.

@@ -1555,9 +1555,9 @@
     if (format === "docx") {
       const direct = Boolean(compatCheck && compatCheck.checked);
       const scanMode = ($("#pdf-office-scan-ocr") && $("#pdf-office-scan-ocr").value) || "auto";
-      let scanHint = "掃描件：文字很少時可自動走 OCR→DOCX（需 Tesseract）。";
-      if (scanMode === "force") scanHint = "將一律使用 OCR→DOCX（純文字段落，需 Tesseract）。";
-      if (scanMode === "off") scanHint = "已關閉 OCR→DOCX；掃描件可能產出近乎空白文件。";
+      let scanHint = "掃描件：文字很少時先 OCR 成可搜尋 PDF 再轉 DOCX（需 Tesseract）。";
+      if (scanMode === "force") scanHint = "一律 OCR：可搜尋 PDF 中間產物 + DOCX（需 Tesseract）。";
+      if (scanMode === "off") scanHint = "已關閉掃描 OCR；掃描件可能產出近乎空白文件。";
       note.textContent = direct
         ? `將直接使用相容／OCR 管線（略過 LibreOffice）。${scanHint}`
         : `先嘗試 LibreOffice 保留版面；失敗後相容模式。${scanHint}`;

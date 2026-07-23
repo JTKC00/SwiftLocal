@@ -772,12 +772,7 @@ class PdfToOfficeFallbackTests(unittest.IsolatedAsyncioTestCase):
             _make_pdf(src, pages=1)
 
             async def fake_ocr(paths, odir, language, max_pages=50):  # noqa: ANN001
-                txt = odir / f"{paths[0].stem}_ocr.txt"
-                txt.parent.mkdir(parents=True, exist_ok=True)
-                # ocr_pdf writes into odir; simulate
-                work_txt = list(odir.glob("**/*"))
                 target = odir / f"{paths[0].stem}_ocr.txt"
-                # place where convert_pdf_to_docx_via_ocr expects first output
                 target.write_text("--- Page 1 ---\nOCR HELLO\n", encoding="utf-8")
                 return [target], ["ocr-mock"]
 
@@ -789,6 +784,38 @@ class PdfToOfficeFallbackTests(unittest.IsolatedAsyncioTestCase):
                 self.assertTrue(any(cs.DOCX_OCR_PIPELINE_LOG in x for x in logs))
             finally:
                 cs.ocr_pdf = original  # type: ignore[assignment]
+
+    async def test_searchable_ocr_then_docx_mocked(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            src = base / "scan.pdf"
+            out = base / "out"
+            out.mkdir()
+            _make_pdf(src, pages=1)
+
+            async def fake_searchable(input_path, output_dir, language="eng", max_pages=50):  # noqa: ANN001
+                pdf = output_dir / f"{input_path.stem}_ocr_searchable.pdf"
+                # Minimal valid-enough PDF bytes for existence checks
+                pdf.write_bytes(b"%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n" + b"\0" * 80)
+                return pdf, ["ocr-searchable-mock"]
+
+            def fake_pdf2docx(input_path: Path, output_path: Path) -> None:
+                output_path.write_bytes(b"PK" + b"from-searchable" * 10)
+
+            original_s = cs.create_searchable_pdf_via_ocr
+            original_p = cs._pdf_to_docx_sync
+            cs.create_searchable_pdf_via_ocr = fake_searchable  # type: ignore[assignment]
+            cs._pdf_to_docx_sync = fake_pdf2docx  # type: ignore[assignment]
+            try:
+                path, logs = await cs.convert_pdf_to_docx_via_searchable_ocr(
+                    src, out, language="eng", max_pages=2
+                )
+                self.assertTrue(path.exists())
+                self.assertTrue((out / "scan_ocr_searchable.pdf").exists())
+                self.assertTrue(any(cs.DOCX_SEARCHABLE_OCR_LOG in x for x in logs))
+            finally:
+                cs.create_searchable_pdf_via_ocr = original_s  # type: ignore[assignment]
+                cs._pdf_to_docx_sync = original_p  # type: ignore[assignment]
 
 
 if __name__ == "__main__":
