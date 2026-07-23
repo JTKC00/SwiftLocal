@@ -379,8 +379,15 @@ class BackendService {
     const extension = sanitizeOfficeExtension(job.options.extension || "docx");
     const engineRaw = String(job.options.docxEngine || "auto").trim().toLowerCase();
     const scanOcr = String(job.options.scanOcr || "auto").trim().toLowerCase();
+    const ocrOutput = String(job.options.ocrOutput || "both").trim().toLowerCase();
+    const searchableOnly =
+      extension === "docx" && (ocrOutput === "searchable" || ocrOutput === "pdf" || ocrOutput === "searchable-pdf");
     const useCompatDirect =
-      extension === "docx" && (engineRaw === "compat" || engineRaw === "compatible" || engineRaw === "pdf2docx");
+      extension === "docx" &&
+      (searchableOnly ||
+        engineRaw === "compat" ||
+        engineRaw === "compatible" ||
+        engineRaw === "pdf2docx");
     if (useCompatDirect) {
       for (const inputPath of job.inputPaths) {
         ensureJobNotCancelled(job);
@@ -388,14 +395,13 @@ class BackendService {
         if (pdfBytesLookEncrypted(probe)) {
           throw encryptedPdfError(path.basename(inputPath));
         }
-        const outputPath = path.join(job.outputDir, `${path.parse(inputPath).name}.docx`);
-        const usedOcr = await writeDocxWithScanStrategy(this, job, inputPath, outputPath, scanOcr);
-        ensureOutputFile(outputPath, inputPath);
-        if (!usedOcr) {
-          job.log.push("已依設定直接使用相容模式建立 DOCX（略過 LibreOffice）；版面可能與原 PDF 不完全一致。");
-          job.log.push(`converted (compat): ${path.basename(inputPath)} -> ${path.basename(outputPath)}`);
+        const outputs = await writeDocxWithScanStrategy(this, job, inputPath, scanOcr, ocrOutput, {
+          forceCompat: true
+        });
+        for (const out of outputs) {
+          ensureOutputFile(out, inputPath);
+          job.outputPaths.push(out);
         }
-        job.outputPaths.push(outputPath);
       }
       return;
     }
@@ -445,14 +451,14 @@ class BackendService {
 
       if (extension === "docx") {
         job.log.push(String(loError && loError.message ? loError.message : loError || "LibreOffice failed"));
-        const outputPath = path.join(job.outputDir, `${path.parse(inputPath).name}.docx`);
-        const usedOcr = await writeDocxWithScanStrategy(this, job, inputPath, outputPath, scanOcr);
-        ensureOutputFile(outputPath, inputPath);
-        if (!usedOcr) {
-          job.log.push("LibreOffice 無法完成轉換，已改用相容模式建立 DOCX；版面可能與原 PDF 不完全一致。");
-          job.log.push(`converted (compat): ${path.basename(inputPath)} -> ${path.basename(outputPath)}`);
+        const outputs = await writeDocxWithScanStrategy(this, job, inputPath, scanOcr, ocrOutput, {
+          forceCompat: false,
+          loFailed: true
+        });
+        for (const out of outputs) {
+          ensureOutputFile(out, inputPath);
+          job.outputPaths.push(out);
         }
-        job.outputPaths.push(outputPath);
         continue;
       }
 
@@ -1450,15 +1456,22 @@ function textItemsToLines(items) {
 }
 
 /**
- * @returns {Promise<boolean>} true if OCR→DOCX was used
+ * Compat / OCR path for desktop PDF→DOCX.
+ * @returns {Promise<string[]>} output file paths
  */
-async function writeDocxWithScanStrategy(service, job, inputPath, outputPath, scanOcr) {
+async function writeDocxWithScanStrategy(service, job, inputPath, scanOcr, ocrOutput, flags = {}) {
   const mode = String(scanOcr || "auto").toLowerCase();
+  let outMode = String(ocrOutput || "both").toLowerCase();
+  if (outMode === "pdf" || outMode === "searchable-pdf") outMode = "searchable";
+  if (!["both", "searchable", "docx"].includes(outMode)) outMode = "both";
+
   const text = await extractPdfText(inputPath);
   const lowText = !String(text || "").trim() || String(text).trim().length < 40;
-  const force = mode === "force" || mode === "on" || mode === "true" || mode === "1";
+  const force = mode === "force" || mode === "on" || mode === "true" || mode === "1" || outMode === "searchable";
   const off = mode === "off" || mode === "false" || mode === "0" || mode === "never";
-  const wantOcr = !off && (force || ((mode === "auto" || !mode) && lowText));
+  const wantOcr = !off && (force || ((mode === "auto" || !mode) && lowText) || outMode === "searchable");
+  const docxPath = path.join(job.outputDir, `${path.parse(inputPath).name}.docx`);
+  const searchablePath = path.join(job.outputDir, `${path.parse(inputPath).name}_ocr_searchable.pdf`);
 
   if (wantOcr) {
     try {
@@ -1466,31 +1479,117 @@ async function writeDocxWithScanStrategy(service, job, inputPath, outputPath, sc
       if (!tools.tesseract || !tools.tesseract.available) {
         throw new Error("Tesseract 不可用");
       }
+      // Preferred: searchable multi-page PDF (Tesseract pdf output), then optional text DOCX.
+      await createSearchablePdfViaOcr(service, job, inputPath, searchablePath);
+      if (outMode === "searchable") {
+        job.log.push("已依設定僅輸出可搜尋 PDF（不轉 DOCX）。");
+        job.log.push(`converted (ocr-searchable-pdf): ${path.basename(inputPath)} -> ${path.basename(searchablePath)}`);
+        return [searchablePath];
+      }
+      // Desktop lacks pdf2docx; produce text DOCX from OCR text as office output.
       const ocrText = await ocrPdfToText(service, job, inputPath);
-      if (String(ocrText || "").trim()) {
-        writeTextDocx(outputPath, ocrText);
-        job.log.push("已使用 OCR→DOCX 管線建立文件（掃描／低文字 PDF）；內容為純文字段落，版面與原圖不同。");
-        job.log.push(`converted (ocr): ${path.basename(inputPath)} -> ${path.basename(outputPath)}`);
-        return true;
+      writeTextDocx(docxPath, ocrText || text || path.basename(inputPath));
+      job.log.push("已先建立可搜尋 PDF（OCR 文字層），並以 OCR 文字建立 DOCX（桌面相容模式）。");
+      job.log.push(`converted (ocr-searchable): ${path.basename(inputPath)} -> ${path.basename(docxPath)}`);
+      job.log.push(`intermediate: ${path.basename(searchablePath)}`);
+      if (outMode === "docx") {
+        try {
+          fs.unlinkSync(searchablePath);
+          job.log.push("已依設定移除可搜尋 PDF 中間產物（ocrOutput=docx）。");
+        } catch {
+          // ignore
+        }
+        return [docxPath];
       }
-      if (force) {
-        throw new Error("OCR 結果為空（請確認語言代碼或影像品質）");
-      }
+      return [docxPath, searchablePath];
     } catch (error) {
-      if (force) {
+      if (outMode === "searchable" || force) {
+        // try text OCR DOCX if searchable failed and not searchable-only
+        if (outMode !== "searchable") {
+          try {
+            const ocrText = await ocrPdfToText(service, job, inputPath);
+            if (String(ocrText || "").trim()) {
+              writeTextDocx(docxPath, ocrText);
+              job.log.push("已使用 OCR→DOCX 管線建立文件（掃描／低文字 PDF）；內容為純文字段落，版面與原圖不同。");
+              job.log.push(`converted (ocr): ${path.basename(inputPath)} -> ${path.basename(docxPath)}`);
+              return [docxPath];
+            }
+          } catch (textErr) {
+            throw new Error(
+              `OCR 管線失敗：${error && error.message ? error.message : error}; text: ${
+                textErr && textErr.message ? textErr.message : textErr
+              }`
+            );
+          }
+        }
         throw error;
       }
       job.log.push(`OCR→DOCX 略過：${error && error.message ? error.message : error}`);
     }
   }
 
-  writeTextDocx(outputPath, text || path.basename(inputPath));
+  if (outMode === "searchable") {
+    throw new Error("ocrOutput=searchable 需要可用的 Tesseract 與掃描 OCR 設定。");
+  }
+
+  writeTextDocx(docxPath, text || path.basename(inputPath));
+  if (flags.loFailed) {
+    job.log.push("LibreOffice 無法完成轉換，已改用相容模式建立 DOCX；版面可能與原 PDF 不完全一致。");
+  } else if (flags.forceCompat) {
+    job.log.push("已依設定直接使用相容模式建立 DOCX（略過 LibreOffice）；版面可能與原 PDF 不完全一致。");
+  }
+  job.log.push(`converted (compat): ${path.basename(inputPath)} -> ${path.basename(docxPath)}`);
   if (lowText && !off) {
     job.log.push(
-      "此 PDF 可抽取文字很少（可能是掃描件）。若 DOCX 幾乎空白，請將「掃描件 OCR→DOCX」設為「一律」並確認 Tesseract。"
+      "此 PDF 可抽取文字很少（可能是掃描件）。若 DOCX 幾乎空白，請將掃描 OCR 設為「一律」並確認 Tesseract。"
     );
   }
-  return false;
+  return [docxPath];
+}
+
+async function createSearchablePdfViaOcr(service, job, inputPath, outputPath) {
+  const tool = requireTool(service.tools, "tesseract");
+  const language = String(job.options.language || "eng").trim() || "eng";
+  const maxPages = sanitizeOcrPdfMaxPages(job.options.maxPages);
+  const tessdataDir = bundledTessdataDir(tool.path);
+  const pageDir = path.join(job.outputDir, `${path.parse(inputPath).name}_ocr_searchable_work`);
+  fs.mkdirSync(pageDir, { recursive: true });
+  try {
+    const pageImages = await renderPdfPagesToPng(inputPath, pageDir, maxPages, job);
+    if (!pageImages.length) {
+      throw new Error(`PDF 沒有可 OCR 的頁面：${path.basename(inputPath)}`);
+    }
+    job.log.push(`render: ${path.basename(inputPath)} ${pageImages.length} page(s)`);
+    const merged = await PDFDocument.create();
+    for (let i = 0; i < pageImages.length; i += 1) {
+      ensureJobNotCancelled(job);
+      const pageBase = path.join(pageDir, `page_${String(i + 1).padStart(3, "0")}_searchable`);
+      const args = [pageImages[i], pageBase, "-l", language, "pdf"];
+      if (tessdataDir) {
+        args.push("--tessdata-dir", tessdataDir);
+      }
+      await runProcess(tool.path, args, job, "Tesseract");
+      const pagePdf = `${pageBase}.pdf`;
+      if (!fs.existsSync(pagePdf) || fs.statSync(pagePdf).size < 64) {
+        throw new Error(`Tesseract 未產生第 ${i + 1} 頁可搜尋 PDF`);
+      }
+      const bytes = fs.readFileSync(pagePdf);
+      const pageDoc = await PDFDocument.load(bytes);
+      const pages = await merged.copyPages(pageDoc, pageDoc.getPageIndices());
+      pages.forEach((page) => merged.addPage(page));
+    }
+    await savePdf(merged, outputPath);
+    job.log.push(
+      `ocr-searchable-pdf: ${path.basename(inputPath)} -> ${path.basename(outputPath)} (${pageImages.length} page(s))`
+    );
+    return outputPath;
+  } finally {
+    try {
+      fs.rmSync(pageDir, { recursive: true, force: true });
+    } catch {
+      // ignore
+    }
+  }
 }
 
 async function ocrPdfToText(service, job, inputPath) {

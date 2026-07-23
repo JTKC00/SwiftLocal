@@ -358,6 +358,7 @@ class JobService:
                     job.options.get("scanOcr") or "auto",
                     job.options.get("language") or "eng",
                     int(job.options.get("maxPages") or OCR_PDF_MAX_PAGES_DEFAULT),
+                    job.options.get("ocrOutput") or "both",
                 )
             elif job.type == "image-convert":
                 outputs, logs = await convert_image(job.input_paths, job.output_dir, job.options["extension"])
@@ -460,7 +461,11 @@ class JobService:
         if job_type == "pdf-to-docx":
             return {}
         if job_type == "pdf-to-office":
-            from .conversion_service import sanitize_docx_engine, sanitize_scan_ocr
+            from .conversion_service import (
+                sanitize_docx_engine,
+                sanitize_ocr_output,
+                sanitize_scan_ocr,
+            )
 
             ext = sanitize_extension(options.get("extension") or "docx")
             if ext not in ALLOWED_PDF_TO_OFFICE_EXTENSIONS:
@@ -469,6 +474,9 @@ class JobService:
             if engine == "compat" and ext != "docx":
                 raise ValueError("相容模式（docxEngine=compat）僅適用於 DOCX")
             scan = sanitize_scan_ocr(options.get("scanOcr") or "auto")
+            ocr_out = sanitize_ocr_output(options.get("ocrOutput") or "both")
+            if ocr_out == "searchable" and ext != "docx":
+                raise ValueError("僅可搜尋 PDF 輸出僅適用於 DOCX／掃描 OCR 流程")
             language = (options.get("language") or "eng").strip() or "eng"
             raw_pages = (options.get("maxPages") or str(OCR_PDF_MAX_PAGES_DEFAULT)).strip()
             try:
@@ -480,6 +488,7 @@ class JobService:
                 "extension": ext,
                 "docxEngine": engine,
                 "scanOcr": scan,
+                "ocrOutput": ocr_out,
                 "language": language,
                 "maxPages": str(max_pages),
             }

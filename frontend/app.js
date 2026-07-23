@@ -1351,6 +1351,12 @@
         updatePdfOfficeFormatNote($("#pdf-mode").value);
       });
     }
+    const ocrOut = $("#pdf-office-ocr-output");
+    if (ocrOut) {
+      ocrOut.addEventListener("change", () => {
+        updatePdfOfficeFormatNote($("#pdf-mode").value);
+      });
+    }
     $("#pdf-files").addEventListener("change", async (event) => {
       const files = Array.from(event.target.files || []);
       if (files.length && !pdfFilesMatchMode($("#pdf-mode").value, files)) {
@@ -1452,9 +1458,12 @@
     $(".pdf-pagenumber-controls").style.display = showPageNumbers ? "" : "none";
     $(".pdf-office-format-controls").style.display = showOfficeFormat ? "" : "none";
     const scanRow = $("#pdf-office-scan-row");
+    const langRow = $("#pdf-office-ocr-lang-row");
     if (scanRow) {
       const fmt = ($("#pdf-office-format") && $("#pdf-office-format").value) || "docx";
-      scanRow.hidden = !(showOfficeFormat && fmt === "docx");
+      const showScan = showOfficeFormat && fmt === "docx";
+      scanRow.hidden = !showScan;
+      if (langRow) langRow.hidden = !showScan;
     }
     $(".pdf-ocr-controls").style.display = showOcr ? "" : "none";
     $(".pdf-password-controls").style.display = showPassword ? "" : "none";
@@ -1551,16 +1560,22 @@
       compatLabel.style.display = format === "docx" ? "" : "none";
     }
     const scanRow = $("#pdf-office-scan-row");
+    const langRow = $("#pdf-office-ocr-lang-row");
     if (scanRow) scanRow.hidden = format !== "docx";
+    if (langRow) langRow.hidden = format !== "docx";
     if (format === "docx") {
       const direct = Boolean(compatCheck && compatCheck.checked);
       const scanMode = ($("#pdf-office-scan-ocr") && $("#pdf-office-scan-ocr").value) || "auto";
-      let scanHint = "掃描件：文字很少時先 OCR 成可搜尋 PDF 再轉 DOCX（需 Tesseract）。";
-      if (scanMode === "force") scanHint = "一律 OCR：可搜尋 PDF 中間產物 + DOCX（需 Tesseract）。";
-      if (scanMode === "off") scanHint = "已關閉掃描 OCR；掃描件可能產出近乎空白文件。";
+      const ocrOut = ($("#pdf-office-ocr-output") && $("#pdf-office-ocr-output").value) || "both";
+      let scanHint = "掃描件：文字很少時 OCR（需 Tesseract）。";
+      if (scanMode === "force") scanHint = "一律 OCR（需 Tesseract）。";
+      if (scanMode === "off") scanHint = "已關閉掃描 OCR。";
+      let outHint = "輸出：可搜尋 PDF + DOCX。";
+      if (ocrOut === "searchable") outHint = "輸出：僅可搜尋 PDF（不轉 DOCX）。";
+      if (ocrOut === "docx") outHint = "輸出：僅 DOCX（成功後移除中間 PDF）。";
       note.textContent = direct
-        ? `將直接使用相容／OCR 管線（略過 LibreOffice）。${scanHint}`
-        : `先嘗試 LibreOffice 保留版面；失敗後相容模式。${scanHint}`;
+        ? `將直接使用相容／OCR 管線（略過 LibreOffice）。${scanHint}${outHint}`
+        : `先嘗試 LibreOffice；失敗後相容／OCR。${scanHint}${outHint}`;
     } else {
       if (compatCheck) compatCheck.checked = false;
       note.textContent = "實驗性轉換：PDF 並非原始 Office 文件，版面及內容結構可能不完整。正式用途請選 DOCX。";
@@ -3767,16 +3782,23 @@
     const type = $("#pdf-mode").value;
     const officeExt = ($("#pdf-office-format") && $("#pdf-office-format").value) || "docx";
     const docxCompatOnly = Boolean($("#pdf-office-compat-only") && $("#pdf-office-compat-only").checked);
+    const ocrOutOnly = ($("#pdf-office-ocr-output") && $("#pdf-office-ocr-output").value) || "both";
+    const searchableOnly = officeExt === "docx" && ocrOutOnly === "searchable";
     const pdfToOfficeNeedsLibre =
-      type === "pdf-to-office" && !(officeExt === "docx" && docxCompatOnly);
+      type === "pdf-to-office" && !(officeExt === "docx" && (docxCompatOnly || searchableOnly));
     if ((type === "office-to-pdf" || pdfToOfficeNeedsLibre) && !isToolAvailable("libreOffice")) {
       setStatus("#pdf-backend-status", "缺少 LibreOffice");
       showToast("此功能需要 LibreOffice。請安裝或更新 LibreOffice，然後重新偵測工具。", "error");
       return;
     }
-    if (type === "pdf-to-office" && officeExt === "docx" && docxCompatOnly && !isToolAvailable("pdf2docx")) {
+    if (type === "pdf-to-office" && searchableOnly && !isToolAvailable("tesseract")) {
+      setStatus("#pdf-backend-status", "缺少 Tesseract");
+      showToast("僅可搜尋 PDF 需要 Tesseract。請到「狀態」頁檢查。", "error");
+      return;
+    }
+    if (type === "pdf-to-office" && officeExt === "docx" && docxCompatOnly && !searchableOnly && !isToolAvailable("pdf2docx") && !isToolAvailable("tesseract")) {
       setStatus("#pdf-backend-status", "缺少相容引擎");
-      showToast("DOCX 相容模式需要 pdf2docx（見 backend/requirements.txt）。", "error");
+      showToast("DOCX 相容模式需要 pdf2docx 或 Tesseract OCR。", "error");
       return;
     }
     if (type === "ocr-pdf" && !isToolAvailable("tesseract")) {
@@ -3805,6 +3827,7 @@
       payload.append("docxEngine", compat && ext === "docx" ? "compat" : "auto");
       if (ext === "docx") {
         payload.append("scanOcr", ($("#pdf-office-scan-ocr") && $("#pdf-office-scan-ocr").value) || "auto");
+        payload.append("ocrOutput", ($("#pdf-office-ocr-output") && $("#pdf-office-ocr-output").value) || "both");
         payload.append("language", ($("#pdf-office-ocr-language") && $("#pdf-office-ocr-language").value.trim()) || "eng");
         payload.append("maxPages", ($("#pdf-ocr-max-pages") && $("#pdf-ocr-max-pages").value) || "50");
       }
@@ -4486,6 +4509,7 @@
         extension: String(formData.get("extension") || ""),
         docxEngine: String(formData.get("docxEngine") || "auto"),
         scanOcr: String(formData.get("scanOcr") || "auto"),
+        ocrOutput: String(formData.get("ocrOutput") || "both"),
         language: String(formData.get("language") || ""),
         pages: String(formData.get("pages") || ""),
         angle: String(formData.get("angle") || ""),

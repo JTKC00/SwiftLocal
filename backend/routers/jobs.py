@@ -26,6 +26,7 @@ async def create_job(
     gifFps: str = Form(""),
     docxEngine: str = Form("auto"),
     scanOcr: str = Form("auto"),
+    ocrOutput: str = Form("both"),
 ):
     try:
         return await job_service.create_job(
@@ -47,6 +48,7 @@ async def create_job(
                 "gifFps": gifFps,
                 "docxEngine": docxEngine,
                 "scanOcr": scanOcr,
+                "ocrOutput": ocrOutput,
             },
         )
     except ValueError as error:

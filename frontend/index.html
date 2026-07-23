@@ -572,7 +572,7 @@
             </div>
             <div class="control-row pdf-office-scan-controls" id="pdf-office-scan-row" hidden>
               <label>
-                <span>掃描件 OCR→DOCX</span>
+                <span>掃描件 OCR</span>
                 <select id="pdf-office-scan-ocr">
                   <option value="auto" selected>自動（文字少時）</option>
                   <option value="force">一律使用 OCR</option>
@@ -580,9 +580,20 @@
                 </select>
               </label>
               <label>
+                <span>OCR 輸出</span>
+                <select id="pdf-office-ocr-output">
+                  <option value="both" selected>可搜尋 PDF + DOCX</option>
+                  <option value="searchable">僅可搜尋 PDF</option>
+                  <option value="docx">僅 DOCX</option>
+                </select>
+              </label>
+            </div>
+            <div class="control-row pdf-office-scan-controls pdf-office-ocr-lang-row" id="pdf-office-ocr-lang-row" hidden>
+              <label>
                 <span>OCR 語言</span>
                 <input id="pdf-office-ocr-language" type="text" value="eng" placeholder="例：eng 或 chi_tra+eng">
               </label>
+              <div></div>
             </div>
             <p id="pdf-office-format-note" class="backend-inline-note pdf-office-format-note" hidden></p>
 

@@ -754,6 +754,14 @@ class PdfToOfficeFallbackTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(ValueError):
             cs.sanitize_scan_ocr("maybe")
 
+    def test_sanitize_ocr_output(self) -> None:
+        self.assertEqual(cs.sanitize_ocr_output("both"), "both")
+        self.assertEqual(cs.sanitize_ocr_output("searchable"), "searchable")
+        self.assertEqual(cs.sanitize_ocr_output("docx"), "docx")
+        self.assertEqual(cs.sanitize_ocr_output("pdf"), "searchable")
+        with self.assertRaises(ValueError):
+            cs.sanitize_ocr_output("zip")
+
     def test_write_text_docx_minimal(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             out = Path(tmp) / "t.docx"
@@ -808,11 +816,24 @@ class PdfToOfficeFallbackTests(unittest.IsolatedAsyncioTestCase):
             cs._pdf_to_docx_sync = fake_pdf2docx  # type: ignore[assignment]
             try:
                 path, logs = await cs.convert_pdf_to_docx_via_searchable_ocr(
-                    src, out, language="eng", max_pages=2
+                    src, out, language="eng", max_pages=2, ocr_output="both"
                 )
                 self.assertTrue(path.exists())
                 self.assertTrue((out / "scan_ocr_searchable.pdf").exists())
                 self.assertTrue(any(cs.DOCX_SEARCHABLE_OCR_LOG in x for x in logs))
+
+                path_only, logs_only = await cs.convert_pdf_to_docx_via_searchable_ocr(
+                    src, out, language="eng", max_pages=2, ocr_output="searchable"
+                )
+                self.assertTrue(str(path_only).endswith("_ocr_searchable.pdf"))
+                self.assertTrue(any("僅輸出可搜尋 PDF" in x for x in logs_only))
+
+                path_docx, logs_docx = await cs.convert_pdf_to_docx_via_searchable_ocr(
+                    src, out, language="eng", max_pages=2, ocr_output="docx"
+                )
+                self.assertTrue(str(path_docx).endswith(".docx"))
+                self.assertFalse((out / "scan_ocr_searchable.pdf").exists())
+                self.assertTrue(any("移除可搜尋 PDF" in x for x in logs_docx))
             finally:
                 cs.create_searchable_pdf_via_ocr = original_s  # type: ignore[assignment]
                 cs._pdf_to_docx_sync = original_p  # type: ignore[assignment]
