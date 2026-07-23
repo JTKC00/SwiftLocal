@@ -584,21 +584,29 @@ class PdfToOfficeFallbackTests(unittest.IsolatedAsyncioTestCase):
             async def fake_run(executable, args, timeout=300, tool_label="外部程序"):  # noqa: ANN001
                 raise RuntimeError(cs.format_process_error(returncode=-1073740791))
 
+            async def no_tess() -> bool:
+                return False
+
             original_require = cs.tools_service.require_tool
             original_run = cs.run_process
             original_avail = cs.pdf2docx_available
+            original_tess = cs.tesseract_available
             cs.tools_service.require_tool = fake_require  # type: ignore[method-assign]
             cs.run_process = fake_run  # type: ignore[assignment]
             cs.pdf2docx_available = lambda: False  # type: ignore[assignment]
+            cs.tesseract_available = no_tess  # type: ignore[assignment]
             try:
                 with self.assertRaises(RuntimeError) as ctx:
-                    await cs.convert_pdf_to_office([src], out, "docx")
-                self.assertIn("相容引擎未安裝", str(ctx.exception))
-                self.assertIn("requirements.txt", str(ctx.exception))
+                    # scan_ocr=off: blank PDFs would otherwise take the OCR path first.
+                    await cs.convert_pdf_to_office([src], out, "docx", scan_ocr="off")
+                msg = str(ctx.exception)
+                self.assertIn("相容引擎未安裝", msg)
+                self.assertIn("requirements.txt", msg)
             finally:
                 cs.tools_service.require_tool = original_require  # type: ignore[method-assign]
                 cs.run_process = original_run  # type: ignore[assignment]
                 cs.pdf2docx_available = original_avail  # type: ignore[assignment]
+                cs.tesseract_available = original_tess  # type: ignore[assignment]
 
     async def test_xlsx_does_not_use_docx_fallback(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
