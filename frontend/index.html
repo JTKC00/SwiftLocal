@@ -412,8 +412,8 @@
             </div>
             <div class="control-row img-backend-language-row">
               <label>
-                <span>OCR 語言</span>
-                <input id="img-backend-ocr-language" type="text" value="chi_tra+eng" placeholder="例：chi_tra+eng">
+                <span>OCR 語言（預設繁中+英文）</span>
+                <input id="img-backend-ocr-language" type="text" value="chi_tra+eng" placeholder="一般無需更改">
               </label>
               <div></div>
             </div>
@@ -589,25 +589,29 @@
                 </select>
               </label>
             </div>
-            <div class="control-row pdf-office-scan-controls pdf-office-ocr-lang-row" id="pdf-office-ocr-lang-row" hidden>
+            <details class="pdf-office-scan-controls pdf-office-ocr-lang-row" id="pdf-office-ocr-lang-row" hidden>
+              <summary>進階：OCR 語言代碼（預設繁中+英文，一般無需更改）</summary>
               <label>
                 <span>OCR 語言</span>
-                <input id="pdf-office-ocr-language" type="text" value="chi_tra+eng" placeholder="例：chi_tra+eng 或 eng">
+                <input id="pdf-office-ocr-language" type="text" value="chi_tra+eng" placeholder="一般無需更改">
               </label>
-              <div></div>
-            </div>
+            </details>
             <p id="pdf-office-format-note" class="backend-inline-note pdf-office-format-note" hidden></p>
 
             <div class="control-row pdf-ocr-controls">
               <label>
-                <span>OCR 語言</span>
-                <input id="pdf-ocr-language" type="text" value="chi_tra+eng" placeholder="例：chi_tra+eng 或 eng">
-              </label>
-              <label>
                 <span>最多頁數</span>
                 <input id="pdf-ocr-max-pages" type="number" min="1" max="100" value="50">
               </label>
+              <p class="backend-inline-note" style="margin:0;align-self:center">預設自動使用繁中+英文（chi_tra+eng）；缺語言包時會自動改用可用語言。</p>
             </div>
+            <details class="pdf-ocr-advanced" id="pdf-ocr-advanced" hidden>
+              <summary>進階：OCR 語言代碼</summary>
+              <label>
+                <span>OCR 語言</span>
+                <input id="pdf-ocr-language" type="text" value="chi_tra+eng" placeholder="一般無需更改">
+              </label>
+            </details>
 
             <div class="control-row pdf-password-controls">
               <label>
@@ -1242,7 +1246,7 @@
               <p class="backend-inline-note">僅桌面版有效。後續加入佇列的轉換結果會寫入此路徑（可在任務卡片查看）。</p>
             </div>
 
-            <p class="tool-status-note">一般使用不需要設定路徑；打包版會優先使用 app 內建的 FFmpeg、Tesseract 與 QPDF。LibreOffice 體積較大，可另外安裝或放入內建工具資料夾。</p>
+            <p class="tool-status-note">安裝版／Full 版會內建常用工具與繁中 OCR 語言包，一般<strong>無需設定路徑</strong>。選好檔案即可轉換；只有工具顯示缺少時才需展開下方進階路徑。</p>
 
             <details class="backend-path-config">
               <summary>進階：手動指定工具路徑</summary>

@@ -35,6 +35,41 @@ def _make_pdf(path: Path, pages: int = 2) -> None:
 
 
 class TessdataTests(unittest.TestCase):
+    def test_resolve_ocr_language_fallback(self) -> None:
+        # No tool path → pass through preferred
+        lang, note = cs.resolve_ocr_language(None, "chi_tra+eng")
+        self.assertEqual(lang, "chi_tra+eng")
+        self.assertIsNone(note)
+
+        tess = ROOT / "tools" / "tesseract" / "tessdata"
+        # Simulate tool next to tessdata
+        fake_exe = ROOT / "tools" / "tesseract" / "tesseract.exe"
+        if not (tess / "eng.traineddata").is_file():
+            self.skipTest("no eng traineddata for fallback test")
+        # Even without real exe, resolve_tessdata_dir looks at parent/tessdata of parent...
+        # Use a path whose parent has tessdata sibling
+        tool = ROOT / "tools" / "tesseract" / "tesseract.exe"
+        if not tool.exists():
+            # resolve via tessdata parent: create temp structure
+            with tempfile.TemporaryDirectory() as tmp:
+                base = Path(tmp)
+                exe = base / "tesseract.exe"
+                exe.write_bytes(b"x")
+                td = base / "tessdata"
+                td.mkdir()
+                # only eng
+                (td / "eng.traineddata").write_bytes(b"0" * 60_000)
+                lang2, note2 = cs.resolve_ocr_language(exe, "chi_tra+eng")
+                self.assertEqual(lang2, "eng")
+                self.assertIsNotNone(note2)
+                self.assertIn("eng", note2 or "")
+            return
+        langs = cs.list_tessdata_languages(tool)
+        if "chi_tra" in langs and "eng" in langs:
+            lang3, note3 = cs.resolve_ocr_language(tool, "chi_tra+eng")
+            self.assertEqual(lang3, "chi_tra+eng")
+            self.assertIsNone(note3)
+
     def test_resolve_bundled_tessdata(self) -> None:
         tool = ROOT / "tools" / "tesseract" / "tesseract.exe"
         if not tool.exists():

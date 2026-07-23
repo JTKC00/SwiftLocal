@@ -51,40 +51,23 @@
 
 工具找不到時會顯示清楚錯誤，不會直接崩潰。
 
-## 一般使用者
+## 一般使用者（最簡）
 
-### Windows
+### Windows：三步即可
 
-目前建議對外提供單一 Windows 版本：
+1. **下載** `SwiftLocal-*-installer-x64.exe`（或免安裝 portable）。
+2. **雙擊安裝**（一鍵安裝，完成後可自動開啟；桌面會有「快轉通 SwiftLocal」捷徑）。
+3. **選檔 → 開始處理**。打包版已內建常用工具與繁中 OCR（`chi_tra+eng`），**不必自行安裝 Tesseract／FFmpeg**。
 
-| 版本 | 內建工具 | 適合對象 |
-| --- | --- | --- |
-| Windows installer | FFmpeg、Tesseract、QPDF、LibreOffice | 一般朋友試用與日常使用 |
+| 檔案 | 給誰 |
+| --- | --- |
+| `*-installer-x64.exe` | 一般朋友（建議） |
+| `*-portable-x64.exe` | 不想安裝、隨身碟使用 |
+| `*-full-installer-*.exe`（`dist-full/`） | 要完整內建 LibreOffice 的 Full 版 |
 
-目前建議交付的 Windows 成品會在 `dist/` 產生（版本號隨 `package.json`）：
+SmartScreen 若提示「未知發行者」：選「仍要執行」即可（目前未做程式碼簽章）。
 
-- `SwiftLocal-0.3.0-portable-x64.exe`：免安裝版，雙擊即可使用。
-- `SwiftLocal-0.3.0-installer-x64.exe`：安裝版，會建立開始功能表與桌面捷徑。
-- `win-unpacked/`：未封裝資料夾，主要供開發測試，不建議作為正式發佈檔。
-
-Full 版（含可選大量工具）可用 `npm run pack:win:full`，產物在 `dist-full/`。
-
-Full 打包前會強制檢查並補齊 Tesseract 語言包（**`eng` + `chi_tra` + `osd`**），確保安裝後預設 `chi_tra+eng` OCR 可用：
-
-```bash
-npm run tools:tessdata          # 下載／複製語言包到 tools/**/tessdata
-npm run pack:win:full           # 內含 ensure-tessdata --require-full
-```
-
-第一次使用建議：
-
-1. 開啟 SwiftLocal。
-2. 到「狀態」面板按「偵測工具」。
-3. 確認 FFmpeg、Tesseract、QPDF（與需要的 LibreOffice）為「內建」或「可用」。
-4. （桌面版）可在同一頁設定**輸出資料夾**。
-5. 到 PDF／影音／圖片等面板加入佇列並執行轉換。
-
-目前沒有程式碼簽章，Windows SmartScreen 可能顯示「未知發行者」。這是未簽章 App 的正常提醒，不代表檔案損壞。
+開發者打包時才需：`npm run tools:tessdata`（Full 會強制檢查繁中語言包）。
 
 ### macOS
 

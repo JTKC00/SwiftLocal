@@ -1460,6 +1460,7 @@
     $(".pdf-office-format-controls").style.display = showOfficeFormat ? "" : "none";
     const scanRow = $("#pdf-office-scan-row");
     const langRow = $("#pdf-office-ocr-lang-row");
+    const ocrAdv = $("#pdf-ocr-advanced");
     if (scanRow) {
       const fmt = ($("#pdf-office-format") && $("#pdf-office-format").value) || "docx";
       const showScan = showOfficeFormat && fmt === "docx";
@@ -1467,6 +1468,7 @@
       if (langRow) langRow.hidden = !showScan;
     }
     $(".pdf-ocr-controls").style.display = showOcr ? "" : "none";
+    if (ocrAdv) ocrAdv.hidden = !showOcr;
     $(".pdf-password-controls").style.display = showPassword ? "" : "none";
     $(".pdf-output-name-control").style.display = usesBackgroundTask ? "none" : "";
 
@@ -3539,6 +3541,31 @@
     }
   }
 
+  function maybeShowReadyWelcome(tools) {
+    try {
+      if (sessionStorage.getItem("swiftlocal_ready_welcome") === "1") return;
+    } catch {
+      // ignore
+    }
+    if (!tools) return;
+    const keys = ["ffmpeg", "tesseract", "qpdf"];
+    const ready = keys.filter((k) => tools[k] && tools[k].available).length;
+    const hasChi =
+      tools.tesseract &&
+      (tools.tesseract.hasChiTra === true ||
+        (typeof tools.tesseract.languages === "string" &&
+          tools.tesseract.languages.split(",").includes("chi_tra")));
+    if (ready >= 2) {
+      const ocrNote = hasChi ? "繁中 OCR 已就緒。" : "OCR 可用（若缺繁中包會自動改用英文）。";
+      showToast(`已就緒：選好檔案即可轉換。${ocrNote}`, "success", 5000);
+      try {
+        sessionStorage.setItem("swiftlocal_ready_welcome", "1");
+      } catch {
+        // ignore
+      }
+    }
+  }
+
   async function detectBackendTools() {
     if (!backendApiAvailable()) {
       await checkBackendHealth();
@@ -3552,6 +3579,7 @@
       state.backendLastChecked = new Date();
       renderBackendTools(tools);
       setStatus("#backend-status", "已偵測");
+      maybeShowReadyWelcome(tools);
     } catch (error) {
       state.backendConnected = false;
       state.detectedTools = null;

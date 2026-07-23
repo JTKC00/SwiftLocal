@@ -469,14 +469,17 @@ async def create_searchable_pdf_via_ocr(
     ensure_not_cancelled()
     require_unencrypted_pdf(input_path)
     tool = await tools_service.require_tool("tesseract")
-    clean_language = (language or "chi_tra+eng").strip() or "chi_tra+eng"
+    tool_path = Path(str(tool["path"]))
+    clean_language, lang_note = resolve_ocr_language(tool_path, language)
     page_limit = max(1, min(int(max_pages or OCR_PDF_MAX_PAGES_DEFAULT), OCR_PDF_MAX_PAGES_HARD_LIMIT))
-    tessdata_dir = resolve_tessdata_dir(Path(str(tool["path"])))
+    tessdata_dir = resolve_tessdata_dir(tool_path)
     work = output_dir / f"{input_path.stem}_ocr_searchable_work"
     if work.exists():
         shutil.rmtree(work, ignore_errors=True)
     work.mkdir(parents=True, exist_ok=True)
     logs: list[str] = []
+    if lang_note:
+        logs.append(lang_note)
     try:
         page_images, render_log = await asyncio.to_thread(
             _render_pdf_pages_sync, input_path, work, page_limit, OCR_PDF_RENDER_SCALE
@@ -1174,10 +1177,13 @@ def build_ffmpeg_media_args(input_path: Path, output_path: Path, options: dict[s
 
 async def ocr_images(input_paths: list[Path], output_dir: Path, language: str) -> tuple[list[Path], list[str]]:
     tool = await tools_service.require_tool("tesseract")
-    clean_language = (language or "chi_tra+eng").strip() or "chi_tra+eng"
+    tool_path = Path(str(tool["path"]))
+    clean_language, lang_note = resolve_ocr_language(tool_path, language)
     logs: list[str] = []
     outputs: list[Path] = []
-    tessdata_dir = resolve_tessdata_dir(Path(str(tool["path"])))
+    if lang_note:
+        logs.append(lang_note)
+    tessdata_dir = resolve_tessdata_dir(tool_path)
 
     for input_path in input_paths:
         ensure_not_cancelled()
@@ -1200,11 +1206,14 @@ async def ocr_pdf(
 ) -> tuple[list[Path], list[str]]:
     """Rasterize PDF pages then OCR each page with Tesseract; one TXT per PDF."""
     tool = await tools_service.require_tool("tesseract")
-    clean_language = (language or "chi_tra+eng").strip() or "chi_tra+eng"
+    tool_path = Path(str(tool["path"]))
+    clean_language, lang_note = resolve_ocr_language(tool_path, language)
     page_limit = max(1, min(int(max_pages or OCR_PDF_MAX_PAGES_DEFAULT), OCR_PDF_MAX_PAGES_HARD_LIMIT))
     logs: list[str] = []
     outputs: list[Path] = []
-    tessdata_dir = resolve_tessdata_dir(Path(str(tool["path"])))
+    if lang_note:
+        logs.append(lang_note)
+    tessdata_dir = resolve_tessdata_dir(tool_path)
 
     for input_path in input_paths:
         ensure_not_cancelled()
@@ -1291,6 +1300,61 @@ def resolve_tessdata_dir(tool_path: Path) -> Path | None:
         if candidate.is_dir():
             return candidate
     return None
+
+
+def list_tessdata_languages(tool_path: Path | None) -> set[str]:
+    """Return installed traineddata language codes (non-stub packs only)."""
+    if tool_path is None:
+        return set()
+    tessdata_dir = resolve_tessdata_dir(tool_path)
+    if tessdata_dir is None:
+        return set()
+    langs: set[str] = set()
+    try:
+        for entry in tessdata_dir.iterdir():
+            if not entry.is_file() or not entry.name.endswith(".traineddata"):
+                continue
+            try:
+                if entry.stat().st_size < 50_000:
+                    continue
+            except OSError:
+                continue
+            langs.add(entry.name[: -len(".traineddata")])
+    except OSError:
+        return set()
+    return langs
+
+
+def resolve_ocr_language(tool_path: Path | None, requested: str | None) -> tuple[str, str | None]:
+    """
+    Pick a usable OCR language string for Tesseract.
+
+    Preferred default is chi_tra+eng. If packs are missing, drop unavailable
+    codes so OCR still works for end users (e.g. eng-only installs).
+    Returns (language, optional_user_note).
+    """
+    preferred = (requested or "chi_tra+eng").strip() or "chi_tra+eng"
+    parts = [p.strip() for p in preferred.replace(",", "+").split("+") if p.strip()]
+    if not parts:
+        parts = ["chi_tra", "eng"]
+    available = list_tessdata_languages(tool_path)
+    if not available:
+        # Cannot inspect packs; pass through and let Tesseract report errors.
+        return "+".join(parts), None
+    kept = [p for p in parts if p in available]
+    note: str | None = None
+    if not kept:
+        if "eng" in available:
+            kept = ["eng"]
+            note = f"未安裝語言包 {preferred}，已自動改用 eng。"
+        else:
+            # Last resort: first available pack
+            kept = [sorted(available)[0]]
+            note = f"未安裝語言包 {preferred}，已自動改用 {kept[0]}。"
+    elif kept != parts:
+        missing = [p for p in parts if p not in available]
+        note = f"缺少語言包 {', '.join(missing)}，已使用 {('+'.join(kept))}。"
+    return "+".join(kept), note
 
 
 async def convert_image(input_paths: list[Path], output_dir: Path, extension: str) -> tuple[list[Path], list[str]]:

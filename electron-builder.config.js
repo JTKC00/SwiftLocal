@@ -69,13 +69,15 @@ module.exports = {
   },
   nsis: {
     artifactName: "SwiftLocal-${version}-installer-${arch}.${ext}",
-    oneClick: false,
+    // One-click install: double-click → install → desktop shortcut. Power users can still use portable.
+    oneClick: true,
     perMachine: false,
-    allowToChangeInstallationDirectory: true,
+    allowToChangeInstallationDirectory: false,
     createDesktopShortcut: true,
     createStartMenuShortcut: true,
     shortcutName: "快轉通 SwiftLocal",
-    uninstallDisplayName: "快轉通 SwiftLocal"
+    uninstallDisplayName: "快轉通 SwiftLocal",
+    runAfterFinish: true
   },
   dmg: {
     artifactName: "SwiftLocal-${version}-mac-${arch}.${ext}"
