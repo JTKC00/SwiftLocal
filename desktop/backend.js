@@ -305,6 +305,10 @@ class BackendService {
       await this.runPdfToOffice(job);
       return;
     }
+    if (job.type === "pdf-to-searchable-pdf") {
+      await this.runPdfToSearchablePdf(job);
+      return;
+    }
     if (job.type === "pdf-merge") {
       await this.runPdfMerge(job);
       return;
@@ -371,6 +375,25 @@ class BackendService {
       ensureOutputFile(outputPath, inputPath);
       job.outputPaths.push(outputPath);
       job.log.push(`converted text: ${path.basename(inputPath)} -> ${path.basename(outputPath)}`);
+    }
+  }
+
+  async runPdfToSearchablePdf(job) {
+    ensureOutputDir(job.outputDir);
+    for (const inputPath of job.inputPaths) {
+      ensureJobNotCancelled(job);
+      const probe = fs.readFileSync(inputPath);
+      if (pdfBytesLookEncrypted(probe)) {
+        throw encryptedPdfError(path.basename(inputPath));
+      }
+      const outputPath = path.join(
+        job.outputDir,
+        `${path.parse(inputPath).name}_ocr_searchable.pdf`
+      );
+      await createSearchablePdfViaOcr(this, job, inputPath, outputPath);
+      ensureOutputFile(outputPath, inputPath);
+      job.outputPaths.push(outputPath);
+      job.log.push(`converted: ${path.basename(inputPath)} -> ${path.basename(outputPath)}`);
     }
   }
 

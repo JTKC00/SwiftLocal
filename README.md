@@ -572,7 +572,7 @@ npm run pack:win:full
 | 情況 | 建議 |
 |------|------|
 | LibreOffice 崩潰或 `impl_store` 寫入失敗 | DOCX 會自動改用相容模式；可勾選「直接相容模式」略過 LO |
-| 掃描／影像型 PDF 幾乎無文字 | OCR 輸出可選：可搜尋 PDF+DOCX／僅可搜尋 PDF／僅 DOCX；失敗退回純文字 OCR→DOCX |
+| 掃描／影像型 PDF 幾乎無文字 | 獨立工作「PDF → 可搜尋 PDF（OCR）」；Office 路徑亦可選 OCR 輸出模式。預設語言 `chi_tra+eng` |
 | XLSX／PPTX／ODT | 實驗性，無第二引擎；正式用途請用 DOCX |
 | 版面 100% 還原 | 不保證；「嘗試保留版面」僅盡力 |
 

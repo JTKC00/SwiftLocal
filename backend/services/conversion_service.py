@@ -459,7 +459,7 @@ async def create_searchable_pdf_via_ocr(
     input_path: Path,
     output_dir: Path,
     *,
-    language: str = "eng",
+    language: str = "chi_tra+eng",
     max_pages: int = OCR_PDF_MAX_PAGES_DEFAULT,
 ) -> tuple[Path, list[str]]:
     """
@@ -469,7 +469,7 @@ async def create_searchable_pdf_via_ocr(
     ensure_not_cancelled()
     require_unencrypted_pdf(input_path)
     tool = await tools_service.require_tool("tesseract")
-    clean_language = (language or "eng").strip() or "eng"
+    clean_language = (language or "chi_tra+eng").strip() or "chi_tra+eng"
     page_limit = max(1, min(int(max_pages or OCR_PDF_MAX_PAGES_DEFAULT), OCR_PDF_MAX_PAGES_HARD_LIMIT))
     tessdata_dir = resolve_tessdata_dir(Path(str(tool["path"])))
     work = output_dir / f"{input_path.stem}_ocr_searchable_work"
@@ -518,7 +518,7 @@ async def convert_pdf_to_docx_via_searchable_ocr(
     input_path: Path,
     output_dir: Path,
     *,
-    language: str = "eng",
+    language: str = "chi_tra+eng",
     max_pages: int = OCR_PDF_MAX_PAGES_DEFAULT,
     prior_error: BaseException | None = None,
     ocr_output: str = "both",
@@ -583,7 +583,7 @@ async def convert_pdf_to_docx_via_ocr(
     input_path: Path,
     output_dir: Path,
     *,
-    language: str = "eng",
+    language: str = "chi_tra+eng",
     max_pages: int = OCR_PDF_MAX_PAGES_DEFAULT,
     prior_error: BaseException | None = None,
 ) -> tuple[Path, list[str]]:
@@ -627,7 +627,7 @@ async def _convert_pdf_to_docx_compat(
     reason_log: str,
     prior_error: BaseException | None = None,
     scan_ocr: str = "auto",
-    language: str = "eng",
+    language: str = "chi_tra+eng",
     max_pages: int = OCR_PDF_MAX_PAGES_DEFAULT,
     ocr_output: str = "both",
 ) -> tuple[Path, list[str]]:
@@ -763,7 +763,7 @@ async def convert_pdf_to_office(
     extension: str,
     docx_engine: str = "auto",
     scan_ocr: str = "auto",
-    language: str = "eng",
+    language: str = "chi_tra+eng",
     max_pages: int = OCR_PDF_MAX_PAGES_DEFAULT,
     ocr_output: str = "both",
 ) -> tuple[list[Path], list[str]]:
@@ -802,7 +802,7 @@ async def convert_pdf_to_office(
                 output_dir,
                 reason_log=DOCX_COMPAT_DIRECT_LOG,
                 scan_ocr="force" if out_mode == "searchable" and ocr_mode == "auto" else ocr_mode,
-                language=language or "eng",
+                language=language or "chi_tra+eng",
                 max_pages=page_limit,
                 ocr_output=out_mode,
             )
@@ -922,7 +922,7 @@ async def convert_pdf_to_office(
                     reason_log=DOCX_FALLBACK_LOG,
                     prior_error=lo_error,
                     scan_ocr=ocr_mode,
-                    language=language or "eng",
+                    language=language or "chi_tra+eng",
                     max_pages=page_limit,
                     ocr_output=out_mode,
                 )
@@ -1174,7 +1174,7 @@ def build_ffmpeg_media_args(input_path: Path, output_path: Path, options: dict[s
 
 async def ocr_images(input_paths: list[Path], output_dir: Path, language: str) -> tuple[list[Path], list[str]]:
     tool = await tools_service.require_tool("tesseract")
-    clean_language = (language or "eng").strip() or "eng"
+    clean_language = (language or "chi_tra+eng").strip() or "chi_tra+eng"
     logs: list[str] = []
     outputs: list[Path] = []
     tessdata_dir = resolve_tessdata_dir(Path(str(tool["path"])))
@@ -1200,7 +1200,7 @@ async def ocr_pdf(
 ) -> tuple[list[Path], list[str]]:
     """Rasterize PDF pages then OCR each page with Tesseract; one TXT per PDF."""
     tool = await tools_service.require_tool("tesseract")
-    clean_language = (language or "eng").strip() or "eng"
+    clean_language = (language or "chi_tra+eng").strip() or "chi_tra+eng"
     page_limit = max(1, min(int(max_pages or OCR_PDF_MAX_PAGES_DEFAULT), OCR_PDF_MAX_PAGES_HARD_LIMIT))
     logs: list[str] = []
     outputs: list[Path] = []

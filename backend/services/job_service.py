@@ -24,6 +24,7 @@ from .conversion_service import (
     convert_office_to_pdf,
     convert_pdf_to_docx,
     convert_pdf_to_office,
+    create_searchable_pdf_via_ocr,
     decrypt_pdf,
     encrypt_pdf,
     end_job,
@@ -44,8 +45,8 @@ JOBS_DIR = TEMP_DIR / "jobs"
 JOBS_STATE_PATH = TEMP_DIR / "jobs-state.json"
 MAX_PERSISTED_JOBS = 80
 SUPPORTED_JOB_TYPES = {
-    "office-to-pdf", "pdf-to-office", "media-convert", "ocr-image", "ocr-pdf",
-    "pdf-to-docx", "pdf-merge", "pdf-split", "pdf-rotate",
+    "office-to-pdf", "pdf-to-office", "pdf-to-searchable-pdf", "media-convert",
+    "ocr-image", "ocr-pdf", "pdf-to-docx", "pdf-merge", "pdf-split", "pdf-rotate",
     "image-convert", "pdf-encrypt", "pdf-decrypt", "pdf-compress",
 }
 
@@ -360,6 +361,21 @@ class JobService:
                     int(job.options.get("maxPages") or OCR_PDF_MAX_PAGES_DEFAULT),
                     job.options.get("ocrOutput") or "both",
                 )
+            elif job.type == "pdf-to-searchable-pdf":
+                outputs = []
+                logs = []
+                language = job.options.get("language") or "chi_tra+eng"
+                max_pages = int(job.options.get("maxPages") or OCR_PDF_MAX_PAGES_DEFAULT)
+                for input_path in job.input_paths:
+                    ensure_not_cancelled()
+                    path, item_logs = await create_searchable_pdf_via_ocr(
+                        input_path,
+                        job.output_dir,
+                        language=language,
+                        max_pages=max_pages,
+                    )
+                    outputs.append(path)
+                    logs.extend(item_logs)
             elif job.type == "image-convert":
                 outputs, logs = await convert_image(job.input_paths, job.output_dir, job.options["extension"])
             elif job.type == "pdf-encrypt":
@@ -445,10 +461,21 @@ class JobService:
         if job_type == "image-convert":
             return {"extension": sanitize_extension(options.get("extension") or "jpg")}
         if job_type == "ocr-image":
-            language = (options.get("language") or "eng").strip()
-            return {"language": language or "eng"}
+            language = (options.get("language") or "chi_tra+eng").strip()
+            return {"language": language or "chi_tra+eng"}
         if job_type == "ocr-pdf":
-            language = (options.get("language") or "eng").strip() or "eng"
+            language = (options.get("language") or "chi_tra+eng").strip() or "chi_tra+eng"
+            raw_pages = (options.get("maxPages") or str(OCR_PDF_MAX_PAGES_DEFAULT)).strip()
+            try:
+                max_pages = int(raw_pages)
+            except ValueError as error:
+                raise ValueError("maxPages must be an integer") from error
+            if max_pages < 1:
+                raise ValueError("maxPages must be at least 1")
+            max_pages = min(max_pages, OCR_PDF_MAX_PAGES_HARD_LIMIT)
+            return {"language": language, "maxPages": str(max_pages)}
+        if job_type == "pdf-to-searchable-pdf":
+            language = (options.get("language") or "chi_tra+eng").strip() or "chi_tra+eng"
             raw_pages = (options.get("maxPages") or str(OCR_PDF_MAX_PAGES_DEFAULT)).strip()
             try:
                 max_pages = int(raw_pages)
@@ -477,7 +504,7 @@ class JobService:
             ocr_out = sanitize_ocr_output(options.get("ocrOutput") or "both")
             if ocr_out == "searchable" and ext != "docx":
                 raise ValueError("僅可搜尋 PDF 輸出僅適用於 DOCX／掃描 OCR 流程")
-            language = (options.get("language") or "eng").strip() or "eng"
+            language = (options.get("language") or "chi_tra+eng").strip() or "chi_tra+eng"
             raw_pages = (options.get("maxPages") or str(OCR_PDF_MAX_PAGES_DEFAULT)).strip()
             try:
                 max_pages = int(raw_pages)

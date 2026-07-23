@@ -108,7 +108,7 @@
     { id: "builtin-media-mp3", name: "標準 MP3 音訊", description: "輸出 MP3；其他進階參數保持空白。", category: "desktop", panelId: "media-panel", badge: "桌面影音", settings: { "#media-output-extension": "mp3", "#media-video-bitrate": "", "#media-audio-bitrate": "", "#media-scale": "", "#media-crop": "", "#media-start": "", "#media-duration": "", "#media-gif-fps": "10" } }
   ];
 
-  const PDF_BACKEND_JOB_TYPES = new Set(["office-to-pdf", "pdf-to-docx", "pdf-to-office", "ocr-pdf", "pdf-merge", "pdf-split", "pdf-rotate", "pdf-encrypt", "pdf-decrypt", "pdf-compress"]);
+  const PDF_BACKEND_JOB_TYPES = new Set(["office-to-pdf", "pdf-to-docx", "pdf-to-office", "pdf-to-searchable-pdf", "ocr-pdf", "pdf-merge", "pdf-split", "pdf-rotate", "pdf-encrypt", "pdf-decrypt", "pdf-compress"]);
   const IMG_BACKEND_JOB_TYPES = new Set(["image-convert", "ocr-image"]);
   const MEDIA_BACKEND_JOB_TYPES = new Set(["media-convert"]);
 
@@ -1449,7 +1449,8 @@
     const showImages = mode === "images";
     const showPageNumbers = mode === "page-numbers";
     const showOfficeFormat = mode === "pdf-to-office";
-    const showOcr = mode === "ocr-pdf";
+    const showSearchablePdf = mode === "pdf-to-searchable-pdf";
+    const showOcr = mode === "ocr-pdf" || showSearchablePdf;
     const showPassword = mode === "pdf-encrypt" || mode === "pdf-decrypt";
     $(".pdf-range-controls").style.display = showRange ? "" : "none";
     $("#pdf-rotation").closest("label").style.display = showRotation ? "" : "none";
@@ -1526,8 +1527,11 @@
       "pdf-to-office": isToolAvailable("libreOffice") || isToolAvailable("pdf2docx")
         ? "先嘗試以 LibreOffice 保留版面；DOCX 失敗可自動相容模式，也可勾選直接相容模式。XLSX／PPTX／ODT 為實驗性。"
         : "需要 LibreOffice 或 pdf2docx 相容引擎；請到「狀態」頁檢查。",
+      "pdf-to-searchable-pdf": isToolAvailable("tesseract")
+        ? "把掃描／影像型 PDF 建成可搜尋 PDF（OCR 文字層），輸出 *_ocr_searchable.pdf。預設語言 chi_tra+eng。"
+        : "此工作需要 Tesseract；目前未偵測到，請到「狀態」頁檢查。",
       "ocr-pdf": isToolAvailable("tesseract")
-        ? "適合掃描文件；程式會逐頁辨識文字並輸出 TXT。"
+        ? "適合掃描文件；程式會逐頁辨識文字並輸出 TXT。預設語言 chi_tra+eng。"
         : "此工作需要本機 OCR；目前未偵測到，請到「狀態」頁檢查。",
       "office-to-pdf": isToolAvailable("libreOffice")
         ? "程式會自動使用本機文件引擎把 Office 文件轉成 PDF。"
@@ -3801,9 +3805,11 @@
       showToast("DOCX 相容模式需要 pdf2docx 或 Tesseract OCR。", "error");
       return;
     }
-    if (type === "ocr-pdf" && !isToolAvailable("tesseract")) {
+    if ((type === "ocr-pdf" || type === "pdf-to-searchable-pdf") && !isToolAvailable("tesseract")) {
       setStatus("#pdf-backend-status", "缺少 Tesseract");
-      showToast("PDF OCR 需要 Tesseract。請確認內建工具或重新偵測。", "error");
+      showToast(type === "pdf-to-searchable-pdf"
+        ? "可搜尋 PDF 需要 Tesseract。請到「狀態」頁檢查。"
+        : "PDF OCR 需要 Tesseract。請確認內建工具或重新偵測。", "error");
       return;
     }
     if ((type === "pdf-encrypt" || type === "pdf-decrypt") && !isToolAvailable("qpdf")) {
@@ -3828,13 +3834,13 @@
       if (ext === "docx") {
         payload.append("scanOcr", ($("#pdf-office-scan-ocr") && $("#pdf-office-scan-ocr").value) || "auto");
         payload.append("ocrOutput", ($("#pdf-office-ocr-output") && $("#pdf-office-ocr-output").value) || "both");
-        payload.append("language", ($("#pdf-office-ocr-language") && $("#pdf-office-ocr-language").value.trim()) || "eng");
+        payload.append("language", ($("#pdf-office-ocr-language") && $("#pdf-office-ocr-language").value.trim()) || "chi_tra+eng");
         payload.append("maxPages", ($("#pdf-ocr-max-pages") && $("#pdf-ocr-max-pages").value) || "50");
       }
     }
-    if (type === "ocr-pdf") {
-      payload.append("language", ($("#pdf-ocr-language").value || "eng").trim() || "eng");
-      payload.append("maxPages", String($("#pdf-ocr-max-pages").value || "50"));
+    if (type === "pdf-to-searchable-pdf" || type === "ocr-pdf") {
+      payload.append("language", ($("#pdf-ocr-language") && $("#pdf-ocr-language").value.trim()) || "chi_tra+eng");
+      payload.append("maxPages", ($("#pdf-ocr-max-pages") && $("#pdf-ocr-max-pages").value) || "50");
     }
     if (type === "pdf-encrypt" || type === "pdf-decrypt") payload.append("password", $("#pdf-password").value);
     try {
@@ -3858,7 +3864,7 @@
     payload.append("type", type);
     state.imgBackendFiles.forEach((file) => payload.append("files", file, file.name));
     if (type === "image-convert") payload.append("extension", $("#img-backend-image-format").value);
-    if (type === "ocr-image") payload.append("language", $("#img-backend-ocr-language").value.trim() || "eng");
+    if (type === "ocr-image") payload.append("language", $("#img-backend-ocr-language").value.trim() || "chi_tra+eng");
     try {
       await backendFetch("/jobs", { method: "POST", body: payload });
       await refreshBackendJobs();
@@ -4552,6 +4558,9 @@
     }
     if (type === "pdf-to-office") {
       return "PDF → Office（嘗試保留版面）";
+    }
+    if (type === "pdf-to-searchable-pdf") {
+      return "PDF → 可搜尋 PDF（OCR）";
     }
     if (type === "ocr-pdf") {
       return "PDF OCR → TXT";

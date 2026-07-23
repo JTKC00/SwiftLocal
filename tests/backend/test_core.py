@@ -762,6 +762,19 @@ class PdfToOfficeFallbackTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(ValueError):
             cs.sanitize_ocr_output("zip")
 
+    def test_pdf_to_searchable_job_type_supported(self) -> None:
+        from backend.services.job_service import SUPPORTED_JOB_TYPES
+
+        self.assertIn("pdf-to-searchable-pdf", SUPPORTED_JOB_TYPES)
+
+    def test_searchable_job_options_defaults(self) -> None:
+        from backend.services.job_service import JobService
+
+        service = JobService()
+        opts = service._validate_options("pdf-to-searchable-pdf", {})
+        self.assertEqual(opts["language"], "chi_tra+eng")
+        self.assertIn("maxPages", opts)
+
     def test_write_text_docx_minimal(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             out = Path(tmp) / "t.docx"
