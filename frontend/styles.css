@@ -1089,6 +1089,11 @@ td.code-cell {
   line-height: 1.6;
 }
 
+.backend-inline-note-centered {
+  align-self: center;
+  margin: 0;
+}
+
 .tool-status-heading {
   display: grid;
   grid-template-columns: 28px 1fr;
