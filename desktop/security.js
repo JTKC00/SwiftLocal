@@ -1,10 +1,18 @@
 "use strict";
 
+const path = require("node:path");
+const { fileURLToPath, pathToFileURL } = require("node:url");
+
 function normalizedDocumentUrl(value) {
   try {
     const parsed = new URL(String(value || ""));
     parsed.hash = "";
     parsed.search = "";
+    if (parsed.protocol === "file:") {
+      let filePath = path.resolve(fileURLToPath(parsed));
+      if (process.platform === "win32") filePath = filePath.toLowerCase();
+      return pathToFileURL(filePath).href;
+    }
     return parsed.href;
   } catch {
     return "";

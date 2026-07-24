@@ -1836,6 +1836,11 @@
     renderPdfWorkspace();
   }
 
+  function pdfRotationClass(rotation) {
+    const normalized = ((Number(rotation) % 360) + 360) % 360;
+    return `pdf-rotation-${[0, 90, 180, 270].includes(normalized) ? normalized : 0}`;
+  }
+
   function renderPdfWorkspace() {
     const surface = $("#pdf-workspace");
     if (!surface) return;
@@ -1869,7 +1874,7 @@
       const selected = page.id === state.pdfWorkspaceSelectedId;
       const preview = page.blank
         ? '<div class="pdf-workspace-blank-preview"><span>空白頁</span></div>'
-        : `<img src="${page.thumbnail}" alt="${escapeHtml(page.fileName)} 第 ${page.pageIndex + 1} 頁預覽" class="${rotation === 90 || rotation === 270 ? "is-sideways" : ""}" style="transform:rotate(${rotation}deg)">`;
+        : `<img src="${page.thumbnail}" alt="${escapeHtml(page.fileName)} 第 ${page.pageIndex + 1} 頁預覽" class="${rotation === 90 || rotation === 270 ? "is-sideways " : ""}${pdfRotationClass(rotation)}">`;
       const pageLabel = page.blank ? "A4 空白頁" : `原第 ${page.pageIndex + 1} 頁${rotation ? ` · 旋轉 ${rotation}°` : ""}`;
       return [
         `<article class="pdf-workspace-page${selected ? " is-selected" : ""}" draggable="${!state.pdfWorkspaceLoading}" data-index="${index}" tabindex="0" aria-label="預覽第 ${index + 1} 頁：${escapeHtml(page.fileName)}" aria-current="${selected ? "page" : "false"}">`,
@@ -1917,7 +1922,7 @@
 
     if (page.blank) {
       stage.className = "pdf-live-preview-stage";
-      stage.innerHTML = `<div class="pdf-live-preview-blank" style="transform:rotate(${rotation}deg)"><span>空白頁</span></div>`;
+      stage.innerHTML = `<div class="pdf-live-preview-blank ${pdfRotationClass(rotation)}"><span>空白頁</span></div>`;
       return;
     }
 
@@ -1968,7 +1973,7 @@
   function showPdfLivePreviewImage(page, imageUrl, rotation) {
     const stage = $("#pdf-live-preview-stage");
     stage.className = "pdf-live-preview-stage";
-    stage.innerHTML = `<img src="${imageUrl}" alt="${escapeHtml(page.fileName)} 第 ${page.pageIndex + 1} 頁即時預覽" class="${rotation === 90 || rotation === 270 ? "is-sideways" : ""}" style="transform:rotate(${rotation}deg)">`;
+    stage.innerHTML = `<img src="${imageUrl}" alt="${escapeHtml(page.fileName)} 第 ${page.pageIndex + 1} 頁即時預覽" class="${rotation === 90 || rotation === 270 ? "is-sideways " : ""}${pdfRotationClass(rotation)}">`;
   }
 
   function pdfOrderFiles(stateKey) {

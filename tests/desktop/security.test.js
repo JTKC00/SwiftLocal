@@ -17,6 +17,12 @@ describe("Electron renderer security", () => {
     assert.equal(isTrustedRendererUrl(`${trusted}?mode=desktop#pdf`, trusted), true);
   });
 
+  test("treats equivalent encoded packaged file paths as the same document", () => {
+    const chromiumUrl = "file:///C:/~/SwiftLocal/resources/app.asar/frontend/index.html";
+    const nodeUrl = "file:///C:/%7E/SwiftLocal/resources/app.asar/frontend/index.html";
+    assert.equal(isTrustedRendererUrl(chromiumUrl, nodeUrl), true);
+  });
+
   test("rejects external and sibling local documents", () => {
     assert.equal(isTrustedRendererUrl("https://example.com/", trusted), false);
     assert.equal(isTrustedRendererUrl("file:///C:/SwiftLocal/frontend/other.html", trusted), false);
@@ -41,10 +47,16 @@ describe("Electron renderer security", () => {
     const root = path.resolve(__dirname, "..", "..");
     const mainSource = fs.readFileSync(path.join(root, "desktop", "main.js"), "utf8");
     const html = fs.readFileSync(path.join(root, "frontend", "index.html"), "utf8");
+    const appSource = fs.readFileSync(path.join(root, "frontend", "app.js"), "utf8");
+    const css = fs.readFileSync(path.join(root, "frontend", "styles.css"), "utf8");
     assert.match(mainSource, /sandbox:\s*true/);
     assert.match(html, /Content-Security-Policy/);
     assert.doesNotMatch(html, /unsafe-inline/);
     assert.doesNotMatch(html, /\sstyle=/i);
+    assert.doesNotMatch(appSource, /style=["'`]transform:/i);
+    for (const rotation of [0, 90, 180, 270]) {
+      assert.match(css, new RegExp(`\\.pdf-rotation-${rotation}\\s*\\{[^}]*rotate\\(${rotation}deg\\)`));
+    }
   });
 
   test("home secondary action has visible text on its white background", () => {
