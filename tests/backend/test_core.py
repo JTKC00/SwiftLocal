@@ -21,7 +21,10 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from backend.services import conversion_service as cs
-from backend.services.job_service import JobService
+from backend.services.conversion_service import next_available_path
+from backend.services.job_service import Job, JobService, redact_job_options
+from backend.security import ALLOWED_FRONTEND_ORIGINS, SESSION_TOKEN, is_valid_session_token
+from backend.version import APP_VERSION, read_app_version
 
 
 def _make_pdf(path: Path, pages: int = 2) -> None:
@@ -94,7 +97,96 @@ class TessdataTests(unittest.TestCase):
         self.assertGreater(eng.stat().st_size, 50_000)
 
 
+class ApiSecurityTests(unittest.TestCase):
+    def test_session_token_uses_constant_time_validation(self) -> None:
+        self.assertTrue(is_valid_session_token(SESSION_TOKEN))
+        self.assertFalse(is_valid_session_token(None))
+        self.assertFalse(is_valid_session_token("wrong-token"))
+
+    def test_cors_does_not_allow_null_origin(self) -> None:
+        self.assertNotIn("null", ALLOWED_FRONTEND_ORIGINS)
+        self.assertIn("http://127.0.0.1:4173", ALLOWED_FRONTEND_ORIGINS)
+
+    def test_backend_version_comes_from_package_json(self) -> None:
+        self.assertEqual(APP_VERSION, "0.3.1")
+        self.assertEqual(read_app_version(), APP_VERSION)
+
+
 class JobPersistenceTests(unittest.IsolatedAsyncioTestCase):
+    async def test_passwords_are_redacted_and_password_jobs_do_not_resume(self) -> None:
+        from backend.services import job_service as js_mod
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            jobs_dir = tmp_path / "jobs"
+            jobs_dir.mkdir()
+            state_path = tmp_path / "jobs-state.json"
+            old_jobs_dir = js_mod.JOBS_DIR
+            old_state = js_mod.JOBS_STATE_PATH
+            old_temp = js_mod.TEMP_DIR
+            js_mod.JOBS_DIR = jobs_dir
+            js_mod.JOBS_STATE_PATH = state_path
+            js_mod.TEMP_DIR = tmp_path
+            try:
+                sample = jobs_dir / "secret" / "input" / "a.pdf"
+                sample.parent.mkdir(parents=True)
+                sample.write_bytes(b"%PDF")
+                service = JobService()
+                secret_job = Job(
+                    id="secret",
+                    type="pdf-encrypt",
+                    input_paths=[sample],
+                    output_dir=jobs_dir / "secret" / "output",
+                    options={"password": "very-secret", "pages": "1"},
+                    log=["failed with very-secret"],
+                    error="very-secret",
+                )
+                service.jobs = [secret_job]
+                service._save_jobs_state()
+                saved = state_path.read_text(encoding="utf-8")
+                self.assertNotIn("very-secret", saved)
+                self.assertNotIn("password", saved.lower())
+                self.assertEqual(service.public_job(secret_job)["options"], {"pages": "1"})
+
+                restored = JobService()
+                await restored.restore_state()
+                self.assertEqual(restored.jobs[0].status, "failed")
+                self.assertIn("重新輸入密碼", restored.jobs[0].error)
+            finally:
+                js_mod.JOBS_DIR = old_jobs_dir
+                js_mod.JOBS_STATE_PATH = old_state
+                js_mod.TEMP_DIR = old_temp
+
+
+class OutputCollisionTests(unittest.IsolatedAsyncioTestCase):
+    async def test_numbered_names_preserve_existing_file(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            original = tmp_path / "report.pdf"
+            original.write_text("original", encoding="utf-8")
+            self.assertEqual(next_available_path(original), tmp_path / "report (2).pdf")
+            (tmp_path / "report (2).pdf").write_text("second", encoding="utf-8")
+            self.assertEqual(next_available_path(original), tmp_path / "report (3).pdf")
+            self.assertEqual(original.read_text(encoding="utf-8"), "original")
+
+    async def test_merge_does_not_overwrite_existing_output(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            source = tmp_path / "source.pdf"
+            _make_pdf(source, 1)
+            existing = tmp_path / "merged.pdf"
+            existing.write_text("keep-me", encoding="utf-8")
+            outputs, _ = await cs.merge_pdfs([source], tmp_path)
+            self.assertEqual(outputs, [tmp_path / "merged (2).pdf"])
+            self.assertEqual(existing.read_text(encoding="utf-8"), "keep-me")
+            self.assertTrue(outputs[0].exists())
+
+    async def test_redact_job_options(self) -> None:
+        self.assertEqual(
+            redact_job_options({"password": "secret", "passphrase": "secret2", "pages": "1"}),
+            {"pages": "1"},
+        )
+
     async def test_restore_marks_running_failed_and_keeps_queued(self) -> None:
         from backend.services import job_service as js_mod
         from backend.services.job_service import Job, JobService
@@ -200,6 +292,25 @@ class MediaArgsTests(unittest.TestCase):
 
 
 class OcrPdfRenderTests(unittest.TestCase):
+    def test_render_rejects_pages_above_pixel_limit(self) -> None:
+        try:
+            import pypdfium2  # noqa: F401
+        except ImportError:
+            self.skipTest("pypdfium2 not installed")
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            sample = base / "large.pdf"
+            page_dir = base / "pages"
+            page_dir.mkdir()
+            _make_pdf(sample, 1)
+            old_limit = cs.OCR_PDF_MAX_PIXELS
+            cs.OCR_PDF_MAX_PIXELS = 10
+            try:
+                with self.assertRaisesRegex(RuntimeError, "too large"):
+                    cs._render_pdf_pages_sync(sample, page_dir, max_pages=1, scale=1.0)
+            finally:
+                cs.OCR_PDF_MAX_PIXELS = old_limit
+
     def test_render_pdf_pages_creates_png(self) -> None:
         sample = ROOT / "smoke-temp" / "release-check" / "input" / "a.pdf"
         if not sample.exists():

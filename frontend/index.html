@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' blob: data:; connect-src 'self' http://127.0.0.1:8787 http://localhost:8787; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'">
   <title>快轉通 SwiftLocal</title>
   <link rel="stylesheet" href="styles.css">
 </head>
@@ -1041,7 +1042,7 @@
                   <input id="media-duration" type="text" placeholder="秒 或 00:00:10" autocomplete="off">
                 </label>
               </div>
-              <div class="control-row media-gif-fps-row" style="display:none">
+              <div class="control-row media-gif-fps-row is-hidden">
                 <label>
                   <span>GIF FPS</span>
                   <input id="media-gif-fps" type="number" min="1" max="30" value="10">
@@ -1081,7 +1082,7 @@
             <div class="control-row">
               <label>
                 <span>色票選擇</span>
-                <input id="color-picker" type="color" value="#1f7a68" style="min-height:52px;cursor:pointer;">
+                <input id="color-picker" type="color" value="#1f7a68">
               </label>
               <label>
                 <span>HEX 值</span>
@@ -1121,7 +1122,7 @@
                 <button class="secondary-button" type="button" id="copy-uuid-output">複製全部</button>
               </div>
             </div>
-            <textarea id="uuid-output" class="output-area" spellcheck="false" readonly style="min-height:160px;"></textarea>
+            <textarea id="uuid-output" class="output-area" spellcheck="false" readonly></textarea>
           </form>
 
           <form id="qr-form" class="tool-surface wide">
@@ -1131,7 +1132,7 @@
             </div>
             <label>
               <span>輸入文字 / 網址</span>
-              <textarea id="qr-input" spellcheck="false" style="min-height:90px;" placeholder="https://example.com"></textarea>
+              <textarea id="qr-input" spellcheck="false" placeholder="https://example.com"></textarea>
             </label>
             <div class="control-row">
               <label>
@@ -1158,7 +1159,7 @@
               <button class="secondary-button" type="button" id="download-qr" disabled>下載 PNG</button>
             </div>
             <div class="qr-canvas-wrap">
-              <canvas id="qr-canvas" style="display:none;"></canvas>
+              <canvas id="qr-canvas" class="is-hidden"></canvas>
             </div>
           </form>
 
@@ -1234,12 +1235,12 @@
               </div>
             </div>
 
-            <div id="desktop-output-dir-block" class="desktop-output-dir" style="display:none">
+            <div id="desktop-output-dir-block" class="desktop-output-dir is-hidden">
               <label>
                 <span>桌面版輸出資料夾</span>
                 <input id="desktop-output-dir" type="text" readonly placeholder="預設：下載／SwiftLocal">
               </label>
-              <div class="actions" style="margin-top:8px">
+              <div class="actions desktop-output-actions">
                 <button class="secondary-button compact" type="button" id="pick-desktop-output-dir">選擇資料夾</button>
                 <button class="secondary-button compact" type="button" id="open-desktop-output-dir">開啟資料夾</button>
               </div>

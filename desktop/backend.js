@@ -80,6 +80,34 @@ const TOOL_DEFINITIONS = {
 };
 
 const MAX_PERSISTED_JOBS = 80;
+const PASSWORD_JOB_TYPES = new Set(["pdf-encrypt", "pdf-decrypt"]);
+const MAX_INPUT_FILE_BYTES = positiveEnvNumber("SWIFTLOCAL_MAX_FILE_BYTES", 1024 ** 3);
+const MAX_JOB_INPUT_BYTES = positiveEnvNumber("SWIFTLOCAL_MAX_JOB_BYTES", 2 * 1024 ** 3);
+const MAX_QUEUED_JOBS = positiveEnvNumber("SWIFTLOCAL_MAX_QUEUED_JOBS", 50);
+const MIN_DISK_MULTIPLIER = positiveEnvNumber("SWIFTLOCAL_DISK_MULTIPLIER", 2);
+
+function redactJobOptions(options = {}) {
+  if (!options || typeof options !== "object" || Array.isArray(options)) {
+    return {};
+  }
+  return Object.fromEntries(
+    Object.entries(options)
+      .filter(([key]) => !/password|passphrase/i.test(key))
+      .map(([key, value]) => [
+        key,
+        value && typeof value === "object" && !Array.isArray(value) ? redactJobOptions(value) : value
+      ])
+  );
+}
+
+function redactJobText(value, options = {}) {
+  let safe = String(value || "");
+  for (const [key, secret] of Object.entries(options || {})) {
+    if (!/password|passphrase/i.test(key) || !secret) continue;
+    safe = safe.split(String(secret)).join("[REDACTED]");
+  }
+  return safe;
+}
 
 class BackendService {
   constructor(options = {}) {
@@ -169,11 +197,16 @@ class BackendService {
   }
 
   enqueue(payload) {
+    if (this.jobs.filter((item) => item.status === "queued").length >= MAX_QUEUED_JOBS) {
+      throw new Error(`Too many queued jobs (limit: ${MAX_QUEUED_JOBS})`);
+    }
+    const outputDir = payload.outputDir || this.defaultOutputDir;
+    validateJobInputLimits(payload.inputPaths || [], outputDir);
     const job = {
       id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
       type: payload.type,
       inputPaths: payload.inputPaths || [],
-      outputDir: payload.outputDir || this.defaultOutputDir,
+      outputDir,
       options: payload.options || {},
       status: "queued",
       createdAt: new Date().toISOString(),
@@ -215,6 +248,7 @@ class BackendService {
       job.error = "任務已取消";
       job.log.push(job.error);
       job.finishedAt = new Date().toISOString();
+      job.options = redactJobOptions(job.options);
       this.emitJobs();
       return publicJob(job);
     }
@@ -286,6 +320,9 @@ class BackendService {
     } finally {
       job._child = null;
       job.finishedAt = new Date().toISOString();
+      job.log = job.log.map((line) => redactJobText(line, job.options));
+      job.error = redactJobText(job.error, job.options);
+      job.options = redactJobOptions(job.options);
       this.running = false;
       this.emitJobs();
       this.runNext();
@@ -357,10 +394,9 @@ class BackendService {
     ensureOutputDir(job.outputDir);
     for (const inputPath of job.inputPaths) {
       ensureJobNotCancelled(job);
-      const args = libreOfficeArgs(job.outputDir, inputPath, "pdf");
-      const before = snapshotOutputDir(job.outputDir);
-      const result = await runProcess(tool.path, args, job);
-      const outputPath = resolveLibreOfficeOutput(job.outputDir, inputPath, "pdf", before);
+      const { outputPath, result } = await runLibreOfficeToUniqueOutput(
+        tool.path, job.outputDir, inputPath, "pdf", "pdf", job
+      );
       job.log.push(result.output || `converted: ${path.basename(inputPath)} -> ${path.basename(outputPath)}`);
       job.outputPaths.push(outputPath);
     }
@@ -369,7 +405,7 @@ class BackendService {
   async runPdfToDocx(job) {
     ensureOutputDir(job.outputDir);
     for (const inputPath of job.inputPaths) {
-      const outputPath = path.join(job.outputDir, `${path.parse(inputPath).name}.docx`);
+      const outputPath = nextAvailablePath(path.join(job.outputDir, `${path.parse(inputPath).name}.docx`));
       const text = await extractPdfText(inputPath);
       writeTextDocx(outputPath, text || path.basename(inputPath));
       ensureOutputFile(outputPath, inputPath);
@@ -438,26 +474,21 @@ class BackendService {
       if (pdfBytesLookEncrypted(probe)) {
         throw encryptedPdfError(path.basename(inputPath));
       }
-      const profileDir = path.join(job.outputDir, `${path.parse(inputPath).name}_lo_profile`);
-      cleanupLoProfile(profileDir);
-      const before = snapshotOutputDir(job.outputDir);
-      const args = libreOfficeArgs(job.outputDir, inputPath, convertTo, profileDir);
       let loError = null;
-      let loOutput = "";
       try {
-        const result = await runProcess(tool.path, args, job, "LibreOffice");
-        loOutput = result.output || "";
-        const outputPath = resolveLibreOfficeOutput(job.outputDir, inputPath, extension, before);
+        const { outputPath, result } = await runLibreOfficeToUniqueOutput(
+          tool.path, job.outputDir, inputPath, convertTo, extension, job
+        );
         if (!fs.existsSync(outputPath) || fs.statSync(outputPath).size < 64) {
           removeIncompleteOfficeOutput(outputPath);
           throw new Error(formatProcessError({
             outputMissing: true,
             expectedOutput: path.basename(outputPath),
-            stdout: loOutput,
+            stdout: result.output || "",
             toolLabel: "LibreOffice"
           }));
         }
-        job.log.push(loOutput || `converted: ${path.basename(inputPath)} -> ${path.basename(outputPath)}`);
+        job.log.push(result.output || `converted: ${path.basename(inputPath)} -> ${path.basename(outputPath)}`);
         job.outputPaths.push(outputPath);
         continue;
       } catch (error) {
@@ -465,8 +496,6 @@ class BackendService {
           throw error;
         }
         loError = error;
-      } finally {
-        cleanupLoProfile(profileDir);
       }
 
       const expectedPath = path.join(job.outputDir, `${path.parse(inputPath).name}.${extension}`);
@@ -500,7 +529,7 @@ class BackendService {
     if (!job.inputPaths.length) {
       throw new Error("PDF merge requires at least one input file");
     }
-    const outputPath = path.join(job.outputDir, "merged.pdf");
+    const outputPath = nextAvailablePath(path.join(job.outputDir, "merged.pdf"));
     const output = await PDFDocument.create();
     for (const inputPath of job.inputPaths) {
       const input = await loadPdf(inputPath);
@@ -533,7 +562,7 @@ class BackendService {
       const pages = await output.copyPages(input, indexes);
       pages.forEach((page) => output.addPage(page));
       const label = pageRangeLabel(indexes);
-      const outputPath = path.join(job.outputDir, `${path.parse(inputPath).name}_p${label}.pdf`);
+      const outputPath = nextAvailablePath(path.join(job.outputDir, `${path.parse(inputPath).name}_p${label}.pdf`));
       await savePdf(output, outputPath);
       ensureOutputFile(outputPath, inputPath);
       job.outputPaths.push(outputPath);
@@ -552,7 +581,7 @@ class BackendService {
         const current = page.getRotation().angle || 0;
         page.setRotation(degrees((current + angle) % 360));
       });
-      const outputPath = path.join(job.outputDir, `${path.parse(inputPath).name}_rotated.pdf`);
+      const outputPath = nextAvailablePath(path.join(job.outputDir, `${path.parse(inputPath).name}_rotated.pdf`));
       await savePdf(input, outputPath);
       ensureOutputFile(outputPath, inputPath);
       job.outputPaths.push(outputPath);
@@ -566,7 +595,7 @@ class BackendService {
     const password = sanitizePassword(job.options.password);
     for (const inputPath of job.inputPaths) {
       ensureJobNotCancelled(job);
-      const outputPath = path.join(job.outputDir, `${path.parse(inputPath).name}_encrypted.pdf`);
+      const outputPath = nextAvailablePath(path.join(job.outputDir, `${path.parse(inputPath).name}_encrypted.pdf`));
       const args = ["--encrypt", password, password, "256", "--", inputPath, outputPath];
       const result = await runProcess(tool.path, args, job);
       job.log.push(result.output || `encrypted: ${path.basename(inputPath)} -> ${path.basename(outputPath)}`);
@@ -581,7 +610,7 @@ class BackendService {
     const password = String(job.options.password || "");
     for (const inputPath of job.inputPaths) {
       ensureJobNotCancelled(job);
-      const outputPath = path.join(job.outputDir, `${path.parse(inputPath).name}_decrypted.pdf`);
+      const outputPath = nextAvailablePath(path.join(job.outputDir, `${path.parse(inputPath).name}_decrypted.pdf`));
       const args = password
         ? [`--password=${password}`, "--decrypt", inputPath, outputPath]
         : ["--decrypt", inputPath, outputPath];
@@ -597,7 +626,7 @@ class BackendService {
     for (const inputPath of job.inputPaths) {
       ensureJobNotCancelled(job);
       const input = await loadPdf(inputPath);
-      const outputPath = path.join(job.outputDir, `${path.parse(inputPath).name}_compressed.pdf`);
+      const outputPath = nextAvailablePath(path.join(job.outputDir, `${path.parse(inputPath).name}_compressed.pdf`));
       const bytes = await input.save({ useObjectStreams: true });
       fs.writeFileSync(outputPath, bytes);
       ensureOutputFile(outputPath, inputPath);
@@ -615,7 +644,7 @@ class BackendService {
     const extension = sanitizeExtension(job.options.extension || "mp4");
     for (const inputPath of job.inputPaths) {
       ensureJobNotCancelled(job);
-      const outputPath = path.join(job.outputDir, `${path.parse(inputPath).name}.${extension}`);
+      const outputPath = nextAvailablePath(path.join(job.outputDir, `${path.parse(inputPath).name}.${extension}`));
       const args = buildFfmpegMediaArgs(inputPath, outputPath, { ...job.options, extension });
       const result = await runProcess(tool.path, args, job);
       job.log.push(result.output || `media: ${path.basename(inputPath)} -> ${path.basename(outputPath)}`);
@@ -630,7 +659,7 @@ class BackendService {
     const extension = sanitizeExtension(job.options.extension || "jpg");
     for (const inputPath of job.inputPaths) {
       ensureJobNotCancelled(job);
-      const outputPath = path.join(job.outputDir, `${path.parse(inputPath).name}.${extension}`);
+      const outputPath = nextAvailablePath(path.join(job.outputDir, `${path.parse(inputPath).name}.${extension}`));
       const args = ["-y", "-i", inputPath, outputPath];
       const result = await runProcess(tool.path, args, job);
       job.log.push(result.output);
@@ -645,7 +674,8 @@ class BackendService {
     const language = job.options.language || "eng";
     for (const inputPath of job.inputPaths) {
       ensureJobNotCancelled(job);
-      const outputBase = path.join(job.outputDir, `${path.parse(inputPath).name}_ocr`);
+      const outputPath = nextAvailablePath(path.join(job.outputDir, `${path.parse(inputPath).name}_ocr.txt`));
+      const outputBase = outputPath.slice(0, -path.extname(outputPath).length);
       const args = [inputPath, outputBase, "-l", language];
       const tessdataDir = bundledTessdataDir(tool.path);
       if (tessdataDir) {
@@ -653,7 +683,6 @@ class BackendService {
       }
       const result = await runProcess(tool.path, args, job);
       job.log.push(result.output);
-      const outputPath = `${outputBase}.txt`;
       ensureOutputFile(outputPath, inputPath);
       job.outputPaths.push(outputPath);
     }
@@ -698,7 +727,7 @@ class BackendService {
         pageTexts.push(`--- Page ${i + 1} ---\n${text.trim()}`);
       }
 
-      const outputPath = path.join(job.outputDir, `${path.parse(inputPath).name}_ocr.txt`);
+      const outputPath = nextAvailablePath(path.join(job.outputDir, `${path.parse(inputPath).name}_ocr.txt`));
       fs.writeFileSync(outputPath, `${pageTexts.join("\n\n").trim()}\n`, "utf8");
       ensureOutputFile(outputPath, inputPath);
       job.outputPaths.push(outputPath);
@@ -735,10 +764,17 @@ function normalizePersistedJob(item) {
   let error = String(item.error || "");
   const log = Array.isArray(item.log) ? item.log.map(String).slice(-20) : [];
   let finishedAt = item.finishedAt ? String(item.finishedAt) : null;
+  const rawOptions = item.options && typeof item.options === "object" ? { ...item.options } : {};
   // Interrupted mid-run jobs cannot resume safely — mark failed.
   if (status === "running") {
     status = "failed";
     error = error || "應用程式重啟時任務中斷";
+    log.push(error);
+    finishedAt = finishedAt || new Date().toISOString();
+  }
+  if (status === "queued" && PASSWORD_JOB_TYPES.has(String(item.type))) {
+    status = "failed";
+    error = "任務因應用程式重啟而停止，請重新輸入密碼。";
     log.push(error);
     finishedAt = finishedAt || new Date().toISOString();
   }
@@ -757,7 +793,7 @@ function normalizePersistedJob(item) {
     type: String(item.type),
     inputPaths,
     outputDir: String(item.outputDir || ""),
-    options: item.options && typeof item.options === "object" ? { ...item.options } : {},
+    options: redactJobOptions(rawOptions),
     status,
     createdAt: String(item.createdAt || new Date().toISOString()),
     startedAt: item.startedAt ? String(item.startedAt) : null,
@@ -781,14 +817,14 @@ function saveJobsState(statePath, jobs) {
         type: job.type,
         inputPaths: job.inputPaths || [],
         outputDir: job.outputDir || "",
-        options: job.options || {},
+        options: redactJobOptions(job.options),
         status: job.status,
         createdAt: job.createdAt,
         startedAt: job.startedAt,
         finishedAt: job.finishedAt,
         outputPaths: job.outputPaths || [],
-        log: (job.log || []).slice(-12),
-        error: job.error || ""
+        log: (job.log || []).slice(-12).map((line) => redactJobText(line, job.options)),
+        error: redactJobText(job.error, job.options)
       }))
     };
     fs.writeFileSync(statePath, JSON.stringify(payload, null, 2), "utf8");
@@ -989,6 +1025,75 @@ function ensureOutputDir(outputDir) {
     throw new Error("Output folder is required");
   }
   fs.mkdirSync(outputDir, { recursive: true });
+}
+
+function positiveEnvNumber(name, fallback) {
+  const value = Number(process.env[name]);
+  return Number.isFinite(value) && value > 0 ? value : fallback;
+}
+
+function validateJobInputLimits(inputPaths, outputDir, limits = {}) {
+  const maxFileBytes = limits.maxFileBytes || MAX_INPUT_FILE_BYTES;
+  const maxJobBytes = limits.maxJobBytes || MAX_JOB_INPUT_BYTES;
+  const diskMultiplier = limits.diskMultiplier || MIN_DISK_MULTIPLIER;
+  let totalBytes = 0;
+  for (const inputPath of inputPaths) {
+    if (!inputPath || !fs.existsSync(inputPath)) continue;
+    const size = fs.statSync(inputPath).size;
+    if (size > maxFileBytes) {
+      throw new Error(`${path.basename(inputPath)} exceeds the ${formatBytes(maxFileBytes)} file limit`);
+    }
+    totalBytes += size;
+    if (totalBytes > maxJobBytes) {
+      throw new Error(`Job inputs exceed the ${formatBytes(maxJobBytes)} total limit`);
+    }
+  }
+  if (!totalBytes) return 0;
+  ensureOutputDir(outputDir);
+  if (typeof fs.statfsSync === "function") {
+    const stats = fs.statfsSync(outputDir);
+    const available = Number(stats.bavail) * Number(stats.bsize);
+    const required = totalBytes * diskMultiplier;
+    if (Number.isFinite(available) && available < required) {
+      throw new Error(`Not enough free disk space: ${formatBytes(required)} required, ${formatBytes(available)} available`);
+    }
+  }
+  return totalBytes;
+}
+
+function formatBytes(value) {
+  if (value >= 1024 ** 3) return `${(value / 1024 ** 3).toFixed(1)} GB`;
+  if (value >= 1024 ** 2) return `${(value / 1024 ** 2).toFixed(1)} MB`;
+  return `${Math.ceil(value / 1024)} KB`;
+}
+
+function nextAvailablePath(filePath) {
+  if (!fs.existsSync(filePath)) {
+    return filePath;
+  }
+  const parsed = path.parse(filePath);
+  for (let index = 2; index < 10000; index += 1) {
+    const candidate = path.join(parsed.dir, `${parsed.name} (${index})${parsed.ext}`);
+    if (!fs.existsSync(candidate)) {
+      return candidate;
+    }
+  }
+  throw new Error(`Unable to find an available output name for ${parsed.base}`);
+}
+
+async function runLibreOfficeToUniqueOutput(toolPath, outputDir, inputPath, convertTo, extension, job) {
+  const tempDir = fs.mkdtempSync(path.join(outputDir, ".swiftlocal-office-"));
+  try {
+    const before = snapshotOutputDir(tempDir);
+    const args = libreOfficeArgs(tempDir, inputPath, convertTo);
+    const result = await runProcess(toolPath, args, job);
+    const generated = resolveLibreOfficeOutput(tempDir, inputPath, extension, before);
+    const outputPath = nextAvailablePath(path.join(outputDir, path.basename(generated)));
+    fs.renameSync(generated, outputPath);
+    return { outputPath, result };
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
 }
 
 function ensureOutputFile(outputPath, inputPath) {
@@ -1260,6 +1365,7 @@ function officeConvertTarget(extension) {
 const OCR_PDF_MAX_PAGES_DEFAULT = 50;
 const OCR_PDF_MAX_PAGES_HARD_LIMIT = 100;
 const OCR_PDF_RENDER_SCALE = 2;
+const OCR_PDF_MAX_PIXELS = positiveEnvNumber("SWIFTLOCAL_OCR_MAX_PIXELS", 50_000_000);
 
 function sanitizeOcrPdfMaxPages(value) {
   const parsed = Number.parseInt(String(value || OCR_PDF_MAX_PAGES_DEFAULT), 10);
@@ -1308,6 +1414,11 @@ async function renderPdfPagesToPng(inputPath, pageDir, maxPages, job) {
       const viewport = page.getViewport({ scale: OCR_PDF_RENDER_SCALE });
       const width = Math.max(1, Math.ceil(viewport.width));
       const height = Math.max(1, Math.ceil(viewport.height));
+      if (width * height > OCR_PDF_MAX_PIXELS) {
+        throw new Error(
+          `PDF OCR page ${pageNumber} is too large (${width}x${height}); limit is ${(OCR_PDF_MAX_PIXELS / 1_000_000).toFixed(0)} megapixels`
+        );
+      }
       const canvas = createCanvas(width, height);
       const context = canvas.getContext("2d");
       context.fillStyle = "#ffffff";
@@ -1937,7 +2048,7 @@ function publicJob(job) {
     type: job.type,
     inputPaths: job.inputPaths.map((item) => path.basename(item)),
     outputDir: job.outputDir,
-    options: job.options,
+    options: redactJobOptions(job.options),
     status: job.status,
     createdAt: job.createdAt,
     startedAt: job.startedAt,
@@ -1949,8 +2060,8 @@ function publicJob(job) {
         path: item,
         size: fs.statSync(item).size
       })),
-    log: job.log.slice(-6),
-    error: job.error
+    log: job.log.slice(-6).map((line) => redactJobText(line, job.options)),
+    error: redactJobText(job.error, job.options)
   };
 }
 
@@ -2082,5 +2193,8 @@ module.exports = {
   loadJobsState,
   saveJobsState,
   normalizePersistedJob,
+  redactJobOptions,
+  nextAvailablePath,
+  validateJobInputLimits,
   JobCancelledError
 };

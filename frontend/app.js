@@ -20,6 +20,7 @@
     imgBackendFiles: [],
     mediaBackendFiles: [],
     backendConnected: false,
+    backendSessionToken: "",
     detectedTools: null,
     backendLastChecked: null,
     backendPollTimer: null,
@@ -4490,7 +4491,14 @@
     if (electronBridgeAvailable()) {
       return electronBackendRequest(path, options);
     }
-    const response = await fetch(`${BACKEND_API_BASE}${path}`, options);
+    const requestOptions = { ...options, headers: new Headers(options.headers || {}) };
+    requestOptions.headers.set("X-SwiftLocal-Token", await getBackendSessionToken());
+    let response = await fetch(`${BACKEND_API_BASE}${path}`, requestOptions);
+    if (response.status === 401) {
+      state.backendSessionToken = "";
+      requestOptions.headers.set("X-SwiftLocal-Token", await getBackendSessionToken());
+      response = await fetch(`${BACKEND_API_BASE}${path}`, requestOptions);
+    }
     if (!response.ok) {
       let message = `${response.status} ${response.statusText}`;
       try {
@@ -4502,6 +4510,19 @@
       throw new Error(message);
     }
     return response.json();
+  }
+
+  async function getBackendSessionToken() {
+    if (state.backendSessionToken) return state.backendSessionToken;
+    const response = await fetch("/__swiftlocal/session-token", { cache: "no-store" });
+    if (!response.ok) {
+      throw new Error("無法取得本機後端 session token，請確認 SwiftLocal 後端正在執行");
+    }
+    const payload = await response.json();
+    const token = String(payload.token || "").trim();
+    if (!token) throw new Error("本機後端 session token 無效");
+    state.backendSessionToken = token;
+    return token;
   }
 
   async function electronBackendRequest(path, options = {}) {

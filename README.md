@@ -1,6 +1,6 @@
 # 快轉通 SwiftLocal
 
-**版本 0.3.0** · 本機優先的檔案工具箱。把常用的圖片、PDF、文件、影音、文字、資料格式、ZIP、雜湊與小工具集中到一個介面，不用記命令列也能完成日常檔案處理。
+**版本 0.3.1** · 本機優先的檔案工具箱。把常用的圖片、PDF、文件、影音、文字、資料格式、ZIP、雜湊與小工具集中到一個介面，不用記命令列也能完成日常檔案處理。
 
 它不是要取代 LibreOffice、FFmpeg、Tesseract 或 QPDF，而是把這些工具整合成較好用的桌面工作台。Windows 打包版可內建 FFmpeg、Tesseract 與 QPDF；LibreOffice 體積較大，建議可選安裝或 Full 版內建。
 
@@ -68,6 +68,10 @@
 SmartScreen 若提示「未知發行者」：選「仍要執行」即可（目前未做程式碼簽章）。
 
 開發者打包前建議：
+
+- `SwiftLocal-0.3.1-portable-x64.exe`：免安裝版，雙擊即可使用。
+- `SwiftLocal-0.3.1-installer-x64.exe`：安裝版，會建立開始功能表與桌面捷徑。
+- `win-unpacked/`：未封裝資料夾，主要供開發測試，不建議作為正式發佈檔。
 
 ```bash
 npm run check:pack        # 或缺什麼會紅字列出
@@ -194,7 +198,7 @@ tools/
         soffice
 ```
 
-`tools/` 目錄的擺放方式也整理在 [tools/README.md](C:/~/SwiftLocal/tools/README.md)。
+`tools/` 目錄的擺放方式也整理在 [tools/README.md](./tools/README.md)。
 
 ## 外部工具安裝
 
@@ -521,6 +525,14 @@ Python 後端依賴：
 pip install -r backend/requirements.txt
 ```
 
+## 0.3.1 安全與資源限制
+
+- 瀏覽器模式會從同源開發伺服器取得短期 session token，所有 `/api` 請求均帶 `X-SwiftLocal-Token`。
+- FastAPI 只接受 `http://127.0.0.1:4173` 與 `http://localhost:4173`，不接受 `null` origin。
+- 預設限制：單檔 1 GB、單任務 2 GB、最多 50 個 queued 任務、輸出空間至少為輸入總量 2 倍、OCR 單頁 50 MP。
+- 可用 `SWIFTLOCAL_MAX_FILE_BYTES`、`SWIFTLOCAL_MAX_JOB_BYTES`、`SWIFTLOCAL_MAX_QUEUED_JOBS`、`SWIFTLOCAL_DISK_MULTIPLIER`、`SWIFTLOCAL_OCR_MAX_PIXELS` 調整。
+- 輸出重名時自動產生 `檔名 (2).ext`、`檔名 (3).ext`，不覆蓋既有檔案。
+
 ## FastAPI API
 
 瀏覽器模式可使用 FastAPI。主要端點：
@@ -531,6 +543,8 @@ pip install -r backend/requirements.txt
 - `POST /api/jobs/{id}/cancel` · `DELETE /api/jobs/{id}`
 - `GET /api/jobs/{id}/outputs/{filename}`
 - `POST /api/convert-text`（繁簡，zhconv）
+
+除 `OPTIONS` 預檢外，所有端點都必須帶 `X-SwiftLocal-Token`。使用 `npm start` 時，前端會自動取得 token。
 
 暫存：`backend/temp/jobs/{job_id}`。任務狀態會寫入 `backend/temp/jobs-state.json`（重啟後可還原；執行中被中斷的任務會標為失敗）。
 

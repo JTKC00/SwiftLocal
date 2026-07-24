@@ -1,7 +1,9 @@
 import asyncio
+import os
 import re
 import shutil
 import subprocess
+import tempfile
 import zipfile
 from contextvars import ContextVar
 from pathlib import Path
@@ -63,32 +65,11 @@ async def convert_office_to_pdf(input_paths: list[Path], output_dir: Path) -> tu
 
     for input_path in input_paths:
         ensure_not_cancelled()
-        profile_dir = output_dir / f"{input_path.stem}_lo_profile"
-        if profile_dir.exists():
-            cleanup_lo_profile(profile_dir)
-        profile_dir.mkdir(parents=True, exist_ok=True)
-        profile_uri = profile_dir.resolve().as_posix()
-        args = [
-            "--headless",
-            "--nologo",
-            "--nodefault",
-            "--norestore",
-            "--nolockcheck",
-            f"-env:UserInstallation=file:///{profile_uri}",
-            "--convert-to",
-            "pdf",
-            "--outdir",
-            str(output_dir),
-            str(input_path),
-        ]
-        before = snapshot_output_dir(output_dir)
-        try:
-            log = await run_process(str(tool["path"]), args, timeout=180, tool_label="LibreOffice")
-            output_path = resolve_libreoffice_output(output_dir, input_path, "pdf", before)
-            logs.append(log or f"converted: {input_path.name} -> {output_path.name}")
-            outputs.append(output_path)
-        finally:
-            cleanup_lo_profile(profile_dir)
+        output_path, log = await _run_libreoffice_to_unique_output(
+            str(tool["path"]), output_dir, input_path, "pdf", "pdf"
+        )
+        logs.append(log or f"converted: {input_path.name} -> {output_path.name}")
+        outputs.append(output_path)
 
     return outputs, logs
 
@@ -105,6 +86,10 @@ ALLOWED_PDF_TO_OFFICE_EXTENSIONS = frozenset(_OFFICE_FILTER_MAP.keys())
 OCR_PDF_MAX_PAGES_DEFAULT = 50
 OCR_PDF_MAX_PAGES_HARD_LIMIT = 100
 OCR_PDF_RENDER_SCALE = 2.0
+try:
+    OCR_PDF_MAX_PIXELS = max(1, int(os.environ.get("SWIFTLOCAL_OCR_MAX_PIXELS", 50_000_000)))
+except (TypeError, ValueError):
+    OCR_PDF_MAX_PIXELS = 50_000_000
 
 
 DOCX_FALLBACK_LOG = (
@@ -820,10 +805,8 @@ async def convert_pdf_to_office(
     for input_path in input_paths:
         ensure_not_cancelled()
         require_unencrypted_pdf(input_path)
-        # Unique profile per input so concurrent/parallel LO instances never share user config.
-        profile_dir = output_dir / f"{input_path.stem}_lo_profile"
-        if profile_dir.exists():
-            cleanup_lo_profile(profile_dir)
+        temp_dir = Path(tempfile.mkdtemp(prefix=".swiftlocal-office-", dir=output_dir))
+        profile_dir = temp_dir / "profile"
         profile_dir.mkdir(parents=True, exist_ok=True)
         profile_uri = profile_dir.resolve().as_posix()
         args = [
@@ -836,12 +819,12 @@ async def convert_pdf_to_office(
             "--convert-to",
             convert_to,
             "--outdir",
-            str(output_dir),
+            str(temp_dir),
             str(input_path),
         ]
         expected_name = f"{input_path.stem}.{clean_extension}"
-        expected_path = output_dir / expected_name
-        before = snapshot_output_dir(output_dir)
+        expected_path = temp_dir / expected_name
+        before = snapshot_output_dir(temp_dir)
         lo_error: BaseException | None = None
         lo_log = ""
 
@@ -861,7 +844,7 @@ async def convert_pdf_to_office(
             output_path: Path | None = None
             if lo_error is None:
                 try:
-                    output_path = resolve_libreoffice_output(output_dir, input_path, clean_extension, before)
+                    output_path = resolve_libreoffice_output(temp_dir, input_path, clean_extension, before)
                     if not output_path.is_file() or output_path.stat().st_size < 64:
                         remove_incomplete_office_output(output_path)
                         lo_error = RuntimeError(
@@ -889,8 +872,10 @@ async def convert_pdf_to_office(
                         )
 
             if lo_error is None and output_path is not None:
-                logs.append(lo_log or f"converted: {input_path.name} -> {output_path.name}")
-                outputs.append(output_path)
+                final_path = next_available_path(output_dir / output_path.name)
+                shutil.move(str(output_path), str(final_path))
+                logs.append(lo_log or f"converted: {input_path.name} -> {final_path.name}")
+                outputs.append(final_path)
                 continue
 
             # LibreOffice failed — DOCX may fall back to pdf2docx; other formats fail clearly.
@@ -898,7 +883,7 @@ async def convert_pdf_to_office(
             remove_incomplete_office_output(expected_path)
             # Drop incomplete/new LO artifacts (target ext or .tmp leftovers) created this attempt.
             try:
-                for entry in output_dir.iterdir():
+                for entry in temp_dir.iterdir():
                     if not entry.is_file():
                         continue
                     name_lower = entry.name.lower()
@@ -947,8 +932,52 @@ async def convert_pdf_to_office(
             raise RuntimeError(message) from lo_error
         finally:
             cleanup_lo_profile(profile_dir)
+            shutil.rmtree(temp_dir, ignore_errors=True)
 
     return outputs, logs
+
+
+async def _run_libreoffice_to_unique_output(
+    tool_path: str,
+    output_dir: Path,
+    input_path: Path,
+    convert_to: str,
+    extension: str,
+) -> tuple[Path, str]:
+    with tempfile.TemporaryDirectory(prefix=".swiftlocal-office-", dir=output_dir) as temp_name:
+        temp_dir = Path(temp_name)
+        profile_dir = temp_dir / "profile"
+        profile_dir.mkdir(parents=True, exist_ok=True)
+        profile_uri = profile_dir.resolve().as_posix()
+        args = [
+            "--headless",
+            "--nologo",
+            "--nodefault",
+            "--norestore",
+            "--nolockcheck",
+            f"-env:UserInstallation=file:///{profile_uri}",
+            "--convert-to",
+            convert_to,
+            "--outdir",
+            str(temp_dir),
+            str(input_path),
+        ]
+        before = snapshot_output_dir(temp_dir)
+        log = await run_process(tool_path, args, timeout=180, tool_label="LibreOffice")
+        generated = resolve_libreoffice_output(temp_dir, input_path, extension, before)
+        output_path = next_available_path(output_dir / generated.name)
+        shutil.move(str(generated), str(output_path))
+        return output_path, log
+
+
+def next_available_path(file_path: Path) -> Path:
+    if not file_path.exists():
+        return file_path
+    for index in range(2, 10000):
+        candidate = file_path.with_name(f"{file_path.stem} ({index}){file_path.suffix}")
+        if not candidate.exists():
+            return candidate
+    raise RuntimeError(f"Unable to find an available output name for {file_path.name}")
 
 
 def snapshot_output_dir(output_dir: Path) -> dict[str, tuple[int, int]]:
@@ -1053,7 +1082,7 @@ async def convert_media(
 
     for input_path in input_paths:
         ensure_not_cancelled()
-        output_path = output_dir / f"{input_path.stem}.{clean_extension}"
+        output_path = next_available_path(output_dir / f"{input_path.stem}.{clean_extension}")
         args = build_ffmpeg_media_args(input_path, output_path, options)
         log = await run_process(str(tool["path"]), args, timeout=600)
         logs.append(log or f"media: {input_path.name} -> {output_path.name}")
@@ -1187,13 +1216,14 @@ async def ocr_images(input_paths: list[Path], output_dir: Path, language: str) -
 
     for input_path in input_paths:
         ensure_not_cancelled()
-        output_base = output_dir / f"{input_path.stem}_ocr"
+        output_path = next_available_path(output_dir / f"{input_path.stem}_ocr.txt")
+        output_base = output_path.with_suffix("")
         args = [str(input_path), str(output_base), "-l", clean_language]
         if tessdata_dir:
             args.extend(["--tessdata-dir", str(tessdata_dir)])
         log = await run_process(str(tool["path"]), args, timeout=300)
         logs.append(log)
-        outputs.append(output_base.with_suffix(".txt"))
+        outputs.append(output_path)
 
     return outputs, logs
 
@@ -1245,7 +1275,7 @@ async def ocr_pdf(
             page_texts.append(f"--- Page {index} ---\n{text.strip()}")
 
         combined = "\n\n".join(page_texts).strip() + "\n"
-        output_path = output_dir / f"{input_path.stem}_ocr.txt"
+        output_path = next_available_path(output_dir / f"{input_path.stem}_ocr.txt")
         output_path.write_text(combined, encoding="utf-8")
         outputs.append(output_path)
         logs.append(f"ocr-pdf: {input_path.name} -> {output_path.name} ({len(page_images)} page(s))")
@@ -1274,6 +1304,14 @@ def _render_pdf_pages_sync(
         for index in range(limit):
             ensure_not_cancelled()
             page = doc[index]
+            page_width, page_height = page.get_size()
+            pixel_width = max(1, int(page_width * scale + 0.999))
+            pixel_height = max(1, int(page_height * scale + 0.999))
+            if pixel_width * pixel_height > OCR_PDF_MAX_PIXELS:
+                raise RuntimeError(
+                    f"PDF OCR page {index + 1} is too large ({pixel_width}x{pixel_height}); "
+                    f"limit is {OCR_PDF_MAX_PIXELS / 1_000_000:.0f} megapixels"
+                )
             bitmap = page.render(scale=scale)
             pil_image = bitmap.to_pil()
             image_path = page_dir / f"page_{index + 1:03d}.png"
@@ -1376,7 +1414,7 @@ async def convert_image(input_paths: list[Path], output_dir: Path, extension: st
     outputs: list[Path] = []
     logs: list[str] = []
     for input_path in input_paths:
-        output_path = output_dir / f"{input_path.stem}.{clean_ext}"
+        output_path = next_available_path(output_dir / f"{input_path.stem}.{clean_ext}")
         try:
             await asyncio.to_thread(_convert_image_sync, input_path, output_path, pil_format)
         except Exception as error:
@@ -1400,7 +1438,7 @@ def _convert_image_sync(input_path: Path, output_path: Path, pil_format: str) ->
 
 
 async def merge_pdfs(input_paths: list[Path], output_dir: Path) -> tuple[list[Path], list[str]]:
-    output_path = output_dir / "merged.pdf"
+    output_path = next_available_path(output_dir / "merged.pdf")
     await asyncio.to_thread(_merge_pdfs_sync, input_paths, output_path)
     if not output_path.exists():
         raise RuntimeError("PDF merge finished but output file was not created")
@@ -1504,7 +1542,7 @@ def _split_pdf_sync(input_path: Path, output_dir: Path, ranges: list[tuple[int, 
         actual_start = start
         actual_end = min(end, total)
         label = str(actual_start) if actual_start == actual_end else f"{actual_start}-{actual_end}"
-        output_path = output_dir / f"{input_path.stem}_p{label}.pdf"
+        output_path = next_available_path(output_dir / f"{input_path.stem}_p{label}.pdf")
         with open(output_path, "wb") as f:
             writer.write(f)
         outputs.append(output_path)
@@ -1518,7 +1556,7 @@ async def rotate_pdf(input_paths: list[Path], output_dir: Path, angle: int) -> t
     outputs: list[Path] = []
     logs: list[str] = []
     for input_path in input_paths:
-        output_path = output_dir / f"{input_path.stem}_rotated.pdf"
+        output_path = next_available_path(output_dir / f"{input_path.stem}_rotated.pdf")
         await asyncio.to_thread(_rotate_pdf_sync, input_path, output_path, angle)
         if not output_path.exists():
             raise RuntimeError(f"PDF rotate finished but output was not created for {input_path.name}")
@@ -1547,7 +1585,7 @@ async def convert_pdf_to_docx(input_paths: list[Path], output_dir: Path) -> tupl
     outputs: list[Path] = []
 
     for input_path in input_paths:
-        output_path = output_dir / f"{input_path.stem}.docx"
+        output_path = next_available_path(output_dir / f"{input_path.stem}.docx")
         try:
             await asyncio.to_thread(_pdf_to_docx_sync, input_path, output_path)
         except Exception as error:
@@ -1674,7 +1712,7 @@ async def encrypt_pdf(input_paths: list[Path], output_dir: Path, password: str) 
     outputs: list[Path] = []
     logs: list[str] = []
     for input_path in input_paths:
-        output_path = output_dir / f"{input_path.stem}_encrypted.pdf"
+        output_path = next_available_path(output_dir / f"{input_path.stem}_encrypted.pdf")
         await asyncio.to_thread(_encrypt_pdf_sync, input_path, output_path, password)
         if not output_path.exists():
             raise RuntimeError(f"PDF encrypt finished but output was not created for {input_path.name}")
@@ -1703,7 +1741,7 @@ async def decrypt_pdf(input_paths: list[Path], output_dir: Path, password: str) 
     outputs: list[Path] = []
     logs: list[str] = []
     for input_path in input_paths:
-        output_path = output_dir / f"{input_path.stem}_decrypted.pdf"
+        output_path = next_available_path(output_dir / f"{input_path.stem}_decrypted.pdf")
         await asyncio.to_thread(_decrypt_pdf_sync, input_path, output_path, password)
         if not output_path.exists():
             raise RuntimeError(f"PDF decrypt finished but output was not created for {input_path.name}")
@@ -1733,7 +1771,7 @@ async def compress_pdf(input_paths: list[Path], output_dir: Path) -> tuple[list[
     outputs: list[Path] = []
     logs: list[str] = []
     for input_path in input_paths:
-        output_path = output_dir / f"{input_path.stem}_compressed.pdf"
+        output_path = next_available_path(output_dir / f"{input_path.stem}_compressed.pdf")
         await asyncio.to_thread(_compress_pdf_sync, input_path, output_path)
         if not output_path.exists():
             raise RuntimeError(f"PDF compress finished but output was not created for {input_path.name}")

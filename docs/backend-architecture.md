@@ -102,6 +102,16 @@ ocr-image
 ocr-pdf
 ```
 
+### 0.3.1 安全契約
+
+- FastAPI 所有實際 `/api` 請求都需要 `X-SwiftLocal-Token`；token 每次啟動重新產生。
+- CORS 僅允許實際前端 origin，不允許 `null`。
+- Electron renderer 只可停留在 `frontend/index.html`；IPC handler 會驗證 `senderFrame.url`。
+- 任務 API、狀態檔及 UI 都使用已清理的 options，不保存或回傳 `password`／`passphrase`。
+- 需要密碼的 queued 任務不會在重啟後自動執行。
+- 所有輸出統一使用自動編號避讓；LibreOffice 先寫入臨時目錄，再安全移到最終路徑。
+- 預設資源上限為單檔 1 GB、單任務 2 GB、50 個 queued 任務、2 倍磁碟需求與 OCR 單頁 50 MP。
+
 `ocr-pdf` 選填：`language`（預設 `eng`）、`maxPages`（預設 50、上限 100）。
 
 ### 任務狀態

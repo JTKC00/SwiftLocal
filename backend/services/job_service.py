@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import shutil
 import uuid
 from dataclasses import dataclass, field
@@ -44,11 +45,42 @@ TEMP_DIR = ROOT_DIR / "temp"
 JOBS_DIR = TEMP_DIR / "jobs"
 JOBS_STATE_PATH = TEMP_DIR / "jobs-state.json"
 MAX_PERSISTED_JOBS = 80
+PASSWORD_JOB_TYPES = {"pdf-encrypt", "pdf-decrypt"}
+
+
+def positive_env_int(name: str, fallback: int) -> int:
+    try:
+        value = int(os.environ.get(name, fallback))
+        return value if value > 0 else fallback
+    except (TypeError, ValueError):
+        return fallback
+
+
+MAX_INPUT_FILE_BYTES = positive_env_int("SWIFTLOCAL_MAX_FILE_BYTES", 1024 ** 3)
+MAX_JOB_INPUT_BYTES = positive_env_int("SWIFTLOCAL_MAX_JOB_BYTES", 2 * 1024 ** 3)
+MAX_QUEUED_JOBS = positive_env_int("SWIFTLOCAL_MAX_QUEUED_JOBS", 50)
+MIN_DISK_MULTIPLIER = positive_env_int("SWIFTLOCAL_DISK_MULTIPLIER", 2)
 SUPPORTED_JOB_TYPES = {
     "office-to-pdf", "pdf-to-office", "pdf-to-searchable-pdf", "media-convert",
     "ocr-image", "ocr-pdf", "pdf-to-docx", "pdf-merge", "pdf-split", "pdf-rotate",
     "image-convert", "pdf-encrypt", "pdf-decrypt", "pdf-compress",
 }
+
+
+def redact_job_options(options: dict[str, str] | None) -> dict[str, str]:
+    return {
+        str(key): str(value)
+        for key, value in (options or {}).items()
+        if "password" not in str(key).lower() and "passphrase" not in str(key).lower()
+    }
+
+
+def redact_job_text(value: object, options: dict[str, str] | None) -> str:
+    safe = str(value or "")
+    for key, secret in (options or {}).items():
+        if ("password" in str(key).lower() or "passphrase" in str(key).lower()) and secret:
+            safe = safe.replace(str(secret), "[REDACTED]")
+    return safe
 
 
 @dataclass
@@ -133,6 +165,14 @@ class JobService:
             log.append(error)
             finished_at = finished_at or now_iso()
 
+        raw_options = item.get("options") if isinstance(item.get("options"), dict) else {}
+        options = {str(k): str(v) for k, v in raw_options.items()}
+        if status == "queued" and job_type in PASSWORD_JOB_TYPES:
+            status = "failed"
+            error = "任務因應用程式重啟而停止，請重新輸入密碼。"
+            log.append(error)
+            finished_at = finished_at or now_iso()
+
         input_raw = item.get("inputPaths") or item.get("input_paths") or []
         input_paths = [Path(str(p)) for p in input_raw if str(p)]
         input_paths = [p for p in input_paths if p.exists()]
@@ -156,8 +196,6 @@ class JobService:
                 if path.exists():
                     output_paths.append(path)
 
-        options = item.get("options") if isinstance(item.get("options"), dict) else {}
-        options = {str(k): str(v) for k, v in options.items()}
         output_dir_raw = item.get("outputDir") or item.get("output_dir") or str(JOBS_DIR / job_id / "output")
         output_dir = Path(str(output_dir_raw))
 
@@ -166,7 +204,7 @@ class JobService:
             type=job_type,
             input_paths=input_paths,
             output_dir=output_dir,
-            options=options,
+            options=redact_job_options(options),
             status=status,
             created_at=created_at,
             started_at=str(started_at) if started_at else None,
@@ -183,14 +221,14 @@ class JobService:
             "type": job.type,
             "inputPaths": [str(path) for path in job.input_paths],
             "outputDir": str(job.output_dir),
-            "options": job.options,
+            "options": redact_job_options(job.options),
             "status": job.status,
             "createdAt": job.created_at,
             "startedAt": job.started_at,
             "finishedAt": job.finished_at,
             "outputPaths": [str(path) for path in job.output_paths],
-            "log": job.log[-12:],
-            "error": job.error,
+            "log": [redact_job_text(line, job.options) for line in job.log[-12:]],
+            "error": redact_job_text(job.error, job.options),
         }
 
     def _save_jobs_state(self) -> None:
@@ -210,6 +248,8 @@ class JobService:
             raise ValueError(f"Unsupported job type: {job_type}")
         if not files:
             raise ValueError("At least one file is required")
+        if sum(job.status == "queued" for job in self.jobs) >= MAX_QUEUED_JOBS:
+            raise ValueError(f"Too many queued jobs (limit: {MAX_QUEUED_JOBS})")
 
         clean_options = self._validate_options(job_type, options)
         job_id = uuid.uuid4().hex
@@ -221,13 +261,40 @@ class JobService:
 
         input_paths = []
         used_names: set[str] = set()
-        for upload in files:
-            filename = unique_name(sanitize_filename(upload.filename or "file"), used_names)
-            input_path = input_dir / filename
-            with input_path.open("wb") as target:
-                while chunk := await upload.read(1024 * 1024):
-                    target.write(chunk)
-            input_paths.append(input_path)
+        total_bytes = 0
+        try:
+            for upload in files:
+                declared_size = int(getattr(upload, "size", 0) or 0)
+                if declared_size > MAX_INPUT_FILE_BYTES:
+                    raise ValueError(
+                        f"{upload.filename or 'file'} exceeds the {format_bytes(MAX_INPUT_FILE_BYTES)} file limit"
+                    )
+                if total_bytes + declared_size > MAX_JOB_INPUT_BYTES:
+                    raise ValueError(f"Job inputs exceed the {format_bytes(MAX_JOB_INPUT_BYTES)} total limit")
+                filename = unique_name(sanitize_filename(upload.filename or "file"), used_names)
+                input_path = input_dir / filename
+                file_bytes = 0
+                with input_path.open("wb") as target:
+                    while chunk := await upload.read(1024 * 1024):
+                        file_bytes += len(chunk)
+                        total_bytes += len(chunk)
+                        if file_bytes > MAX_INPUT_FILE_BYTES:
+                            raise ValueError(f"{filename} exceeds the {format_bytes(MAX_INPUT_FILE_BYTES)} file limit")
+                        if total_bytes > MAX_JOB_INPUT_BYTES:
+                            raise ValueError(f"Job inputs exceed the {format_bytes(MAX_JOB_INPUT_BYTES)} total limit")
+                        target.write(chunk)
+                input_paths.append(input_path)
+
+            required_bytes = total_bytes * MIN_DISK_MULTIPLIER
+            available_bytes = shutil.disk_usage(output_dir).free
+            if available_bytes < required_bytes:
+                raise ValueError(
+                    f"Not enough free disk space: {format_bytes(required_bytes)} required, "
+                    f"{format_bytes(available_bytes)} available"
+                )
+        except Exception:
+            shutil.rmtree(job_dir, ignore_errors=True)
+            raise
 
         job = Job(
             id=job_id,
@@ -278,6 +345,7 @@ class JobService:
             job.error = "任務已取消"
             job.log.append(job.error)
             job.finished_at = now_iso()
+            job.options = redact_job_options(job.options)
             self._save_jobs_state()
             return self.public_job(job)
         if job.status == "running":
@@ -411,6 +479,9 @@ class JobService:
         finally:
             end_job(job.id)
             job.finished_at = now_iso()
+            job.log = [redact_job_text(line, job.options) for line in job.log]
+            job.error = redact_job_text(job.error, job.options)
+            job.options = redact_job_options(job.options)
             self._save_jobs_state()
 
     def public_job(self, job: Job) -> dict:
@@ -419,13 +490,13 @@ class JobService:
             "type": job.type,
             "inputPaths": [path.name for path in job.input_paths],
             "outputPaths": [self._public_output(job, path) for path in job.output_paths if path.exists()],
-            "options": job.options,
+            "options": redact_job_options(job.options),
             "status": job.status,
             "createdAt": job.created_at,
             "startedAt": job.started_at,
             "finishedAt": job.finished_at,
-            "log": job.log[-6:],
-            "error": job.error,
+            "log": [redact_job_text(line, job.options) for line in job.log[-6:]],
+            "error": redact_job_text(job.error, job.options),
         }
 
     def _public_output(self, job: Job, output_path: Path) -> dict[str, str | int]:
@@ -547,6 +618,14 @@ class JobService:
 
 def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def format_bytes(value: int) -> str:
+    if value >= 1024 ** 3:
+        return f"{value / 1024 ** 3:.1f} GB"
+    if value >= 1024 ** 2:
+        return f"{value / 1024 ** 2:.1f} MB"
+    return f"{max(1, (value + 1023) // 1024)} KB"
 
 
 def sanitize_filename(filename: str) -> str:

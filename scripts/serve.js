@@ -5,6 +5,7 @@ const http = require("http");
 const path = require("path");
 
 const root = path.resolve(__dirname, "..", "frontend");
+const sessionTokenPath = path.resolve(__dirname, "..", "backend", "temp", "session-token");
 const port = Number(process.env.PORT) || 4173;
 const host = "127.0.0.1";
 
@@ -26,6 +27,24 @@ const mimeTypes = new Map([
 const server = http.createServer((request, response) => {
   const requestUrl = new URL(request.url, `http://${request.headers.host || `${host}:${port}`}`);
   const pathname = decodeURIComponent(requestUrl.pathname);
+  if (pathname === "/__swiftlocal/session-token") {
+    const fetchSite = String(request.headers["sec-fetch-site"] || "");
+    if (request.method !== "GET" || (fetchSite && fetchSite !== "same-origin")) {
+      response.writeHead(403, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
+      response.end(JSON.stringify({ detail: "Forbidden" }));
+      return;
+    }
+    fs.readFile(sessionTokenPath, "utf8", (error, token) => {
+      if (error || !String(token || "").trim()) {
+        response.writeHead(503, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
+        response.end(JSON.stringify({ detail: "SwiftLocal backend is not running" }));
+        return;
+      }
+      response.writeHead(200, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
+      response.end(JSON.stringify({ token: String(token).trim() }));
+    });
+    return;
+  }
   const relativePath = pathname === "/" ? "index.html" : pathname.slice(1);
   const requestedPath = path.resolve(root, relativePath);
 

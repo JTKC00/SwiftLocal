@@ -1,12 +1,16 @@
 "use strict";
 
 const path = require("node:path");
+const { pathToFileURL } = require("node:url");
 const { app, BrowserWindow, Menu, shell, ipcMain, dialog } = require("electron");
 const { BackendService } = require("./backend");
+const { assertTrustedIpcSender, isAllowedExternalUrl, isTrustedRendererUrl } = require("./security");
 
 const APP_NAME = "快轉通 SwiftLocal";
 const isDev = !app.isPackaged;
 let backend = null;
+const FRONTEND_PATH = path.join(__dirname, "..", "frontend", "index.html");
+const TRUSTED_RENDERER_URL = pathToFileURL(FRONTEND_PATH).href;
 
 function resolveWindowIcon() {
   if (process.platform === "win32") {
@@ -42,7 +46,7 @@ function createMainWindow() {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false,
+      sandbox: true,
       webSecurity: true
     }
   });
@@ -51,12 +55,20 @@ function createMainWindow() {
     window.show();
   });
 
+  window.webContents.on("will-navigate", (event, url) => {
+    if (!isTrustedRendererUrl(url, TRUSTED_RENDERER_URL)) {
+      event.preventDefault();
+    }
+  });
+
   window.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url);
+    if (isAllowedExternalUrl(url)) {
+      void shell.openExternal(url).catch(() => {});
+    }
     return { action: "deny" };
   });
 
-  window.loadFile(path.join(__dirname, "..", "frontend", "index.html"));
+  window.loadFile(FRONTEND_PATH);
 
   if (isDev && process.env.SWIFTLOCAL_DEVTOOLS === "1") {
     window.webContents.openDevTools({ mode: "detach" });
@@ -100,15 +112,21 @@ function installMenu() {
 }
 
 function installBackendIpc() {
-  ipcMain.handle("backend:detect-tools", () => backend.detectTools());
-  ipcMain.handle("backend:get-config", () => backend.getConfig());
-  ipcMain.handle("backend:set-default-output-dir", (_event, outputDir) => backend.setDefaultOutputDir(outputDir));
-  ipcMain.handle("backend:set-tool-path", (_event, key, toolPath) => backend.setToolPath(key, toolPath));
-  ipcMain.handle("backend:get-jobs", () => backend.getJobs());
-  ipcMain.handle("backend:enqueue-job", (_event, payload) => backend.enqueue(payload));
-  ipcMain.handle("backend:delete-job", (_event, jobId) => backend.deleteJob(jobId));
-  ipcMain.handle("backend:cancel-job", (_event, jobId) => backend.cancelJob(jobId));
-  ipcMain.handle("backend:choose-executable", async (_event, options = {}) => {
+  const handleTrusted = (channel, handler) => {
+    ipcMain.handle(channel, (event, ...args) => {
+      assertTrustedIpcSender(event, TRUSTED_RENDERER_URL);
+      return handler(event, ...args);
+    });
+  };
+  handleTrusted("backend:detect-tools", () => backend.detectTools());
+  handleTrusted("backend:get-config", () => backend.getConfig());
+  handleTrusted("backend:set-default-output-dir", (_event, outputDir) => backend.setDefaultOutputDir(outputDir));
+  handleTrusted("backend:set-tool-path", (_event, key, toolPath) => backend.setToolPath(key, toolPath));
+  handleTrusted("backend:get-jobs", () => backend.getJobs());
+  handleTrusted("backend:enqueue-job", (_event, payload) => backend.enqueue(payload));
+  handleTrusted("backend:delete-job", (_event, jobId) => backend.deleteJob(jobId));
+  handleTrusted("backend:cancel-job", (_event, jobId) => backend.cancelJob(jobId));
+  handleTrusted("backend:choose-executable", async (_event, options = {}) => {
     const result = await dialog.showOpenDialog({
       title: options.title || "選擇工具執行檔",
       properties: ["openFile"],
@@ -116,7 +134,7 @@ function installBackendIpc() {
     });
     return result.canceled ? "" : result.filePaths[0];
   });
-  ipcMain.handle("backend:choose-files", async (_event, options = {}) => {
+  handleTrusted("backend:choose-files", async (_event, options = {}) => {
     const result = await dialog.showOpenDialog({
       title: options.title || "選擇檔案",
       properties: ["openFile", "multiSelections"],
@@ -124,14 +142,14 @@ function installBackendIpc() {
     });
     return result.canceled ? [] : result.filePaths;
   });
-  ipcMain.handle("backend:choose-directory", async () => {
+  handleTrusted("backend:choose-directory", async () => {
     const result = await dialog.showOpenDialog({
       title: "選擇輸出資料夾",
       properties: ["openDirectory", "createDirectory"]
     });
     return result.canceled ? "" : result.filePaths[0];
   });
-  ipcMain.handle("backend:open-path", async (_event, targetPath) => {
+  handleTrusted("backend:open-path", async (_event, targetPath) => {
     if (!targetPath) {
       return "No path provided";
     }

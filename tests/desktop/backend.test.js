@@ -31,6 +31,9 @@ const {
   loadJobsState,
   saveJobsState,
   normalizePersistedJob,
+  redactJobOptions,
+  nextAvailablePath,
+  validateJobInputLimits,
   JobCancelledError
 } = require("../../desktop/backend.js");
 
@@ -249,6 +252,43 @@ describe("job queue order", () => {
 });
 
 describe("job persistence", () => {
+  test("passwords are redacted from public and persisted job data", () => {
+    const dir = tempDir("sl-secret-");
+    try {
+      const statePath = path.join(dir, "jobs-state.json");
+      const inputPath = path.join(dir, "secret.pdf");
+      fs.writeFileSync(inputPath, "%PDF-1.4");
+      const backend = new BackendService({
+        configPath: path.join(dir, "tools.json"),
+        jobsStatePath: statePath,
+        defaultOutputDir: dir
+      });
+      backend.running = true;
+      const publicResult = backend.enqueue({
+        type: "pdf-encrypt",
+        inputPaths: [inputPath],
+        outputDir: dir,
+        options: { password: "very-secret", extension: "pdf" }
+      });
+      assert.deepEqual(publicResult.options, { extension: "pdf" });
+      assert.doesNotMatch(fs.readFileSync(statePath, "utf8"), /very-secret|password/i);
+
+      const restored = loadJobsState(statePath);
+      assert.equal(restored[0].status, "failed");
+      assert.match(restored[0].error, /重新輸入密碼/);
+      assert.deepEqual(restored[0].options, { extension: "pdf" });
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("redacts nested password-like option keys", () => {
+    assert.deepEqual(
+      redactJobOptions({ mode: "safe", nested: { passphrase: "hidden", pages: "1" } }),
+      { mode: "safe", nested: { pages: "1" } }
+    );
+  });
+
   test("running jobs become failed on reload; queued resume", () => {
     const dir = tempDir("sl-persist-");
     try {
@@ -332,8 +372,67 @@ describe("job persistence", () => {
   });
 });
 
+describe("output collision handling", () => {
+  test("uses numbered names without overwriting existing files", () => {
+    const dir = tempDir("sl-output-name-");
+    try {
+      const original = path.join(dir, "report.pdf");
+      const second = path.join(dir, "report (2).pdf");
+      fs.writeFileSync(original, "original");
+      assert.equal(nextAvailablePath(original), second);
+      fs.writeFileSync(second, "second");
+      assert.equal(nextAvailablePath(original), path.join(dir, "report (3).pdf"));
+      assert.equal(fs.readFileSync(original, "utf8"), "original");
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("input resource limits", () => {
+  test("rejects a file above the configured per-file limit", () => {
+    const dir = tempDir("sl-input-limit-");
+    try {
+      const input = path.join(dir, "large.bin");
+      fs.writeFileSync(input, Buffer.alloc(16));
+      assert.throws(
+        () => validateJobInputLimits([input], dir, { maxFileBytes: 8, maxJobBytes: 32, diskMultiplier: 1 }),
+        /file limit/
+      );
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("rejects aggregate input above the job limit", () => {
+    const dir = tempDir("sl-job-limit-");
+    try {
+      const first = path.join(dir, "a.bin");
+      const second = path.join(dir, "b.bin");
+      fs.writeFileSync(first, Buffer.alloc(8));
+      fs.writeFileSync(second, Buffer.alloc(8));
+      assert.throws(
+        () => validateJobInputLimits([first, second], dir, { maxFileBytes: 10, maxJobBytes: 12, diskMultiplier: 1 }),
+        /total limit/
+      );
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
 describe("BackendService jobs", () => {
   let outDir;
+  let backendSequence = 0;
+
+  function createTestBackend() {
+    backendSequence += 1;
+    return new BackendService({
+      defaultOutputDir: outDir,
+      configPath: path.join(outDir, `tools-${backendSequence}.json`),
+      jobsStatePath: path.join(outDir, `jobs-${backendSequence}.json`)
+    });
+  }
 
   before(() => {
     outDir = tempDir("sl-jobs-");
@@ -344,7 +443,7 @@ describe("BackendService jobs", () => {
   });
 
   test("cancel queued job marks cancelled", () => {
-    const backend = new BackendService({ defaultOutputDir: outDir });
+    const backend = createTestBackend();
     const job = backend.enqueue({
       type: "pdf-merge",
       inputPaths: [],
@@ -353,7 +452,7 @@ describe("BackendService jobs", () => {
     });
     // Force stay queued: mark running so runNext won't complete weirdly —
     // actually empty merge fails. Cancel while queued before async run.
-    const backend2 = new BackendService({ defaultOutputDir: outDir });
+    const backend2 = createTestBackend();
     backend2.running = true; // block worker
     const queued = backend2.enqueue({
       type: "pdf-merge",
@@ -368,7 +467,7 @@ describe("BackendService jobs", () => {
   });
 
   test("delete running job is rejected", async () => {
-    const backend = new BackendService({ defaultOutputDir: outDir });
+    const backend = createTestBackend();
     backend.running = true;
     const job = backend.enqueue({
       type: "pdf-compress",
@@ -383,7 +482,7 @@ describe("BackendService jobs", () => {
   });
 
   test("cancel running job sets flag and ends cancelled", async () => {
-    const backend = new BackendService({ defaultOutputDir: outDir });
+    const backend = createTestBackend();
     const pdfPath = path.join(outDir, "cancel-me.pdf");
     await writeBlankPdf(pdfPath, 3);
 
@@ -422,7 +521,7 @@ describe("BackendService jobs", () => {
   });
 
   test("pdf-merge produces merged.pdf", async () => {
-    const backend = new BackendService({ defaultOutputDir: outDir });
+    const backend = createTestBackend();
     const a = path.join(outDir, "a.pdf");
     const b = path.join(outDir, "b.pdf");
     await writeBlankPdf(a, 1);
@@ -449,8 +548,27 @@ describe("BackendService jobs", () => {
     assert.ok(fs.existsSync(path.join(jobOut, "merged.pdf")));
   });
 
+  test("pdf-merge preserves an existing merged.pdf", async () => {
+    const backend = createTestBackend();
+    const input = path.join(outDir, "collision-source.pdf");
+    await writeBlankPdf(input, 1);
+    const jobOut = path.join(outDir, "merge-collision-out");
+    fs.mkdirSync(jobOut, { recursive: true });
+    const existing = path.join(jobOut, "merged.pdf");
+    fs.writeFileSync(existing, "keep-me");
+
+    backend.enqueue({ type: "pdf-merge", inputPaths: [input], outputDir: jobOut, options: {} });
+    for (let i = 0; i < 100; i += 1) {
+      if (["done", "failed"].includes(backend.jobs[0].status)) break;
+      await new Promise((resolve) => setTimeout(resolve, 30));
+    }
+    assert.equal(backend.jobs[0].status, "done", backend.jobs[0].error);
+    assert.equal(fs.readFileSync(existing, "utf8"), "keep-me");
+    assert.ok(fs.existsSync(path.join(jobOut, "merged (2).pdf")));
+  });
+
   test("encrypted-looking PDF fails compress with friendly message", async () => {
-    const backend = new BackendService({ defaultOutputDir: outDir });
+    const backend = createTestBackend();
     const enc = path.join(outDir, "locked.pdf");
     fs.writeFileSync(enc, "%PDF-1.4\n1 0 obj\n<< /Encrypt 2 0 R >>\nendobj\n");
     const jobOut = path.join(outDir, "enc-out");

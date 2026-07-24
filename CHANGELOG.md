@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.3.1 - 2026-07-24
+
+### 安全與資料完整性
+
+- 任務狀態與 API 不再保存或回傳 PDF 密碼；重啟後需重新輸入密碼。
+- 所有輸出檔案採用自動編號避讓，既有檔案不再被無提示覆蓋。
+- Electron 啟用 sandbox、CSP、導航封鎖、外部 URL 協定限制及 IPC sender 驗證。
+- FastAPI 使用每次啟動產生的 session token，並移除 `null` CORS origin。
+- 加入檔案大小、任務總量、排隊數量、可用磁碟及 OCR 像素限制。
+
+### 測試與維護
+
+- FastAPI 版本由 `package.json` 的單一版本來源提供。
+- CI 擴充至 Windows、macOS 與 Ubuntu。
+- 新增安全、密碼清理、輸出避讓及資源限制回歸測試。
+
 ## 0.3.0 — 2026-07-23
 
 把 SwiftLocal 升級成更完整的視覺化 PDF 工作台與本機檔案處理控制台。

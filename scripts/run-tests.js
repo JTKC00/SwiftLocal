@@ -50,7 +50,7 @@ function pythonCmd() {
 
 let code = 0;
 
-code = run("node", ["--test", "tests/desktop/backend.test.js"], "Desktop (Node)") || code;
+code = run("node", ["--test", "tests/desktop/*.test.js"], "Desktop (Node)") || code;
 
 const py = pythonCmd();
 if (!py) {

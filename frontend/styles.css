@@ -930,6 +930,12 @@ td.code-cell {
   margin-bottom: 16px;
 }
 
+.is-hidden { display: none; }
+#color-picker { min-height: 52px; cursor: pointer; }
+#uuid-output { min-height: 160px; }
+#qr-input { min-height: 90px; }
+.desktop-output-actions { margin-top: 8px; }
+
 .system-health {
   display: grid;
   grid-template-columns: 44px 1fr;
