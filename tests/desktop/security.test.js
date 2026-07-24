@@ -47,6 +47,11 @@ describe("Electron renderer security", () => {
     assert.doesNotMatch(html, /\sstyle=/i);
   });
 
+  test("home secondary action has visible text on its white background", () => {
+    const css = fs.readFileSync(path.resolve(__dirname, "..", "..", "frontend", "styles.css"), "utf8");
+    assert.match(css, /\.home-hero \.ghost-button\s*\{[^}]*background:\s*#fff;[^}]*color:\s*#17483d;/s);
+  });
+
   test("CI covers all primary desktop platforms", () => {
     const ci = fs.readFileSync(path.resolve(__dirname, "..", "..", ".github", "workflows", "ci.yml"), "utf8");
     assert.match(ci, /ubuntu-latest/);

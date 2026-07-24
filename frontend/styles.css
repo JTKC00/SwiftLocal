@@ -1922,7 +1922,17 @@ td.code-cell {
 .hero-kicker span { padding: 5px 9px; border: 1px solid rgba(255,255,255,.24); border-radius: 999px; background: rgba(255,255,255,.08); font-size: 11px; font-weight: 800; }
 .hero-lead { max-width: 680px; margin: 22px 0; color: rgba(255,255,255,.8); font-size: 16px; line-height: 1.7; }
 .home-hero .primary-button { background: #f1b65c; color: #30220e; }
-.home-hero .ghost-button { border-color: rgba(255,255,255,.45); color: #fff; }
+.home-hero .ghost-button {
+  background: #fff;
+  border-color: rgba(255,255,255,.72);
+  color: #17483d;
+}
+.home-hero .ghost-button:hover,
+.home-hero .ghost-button:focus-visible {
+  background: #f3f8f6;
+  border-color: #fff;
+  color: #0f392f;
+}
 
 .device-status-card { align-self: center; padding: 20px; border: 1px solid rgba(255,255,255,.18); border-radius: 14px; background: rgba(8,37,31,.52); backdrop-filter: blur(12px); }
 .device-status-heading { display: flex; align-items: center; gap: 12px; }
