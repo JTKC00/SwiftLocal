@@ -114,7 +114,12 @@ class ApiSecurityTests(unittest.TestCase):
         self.assertIn("http://127.0.0.1:4173", ALLOWED_FRONTEND_ORIGINS)
 
     def test_backend_version_comes_from_package_json(self) -> None:
-        self.assertEqual(APP_VERSION, "0.3.1")
+        import json
+
+        pkg = json.loads((ROOT / "package.json").read_text(encoding="utf-8"))
+        expected = str(pkg.get("version") or "").strip()
+        self.assertTrue(expected)
+        self.assertEqual(APP_VERSION, expected)
         self.assertEqual(read_app_version(), APP_VERSION)
 
 

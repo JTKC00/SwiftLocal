@@ -1,6 +1,6 @@
 # 快轉通 SwiftLocal
 
-**版本 0.3.1** · 本機優先的檔案工具箱。把常用的圖片、PDF、文件、影音、文字、資料格式、ZIP、雜湊與小工具集中到一個介面，不用記命令列也能完成日常檔案處理。
+**版本 0.3.3** · 本機優先的檔案工具箱。把常用的圖片、PDF、文件、影音、文字、資料格式、ZIP、雜湊與小工具集中到一個介面，不用記命令列也能完成日常檔案處理。
 
 它不是要取代 LibreOffice、FFmpeg、Tesseract 或 QPDF，而是把這些工具整合成較好用的桌面工作台。Windows 打包版可內建 FFmpeg、Tesseract 與 QPDF；LibreOffice 體積較大，建議可選安裝或 Full 版內建。
 
@@ -69,8 +69,8 @@ SmartScreen 若提示「未知發行者」：選「仍要執行」即可（目�
 
 開發者打包前建議：
 
-- `SwiftLocal-0.3.1-portable-x64.exe`：免安裝版，雙擊即可使用。
-- `SwiftLocal-0.3.1-installer-x64.exe`：安裝版，會建立開始功能表與桌面捷徑。
+- `SwiftLocal-0.3.3-portable-x64.exe`：免安裝版，雙擊即可使用。
+- `SwiftLocal-0.3.3-installer-x64.exe`：安裝版，會建立開始功能表與桌面捷徑。
 - `win-unpacked/`：未封裝資料夾，主要供開發測試，不建議作為正式發佈檔。
 
 ```bash
@@ -545,7 +545,8 @@ pip install -r backend/requirements.txt
 - `GET /api/health`
 - `GET /api/tools` · `PUT|DELETE /api/tools/{key}`
 - `POST /api/jobs` · `GET /api/jobs` · `GET /api/jobs/{id}`
-- `POST /api/jobs/{id}/cancel` · `DELETE /api/jobs/{id}`
+- `POST /api/jobs/{id}/cancel` · `POST /api/jobs/{id}/retry` · `POST /api/jobs/{id}/copy`
+- `GET /api/jobs/{id}/diagnostic` · `POST /api/jobs/cleanup` · `DELETE /api/jobs/{id}`
 - `GET /api/jobs/{id}/outputs/{filename}`
 - `POST /api/convert-text`（繁簡，zhconv）
 
