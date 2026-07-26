@@ -221,6 +221,10 @@ describe("job queue order", () => {
   test("processes oldest queued job first (FIFO)", async () => {
     const dir = tempDir("sl-fifo-");
     try {
+      const xPath = path.join(dir, "x.pdf");
+      const yPath = path.join(dir, "y.pdf");
+      await writeBlankPdf(xPath, 1);
+      await writeBlankPdf(yPath, 1);
       const backend = new BackendService({
         configPath: path.join(dir, "tools.json"),
         jobsStatePath: path.join(dir, "jobs-state.json"),
@@ -231,13 +235,18 @@ describe("job queue order", () => {
       backend.runJob = async (job) => {
         order.push(job.id);
       };
-      const a = backend.enqueue({ type: "pdf-compress", inputPaths: [path.join(dir, "x")], outputDir: dir, options: {} });
-      const b = backend.enqueue({ type: "pdf-compress", inputPaths: [path.join(dir, "y")], outputDir: dir, options: {} });
-      // Restore inputs so jobs stay valid if normalized later
-      backend.jobs.forEach((job) => {
-        job.inputPaths = [path.join(dir, "dummy")];
+      const a = await backend.enqueue({
+        type: "pdf-compress",
+        inputPaths: [xPath],
+        outputDir: dir,
+        options: {}
       });
-      fs.writeFileSync(path.join(dir, "dummy"), "x");
+      const b = await backend.enqueue({
+        type: "pdf-compress",
+        inputPaths: [yPath],
+        outputDir: dir,
+        options: {}
+      });
       backend.running = false;
       await backend.runNext();
       // wait for both
@@ -252,7 +261,7 @@ describe("job queue order", () => {
 });
 
 describe("job persistence", () => {
-  test("passwords are redacted from public and persisted job data", () => {
+  test("passwords are redacted from public and persisted job data", async () => {
     const dir = tempDir("sl-secret-");
     try {
       const statePath = path.join(dir, "jobs-state.json");
@@ -263,8 +272,12 @@ describe("job persistence", () => {
         jobsStatePath: statePath,
         defaultOutputDir: dir
       });
+      // Skip real tool discovery; preflight only needs qpdf marked available.
+      backend.tools = {
+        qpdf: { available: true, path: "qpdf", version: "test", source: "test" }
+      };
       backend.running = true;
-      const publicResult = backend.enqueue({
+      const publicResult = await backend.enqueue({
         type: "pdf-encrypt",
         inputPaths: [inputPath],
         outputDir: dir,
@@ -442,21 +455,14 @@ describe("BackendService jobs", () => {
     fs.rmSync(outDir, { recursive: true, force: true });
   });
 
-  test("cancel queued job marks cancelled", () => {
-    const backend = createTestBackend();
-    const job = backend.enqueue({
-      type: "pdf-merge",
-      inputPaths: [],
-      outputDir: outDir,
-      options: {}
-    });
-    // Force stay queued: mark running so runNext won't complete weirdly —
-    // actually empty merge fails. Cancel while queued before async run.
+  test("cancel queued job marks cancelled", async () => {
+    const inputPath = path.join(outDir, "cancel-queued.pdf");
+    await writeBlankPdf(inputPath, 1);
     const backend2 = createTestBackend();
-    backend2.running = true; // block worker
-    const queued = backend2.enqueue({
+    backend2.running = true; // block worker so job stays queued
+    const queued = await backend2.enqueue({
       type: "pdf-merge",
-      inputPaths: [path.join(outDir, "missing.pdf")],
+      inputPaths: [inputPath],
       outputDir: outDir,
       options: {}
     });
@@ -467,11 +473,13 @@ describe("BackendService jobs", () => {
   });
 
   test("delete running job is rejected", async () => {
+    const inputPath = path.join(outDir, "delete-running.pdf");
+    await writeBlankPdf(inputPath, 1);
     const backend = createTestBackend();
     backend.running = true;
-    const job = backend.enqueue({
+    const job = await backend.enqueue({
       type: "pdf-compress",
-      inputPaths: [],
+      inputPaths: [inputPath],
       outputDir: outDir,
       options: {}
     });
@@ -498,7 +506,7 @@ describe("BackendService jobs", () => {
       }
     };
 
-    const job = backend.enqueue({
+    const job = await backend.enqueue({
       type: "pdf-compress",
       inputPaths: [pdfPath],
       outputDir: outDir,
@@ -529,7 +537,7 @@ describe("BackendService jobs", () => {
     const jobOut = path.join(outDir, "merge-out");
     fs.mkdirSync(jobOut, { recursive: true });
 
-    backend.enqueue({
+    await backend.enqueue({
       type: "pdf-merge",
       inputPaths: [a, b],
       outputDir: jobOut,
@@ -557,7 +565,7 @@ describe("BackendService jobs", () => {
     const existing = path.join(jobOut, "merged.pdf");
     fs.writeFileSync(existing, "keep-me");
 
-    backend.enqueue({ type: "pdf-merge", inputPaths: [input], outputDir: jobOut, options: {} });
+    await backend.enqueue({ type: "pdf-merge", inputPaths: [input], outputDir: jobOut, options: {} });
     for (let i = 0; i < 100; i += 1) {
       if (["done", "failed"].includes(backend.jobs[0].status)) break;
       await new Promise((resolve) => setTimeout(resolve, 30));
@@ -574,7 +582,7 @@ describe("BackendService jobs", () => {
     const jobOut = path.join(outDir, "enc-out");
     fs.mkdirSync(jobOut, { recursive: true });
 
-    backend.enqueue({
+    await backend.enqueue({
       type: "pdf-compress",
       inputPaths: [enc],
       outputDir: jobOut,

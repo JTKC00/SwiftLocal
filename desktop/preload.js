@@ -15,6 +15,10 @@ contextBridge.exposeInMainWorld("swiftLocalBackend", {
   enqueueJob: (payload) => ipcRenderer.invoke("backend:enqueue-job", payload),
   deleteJob: (jobId) => ipcRenderer.invoke("backend:delete-job", jobId),
   cancelJob: (jobId) => ipcRenderer.invoke("backend:cancel-job", jobId),
+  retryJob: (jobId) => ipcRenderer.invoke("backend:retry-job", jobId),
+  copyJob: (jobId) => ipcRenderer.invoke("backend:copy-job", jobId),
+  jobDiagnostic: (jobId) => ipcRenderer.invoke("backend:job-diagnostic", jobId),
+  cleanupJobs: (options) => ipcRenderer.invoke("backend:cleanup-jobs", options || {}),
   getJobs: () => ipcRenderer.invoke("backend:get-jobs"),
   getFilePath: (file) => webUtils.getPathForFile(file),
   onJobsUpdated: (callback) => {

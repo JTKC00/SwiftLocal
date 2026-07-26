@@ -4,6 +4,19 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { execFile, spawn } = require("node:child_process");
 const { PDFDocument, degrees } = require("pdf-lib");
+const {
+  ERROR_CODES,
+  JOB_TOOL_REQUIREMENTS,
+  PASSWORD_JOB_TYPES: ERROR_PASSWORD_JOB_TYPES,
+  classifyJobError,
+  errorCodeLabel
+} = require("./job-errors");
+const {
+  TERMINAL_JOB_STATUSES,
+  DEFAULT_JOB_RETENTION_HOURS,
+  pruneJobList,
+  cleanupSwiftLocalTempDirs
+} = require("./job-cleanup");
 
 const TOOL_DEFINITIONS = {
   libreOffice: {
@@ -80,11 +93,16 @@ const TOOL_DEFINITIONS = {
 };
 
 const MAX_PERSISTED_JOBS = 80;
-const PASSWORD_JOB_TYPES = new Set(["pdf-encrypt", "pdf-decrypt"]);
+/** Persisted jobs-state.json root.version — see docs/jobs-state-schema.md */
+const JOBS_STATE_SCHEMA_VERSION = 2;
+
+const PASSWORD_JOB_TYPES = ERROR_PASSWORD_JOB_TYPES;
 const MAX_INPUT_FILE_BYTES = positiveEnvNumber("SWIFTLOCAL_MAX_FILE_BYTES", 1024 ** 3);
 const MAX_JOB_INPUT_BYTES = positiveEnvNumber("SWIFTLOCAL_MAX_JOB_BYTES", 2 * 1024 ** 3);
 const MAX_QUEUED_JOBS = positiveEnvNumber("SWIFTLOCAL_MAX_QUEUED_JOBS", 50);
 const MIN_DISK_MULTIPLIER = positiveEnvNumber("SWIFTLOCAL_DISK_MULTIPLIER", 2);
+/** Finished jobs older than this (hours) are dropped from jobs-state on prune. */
+const JOB_RETENTION_HOURS = positiveEnvNumber("SWIFTLOCAL_JOB_RETENTION_HOURS", DEFAULT_JOB_RETENTION_HOURS);
 
 function redactJobOptions(options = {}) {
   if (!options || typeof options !== "object" || Array.isArray(options)) {
@@ -123,12 +141,40 @@ class BackendService {
     }
     this.tools = null;
     this.jobs = loadJobsState(this.jobsStatePath);
-    // Persist repairs (e.g. running → failed after crash) immediately.
-    saveJobsState(this.jobsStatePath, this.jobs);
+    // Age/cap prune + persist repairs (e.g. running → failed after crash).
+    this.pruneJobs();
     // Resume any work left queued from a previous session (FIFO: oldest first).
     if (this.jobs.some((job) => job.status === "queued")) {
       setImmediate(() => this.runNext());
     }
+  }
+
+  /**
+   * Remove finished jobs past retention or over the hard cap.
+   * Does not delete user output files under Downloads — only jobs-state history.
+   * Also sweeps leftover `.swiftlocal-office-*` temp dirs under defaultOutputDir.
+   */
+  pruneJobs(options = {}) {
+    const before = this.jobs.length;
+    const nowMs = options.nowMs != null ? Number(options.nowMs) : Date.now();
+    const pruned = pruneJobList(this.jobs, {
+      forceFinished: options.forceFinished,
+      nowMs,
+      retentionHours: JOB_RETENTION_HOURS,
+      maxPersisted: MAX_PERSISTED_JOBS
+    });
+    this.jobs = pruned.jobs;
+    const tempDirs = cleanupSwiftLocalTempDirs(this.defaultOutputDir, nowMs);
+    saveJobsState(this.jobsStatePath, this.jobs);
+    return {
+      before,
+      after: this.jobs.length,
+      removedByAge: pruned.removedByAge,
+      removedByCap: pruned.removedByCap,
+      tempDirs,
+      retentionHours: JOB_RETENTION_HOURS,
+      maxPersisted: MAX_PERSISTED_JOBS
+    };
   }
 
   async detectTools() {
@@ -196,18 +242,28 @@ class BackendService {
     return this.jobs.map(publicJob);
   }
 
-  enqueue(payload) {
+  async enqueue(payload) {
     if (this.jobs.filter((item) => item.status === "queued").length >= MAX_QUEUED_JOBS) {
       throw new Error(`Too many queued jobs (limit: ${MAX_QUEUED_JOBS})`);
     }
     const outputDir = payload.outputDir || this.defaultOutputDir;
-    validateJobInputLimits(payload.inputPaths || [], outputDir);
+    const inputPaths = payload.inputPaths || [];
+    const type = payload.type;
+    const options = payload.options || {};
+    const preflight = await this.preflightJob({ type, inputPaths, outputDir, options });
+    if (!preflight.ok) {
+      const first = preflight.issues[0];
+      const err = new Error(first.message);
+      err.code = first.code;
+      throw err;
+    }
+    validateJobInputLimits(inputPaths, outputDir);
     const job = {
       id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-      type: payload.type,
-      inputPaths: payload.inputPaths || [],
+      type,
+      inputPaths,
       outputDir,
-      options: payload.options || {},
+      options,
       status: "queued",
       createdAt: new Date().toISOString(),
       startedAt: null,
@@ -215,6 +271,9 @@ class BackendService {
       outputPaths: [],
       log: [],
       error: "",
+      errorCode: "",
+      errorHint: "",
+      retriable: true,
       cancelRequested: false,
       _child: null
     };
@@ -222,6 +281,160 @@ class BackendService {
     this.emitJobs();
     this.runNext();
     return publicJob(job);
+  }
+
+  async preflightJob({ type, inputPaths = [], outputDir = "", options = {} } = {}) {
+    if (!this.tools) {
+      await this.detectTools();
+    }
+    const issues = [];
+    if (!type) {
+      issues.push({ code: ERROR_CODES.UNSUPPORTED_FORMAT, message: "未指定任務類型" });
+    }
+    if (!inputPaths.length) {
+      issues.push({ code: ERROR_CODES.MISSING_INPUT, message: "至少需要一個輸入檔" });
+    }
+    for (const inputPath of inputPaths) {
+      if (!inputPath || !fs.existsSync(inputPath)) {
+        issues.push({
+          code: ERROR_CODES.MISSING_INPUT,
+          message: `找不到輸入檔：${inputPath || "(空白)"}`
+        });
+      }
+    }
+    const requiredTools = JOB_TOOL_REQUIREMENTS[type] || [];
+    const tools = this.tools || {};
+    for (const key of requiredTools) {
+      const tool = tools[key];
+      if (!tool || !tool.available) {
+        const label = (TOOL_DEFINITIONS[key] && TOOL_DEFINITIONS[key].label) || key;
+        issues.push({
+          code: ERROR_CODES.MISSING_TOOL,
+          message: `缺少必要工具：${label}`,
+          tool: key
+        });
+      }
+    }
+    if (PASSWORD_JOB_TYPES.has(type) && !(options.password || options.passphrase)) {
+      issues.push({
+        code: ERROR_CODES.ENCRYPTED_PDF,
+        message: "此任務需要密碼，請重新輸入後再執行"
+      });
+    }
+    if (outputDir) {
+      try {
+        validateJobInputLimits(inputPaths.filter((p) => p && fs.existsSync(p)), outputDir);
+      } catch (error) {
+        const classified = classifyJobError(error, { type });
+        issues.push({ code: classified.code, message: classified.message });
+      }
+    }
+    return { ok: issues.length === 0, issues };
+  }
+
+  async retryJob(jobId) {
+    const job = this.jobs.find((item) => item.id === jobId);
+    if (!job) {
+      return false;
+    }
+    if (job.status === "queued" || job.status === "running") {
+      throw new Error("只能重新執行已結束的任務");
+    }
+    if (job.retriable === false) {
+      throw new Error(job.errorHint || "此任務無法自動重試，請從工具面板重新提交");
+    }
+    const preflight = await this.preflightJob({
+      type: job.type,
+      inputPaths: job.inputPaths,
+      outputDir: job.outputDir || this.defaultOutputDir,
+      options: job.options
+    });
+    if (!preflight.ok) {
+      throw new Error(preflight.issues[0].message);
+    }
+    job.status = "queued";
+    job.startedAt = null;
+    job.finishedAt = null;
+    job.outputPaths = [];
+    job.error = "";
+    job.errorCode = "";
+    job.errorHint = "";
+    job.retriable = true;
+    job.cancelRequested = false;
+    job._child = null;
+    job.log = [...(job.log || []).slice(-8), "使用者重新執行任務"];
+    this.emitJobs();
+    this.runNext();
+    return publicJob(job);
+  }
+
+  async copyJob(jobId) {
+    const job = this.jobs.find((item) => item.id === jobId);
+    if (!job) {
+      return false;
+    }
+    return this.enqueue({
+      type: job.type,
+      inputPaths: [...(job.inputPaths || [])],
+      outputDir: job.outputDir || this.defaultOutputDir,
+      options: { ...(job.options || {}) }
+    });
+  }
+
+  buildDiagnosticReport(jobId) {
+    const job = jobId ? this.jobs.find((item) => item.id === jobId) : null;
+    let packageVersion = "0.0.0";
+    try {
+      packageVersion = require("../package.json").version;
+    } catch {
+      // ignore
+    }
+    const toolsSummary = {};
+    for (const [key, tool] of Object.entries(this.tools || {})) {
+      toolsSummary[key] = {
+        available: Boolean(tool && tool.available),
+        version: tool && tool.version ? String(tool.version) : "",
+        source: tool && tool.source ? String(tool.source) : "",
+        // Path is useful for support; not a secret.
+        path: tool && tool.path ? String(tool.path) : ""
+      };
+    }
+    return {
+      generatedAt: new Date().toISOString(),
+      appVersion: packageVersion,
+      platform: process.platform,
+      arch: process.arch,
+      jobsStateSchemaVersion: JOBS_STATE_SCHEMA_VERSION,
+      tools: toolsSummary,
+      job: job
+        ? (() => {
+            const space = computeJobSpaceUsage(job.inputPaths || [], job.outputPaths || []);
+            return {
+              id: job.id,
+              type: job.type,
+              status: job.status,
+              options: redactJobOptions(job.options),
+              errorCode: job.errorCode || "",
+              errorHint: job.errorHint || "",
+              retriable: job.retriable !== false,
+              error: redactJobText(job.error, job.options),
+              log: (job.log || []).slice(-20).map((line) => redactJobText(line, job.options)),
+              createdAt: job.createdAt,
+              startedAt: job.startedAt,
+              finishedAt: job.finishedAt,
+              inputCount: space.inputCount,
+              outputCount: space.outputCount,
+              space: {
+                inputBytes: space.inputBytes,
+                outputBytes: space.outputBytes,
+                inputMissing: space.inputMissing,
+                savedBytes: space.savedBytes,
+                savedPercent: space.savedPercent
+              }
+            };
+          })()
+        : null
+    };
   }
 
   deleteJob(jobId) {
@@ -246,6 +459,9 @@ class BackendService {
     if (job.status === "queued") {
       job.status = "cancelled";
       job.error = "任務已取消";
+      job.errorCode = ERROR_CODES.CANCELLED;
+      job.errorHint = "可重新執行此任務（輸入檔仍存在時）。";
+      job.retriable = true;
       job.log.push(job.error);
       job.finishedAt = new Date().toISOString();
       job.options = redactJobOptions(job.options);
@@ -308,13 +524,23 @@ class BackendService {
       await this.runJob(job);
       ensureJobNotCancelled(job);
       job.status = "done";
+      job.errorCode = "";
+      job.errorHint = "";
+      job.retriable = true;
     } catch (error) {
       if (isJobCancelledError(error) || job.cancelRequested) {
         job.status = "cancelled";
         job.error = "任務已取消";
+        job.errorCode = ERROR_CODES.CANCELLED;
+        job.errorHint = "可重新執行此任務（輸入檔仍存在時）。";
+        job.retriable = true;
       } else {
+        const classified = classifyJobError(error, job);
         job.status = "failed";
-        job.error = error instanceof Error ? error.message : String(error);
+        job.error = classified.message;
+        job.errorCode = classified.code;
+        job.errorHint = classified.hint;
+        job.retriable = classified.retriable;
       }
       job.log.push(job.error);
     } finally {
@@ -736,7 +962,8 @@ class BackendService {
   }
 
   emitJobs() {
-    saveJobsState(this.jobsStatePath, this.jobs);
+    // Opportunistic prune keeps history bounded without a separate timer.
+    this.pruneJobs();
     if (typeof this.onJobsUpdated === "function") {
       this.onJobsUpdated(this.getJobs());
     }
@@ -766,17 +993,28 @@ function normalizePersistedJob(item) {
   let finishedAt = item.finishedAt ? String(item.finishedAt) : null;
   const rawOptions = item.options && typeof item.options === "object" ? { ...item.options } : {};
   // Interrupted mid-run jobs cannot resume safely — mark failed.
+  let errorCode = item.errorCode ? String(item.errorCode) : "";
+  let errorHint = item.errorHint ? String(item.errorHint) : "";
+  let retriable = item.retriable !== false;
   if (status === "running") {
     status = "failed";
     error = error || "應用程式重啟時任務中斷";
     log.push(error);
     finishedAt = finishedAt || new Date().toISOString();
+    const classified = classifyJobError(error, item);
+    errorCode = classified.code;
+    errorHint = classified.hint;
+    retriable = classified.retriable;
   }
   if (status === "queued" && PASSWORD_JOB_TYPES.has(String(item.type))) {
     status = "failed";
     error = "任務因應用程式重啟而停止，請重新輸入密碼。";
     log.push(error);
     finishedAt = finishedAt || new Date().toISOString();
+    const classified = classifyJobError(error, item);
+    errorCode = classified.code;
+    errorHint = classified.hint;
+    retriable = false;
   }
   const inputPaths = Array.isArray(item.inputPaths)
     ? item.inputPaths.map(String).filter((p) => p && fs.existsSync(p))
@@ -801,6 +1039,9 @@ function normalizePersistedJob(item) {
     outputPaths,
     log,
     error,
+    errorCode,
+    errorHint,
+    retriable,
     cancelRequested: false,
     _child: null
   };
@@ -810,7 +1051,7 @@ function saveJobsState(statePath, jobs) {
   try {
     fs.mkdirSync(path.dirname(statePath), { recursive: true });
     const payload = {
-      version: 1,
+      version: JOBS_STATE_SCHEMA_VERSION,
       savedAt: new Date().toISOString(),
       jobs: jobs.slice(0, MAX_PERSISTED_JOBS).map((job) => ({
         id: job.id,
@@ -824,7 +1065,10 @@ function saveJobsState(statePath, jobs) {
         finishedAt: job.finishedAt,
         outputPaths: job.outputPaths || [],
         log: (job.log || []).slice(-12).map((line) => redactJobText(line, job.options)),
-        error: redactJobText(job.error, job.options)
+        error: redactJobText(job.error, job.options),
+        errorCode: job.errorCode || "",
+        errorHint: job.errorHint || "",
+        retriable: job.retriable !== false
       }))
     };
     fs.writeFileSync(statePath, JSON.stringify(payload, null, 2), "utf8");
@@ -2042,26 +2286,97 @@ function formatProcessError({
   return parts.join("\n");
 }
 
+function fileSizeBytes(filePath) {
+  try {
+    if (!filePath || !fs.existsSync(filePath)) return null;
+    return fs.statSync(filePath).size;
+  } catch {
+    return null;
+  }
+}
+
+/** Summarize on-disk input/output usage for public job payloads. */
+function computeJobSpaceUsage(inputPaths = [], outputPaths = []) {
+  let inputBytes = 0;
+  let inputMissing = 0;
+  const inputs = [];
+  for (const item of inputPaths || []) {
+    const filePath = String(item || "");
+    const size = fileSizeBytes(filePath);
+    const name = path.basename(filePath) || filePath || "(unknown)";
+    if (size == null) {
+      inputMissing += 1;
+      inputs.push({ name, size: null, missing: true });
+    } else {
+      inputBytes += size;
+      inputs.push({ name, size, missing: false });
+    }
+  }
+
+  let outputBytes = 0;
+  const outputs = [];
+  for (const item of outputPaths || []) {
+    const filePath = String(item || "");
+    const size = fileSizeBytes(filePath);
+    if (size == null) continue;
+    outputBytes += size;
+    outputs.push({ name: path.basename(filePath), size, path: filePath });
+  }
+
+  let savedBytes = null;
+  let savedPercent = null;
+  if (inputBytes > 0 && outputs.length > 0) {
+    savedBytes = inputBytes - outputBytes;
+    savedPercent = Math.round((savedBytes / inputBytes) * 100);
+  }
+
+  return {
+    inputBytes,
+    outputBytes,
+    inputCount: inputs.length,
+    outputCount: outputs.length,
+    inputMissing,
+    savedBytes,
+    savedPercent,
+    inputs,
+    outputs
+  };
+}
+
 function publicJob(job) {
+  const space = computeJobSpaceUsage(job.inputPaths || [], job.outputPaths || []);
   return {
     id: job.id,
     type: job.type,
-    inputPaths: job.inputPaths.map((item) => path.basename(item)),
+    // Backward compatible: still expose basenames; also include size-aware list.
+    inputPaths: space.inputs.map((item) => item.name),
+    inputFiles: space.inputs,
     outputDir: job.outputDir,
     options: redactJobOptions(job.options),
     status: job.status,
     createdAt: job.createdAt,
     startedAt: job.startedAt,
     finishedAt: job.finishedAt,
-    outputPaths: job.outputPaths
-      .filter((item) => fs.existsSync(item))
-      .map((item) => ({
-        name: path.basename(item),
-        path: item,
-        size: fs.statSync(item).size
-      })),
+    outputPaths: space.outputs.map((item) => ({
+      name: item.name,
+      path: item.path,
+      size: item.size
+    })),
+    space: {
+      inputBytes: space.inputBytes,
+      outputBytes: space.outputBytes,
+      inputCount: space.inputCount,
+      outputCount: space.outputCount,
+      inputMissing: space.inputMissing,
+      savedBytes: space.savedBytes,
+      savedPercent: space.savedPercent
+    },
     log: job.log.slice(-6).map((line) => redactJobText(line, job.options)),
-    error: redactJobText(job.error, job.options)
+    error: redactJobText(job.error, job.options),
+    errorCode: job.errorCode || "",
+    errorCodeLabel: job.errorCode ? errorCodeLabel(job.errorCode) : "",
+    errorHint: job.errorHint || "",
+    retriable: job.retriable !== false
   };
 }
 
@@ -2190,11 +2505,20 @@ module.exports = {
   cleanupLoProfile,
   sanitizeMediaBitrate,
   sanitizeGifFps,
+  JOBS_STATE_SCHEMA_VERSION,
+  JOB_RETENTION_HOURS,
+  MAX_PERSISTED_JOBS,
   loadJobsState,
   saveJobsState,
   normalizePersistedJob,
   redactJobOptions,
   nextAvailablePath,
   validateJobInputLimits,
+  classifyJobError,
+  errorCodeLabel,
+  ERROR_CODES,
+  cleanupSwiftLocalTempDirs,
+  pruneJobList,
+  computeJobSpaceUsage,
   JobCancelledError
 };

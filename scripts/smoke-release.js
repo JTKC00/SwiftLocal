@@ -51,7 +51,7 @@ async function waitJob(backend, jobId, timeoutMs = 120000) {
 }
 
 async function runJob(backend, payload, label) {
-  const publicJob = backend.enqueue(payload);
+  const publicJob = await backend.enqueue(payload);
   const job = await waitJob(backend, publicJob.id);
   if (job.status !== "done") {
     fail(`${label}: status=${job.status} error=${job.error || "(none)"}`);
@@ -337,7 +337,7 @@ async function conversionSmoke() {
 
   // Cancel queued job
   backend.running = true;
-  const queued = backend.enqueue({
+  const queued = await backend.enqueue({
     type: "pdf-compress",
     inputPaths: [aPdf],
     outputDir: out("compress"),

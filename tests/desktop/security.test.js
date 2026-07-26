@@ -70,4 +70,10 @@ describe("Electron renderer security", () => {
     assert.match(ci, /windows-latest/);
     assert.match(ci, /macos-latest/);
   });
+
+  test("CI runs typecheck and release metadata checks", () => {
+    const ci = fs.readFileSync(path.resolve(__dirname, "..", "..", ".github", "workflows", "ci.yml"), "utf8");
+    assert.match(ci, /npm run typecheck/);
+    assert.match(ci, /npm run check:ci/);
+  });
 });

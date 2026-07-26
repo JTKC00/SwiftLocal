@@ -14,6 +14,7 @@ import json
 import sys
 import tempfile
 import unittest
+from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -22,7 +23,12 @@ if str(ROOT) not in sys.path:
 
 from backend.services import conversion_service as cs
 from backend.services.conversion_service import next_available_path
-from backend.services.job_service import Job, JobService, redact_job_options
+from backend.services.job_service import (
+    JOBS_STATE_SCHEMA_VERSION,
+    Job,
+    JobService,
+    redact_job_options,
+)
 from backend.security import ALLOWED_FRONTEND_ORIGINS, SESSION_TOKEN, is_valid_session_token
 from backend.version import APP_VERSION, read_app_version
 
@@ -243,6 +249,317 @@ class OutputCollisionTests(unittest.IsolatedAsyncioTestCase):
                 self.assertIn("中斷", by_id["j1"].error)
                 self.assertEqual(by_id["j2"].status, "queued")
                 self.assertTrue(state_path.exists())
+            finally:
+                js_mod.JOBS_DIR = old_jobs_dir
+                js_mod.JOBS_STATE_PATH = old_state
+                js_mod.TEMP_DIR = old_temp
+
+
+class JobsStateSchemaTests(unittest.IsolatedAsyncioTestCase):
+    """Contract tests for docs/jobs-state-schema.md (version 2)."""
+
+    def test_schema_version_constant_is_two(self) -> None:
+        self.assertEqual(JOBS_STATE_SCHEMA_VERSION, 2)
+
+    async def test_save_writes_version_envelope(self) -> None:
+        from backend.services import job_service as js_mod
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            jobs_dir = tmp_path / "jobs"
+            jobs_dir.mkdir()
+            state_path = tmp_path / "jobs-state.json"
+            old_jobs_dir = js_mod.JOBS_DIR
+            old_state = js_mod.JOBS_STATE_PATH
+            old_temp = js_mod.TEMP_DIR
+            js_mod.JOBS_DIR = jobs_dir
+            js_mod.JOBS_STATE_PATH = state_path
+            js_mod.TEMP_DIR = tmp_path
+            try:
+                sample = jobs_dir / "j1" / "input" / "a.pdf"
+                sample.parent.mkdir(parents=True)
+                sample.write_bytes(b"%PDF")
+                service = JobService()
+                service.jobs = [
+                    Job(
+                        id="j1",
+                        type="pdf-compress",
+                        input_paths=[sample],
+                        output_dir=jobs_dir / "j1" / "output",
+                        options={"extension": "pdf"},
+                        status="done",
+                    )
+                ]
+                service._save_jobs_state()
+                payload = json.loads(state_path.read_text(encoding="utf-8"))
+                self.assertEqual(payload["version"], JOBS_STATE_SCHEMA_VERSION)
+                self.assertIsInstance(payload.get("savedAt"), str)
+                self.assertTrue(payload["savedAt"])
+                self.assertIsInstance(payload.get("jobs"), list)
+                self.assertEqual(payload["jobs"][0]["id"], "j1")
+                self.assertEqual(payload["jobs"][0]["type"], "pdf-compress")
+                self.assertEqual(payload["jobs"][0]["options"], {"extension": "pdf"})
+            finally:
+                js_mod.JOBS_DIR = old_jobs_dir
+                js_mod.JOBS_STATE_PATH = old_state
+                js_mod.TEMP_DIR = old_temp
+
+    async def test_load_accepts_legacy_bare_array(self) -> None:
+        from backend.services import job_service as js_mod
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            jobs_dir = tmp_path / "jobs"
+            jobs_dir.mkdir()
+            state_path = tmp_path / "jobs-state.json"
+            old_jobs_dir = js_mod.JOBS_DIR
+            old_state = js_mod.JOBS_STATE_PATH
+            old_temp = js_mod.TEMP_DIR
+            js_mod.JOBS_DIR = jobs_dir
+            js_mod.JOBS_STATE_PATH = state_path
+            js_mod.TEMP_DIR = tmp_path
+            try:
+                sample = jobs_dir / "legacy" / "input" / "a.pdf"
+                sample.parent.mkdir(parents=True)
+                sample.write_bytes(b"%PDF")
+                state_path.write_text(
+                    json.dumps(
+                        [
+                            {
+                                "id": "legacy1",
+                                "type": "pdf-merge",
+                                "inputPaths": [str(sample)],
+                                "outputDir": str(jobs_dir / "legacy" / "output"),
+                                "options": {},
+                                "status": "done",
+                                "createdAt": "t0",
+                                "log": [],
+                                "error": "",
+                                "outputPaths": [],
+                            }
+                        ]
+                    ),
+                    encoding="utf-8",
+                )
+                service = JobService()
+                await service.restore_state()
+                self.assertEqual(len(service.jobs), 1)
+                self.assertEqual(service.jobs[0].id, "legacy1")
+                self.assertEqual(service.jobs[0].status, "done")
+            finally:
+                js_mod.JOBS_DIR = old_jobs_dir
+                js_mod.JOBS_STATE_PATH = old_state
+                js_mod.TEMP_DIR = old_temp
+
+    async def test_load_accepts_object_without_version(self) -> None:
+        from backend.services import job_service as js_mod
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            jobs_dir = tmp_path / "jobs"
+            jobs_dir.mkdir()
+            state_path = tmp_path / "jobs-state.json"
+            old_jobs_dir = js_mod.JOBS_DIR
+            old_state = js_mod.JOBS_STATE_PATH
+            old_temp = js_mod.TEMP_DIR
+            js_mod.JOBS_DIR = jobs_dir
+            js_mod.JOBS_STATE_PATH = state_path
+            js_mod.TEMP_DIR = tmp_path
+            try:
+                sample = jobs_dir / "n" / "input" / "a.pdf"
+                sample.parent.mkdir(parents=True)
+                sample.write_bytes(b"%PDF")
+                state_path.write_text(
+                    json.dumps(
+                        {
+                            "jobs": [
+                                {
+                                    "id": "nover",
+                                    "type": "pdf-compress",
+                                    "inputPaths": [str(sample)],
+                                    "outputDir": str(jobs_dir / "n" / "output"),
+                                    "options": {},
+                                    "status": "queued",
+                                    "createdAt": "t0",
+                                    "log": [],
+                                    "error": "",
+                                    "outputPaths": [],
+                                }
+                            ]
+                        }
+                    ),
+                    encoding="utf-8",
+                )
+                service = JobService()
+                await service.restore_state()
+                self.assertEqual(len(service.jobs), 1)
+                self.assertEqual(service.jobs[0].id, "nover")
+                self.assertEqual(service.jobs[0].status, "queued")
+            finally:
+                js_mod.JOBS_DIR = old_jobs_dir
+                js_mod.JOBS_STATE_PATH = old_state
+                js_mod.TEMP_DIR = old_temp
+
+    def test_schema_doc_exists(self) -> None:
+        doc = ROOT / "docs" / "jobs-state-schema.md"
+        self.assertTrue(doc.is_file())
+        text = doc.read_text(encoding="utf-8")
+        self.assertIn("version 2", text.lower())
+        self.assertIn("JOBS_STATE_SCHEMA_VERSION", text)
+        self.assertIn("errorCode", text)
+
+    def test_classify_job_error_missing_tool(self) -> None:
+        from backend.services.job_errors import ERROR_CODES, classify_job_error
+
+        result = classify_job_error("找不到 LibreOffice 執行檔")
+        self.assertEqual(result["code"], ERROR_CODES["MISSING_TOOL"])
+        self.assertTrue(result["retriable"])
+
+
+class JobSpaceUsageTests(unittest.TestCase):
+    def test_compute_job_space_usage_savings(self) -> None:
+        from backend.services.job_service import compute_job_space_usage
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            a = tmp_path / "a.bin"
+            b = tmp_path / "b.bin"
+            out = tmp_path / "out.bin"
+            a.write_bytes(b"x" * 1000)
+            b.write_bytes(b"y" * 3000)
+            out.write_bytes(b"z" * 1500)
+            result = compute_job_space_usage([a, b], [out])
+            self.assertEqual(result["inputBytes"], 4000)
+            self.assertEqual(result["outputBytes"], 1500)
+            self.assertEqual(result["savedBytes"], 2500)
+            self.assertEqual(result["savedPercent"], 63)
+            self.assertEqual(result["inputMissing"], 0)
+
+    def test_compute_job_space_usage_missing_input(self) -> None:
+        from backend.services.job_service import compute_job_space_usage
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            keep = tmp_path / "keep.bin"
+            keep.write_bytes(b"12345")
+            result = compute_job_space_usage([tmp_path / "gone.bin", keep], [])
+            self.assertEqual(result["inputBytes"], 5)
+            self.assertEqual(result["inputMissing"], 1)
+            self.assertIsNone(result["savedBytes"])
+
+
+class JobCleanupTests(unittest.IsolatedAsyncioTestCase):
+    async def test_prune_removes_old_terminal_jobs_and_workdirs(self) -> None:
+        from datetime import timedelta
+
+        from backend.services import job_service as js_mod
+        from backend.services.job_service import JOB_RETENTION_HOURS, Job, JobService
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            jobs_dir = tmp_path / "jobs"
+            jobs_dir.mkdir()
+            state_path = tmp_path / "jobs-state.json"
+            old_jobs_dir = js_mod.JOBS_DIR
+            old_state = js_mod.JOBS_STATE_PATH
+            old_temp = js_mod.TEMP_DIR
+            js_mod.JOBS_DIR = jobs_dir
+            js_mod.JOBS_STATE_PATH = state_path
+            js_mod.TEMP_DIR = tmp_path
+            try:
+                now = datetime.now(timezone.utc)
+                old_finished = (now - timedelta(hours=JOB_RETENTION_HOURS + 10)).isoformat()
+                fresh_finished = (now - timedelta(hours=1)).isoformat()
+                old_dir = jobs_dir / "old"
+                fresh_dir = jobs_dir / "fresh"
+                orphan = jobs_dir / "orphan-dir"
+                old_dir.mkdir()
+                fresh_dir.mkdir()
+                orphan.mkdir()
+                service = JobService()
+                service.jobs = [
+                    Job(
+                        id="old",
+                        type="pdf-compress",
+                        input_paths=[],
+                        output_dir=old_dir / "output",
+                        options={},
+                        status="done",
+                        created_at=old_finished,
+                        finished_at=old_finished,
+                    ),
+                    Job(
+                        id="fresh",
+                        type="pdf-compress",
+                        input_paths=[],
+                        output_dir=fresh_dir / "output",
+                        options={},
+                        status="failed",
+                        created_at=fresh_finished,
+                        finished_at=fresh_finished,
+                    ),
+                    Job(
+                        id="queued",
+                        type="pdf-compress",
+                        input_paths=[],
+                        output_dir=jobs_dir / "queued" / "output",
+                        options={},
+                        status="queued",
+                    ),
+                ]
+                result = service.prune_jobs(now=now)
+                self.assertGreaterEqual(result["removedByAge"], 1)
+                self.assertGreaterEqual(result["orphanDirs"], 1)
+                ids = {job.id for job in service.jobs}
+                self.assertIn("fresh", ids)
+                self.assertIn("queued", ids)
+                self.assertNotIn("old", ids)
+                self.assertFalse(old_dir.exists())
+                self.assertFalse(orphan.exists())
+                self.assertTrue(fresh_dir.exists())
+            finally:
+                js_mod.JOBS_DIR = old_jobs_dir
+                js_mod.JOBS_STATE_PATH = old_state
+                js_mod.TEMP_DIR = old_temp
+
+    async def test_force_finished_clears_terminal_only(self) -> None:
+        from backend.services import job_service as js_mod
+        from backend.services.job_service import Job, JobService
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            jobs_dir = tmp_path / "jobs"
+            jobs_dir.mkdir()
+            state_path = tmp_path / "jobs-state.json"
+            old_jobs_dir = js_mod.JOBS_DIR
+            old_state = js_mod.JOBS_STATE_PATH
+            old_temp = js_mod.TEMP_DIR
+            js_mod.JOBS_DIR = jobs_dir
+            js_mod.JOBS_STATE_PATH = state_path
+            js_mod.TEMP_DIR = tmp_path
+            try:
+                service = JobService()
+                service.jobs = [
+                    Job(
+                        id="done",
+                        type="pdf-compress",
+                        input_paths=[],
+                        output_dir=jobs_dir / "done",
+                        options={},
+                        status="done",
+                    ),
+                    Job(
+                        id="run",
+                        type="pdf-compress",
+                        input_paths=[],
+                        output_dir=jobs_dir / "run",
+                        options={},
+                        status="running",
+                    ),
+                ]
+                result = service.prune_jobs(force_finished=True)
+                self.assertEqual(result["after"], 1)
+                self.assertEqual(service.jobs[0].id, "run")
             finally:
                 js_mod.JOBS_DIR = old_jobs_dir
                 js_mod.JOBS_STATE_PATH = old_state

@@ -126,6 +126,10 @@ function installBackendIpc() {
   handleTrusted("backend:enqueue-job", (_event, payload) => backend.enqueue(payload));
   handleTrusted("backend:delete-job", (_event, jobId) => backend.deleteJob(jobId));
   handleTrusted("backend:cancel-job", (_event, jobId) => backend.cancelJob(jobId));
+  handleTrusted("backend:retry-job", (_event, jobId) => backend.retryJob(jobId));
+  handleTrusted("backend:copy-job", (_event, jobId) => backend.copyJob(jobId));
+  handleTrusted("backend:job-diagnostic", (_event, jobId) => backend.buildDiagnosticReport(jobId));
+  handleTrusted("backend:cleanup-jobs", (_event, options) => backend.pruneJobs(options || {}));
   handleTrusted("backend:choose-executable", async (_event, options = {}) => {
     const result = await dialog.showOpenDialog({
       title: options.title || "選擇工具執行檔",

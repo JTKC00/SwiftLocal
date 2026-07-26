@@ -516,22 +516,27 @@ npm run desktop          # Electron 桌面版
 npm run start            # 僅前端靜態（預設 http://127.0.0.1:4173）
 npm run backend          # FastAPI（瀏覽器模式需要時）
 npm test                 # Node + Python 單元測試
+npm run typecheck        # 主要 JS 語法檢查（CI 會跑）
+npm run check:ci         # 版本／依賴 pin／產物命名一致性（CI 會跑）
 npm run smoke            # 發佈 smoke：語法 + 單元測試 + 本機轉換
 ```
 
-Python 後端依賴：
+Python 後端依賴（`backend/requirements.txt` 已固定版本，與 CI 的 Python 3.12 對齊）：
 
 ```bash
 pip install -r backend/requirements.txt
 ```
 
+升級套件時請明確改 pin，並跑 `npm run test:py` 或 `npm test` 後再提交。
+
 ## 0.3.1 安全與資源限制
 
-- 瀏覽器模式會從同源開發伺服器取得短期 session token，所有 `/api` 請求均帶 `X-SwiftLocal-Token`。
-- FastAPI 只接受 `http://127.0.0.1:4173` 與 `http://localhost:4173`，不接受 `null` origin。
+- 瀏覽器模式會從同源開發伺服器（`npm start`）取得短期 session token，所有 `/api` 請求均帶 `X-SwiftLocal-Token`（含 health；`OPTIONS` 預檢除外）。
+- FastAPI CORS 預設只接受 `http://127.0.0.1:4173` 與 `http://localhost:4173`，**不接受 `null` origin**（因此不要用 `file://` 開前端再打 API）。可用 `SWIFTLOCAL_FRONTEND_ORIGINS` 擴充清單，但 `null` 仍會被忽略。
 - 預設限制：單檔 1 GB、單任務 2 GB、最多 50 個 queued 任務、輸出空間至少為輸入總量 2 倍、OCR 單頁 50 MP。
-- 可用 `SWIFTLOCAL_MAX_FILE_BYTES`、`SWIFTLOCAL_MAX_JOB_BYTES`、`SWIFTLOCAL_MAX_QUEUED_JOBS`、`SWIFTLOCAL_DISK_MULTIPLIER`、`SWIFTLOCAL_OCR_MAX_PIXELS` 調整。
+- 可用 `SWIFTLOCAL_MAX_FILE_BYTES`、`SWIFTLOCAL_MAX_JOB_BYTES`、`SWIFTLOCAL_MAX_QUEUED_JOBS`、`SWIFTLOCAL_DISK_MULTIPLIER`、`SWIFTLOCAL_OCR_MAX_PIXELS`、`SWIFTLOCAL_JOB_RETENTION_HOURS`（已結束任務自動清理時數，預設 72）調整。
 - 輸出重名時自動產生 `檔名 (2).ext`、`檔名 (3).ext`，不覆蓋既有檔案。
+- 任務狀態與 API 不保存或回傳 PDF 密碼；重啟後需重新輸入。
 
 ## FastAPI API
 
@@ -548,7 +553,8 @@ pip install -r backend/requirements.txt
 
 暫存：`backend/temp/jobs/{job_id}`。任務狀態會寫入 `backend/temp/jobs-state.json`（重啟後可還原；執行中被中斷的任務會標為失敗）。
 
-架構細節：[docs/backend-architecture.md](./docs/backend-architecture.md)。
+架構細節：[docs/backend-architecture.md](./docs/backend-architecture.md)。  
+任務狀態檔契約：[docs/jobs-state-schema.md](./docs/jobs-state-schema.md)（schema version 2：含錯誤代碼）。
 
 ## 發佈前檢查
 

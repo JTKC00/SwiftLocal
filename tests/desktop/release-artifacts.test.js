@@ -49,4 +49,5 @@ describe("release artifact verification", () => {
     assert.throws(() => requireReleaseFile(filePath), /大小異常/);
     assert.doesNotThrow(() => requireReleaseFile(filePath, 1));
   });
+
 });

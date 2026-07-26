@@ -34,7 +34,9 @@
 
 ```
 backend/
-  main.py                 # FastAPI app、CORS、lifespan 清理 temp
+  main.py                 # FastAPI app、CORS、session middleware、lifespan
+  security.py             # SESSION_TOKEN、ALLOWED_FRONTEND_ORIGINS
+  version.py              # 與 package.json 對齊的版本字串
   requirements.txt
   routers/
     jobs.py               # 任務 CRUD / cancel / 下載
@@ -44,12 +46,16 @@ backend/
     job_service.py        # 佇列、取消、狀態
     conversion_service.py # 實際轉換與外部行程
     tools_service.py      # LibreOffice / FFmpeg / Tesseract / QPDF 偵測
-  temp/jobs/              # 執行期工作目錄（啟動時清空）
+  temp/
+    session-token         # 本次啟動 token（供 npm start 同源讀取；重啟後失效）
+    jobs/                 # 執行期工作目錄
+    jobs-state.json       # 任務持久化
 
 desktop/
-  main.js                 # Electron 視窗與 IPC
+  main.js                 # Electron 視窗與 IPC（sandbox、導航封鎖、sender 驗證）
   preload.js              # contextBridge
   backend.js              # 桌面 BackendService（與 FastAPI 對等功能）
+  security.js             # 外部 URL 協定白名單等
 
 frontend/
   app.js                  # UI；後端 API 抽象層
@@ -57,6 +63,7 @@ frontend/
 
 tests/
   desktop/backend.test.js
+  desktop/security.test.js
   backend/test_core.py
 ```
 
@@ -75,6 +82,10 @@ tests/
 | GET | `/api/jobs/{job_id}` | 單一任務 |
 | GET | `/api/jobs/{job_id}/outputs/{filename}` | 下載輸出 |
 | POST | `/api/jobs/{job_id}/cancel` | 取消 queued / running |
+| POST | `/api/jobs/{job_id}/retry` | 重新執行已結束任務（0.3.3） |
+| POST | `/api/jobs/{job_id}/copy` | 複製為新任務（0.3.3） |
+| GET | `/api/jobs/{job_id}/diagnostic` | 匯出診斷 JSON（無密碼）（0.3.3） |
+| POST | `/api/jobs/cleanup` | 自動清理舊任務／孤兒暫存（`forceFinished=true` 清除全部已結束）（0.3.3） |
 | DELETE | `/api/jobs/{job_id}` | 刪除（不可刪 running，回 409） |
 | POST | `/api/convert-text` | 繁簡轉換（zhconv） |
 
@@ -104,12 +115,16 @@ ocr-pdf
 
 ### 0.3.1 安全契約
 
-- FastAPI 所有實際 `/api` 請求都需要 `X-SwiftLocal-Token`；token 每次啟動重新產生。
-- CORS 僅允許實際前端 origin，不允許 `null`。
+- FastAPI 除 `OPTIONS` 預檢外，所有 `/api` 請求（含 `/api/health`）都需要標頭 `X-SwiftLocal-Token`。
+- Token 每次進程啟動重新產生（可用環境變數 `SWIFTLOCAL_SESSION_TOKEN` 覆寫）；寫入 `backend/temp/session-token` 供 `npm start` 同源讀取。
+- **CORS 不允許 `null` origin**（含 `file://` 開啟頁面時瀏覽器送出的 Origin）。預設僅：
+  - `http://127.0.0.1:4173`
+  - `http://localhost:4173`
+- 可用 `SWIFTLOCAL_FRONTEND_ORIGINS`（逗號分隔）擴充允許清單；即使列出 `null` 也會被 `backend/security.py` 過濾掉。
 - Electron renderer 只可停留在 `frontend/index.html`；IPC handler 會驗證 `senderFrame.url`。
 - 任務 API、狀態檔及 UI 都使用已清理的 options，不保存或回傳 `password`／`passphrase`。
 - 需要密碼的 queued 任務不會在重啟後自動執行。
-- 所有輸出統一使用自動編號避讓；LibreOffice 先寫入臨時目錄，再安全移到最終路徑。
+- 所有輸出統一使用自動編號避讓（`檔名 (2).ext`…）；LibreOffice 先寫入臨時目錄，再安全移到最終路徑。
 - 預設資源上限為單檔 1 GB、單任務 2 GB、50 個 queued 任務、2 倍磁碟需求與 OCR 單頁 50 MP。
 
 `ocr-pdf` 選填：`language`（預設 `eng`）、`maxPages`（預設 50、上限 100）。
@@ -137,11 +152,22 @@ ocr-pdf
 ### 環境變數
 
 ```powershell
+# 外部工具路徑
 $env:SWIFTLOCAL_LIBREOFFICE="C:\Program Files\LibreOffice\program\soffice.com"
 $env:SWIFTLOCAL_FFMPEG="C:\ffmpeg\bin\ffmpeg.exe"
 $env:SWIFTLOCAL_TESSERACT="C:\Program Files\Tesseract-OCR\tesseract.exe"
 $env:SWIFTLOCAL_QPDF="C:\Program Files\qpdf\bin\qpdf.exe"
 $env:SWIFTLOCAL_TOOLS_CONFIG="C:\path\to\tools.json"   # 可選，覆寫設定檔位置
+
+# FastAPI 安全（見 backend/security.py、main.py）
+$env:SWIFTLOCAL_SESSION_TOKEN="..."   # 可選；未設則每次啟動隨機產生
+$env:SWIFTLOCAL_FRONTEND_ORIGINS="http://127.0.0.1:4173,http://localhost:4173"
+# 注意：清單中的 "null" 會被忽略，無法透過環境變數重新開啟 null origin
+
+# 資源上限（可選，見 README「0.3.1 安全與資源限制」）
+# SWIFTLOCAL_MAX_FILE_BYTES / SWIFTLOCAL_MAX_JOB_BYTES / SWIFTLOCAL_MAX_QUEUED_JOBS
+# SWIFTLOCAL_DISK_MULTIPLIER / SWIFTLOCAL_OCR_MAX_PIXELS
+# SWIFTLOCAL_JOB_RETENTION_HOURS=72   # 已結束任務自動清理時數
 ```
 
 Windows 上 LibreOffice 會優先改用 `soffice.com`（若存在），避免 GUI 子行程問題。
@@ -175,7 +201,10 @@ Windows 上 LibreOffice 會優先改用 `soffice.com`（若存在），避免 GU
 - 上傳檔名經 `sanitize_filename`；輸出檔名比對使用 basename。
 - 加密 PDF：pdf-lib / pypdf 路徑會先偵測並提示「請先 PDF 解密」。
 - 刪除 running：HTTP **409**；應先取消。
-- CORS：允許本機靜態伺服器來源與 `null`（file 協議邊緣情況）。
+- **CORS（與 0.3.1 契約一致）**：僅允許本機靜態前端 origin（預設 `http://127.0.0.1:4173`、`http://localhost:4173`）。**不允許 `null`**，因此不支援以 `file://` 直接開啟前端再呼叫 FastAPI；請使用 `npm start`（同源開發伺服器 + session token）或 Electron 桌面版。
+- 缺少或錯誤的 `X-SwiftLocal-Token`：HTTP **401**。
+- 輸出路徑衝突：自動編號避讓，不覆蓋既有檔案。
+- 密碼欄位：寫入狀態檔與 API 回應前會清除，重啟後需重新輸入。
 
 ## 測試
 
@@ -187,14 +216,30 @@ npm run test:py   # tests/backend/test_core.py
 
 涵蓋：tessdata、LibreOffice 輸出解析、PDF split 空 range、加密訊息、任務取消、佇列 drain、桌面 merge / cancel 等。
 
-CI：GitHub Actions 工作流程 `.github/workflows/ci.yml` 在 `main` / `master` 的 push 與 PR 上執行 `npm ci`、`pip install -r backend/requirements.txt`、`npm test`，以及主要 JS 語法檢查。
+CI：GitHub Actions 工作流程 `.github/workflows/ci.yml` 在 `main` / `master` 的 push 與 PR 上、三平台（Ubuntu／Windows／macOS）執行：
+
+1. `npm ci` + `pip install -r backend/requirements.txt`（Python 3.12）
+2. `npm run typecheck`（主要前端／桌面／腳本語法）
+3. `npm run check:ci`（版本、CHANGELOG、electron-builder 產物命名、requirements pin）
+4. `npm test`（Node + Python 單元測試）
+
+本機可用 `npm run typecheck` 與 `npm run check:ci` 重現上述檢查。完整 `check:pack` 仍需本機 `tools/`，不在 CI 強制執行。
 
 ## 依賴（Python）
 
-見 `backend/requirements.txt`：
+見 `backend/requirements.txt`（**已固定版本**，供 CI 與本機可重現安裝）：
 
-- fastapi、uvicorn、python-multipart
-- pypdf、pdf2docx、Pillow、zhconv
+| 套件 | 用途 |
+| --- | --- |
+| `fastapi` / `uvicorn[standard]` | HTTP API 與 ASGI 伺服器 |
+| `python-multipart` | 任務上傳 multipart |
+| `pypdf` | PDF 合併／分割／旋轉／壓縮／加解密 |
+| `pdf2docx` | PDF → DOCX（純文字／相容路徑） |
+| `Pillow` | 影像輔助 |
+| `zhconv` | 繁簡轉換 API |
+| `pypdfium2` | PDF OCR 頁面渲染 |
+
+升級依賴時請改 pin 後執行 `pip install -r backend/requirements.txt` 與 `npm run test:py`（或 `npm test`），確認通過再合併。
 
 ### 影音進階參數（`media-convert`）
 
@@ -219,9 +264,18 @@ CI：GitHub Actions 工作流程 `.github/workflows/ci.yml` 在 `main` / `master
 | Electron | `userData/jobs-state.json`（與 `tools.json` 同目錄） | 啟動時載入；`queued` 會繼續跑；輸出目錄可在「狀態」面板設定（寫入 `tools.json` 的 `defaultOutputDir`） |
 | FastAPI | `backend/temp/jobs-state.json` | 啟動 `restore_state()`；保留 job 目錄與輸出 |
 
+- **結構契約（schema version 2）**：見 [jobs-state-schema.md](./jobs-state-schema.md)。寫入根物件含 `version`、`savedAt`、`jobs`；job 可含 `errorCode` / `errorHint` / `retriable`；常數 `JOBS_STATE_SCHEMA_VERSION`。
 - 重啟時仍為 **`running`** 的任務會改為 **`failed`**（訊息：重啟／中斷），避免半成品當成功。
-- `queued` 但輸入檔已不存在會丟棄。
+- `queued` 且類型為加／解密、或輸入檔已不存在：分別改為失敗（需重輸密碼）或丟棄。
+- 密碼不進入狀態檔、API 或 log。
 - 最多保留約 **80** 筆任務摘要；刪除任務會同步更新狀態檔並清理工作目錄（FastAPI）。
+- **自動清理（0.3.3）**：
+  - 已結束任務（done／failed／cancelled）超過 `SWIFTLOCAL_JOB_RETENTION_HOURS`（預設 **72** 小時）會從列表移除
+  - 超出 80 筆時優先丟掉最舊的已結束任務（不碰 queued／running）
+  - FastAPI 同步刪除 `backend/temp/jobs/{id}`；啟動時清理孤兒目錄
+  - 桌面版另清除輸出目錄下超過 24 小時的 `.swiftlocal-*` 暫存資料夾（**不刪使用者輸出檔**）
+  - 任務結束、啟動還原、任務中心輪詢時會觸發；「清除已結束」走 `forceFinished`
+- 讀取相容 legacy 純陣列與缺 `version` 的物件；未來升版必須寫遷移（見 schema 文件）。
 
 ## 待擴充（尚未做）
 
@@ -232,8 +286,14 @@ CI：GitHub Actions 工作流程 `.github/workflows/ci.yml` 在 `main` / `master
 | 主題 | 檔案 |
 | --- | --- |
 | HTTP 入口 | `backend/main.py` |
-| 佇列 / 取消 | `backend/services/job_service.py` |
+| CORS／session token | `backend/security.py`、`backend/main.py` |
+| 佇列 / 取消 / 狀態持久化 | `backend/services/job_service.py` |
+| jobs-state 契約 | [jobs-state-schema.md](./jobs-state-schema.md) |
 | 轉換實作 | `backend/services/conversion_service.py` |
 | 桌面後端 | `desktop/backend.js` |
+| 錯誤代碼 | `desktop/job-errors.js`、`backend/services/job_errors.py` |
+| 任務空間統計 | 公開 job 的 `space` / `inputFiles`（`computeJobSpaceUsage`） |
+| 桌面安全（URL／IPC） | `desktop/security.js`、`desktop/main.js` |
 | 前端橋接 | `frontend/app.js`（`backendFetch` / `electronBackendRequest`） |
+| 前端靜態伺服器（token 同源） | `scripts/serve.js` |
 | 產品總覽 | `README.md` |

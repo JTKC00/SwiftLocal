@@ -1,5 +1,30 @@
 # Changelog
 
+## Unreleased
+
+### 0.3.3 可靠任務系統（進行中）
+
+- **統一錯誤代碼**：失敗任務帶 `errorCode` / `errorHint` / `retriable`（桌面 `job-errors.js`、FastAPI `job_errors.py`）。
+- **重新執行／複製任務**：任務中心可對失敗或已取消任務重試；可複製為新任務（保留輸入路徑，密碼類任務需重輸）。
+- **執行前檢查**：建立／重試前檢查輸入檔、必要工具與磁碟空間。
+- **診斷報告**：匯出不含密碼的 JSON（版本、平台、工具、任務摘要）。
+- **工作流程從失敗步驟繼續**：保留已完成步驟；優先重試失敗 job，否則以上一步輸出（`stepOutputs`）重新排隊；加密步驟可填回密碼後續跑。
+- **自動清理舊任務／暫存**：依 `SWIFTLOCAL_JOB_RETENTION_HOURS`（預設 72h）與 80 筆上限修剪已結束任務；FastAPI 清 `temp/jobs` 孤兒目錄；桌面清 `.swiftlocal-*` 暫存；任務中心「清除已結束」與背景維護共用 `POST /jobs/cleanup`。
+- **任務輸入／輸出佔用空間**：任務卡片顯示輸入／輸出總量、檔案數、壓縮節省（或增大）比例；單檔輸入亦標示大小。
+- jobs-state **schema version 2**（相容讀取 v1）。
+
+### 工程
+
+- 固定 `backend/requirements.txt` 主要依賴版本（fastapi、uvicorn、pypdf、pdf2docx、Pillow、zhconv、pypdfium2、python-multipart），避免 CI／本機被上游無 pin 安裝漂移。
+- CI 改為執行完整 `npm run typecheck`，並新增 `npm run check:ci`（版本、CHANGELOG、artifact 命名、requirements pin、workflow 自我檢查）；不再只做部分 `node --check`。
+- 文件化 `jobs-state.json` schema（`docs/jobs-state-schema.md`），抽出 `JOBS_STATE_SCHEMA_VERSION` 常數，並補桌面／FastAPI 讀寫與 legacy 相容測試。
+
+### 文件
+
+- 對齊架構說明與 0.3.1 實際安全行為：CORS **不允許** `null` origin（移除文檔中與程式碼矛盾的「允許 null／file 協議」描述）。
+- 補充 session token、`SWIFTLOCAL_FRONTEND_ORIGINS`、目錄結構中的 `security.py`／診斷相關路徑說明。
+- 文件標明 Python 依賴鎖定策略與升級驗證步驟。
+
 ## 0.3.1 - 2026-07-24
 
 ### 安全與資料完整性

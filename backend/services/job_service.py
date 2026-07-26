@@ -38,6 +38,11 @@ from .conversion_service import (
     sanitize_extension,
     split_pdf,
 )
+from .job_errors import (
+    ERROR_CODES,
+    classify_job_error,
+    error_code_label,
+)
 
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
@@ -45,7 +50,10 @@ TEMP_DIR = ROOT_DIR / "temp"
 JOBS_DIR = TEMP_DIR / "jobs"
 JOBS_STATE_PATH = TEMP_DIR / "jobs-state.json"
 MAX_PERSISTED_JOBS = 80
+# Persisted jobs-state.json root.version — see docs/jobs-state-schema.md
+JOBS_STATE_SCHEMA_VERSION = 2
 PASSWORD_JOB_TYPES = {"pdf-encrypt", "pdf-decrypt"}
+TERMINAL_JOB_STATUSES = frozenset({"done", "failed", "cancelled"})
 
 
 def positive_env_int(name: str, fallback: int) -> int:
@@ -60,6 +68,8 @@ MAX_INPUT_FILE_BYTES = positive_env_int("SWIFTLOCAL_MAX_FILE_BYTES", 1024 ** 3)
 MAX_JOB_INPUT_BYTES = positive_env_int("SWIFTLOCAL_MAX_JOB_BYTES", 2 * 1024 ** 3)
 MAX_QUEUED_JOBS = positive_env_int("SWIFTLOCAL_MAX_QUEUED_JOBS", 50)
 MIN_DISK_MULTIPLIER = positive_env_int("SWIFTLOCAL_DISK_MULTIPLIER", 2)
+# Finished jobs older than this are auto-removed from history (and FastAPI work dirs).
+JOB_RETENTION_HOURS = positive_env_int("SWIFTLOCAL_JOB_RETENTION_HOURS", 72)
 SUPPORTED_JOB_TYPES = {
     "office-to-pdf", "pdf-to-office", "pdf-to-searchable-pdf", "media-convert",
     "ocr-image", "ocr-pdf", "pdf-to-docx", "pdf-merge", "pdf-split", "pdf-rotate",
@@ -97,6 +107,9 @@ class Job:
     output_paths: list[Path] = field(default_factory=list)
     log: list[str] = field(default_factory=list)
     error: str = ""
+    error_code: str = ""
+    error_hint: str = ""
+    retriable: bool = True
     cancel_requested: bool = False
 
 
@@ -116,17 +129,73 @@ class JobService:
             JOBS_STATE_PATH.unlink(missing_ok=True)
         self.jobs = []
 
+    def prune_jobs(self, *, now: datetime | None = None, force_finished: bool = False) -> dict[str, int]:
+        """Drop old/excess terminal jobs and orphan work dirs. Never removes queued/running."""
+        reference = now or datetime.now(timezone.utc)
+        before = len(self.jobs)
+        active = [job for job in self.jobs if job.status not in TERMINAL_JOB_STATUSES]
+        terminal = [job for job in self.jobs if job.status in TERMINAL_JOB_STATUSES]
+
+        retained_terminal: list[Job] = []
+        removed_by_age = 0
+        if force_finished:
+            removed_by_age = len(terminal)
+            terminal = []
+        else:
+            max_age = JOB_RETENTION_HOURS * 3600
+            for job in terminal:
+                finished = _parse_iso_timestamp(job.finished_at or job.created_at)
+                age = (reference - finished).total_seconds() if finished else 0
+                if finished and age > max_age:
+                    removed_by_age += 1
+                    self._remove_job_workdir(job.id)
+                else:
+                    retained_terminal.append(job)
+            terminal = retained_terminal
+
+        # Prefer keeping newest finished jobs when over the hard cap.
+        terminal.sort(key=lambda job: job.finished_at or job.created_at or "", reverse=True)
+        max_terminal = max(0, MAX_PERSISTED_JOBS - len(active))
+        removed_by_cap = 0
+        if len(terminal) > max_terminal:
+            for job in terminal[max_terminal:]:
+                self._remove_job_workdir(job.id)
+                removed_by_cap += 1
+            terminal = terminal[:max_terminal]
+
+        # Restore original-ish order: active first (newest first as stored), then terminal by recency.
+        self.jobs = active + terminal
+        orphan_dirs = self._prune_orphan_job_dirs()
+        self._save_jobs_state()
+        return {
+            "before": before,
+            "after": len(self.jobs),
+            "removedByAge": removed_by_age,
+            "removedByCap": removed_by_cap,
+            "orphanDirs": orphan_dirs,
+            "retentionHours": JOB_RETENTION_HOURS,
+            "maxPersisted": MAX_PERSISTED_JOBS,
+        }
+
+    def _remove_job_workdir(self, job_id: str) -> None:
+        shutil.rmtree(JOBS_DIR / job_id, ignore_errors=True)
+
+    def _prune_orphan_job_dirs(self) -> int:
+        JOBS_DIR.mkdir(parents=True, exist_ok=True)
+        known = {job.id for job in self.jobs}
+        removed = 0
+        for child in list(JOBS_DIR.iterdir()):
+            if child.is_dir() and child.name not in known:
+                shutil.rmtree(child, ignore_errors=True)
+                removed += 1
+        return removed
+
     async def restore_state(self) -> None:
         """Load persisted jobs, repair interrupted ones, prune orphan job dirs, resume queue."""
         JOBS_DIR.mkdir(parents=True, exist_ok=True)
         TEMP_DIR.mkdir(parents=True, exist_ok=True)
         self.jobs = self._load_jobs_state()
-        known_ids = {job.id for job in self.jobs}
-        for child in list(JOBS_DIR.iterdir()):
-            if child.is_dir() and child.name not in known_ids:
-                # Keep dirs that still match a known id only; drop orphans.
-                shutil.rmtree(child, ignore_errors=True)
-        self._save_jobs_state()
+        self.prune_jobs()
         if any(job.status == "queued" for job in self.jobs):
             asyncio.create_task(self._run_next())
 
@@ -159,11 +228,19 @@ class JobService:
         started_at = item.get("startedAt") or item.get("started_at")
         created_at = str(item.get("createdAt") or item.get("created_at") or now_iso())
 
+        error_code = str(item.get("errorCode") or item.get("error_code") or "")
+        error_hint = str(item.get("errorHint") or item.get("error_hint") or "")
+        retriable = item.get("retriable") is not False
+
         if status == "running":
             status = "failed"
             error = error or "後端重啟時任務中斷"
             log.append(error)
             finished_at = finished_at or now_iso()
+            classified = classify_job_error(error, job_type)
+            error_code = str(classified["code"])
+            error_hint = str(classified["hint"])
+            retriable = bool(classified["retriable"])
 
         raw_options = item.get("options") if isinstance(item.get("options"), dict) else {}
         options = {str(k): str(v) for k, v in raw_options.items()}
@@ -172,6 +249,10 @@ class JobService:
             error = "任務因應用程式重啟而停止，請重新輸入密碼。"
             log.append(error)
             finished_at = finished_at or now_iso()
+            classified = classify_job_error(error, job_type)
+            error_code = str(classified["code"])
+            error_hint = str(classified["hint"])
+            retriable = False
 
         input_raw = item.get("inputPaths") or item.get("input_paths") or []
         input_paths = [Path(str(p)) for p in input_raw if str(p)]
@@ -212,6 +293,9 @@ class JobService:
             output_paths=output_paths,
             log=log,
             error=error,
+            error_code=error_code,
+            error_hint=error_hint,
+            retriable=retriable,
             cancel_requested=False,
         )
 
@@ -229,13 +313,16 @@ class JobService:
             "outputPaths": [str(path) for path in job.output_paths],
             "log": [redact_job_text(line, job.options) for line in job.log[-12:]],
             "error": redact_job_text(job.error, job.options),
+            "errorCode": job.error_code or "",
+            "errorHint": job.error_hint or "",
+            "retriable": job.retriable is not False,
         }
 
     def _save_jobs_state(self) -> None:
         try:
             TEMP_DIR.mkdir(parents=True, exist_ok=True)
             payload = {
-                "version": 1,
+                "version": JOBS_STATE_SCHEMA_VERSION,
                 "savedAt": now_iso(),
                 "jobs": [self._serialize_job(job) for job in self.jobs[:MAX_PERSISTED_JOBS]],
             }
@@ -343,6 +430,9 @@ class JobService:
         if job.status == "queued":
             job.status = "cancelled"
             job.error = "任務已取消"
+            job.error_code = ERROR_CODES["CANCELLED"]
+            job.error_hint = "可重新執行此任務（輸入檔仍存在時）。"
+            job.retriable = True
             job.log.append(job.error)
             job.finished_at = now_iso()
             job.options = redact_job_options(job.options)
@@ -463,46 +553,167 @@ class JobService:
             if not job.output_paths:
                 raise RuntimeError("Conversion finished but no output file was created")
             job.status = "done"
+            job.error_code = ""
+            job.error_hint = ""
+            job.retriable = True
         except JobCancelled as error:
             job.error = str(error) or "任務已取消"
             job.log.append(job.error)
             job.status = "cancelled"
+            job.error_code = ERROR_CODES["CANCELLED"]
+            job.error_hint = "可重新執行此任務（輸入檔仍存在時）。"
+            job.retriable = True
         except Exception as error:
             if job.cancel_requested:
                 job.error = "任務已取消"
                 job.log.append(job.error)
                 job.status = "cancelled"
+                job.error_code = ERROR_CODES["CANCELLED"]
+                job.error_hint = "可重新執行此任務（輸入檔仍存在時）。"
+                job.retriable = True
             else:
-                job.error = str(error)
+                classified = classify_job_error(error, job.type)
+                job.error = str(classified["message"])
                 job.log.append(job.error)
                 job.status = "failed"
+                job.error_code = str(classified["code"])
+                job.error_hint = str(classified["hint"])
+                job.retriable = bool(classified["retriable"])
         finally:
             end_job(job.id)
             job.finished_at = now_iso()
             job.log = [redact_job_text(line, job.options) for line in job.log]
             job.error = redact_job_text(job.error, job.options)
             job.options = redact_job_options(job.options)
-            self._save_jobs_state()
+            self.prune_jobs()
+
+    async def retry_job(self, job_id: str) -> dict | None:
+        job = self._find_job(job_id)
+        if not job:
+            return None
+        if job.status in {"queued", "running"}:
+            raise ValueError("只能重新執行已結束的任務")
+        if job.retriable is False:
+            raise ValueError(job.error_hint or "此任務無法自動重試，請從工具面板重新提交")
+        missing = [path for path in job.input_paths if not path.exists()]
+        if missing:
+            raise ValueError(f"找不到輸入檔：{missing[0].name}")
+        if job.type in PASSWORD_JOB_TYPES and not (job.options.get("password") or job.options.get("passphrase")):
+            raise ValueError("此任務需要密碼，請從工具面板重新提交")
+        job.status = "queued"
+        job.started_at = None
+        job.finished_at = None
+        job.output_paths = []
+        job.error = ""
+        job.error_code = ""
+        job.error_hint = ""
+        job.retriable = True
+        job.cancel_requested = False
+        job.log = [*job.log[-8:], "使用者重新執行任務"]
+        self._save_jobs_state()
+        asyncio.create_task(self._run_next())
+        return self.public_job(job)
+
+    async def copy_job(self, job_id: str) -> dict | None:
+        job = self._find_job(job_id)
+        if not job:
+            return None
+        # Re-create via create_job path is multipart-only; clone in-memory instead.
+        if sum(item.status == "queued" for item in self.jobs) >= MAX_QUEUED_JOBS:
+            raise ValueError(f"Too many queued jobs (limit: {MAX_QUEUED_JOBS})")
+        missing = [path for path in job.input_paths if not path.exists()]
+        if missing:
+            raise ValueError(f"找不到輸入檔：{missing[0].name}")
+        new_id = uuid.uuid4().hex
+        input_dir = JOBS_DIR / new_id / "input"
+        output_dir = JOBS_DIR / new_id / "output"
+        input_dir.mkdir(parents=True, exist_ok=True)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        copied_inputs: list[Path] = []
+        for source in job.input_paths:
+            target = input_dir / source.name
+            shutil.copy2(source, target)
+            copied_inputs.append(target)
+        clone = Job(
+            id=new_id,
+            type=job.type,
+            input_paths=copied_inputs,
+            output_dir=output_dir,
+            options=dict(job.options),
+        )
+        self.jobs.insert(0, clone)
+        self._save_jobs_state()
+        asyncio.create_task(self._run_next())
+        return self.public_job(clone)
+
+    async def diagnostic_report(self, job_id: str | None = None) -> dict:
+        from .tools_service import tools_service
+
+        job = self._find_job(job_id) if job_id else None
+        tools = await tools_service.detect_tools()
+        tools_summary = {
+            key: {
+                "available": bool(info.get("available")),
+                "version": str(info.get("version") or ""),
+                "source": str(info.get("source") or ""),
+                "path": str(info.get("path") or ""),
+            }
+            for key, info in (tools or {}).items()
+        }
+        return {
+            "generatedAt": now_iso(),
+            "appVersion": self._app_version(),
+            "platform": os.name,
+            "jobsStateSchemaVersion": JOBS_STATE_SCHEMA_VERSION,
+            "tools": tools_summary,
+            "job": self.public_job(job) if job else None,
+        }
+
+    def _app_version(self) -> str:
+        try:
+            from backend.version import APP_VERSION
+
+            return APP_VERSION
+        except Exception:
+            return "0.0.0"
 
     def public_job(self, job: Job) -> dict:
+        space = compute_job_space_usage(job.input_paths, job.output_paths)
         return {
             "id": job.id,
             "type": job.type,
-            "inputPaths": [path.name for path in job.input_paths],
-            "outputPaths": [self._public_output(job, path) for path in job.output_paths if path.exists()],
+            "inputPaths": [item["name"] for item in space["inputs"]],
+            "inputFiles": space["inputs"],
+            "outputPaths": [
+                self._public_output(job, Path(item["path"]))
+                for item in space["outputs"]
+            ],
             "options": redact_job_options(job.options),
             "status": job.status,
             "createdAt": job.created_at,
             "startedAt": job.started_at,
             "finishedAt": job.finished_at,
+            "space": {
+                "inputBytes": space["inputBytes"],
+                "outputBytes": space["outputBytes"],
+                "inputCount": space["inputCount"],
+                "outputCount": space["outputCount"],
+                "inputMissing": space["inputMissing"],
+                "savedBytes": space["savedBytes"],
+                "savedPercent": space["savedPercent"],
+            },
             "log": [redact_job_text(line, job.options) for line in job.log[-6:]],
             "error": redact_job_text(job.error, job.options),
+            "errorCode": job.error_code or "",
+            "errorCodeLabel": error_code_label(job.error_code) if job.error_code else "",
+            "errorHint": job.error_hint or "",
+            "retriable": job.retriable is not False,
         }
 
     def _public_output(self, job: Job, output_path: Path) -> dict[str, str | int]:
         return {
             "name": output_path.name,
-            "size": output_path.stat().st_size,
+            "size": output_path.stat().st_size if output_path.exists() else 0,
             "url": f"/api/jobs/{job.id}/outputs/{output_path.name}",
         }
 
@@ -614,6 +825,79 @@ class JobService:
         if job_type == "pdf-compress":
             return {}
         return {}
+
+
+def _path_size_bytes(path: Path) -> int | None:
+    try:
+        if path.exists() and path.is_file():
+            return path.stat().st_size
+    except OSError:
+        return None
+    return None
+
+
+def compute_job_space_usage(
+    input_paths: list[Path] | None,
+    output_paths: list[Path] | None,
+) -> dict[str, object]:
+    inputs: list[dict[str, object]] = []
+    input_bytes = 0
+    input_missing = 0
+    for raw in input_paths or []:
+        path = Path(raw)
+        size = _path_size_bytes(path)
+        name = path.name or str(path) or "(unknown)"
+        if size is None:
+            input_missing += 1
+            inputs.append({"name": name, "size": None, "missing": True})
+        else:
+            input_bytes += size
+            inputs.append({"name": name, "size": size, "missing": False})
+
+    outputs: list[dict[str, object]] = []
+    output_bytes = 0
+    for raw in output_paths or []:
+        path = Path(raw)
+        size = _path_size_bytes(path)
+        if size is None:
+            continue
+        output_bytes += size
+        outputs.append({"name": path.name, "size": size, "path": str(path)})
+
+    saved_bytes: int | None = None
+    saved_percent: int | None = None
+    if input_bytes > 0 and outputs:
+        saved_bytes = input_bytes - output_bytes
+        # Match JS Math.round (half away from zero), not Python banker's round.
+        ratio = (saved_bytes / input_bytes) * 100
+        saved_percent = int(ratio + 0.5) if ratio >= 0 else int(ratio - 0.5)
+
+    return {
+        "inputBytes": input_bytes,
+        "outputBytes": output_bytes,
+        "inputCount": len(inputs),
+        "outputCount": len(outputs),
+        "inputMissing": input_missing,
+        "savedBytes": saved_bytes,
+        "savedPercent": saved_percent,
+        "inputs": inputs,
+        "outputs": outputs,
+    }
+
+
+def _parse_iso_timestamp(value: object) -> datetime | None:
+    text = str(value or "").strip()
+    if not text:
+        return None
+    try:
+        # Support trailing Z and bare timestamps.
+        normalized = text.replace("Z", "+00:00")
+        parsed = datetime.fromisoformat(normalized)
+        if parsed.tzinfo is None:
+            return parsed.replace(tzinfo=timezone.utc)
+        return parsed.astimezone(timezone.utc)
+    except ValueError:
+        return None
 
 
 def now_iso() -> str:

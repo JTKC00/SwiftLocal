@@ -81,7 +81,7 @@
   const toolGuides = {
     "home-panel": { nav: "首頁", hint: "選擇常用工具，並查看手機版與桌面版的功能差異。", steps: [], keywords: "home 首頁 開始 mobile 手機 desktop 桌面", platform: "web" },
     "tasks-panel": { nav: "任務中心", hint: "集中追蹤所有進階處理、下載結果及處理失敗任務。", steps: [], keywords: "task job queue 任務 工作 佇列 進度 下載 失敗", platform: "desktop" },
-    "workflow-panel": { nav: "流程", hint: "把多個進階處理步驟串連，以上一步輸出自動啟動下一步。", steps: ["選擇範本及來源檔案", "調整步驟和選項", "啟動後在右側或任務中心追蹤"], keywords: "workflow pipeline automation 流程 串連 自動 接力", platform: "desktop" },
+    "workflow-panel": { nav: "流程", hint: "把多個進階處理步驟串連；失敗可從未完成步驟繼續。", steps: ["選擇範本及來源檔案", "調整步驟和選項", "啟動後在右側追蹤；失敗可繼續"], keywords: "workflow pipeline automation 流程 串連 自動 接力 重試 繼續", platform: "desktop" },
     "presets-panel": { nav: "常用預設", hint: "一按套用常見組合，或保存目前工具的安全選項。", steps: [], keywords: "preset favorite 常用 預設 設定 快捷", platform: "web" },
     "image-panel": { nav: "圖片", hint: "轉 JPG / PNG / WebP、壓縮、縮放、加浮水印。", steps: ["選擇或拖放圖片", "保留預設或調整格式、品質、尺寸", "按「開始轉換」，在右邊下載結果"], keywords: "image 圖片 相片 jpg jpeg png webp 壓縮 縮小 浮水印 旋轉" },
     "pdf-panel": { nav: "PDF", hint: "逐頁視覺編排、轉換、OCR、壓縮及保護 PDF。", steps: ["選擇 PDF 工作台或其他處理方式", "在工作台拖放頁面，並旋轉、複製或刪除", "輸出新 PDF，或在任務區查看後端進度"], keywords: "pdf 工作台 縮圖 排序 合併 分割 抽頁 旋轉 頁碼 浮水印 壓縮 加密 解密 ocr office word docx" },
@@ -817,6 +817,7 @@
       currentStep: 0,
       inputPaths,
       outputPaths: [],
+      stepOutputs: {},
       options: { angle: $("#workflow-angle") ? $("#workflow-angle").value : "90", password },
       steps: types.map((type) => ({ type, status: "pending", jobId: null }))
     };
@@ -3973,6 +3974,14 @@
   }
 
   async function refreshBackendJobs() {
+    // Opportunistic maintenance when the UI is polling / opening task views.
+    if (!state._cleanupScheduled) {
+      state._cleanupScheduled = true;
+      window.setTimeout(() => {
+        state._cleanupScheduled = false;
+        autoCleanupJobsQuietly();
+      }, 1500);
+    }
     if (!backendApiAvailable()) {
       await checkBackendHealth();
       return;
@@ -4036,8 +4045,124 @@
     step.status = job.status || "queued";
     run.currentStep = stepIndex;
     run.status = "running";
+    run.error = "";
     persistWorkflowRuns();
     renderWorkflowRuns();
+  }
+
+  function workflowStepNeedsPassword(type) {
+    return type === "pdf-encrypt" || type === "pdf-decrypt";
+  }
+
+  function findWorkflowResumeIndex(run) {
+    if (!run || !Array.isArray(run.steps)) return -1;
+    const incomplete = run.steps.findIndex((step) => step.status !== "done");
+    return incomplete;
+  }
+
+  function resolveWorkflowStepInputs(run, stepIndex, jobs) {
+    if (stepIndex <= 0) {
+      return Array.isArray(run.inputPaths) ? run.inputPaths.filter(Boolean) : [];
+    }
+    const stored = run.stepOutputs && run.stepOutputs[stepIndex - 1];
+    if (Array.isArray(stored) && stored.length) {
+      return stored.filter(Boolean);
+    }
+    const prev = run.steps[stepIndex - 1];
+    if (prev && prev.jobId && Array.isArray(jobs)) {
+      const job = jobs.find((item) => item.id === prev.jobId);
+      if (job && Array.isArray(job.outputPaths)) {
+        return job.outputPaths.map((item) => item && item.path).filter(Boolean);
+      }
+    }
+    return [];
+  }
+
+  function syncWorkflowPasswordFromForm(run) {
+    const field = $("#workflow-password");
+    if (!field || !field.value) return;
+    run.options = { ...(run.options || {}), password: field.value };
+  }
+
+  async function resumeWorkflowRun(runId) {
+    if (!electronBridgeAvailable()) {
+      showToast("繼續流程需要桌面版", "error");
+      return;
+    }
+    const run = state.workflowRuns.find((item) => item.id === runId);
+    if (!run) {
+      showToast("找不到流程紀錄", "error");
+      return;
+    }
+    if (run.status === "running" || run.status === "done") {
+      showToast(run.status === "done" ? "流程已完成" : "流程仍在執行中", "info");
+      return;
+    }
+    const stepIndex = findWorkflowResumeIndex(run);
+    if (stepIndex < 0) {
+      run.status = "done";
+      run.error = "";
+      persistWorkflowRuns();
+      renderWorkflowRuns();
+      showToast("流程步驟皆已完成", "success");
+      return;
+    }
+    syncWorkflowPasswordFromForm(run);
+    const step = run.steps[stepIndex];
+    if (workflowStepNeedsPassword(step.type) && !(run.options && run.options.password)) {
+      showToast("此步驟需要 PDF 密碼：請在上方流程選項填入密碼後再按「從失敗步驟繼續」", "error");
+      return;
+    }
+
+    // Prefer retrying the same job (keeps task center continuity) when possible.
+    if (step.jobId && (step.status === "failed" || step.status === "cancelled")) {
+      try {
+        await backendFetch(`/jobs/${encodeURIComponent(step.jobId)}/retry`, { method: "POST" });
+        step.status = "queued";
+        run.currentStep = stepIndex;
+        run.status = "running";
+        run.error = "";
+        persistWorkflowRuns();
+        renderWorkflowRuns();
+        await refreshBackendJobs();
+        showToast(`已從步驟 ${stepIndex + 1}「${jobTypeLabel(step.type)}」繼續`, "success");
+        return;
+      } catch {
+        // Fall through to re-enqueue with resolved input paths.
+      }
+    }
+
+    const jobs = Array.isArray(state.backendJobs) ? state.backendJobs : [];
+    const inputPaths = resolveWorkflowStepInputs(run, stepIndex, jobs);
+    if (!inputPaths.length) {
+      showToast(
+        stepIndex === 0
+          ? "找不到原始輸入檔，請重新選擇檔案並啟動流程"
+          : "找不到上一步輸出檔，請重新啟動流程",
+        "error"
+      );
+      return;
+    }
+
+    for (let index = stepIndex; index < run.steps.length; index += 1) {
+      if (run.steps[index].status === "done") continue;
+      run.steps[index].status = "pending";
+      run.steps[index].jobId = null;
+    }
+    run.currentStep = stepIndex;
+    run.status = "running";
+    run.error = "";
+    try {
+      await enqueueWorkflowStep(run, stepIndex, inputPaths);
+      await refreshBackendJobs();
+      showToast(`已從步驟 ${stepIndex + 1}「${jobTypeLabel(step.type)}」重新排隊`, "success");
+    } catch (error) {
+      run.status = "failed";
+      run.error = readableError(error);
+      persistWorkflowRuns();
+      renderWorkflowRuns();
+      showToast(run.error, "error");
+    }
   }
 
   async function processWorkflowRuns(jobs) {
@@ -4049,35 +4174,45 @@
       const job = jobs.find((item) => item.id === step.jobId);
       if (!job) {
         run.status = "failed";
-        run.error = "找不到目前步驟的任務紀錄，流程已停止。";
+        run.error = "找不到目前步驟的任務紀錄，流程已停止。可嘗試「從失敗步驟繼續」。";
         continue;
       }
       step.status = job.status;
       if (job.status === "failed" || job.status === "cancelled") {
         run.status = job.status;
-        run.error = job.error || `步驟「${jobTypeLabel(step.type)}」未能完成`;
+        const hint = job.errorHint ? ` ${job.errorHint}` : "";
+        run.error =
+          (job.error || `步驟「${jobTypeLabel(step.type)}」未能完成`) +
+          hint +
+          " 可按「從失敗步驟繼續」。";
         continue;
       }
       if (job.status !== "done") continue;
       const outputs = Array.isArray(job.outputPaths) ? job.outputPaths : [];
       step.status = "done";
+      const nextInputs = outputs.map((item) => item.path).filter(Boolean);
+      run.stepOutputs = run.stepOutputs || {};
+      run.stepOutputs[run.currentStep] = nextInputs;
       if (run.currentStep >= run.steps.length - 1) {
         run.status = "done";
         run.finishedAt = new Date().toISOString();
         run.outputPaths = outputs;
         continue;
       }
-      const nextInputs = outputs.map((item) => item.path).filter(Boolean);
       if (!nextInputs.length) {
         run.status = "failed";
-        run.error = "上一步沒有產生可供下一步使用的本機檔案。";
+        run.error = "上一步沒有產生可供下一步使用的本機檔案。可按「從失敗步驟繼續」或重新啟動流程。";
         continue;
       }
       const nextIndex = run.currentStep + 1;
       const nextStep = run.steps[nextIndex];
-      if ((nextStep.type === "pdf-encrypt" || nextStep.type === "pdf-decrypt") && !(run.options && run.options.password)) {
+      if (workflowStepNeedsPassword(nextStep.type) && !(run.options && run.options.password)) {
         run.status = "failed";
-        run.error = "程式重新啟動後不會保留 PDF 密碼，請重新建立此流程。";
+        run.error = "下一步需要 PDF 密碼。請在流程選項填入密碼後按「從失敗步驟繼續」。";
+        // Keep completed steps; resume will start at nextIndex.
+        nextStep.status = "pending";
+        nextStep.jobId = null;
+        run.currentStep = nextIndex;
         continue;
       }
       state.workflowAdvancing.add(run.id);
@@ -4085,7 +4220,7 @@
         await enqueueWorkflowStep(run, nextIndex, nextInputs);
       } catch (error) {
         run.status = "failed";
-        run.error = readableError(error);
+        run.error = `${readableError(error)} 可按「從失敗步驟繼續」。`;
       } finally {
         state.workflowAdvancing.delete(run.id);
       }
@@ -4098,7 +4233,9 @@
     try {
       const safeRuns = state.workflowRuns.map((run) => ({
         ...run,
-        options: { ...(run.options || {}), password: "" }
+        options: { ...(run.options || {}), password: "" },
+        // Keep stepOutputs (local paths) for resume after reload; no secrets.
+        stepOutputs: run.stepOutputs || {}
       }));
       localStorage.setItem("swiftlocal-workflows", JSON.stringify(safeRuns));
     } catch {
@@ -4128,7 +4265,15 @@
       run.steps.forEach((step, index) => {
         const item = document.createElement("li");
         item.className = step.status || "pending";
-        item.innerHTML = `<span>${step.status === "done" ? "✓" : step.status === "running" ? "…" : index + 1}</span><div><strong>${escapeHtml(jobTypeLabel(step.type))}</strong><small>${escapeHtml(jobStatusLabel(step.status === "pending" ? "queued" : step.status))}</small></div>`;
+        const mark =
+          step.status === "done"
+            ? "✓"
+            : step.status === "running" || step.status === "queued"
+              ? "…"
+              : step.status === "failed" || step.status === "cancelled"
+                ? "!"
+                : index + 1;
+        item.innerHTML = `<span>${mark}</span><div><strong>${escapeHtml(jobTypeLabel(step.type))}</strong><small>${escapeHtml(jobStatusLabel(step.status === "pending" ? "queued" : step.status))}</small></div>`;
         steps.appendChild(item);
       });
       card.appendChild(steps);
@@ -4156,6 +4301,15 @@
           if (current && current.jobId) cancelBackendJob(current.jobId);
         });
         actions.appendChild(stop);
+      }
+      if (run.status === "failed" || run.status === "cancelled") {
+        const resume = document.createElement("button");
+        resume.type = "button";
+        resume.className = "secondary-button compact";
+        resume.textContent = "從失敗步驟繼續";
+        resume.title = "保留已完成步驟，從第一個未完成步驟重試";
+        resume.addEventListener("click", () => resumeWorkflowRun(run.id));
+        actions.appendChild(resume);
       }
       const tasks = document.createElement("button");
       tasks.type = "button";
@@ -4244,7 +4398,8 @@
     const elapsedStart = job.startedAt ? new Date(job.startedAt) : created;
     const elapsedEnd = finished || new Date();
     const duration = elapsedStart && !Number.isNaN(elapsedStart.getTime()) ? formatTaskDuration(elapsedEnd - elapsedStart) : "—";
-    meta.innerHTML = `<span>建立 ${created && !Number.isNaN(created.getTime()) ? escapeHtml(created.toLocaleString([], { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })) : "—"}</span><span>歷時 ${escapeHtml(duration)}</span><code>${escapeHtml(String(job.id || "").slice(-8))}</code>`;
+    const spaceHint = formatJobSpaceSummary(job).replace(/^空間：/, "");
+    meta.innerHTML = `<span>建立 ${created && !Number.isNaN(created.getTime()) ? escapeHtml(created.toLocaleString([], { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })) : "—"}</span><span>歷時 ${escapeHtml(duration)}</span><span class="task-space-hint" title="${escapeHtml(formatJobSpaceSummary(job))}">${escapeHtml(spaceHint)}</span><code>${escapeHtml(String(job.id || "").slice(-8))}</code>`;
     if (header) header.insertAdjacentElement("afterend", meta);
     if (job.status === "running" || job.status === "queued") {
       const progress = document.createElement("div");
@@ -4270,8 +4425,22 @@
 
   async function clearFinishedTaskHistory() {
     const finished = state.backendJobs.filter((job) => !["queued", "running"].includes(job.status));
-    if (!finished.length) return;
+    if (!finished.length) {
+      showToast("沒有可清除的已結束任務", "info");
+      return;
+    }
     try {
+      // Prefer bulk cleanup (also removes FastAPI workdirs / ages out history).
+      try {
+        const result = await backendFetch("/jobs/cleanup?forceFinished=true", { method: "POST" });
+        await refreshBackendJobs();
+        const removed =
+          Number(result.removedByAge || 0) + Number(result.removedByCap || 0) || finished.length;
+        showToast(`已清除 ${removed} 個已結束任務`, "success");
+        return;
+      } catch {
+        // Fallback: delete one-by-one (older desktop builds without cleanup API).
+      }
       for (const job of finished) {
         await backendFetch(`/jobs/${encodeURIComponent(job.id)}`, { method: "DELETE" });
       }
@@ -4279,6 +4448,14 @@
       showToast(`已清除 ${finished.length} 個已結束任務`, "success");
     } catch (error) {
       showToast(readableError(error), "error");
+    }
+  }
+
+  async function autoCleanupJobsQuietly() {
+    try {
+      await backendFetch("/jobs/cleanup", { method: "POST" });
+    } catch {
+      // Optional maintenance; ignore if backend is unavailable.
     }
   }
 
@@ -4319,6 +4496,28 @@
       cancelBtn.addEventListener("click", () => cancelBackendJob(job.id));
       headerRight.appendChild(cancelBtn);
     } else if (job.status === "done" || job.status === "failed" || job.status === "cancelled") {
+      if (job.status === "failed" || job.status === "cancelled") {
+        if (job.retriable !== false) {
+          const retryBtn = document.createElement("button");
+          retryBtn.className = "secondary-button compact";
+          retryBtn.type = "button";
+          retryBtn.textContent = "重新執行";
+          retryBtn.addEventListener("click", () => retryBackendJob(job.id));
+          headerRight.appendChild(retryBtn);
+        }
+        const copyBtn = document.createElement("button");
+        copyBtn.className = "secondary-button compact";
+        copyBtn.type = "button";
+        copyBtn.textContent = "複製任務";
+        copyBtn.addEventListener("click", () => copyBackendJob(job.id));
+        headerRight.appendChild(copyBtn);
+        const diagBtn = document.createElement("button");
+        diagBtn.className = "secondary-button compact";
+        diagBtn.type = "button";
+        diagBtn.textContent = "診斷";
+        diagBtn.addEventListener("click", () => exportJobDiagnostic(job.id));
+        headerRight.appendChild(diagBtn);
+      }
       const delBtn = document.createElement("button");
       delBtn.className = "secondary-button compact danger-button";
       delBtn.type = "button";
@@ -4332,8 +4531,19 @@
     div.appendChild(header);
 
     const small = document.createElement("small");
-    small.innerHTML = job.inputPaths.map((item) => escapeHtml(item)).join("<br>");
+    small.className = "job-input-list";
+    const inputEntries = Array.isArray(job.inputFiles) && job.inputFiles.length
+      ? job.inputFiles
+      : (job.inputPaths || []).map((name) => ({ name, size: null }));
+    small.innerHTML = inputEntries.length
+      ? inputEntries.map((item) => formatJobInputLabel(item)).join("<br>")
+      : "（無輸入檔案資訊）";
     div.appendChild(small);
+
+    const spaceLine = document.createElement("small");
+    spaceLine.className = "job-space-usage";
+    spaceLine.textContent = formatJobSpaceSummary(job);
+    div.appendChild(spaceLine);
 
     if (job.outputDir) {
       const outDir = document.createElement("small");
@@ -4412,16 +4622,23 @@
   function buildJobFailureDetails(job) {
     const wrap = document.createElement("div");
     wrap.className = "job-failure-details";
+    if (job.errorCode || job.errorCodeLabel) {
+      const code = document.createElement("p");
+      code.className = "job-error-code";
+      code.textContent = `錯誤類型：${job.errorCodeLabel || job.errorCode}`;
+      wrap.appendChild(code);
+    }
     const source = job.error || (job.log && job.log.length ? job.log[job.log.length - 1] : "") || "";
     const parts = splitJobErrorParts(source);
     const summary = document.createElement("p");
     summary.className = "job-error-summary";
     summary.textContent = parts.summary || (job.status === "cancelled" ? "任務已取消" : "轉換失敗");
     wrap.appendChild(summary);
-    if (parts.suggestion) {
+    const hint = job.errorHint || parts.suggestion;
+    if (hint) {
       const tip = document.createElement("p");
       tip.className = "job-error-suggestion";
-      tip.textContent = `建議：${parts.suggestion}`;
+      tip.textContent = `建議：${hint}`;
       wrap.appendChild(tip);
     } else if (job.status === "failed") {
       const tip = document.createElement("p");
@@ -4475,6 +4692,42 @@
       await backendFetch(`/jobs/${encodeURIComponent(jobId)}`, { method: "DELETE" });
       await refreshBackendJobs();
       showToast("任務已刪除", "success");
+    } catch (error) {
+      showToast(readableError(error), "error");
+    }
+  }
+
+  async function retryBackendJob(jobId) {
+    try {
+      await backendFetch(`/jobs/${encodeURIComponent(jobId)}/retry`, { method: "POST" });
+      await refreshBackendJobs();
+      showToast("已重新排隊執行", "success");
+    } catch (error) {
+      showToast(readableError(error), "error");
+    }
+  }
+
+  async function copyBackendJob(jobId) {
+    try {
+      await backendFetch(`/jobs/${encodeURIComponent(jobId)}/copy`, { method: "POST" });
+      await refreshBackendJobs();
+      showToast("已複製為新任務", "success");
+    } catch (error) {
+      showToast(readableError(error), "error");
+    }
+  }
+
+  async function exportJobDiagnostic(jobId) {
+    try {
+      const report = await backendFetch(`/jobs/${encodeURIComponent(jobId)}/diagnostic`, { method: "GET" });
+      const blob = new Blob([JSON.stringify(report, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `swiftlocal-diagnostic-${jobId}.json`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+      showToast("已匯出診斷報告（不含密碼）", "success");
     } catch (error) {
       showToast(readableError(error), "error");
     }
@@ -4564,6 +4817,27 @@
       const cancelled = await window.swiftLocalBackend.cancelJob(decodeURIComponent(cancelMatch[1]));
       if (!cancelled) throw new Error("Job not found");
       return cancelled;
+    }
+    const retryMatch = path.match(/^\/jobs\/([^/]+)\/retry$/);
+    if (retryMatch && method === "POST") {
+      const retried = await window.swiftLocalBackend.retryJob(decodeURIComponent(retryMatch[1]));
+      if (!retried) throw new Error("Job not found");
+      return retried;
+    }
+    const copyMatch = path.match(/^\/jobs\/([^/]+)\/copy$/);
+    if (copyMatch && method === "POST") {
+      const copied = await window.swiftLocalBackend.copyJob(decodeURIComponent(copyMatch[1]));
+      if (!copied) throw new Error("Job not found");
+      return copied;
+    }
+    const diagMatch = path.match(/^\/jobs\/([^/]+)\/diagnostic$/);
+    if (diagMatch && method === "GET") {
+      return window.swiftLocalBackend.jobDiagnostic(decodeURIComponent(diagMatch[1]));
+    }
+    if (path.startsWith("/jobs/cleanup") && method === "POST") {
+      const url = new URL(path, "http://swiftlocal.local");
+      const forceFinished = url.searchParams.get("forceFinished") === "true";
+      return window.swiftLocalBackend.cleanupJobs({ forceFinished });
     }
     if (path === "/convert-text" && method === "POST") {
       const body = typeof options.body === "string" ? JSON.parse(options.body || "{}") : options.body || {};
@@ -4908,9 +5182,75 @@
     if (bytes === 0) {
       return "0 B";
     }
+    if (bytes == null || Number.isNaN(Number(bytes))) {
+      return "—";
+    }
     const units = ["B", "KB", "MB", "GB"];
-    const index = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
-    return `${(bytes / 1024 ** index).toFixed(index === 0 ? 0 : 1)} ${units[index]}`;
+    const value = Math.max(0, Number(bytes));
+    const index = Math.min(Math.floor(Math.log(value || 1) / Math.log(1024)), units.length - 1);
+    return `${(value / 1024 ** index).toFixed(index === 0 ? 0 : 1)} ${units[index]}`;
+  }
+
+  function formatJobInputLabel(item) {
+    if (!item || typeof item !== "object") {
+      return escapeHtml(item);
+    }
+    const name = escapeHtml(item.name || "");
+    if (item.missing) {
+      return `${name} <em class="job-file-missing">（已不存在）</em>`;
+    }
+    if (item.size == null) {
+      return name;
+    }
+    return `${name} · ${escapeHtml(formatBytes(item.size))}`;
+  }
+
+  function formatJobSpaceSummary(job) {
+    const space = (job && job.space) || {};
+    const inputBytes = Number(space.inputBytes);
+    const outputBytes = Number(space.outputBytes);
+    const inputCount = Number(space.inputCount != null ? space.inputCount : (job.inputPaths || []).length) || 0;
+    const outputCount = Number(space.outputCount != null ? space.outputCount : (job.outputPaths || []).length) || 0;
+    const inputMissing = Number(space.inputMissing) || 0;
+
+    // Fallback: sum output path sizes when space payload is absent (older backends).
+    let resolvedOutput = Number.isFinite(outputBytes) ? outputBytes : 0;
+    if (!Number.isFinite(outputBytes) && Array.isArray(job.outputPaths)) {
+      resolvedOutput = job.outputPaths.reduce((sum, item) => sum + (Number(item && item.size) || 0), 0);
+    }
+    const hasInput = Number.isFinite(inputBytes);
+    const hasOutput = Number.isFinite(resolvedOutput) && (outputCount > 0 || resolvedOutput > 0);
+
+    const parts = [];
+    if (hasInput) {
+      parts.push(`輸入 ${formatBytes(inputBytes)}${inputCount ? `（${inputCount} 個）` : ""}`);
+    } else if (inputCount) {
+      parts.push(`輸入 ${inputCount} 個檔案`);
+    }
+    if (inputMissing) {
+      parts.push(`${inputMissing} 個輸入已不存在`);
+    }
+    if (hasOutput) {
+      parts.push(`輸出 ${formatBytes(resolvedOutput)}${outputCount ? `（${outputCount} 個）` : ""}`);
+    } else if (job.status === "done") {
+      parts.push("輸出 —");
+    } else {
+      parts.push("輸出尚未產生");
+    }
+
+    const savedBytes = space.savedBytes;
+    const savedPercent = space.savedPercent;
+    if (savedBytes != null && Number.isFinite(Number(savedBytes)) && hasInput && hasOutput) {
+      const saved = Number(savedBytes);
+      if (saved > 0) {
+        parts.push(`節省 ${formatBytes(saved)}${savedPercent != null ? `（${savedPercent}%）` : ""}`);
+      } else if (saved < 0) {
+        parts.push(`增大 ${formatBytes(Math.abs(saved))}${savedPercent != null ? `（${Math.abs(savedPercent)}%）` : ""}`);
+      } else {
+        parts.push("大小未變");
+      }
+    }
+    return `空間：${parts.join(" · ")}`;
   }
 
   function escapeHtml(value) {

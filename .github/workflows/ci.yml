@@ -46,14 +46,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r backend/requirements.txt
 
+      - name: Syntax-check (typecheck)
+        run: npm run typecheck
+
+      - name: Release metadata (version / pins / artifact names)
+        run: npm run check:ci
+
       - name: Run unit tests
         run: npm test
-
-      - name: Syntax-check main desktop modules
-        run: |
-          node --check desktop/backend.js
-          node --check desktop/main.js
-          node --check desktop/preload.js
-          node --check desktop/security.js
-          node --check frontend/app.js
-          node --check scripts/serve.js

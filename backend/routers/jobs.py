@@ -1,4 +1,4 @@
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
 
 from ..services.job_service import job_service
@@ -60,6 +60,12 @@ async def list_jobs():
     return job_service.list_jobs()
 
 
+@router.post("/jobs/cleanup")
+async def cleanup_jobs(forceFinished: bool = Query(False, alias="forceFinished")):
+    """Auto-prune old finished jobs and orphan workdirs under backend/temp/jobs."""
+    return job_service.prune_jobs(force_finished=forceFinished)
+
+
 @router.get("/jobs/{job_id}")
 async def get_job(job_id: str):
     job = job_service.get_job(job_id)
@@ -85,6 +91,36 @@ async def cancel_job(job_id: str):
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     return job
+
+
+@router.post("/jobs/{job_id}/retry")
+async def retry_job(job_id: str):
+    try:
+        job = await job_service.retry_job(job_id)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return job
+
+
+@router.post("/jobs/{job_id}/copy")
+async def copy_job(job_id: str):
+    try:
+        job = await job_service.copy_job(job_id)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return job
+
+
+@router.get("/jobs/{job_id}/diagnostic")
+async def job_diagnostic(job_id: str):
+    job = job_service.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return await job_service.diagnostic_report(job_id)
 
 
 @router.delete("/jobs/{job_id}")
