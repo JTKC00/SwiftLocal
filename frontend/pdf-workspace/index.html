@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' blob: data:; connect-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'">
+  <title>PDF 工作區 · 快轉通 SwiftLocal</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="pdf-workspace-standalone">
+  <div class="pdf-ws-standalone-frame">
+    <header class="pdf-ws-standalone-header">
+      <div>
+        <h1>PDF 工作區</h1>
+        <p id="pdf-workspace-boot-status">本機優先 · PDF.js 閱讀核心 · 可設為系統 PDF 開啟程式</p>
+      </div>
+      <div class="pdf-ws-standalone-actions">
+        <button id="pdf-workspace-set-default" class="pdf-ws-btn" type="button">設為 PDF 開啟程式…</button>
+        <button id="pdf-workspace-back-toolbox" class="pdf-ws-btn" type="button">開啟工具箱</button>
+      </div>
+    </header>
+    <div id="pdf-workspace-host"></div>
+  </div>
+  <script src="../vendor/pdf-lib.min.js"></script>
+  <script src="../shared/settings.js"></script>
+  <script src="../shared/error-handling.js"></script>
+  <script src="../shared/recent-files.js"></script>
+  <script src="../shared/file-dialogs.js"></script>
+  <script src="../shared/index.js"></script>
+  <script src="../pdf-core/viewer.js"></script>
+  <script src="../pdf-core/forms.js"></script>
+  <script src="../pdf-core/annotations.js"></script>
+  <script src="../pdf-core/save.js"></script>
+  <script src="../pdf-core/print.js"></script>
+  <script src="../pdf-core/compatibility.js"></script>
+  <script src="../pdf-core/pages.js"></script>
+  <script src="../pdf-core/index.js"></script>
+  <script src="shell.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

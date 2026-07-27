@@ -440,11 +440,16 @@ class JobService:
             return self.public_job(job)
         if job.status == "running":
             job.cancel_requested = True
-            request_cancel(job.id)
-            job.log.append(
-                "取消請求已送出：外部工具（FFmpeg／LibreOffice／Tesseract 等）會盡快中止；"
-                "本機純處理步驟需等目前段落結束。"
-            )
+            killed = request_cancel(job.id)
+            if killed:
+                job.log.append(
+                    "取消請求已送出：已中止外部工具程序；任務將盡快結束。"
+                )
+            else:
+                job.log.append(
+                    "取消請求已送出：外部工具會立即中止；"
+                    "本機處理會在目前頁面／檔案步驟完成後停止。"
+                )
             self._save_jobs_state()
             return self.public_job(job)
         raise ValueError("只能取消排隊中或執行中的任務")
@@ -708,6 +713,8 @@ class JobService:
             "errorCodeLabel": error_code_label(job.error_code) if job.error_code else "",
             "errorHint": job.error_hint or "",
             "retriable": job.retriable is not False,
+            # True while running after user asked to cancel (UI can show「取消中」).
+            "cancelRequested": bool(job.cancel_requested and job.status == "running"),
         }
 
     def _public_output(self, job: Job, output_path: Path) -> dict[str, str | int]:

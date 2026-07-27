@@ -320,6 +320,48 @@ PDF 工作區不應直接依賴 SwiftLocal 主畫面的具體 UI。
 - 現有 PDF 批次功能修正
 - 為 PDF 工作區預留路由及模組結構
 
+#### Scaffold 現況（已落地）
+
+| 項目 | 路徑／說明 |
+| --- | --- |
+| 共用工具 | `frontend/shared/`（settings、recent-files、file-dialogs、error-handling） |
+| PDF 核心佔位 | `frontend/pdf-core/`（viewer / forms / annotations / save / print / compatibility） |
+| 工作區 UI shell | `frontend/pdf-workspace/`（獨立 `index.html` + `shell.js`） |
+| 工具箱入口 | 側欄「PDF 工作區」→ `#pdf-reader-panel`（**不是** `#pdf-workspace` 頁面編輯器） |
+| 桌面視窗 | `desktop/pdf-window.js`；選單「開啟 PDF 工作區」；IPC `pdf-workspace:open` |
+| 檔案關聯 | `fileAssociations`（安裝版）+ `file-associations.js`（argv／open-file／設定入口） |
+| 安全 | `buildTrustedRendererUrls` 允許 toolbox + workspace 兩個 HTML |
+
+**命名提醒**：既有 `id="pdf-workspace"` 是 PDF **頁面工作台**（合併／排序頁）；閱讀器工作區請用 `pdf-reader-panel` / `frontend/pdf-workspace/`。
+
+#### 閱讀核心現況（PDF.js，已落地）
+
+| 功能 | 狀態 |
+| --- | --- |
+| 開啟本機 PDF／拖放 | 已做（browser File 或桌面 `readLocalFile`） |
+| 記憶體工作階段、關閉釋放 | 已做（`viewer.closeSession`） |
+| 頁面縮圖 | 已做（漸進渲染） |
+| 上一頁／下一頁／頁碼跳轉 | 已做 |
+| 縮放、適合頁面／寬度 | 已做 |
+| 順時針旋轉**檢視** | 已做（不寫回檔案） |
+| 全文搜尋 | 已做（結果列表 + 頁面 span 粗標示） |
+| 複製可選取文字 | 已做（PDF.js TextLayer；工具列複製／Ctrl+C） |
+| 列印 | 已做（blob iframe） |
+| 旋轉並儲存 | 已做（目前頁永久旋轉 + 儲存／另存） |
+| 加密 PDF 密碼開啟 | 已做（對話框；密碼不落盤） |
+| 最近開啟 | 已做 |
+| 加密／XFA 粗檢提示 | 已做 |
+| Windows／macOS 開啟方式 | 已做（安裝版註冊；預設需使用者在系統設定指定） |
+| 雙擊 PDF 進工作區 | 已做（單一實例轉發） |
+| AcroForm 填表 | 已做（文字／核取／單選／下拉；儲存寫回） |
+| 簽名圖／日期章 | 已做（本機簽名庫、放置／拖曳、儲存寫入） |
+| 頁面整理 | 已做（拖放排序、刪／複製／空白／插入／匯出） |
+| 多分頁 | 已做（標籤列、獨立 dirty、＋分頁開啟） |
+
+### SwiftLocal 0.4.x（閱讀原型延伸）
+
+在已有閱讀核心上可再補：文字層選取、密碼提示輸入、大型文件虛擬化縮圖、鍵盤快捷鍵完整說明。
+
 ### SwiftLocal 0.4.x
 
 建立 PDF 工作區技術原型。

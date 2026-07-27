@@ -20,7 +20,28 @@ function normalizedDocumentUrl(value) {
 }
 
 function isTrustedRendererUrl(value, trustedUrl) {
-  return Boolean(normalizedDocumentUrl(value)) && normalizedDocumentUrl(value) === normalizedDocumentUrl(trustedUrl);
+  const normalized = normalizedDocumentUrl(value);
+  if (!normalized) return false;
+  // Accept a single trusted URL or a list of app-owned documents (toolbox + PDF workspace).
+  if (Array.isArray(trustedUrl)) {
+    return trustedUrl.some((entry) => normalized === normalizedDocumentUrl(entry));
+  }
+  return normalized === normalizedDocumentUrl(trustedUrl);
+}
+
+/**
+ * Build the allow-list of renderer documents under frontend/.
+ * @param {string} frontendDir absolute path to frontend directory
+ * @returns {string[]} file:// URLs
+ */
+function buildTrustedRendererUrls(frontendDir) {
+  const { pathToFileURL } = require("node:url");
+  const path = require("node:path");
+  const dir = String(frontendDir || "");
+  return [
+    pathToFileURL(path.join(dir, "index.html")).href,
+    pathToFileURL(path.join(dir, "pdf-workspace", "index.html")).href
+  ];
 }
 
 function isAllowedExternalUrl(value) {
@@ -47,5 +68,6 @@ module.exports = {
   assertTrustedIpcSender,
   isAllowedExternalUrl,
   isTrustedRendererUrl,
-  normalizedDocumentUrl
+  normalizedDocumentUrl,
+  buildTrustedRendererUrls
 };

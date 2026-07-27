@@ -2,6 +2,12 @@
 
 const { contextBridge, ipcRenderer, webUtils } = require("electron");
 
+// Buffer open-path events that fire before the workspace page subscribes.
+let pendingOpenPath = "";
+ipcRenderer.on("pdf-workspace:open-path", (_event, filePath) => {
+  pendingOpenPath = filePath ? String(filePath) : "";
+});
+
 contextBridge.exposeInMainWorld("swiftLocalBackend", {
   isAvailable: true,
   detectTools: () => ipcRenderer.invoke("backend:detect-tools"),
@@ -25,5 +31,28 @@ contextBridge.exposeInMainWorld("swiftLocalBackend", {
     const handler = (_event, jobs) => callback(jobs);
     ipcRenderer.on("backend:jobs-updated", handler);
     return () => ipcRenderer.removeListener("backend:jobs-updated", handler);
-  }
+  },
+  openPdfWorkspace: (filePath) => ipcRenderer.invoke("pdf-workspace:open", filePath || ""),
+  openPdfFiles: (filePaths) => ipcRenderer.invoke("pdf-workspace:open-files", filePaths || []),
+  getPdfAssociationStatus: () => ipcRenderer.invoke("pdf-workspace:association-status"),
+  openPdfAssociationSettings: () => ipcRenderer.invoke("pdf-workspace:open-association-settings"),
+  openToolbox: () => ipcRenderer.invoke("app:open-toolbox"),
+  readLocalFile: (filePath) => ipcRenderer.invoke("pdf-workspace:read-file", filePath),
+  chooseSavePath: (options) => ipcRenderer.invoke("pdf-workspace:choose-save-path", options || {}),
+  writeLocalFile: (filePath, data) => ipcRenderer.invoke("pdf-workspace:write-file", filePath, data),
+  sanitizePdf: (data) => ipcRenderer.invoke("pdf-workspace:sanitize-pdf", data),
+  onPdfWorkspaceOpenPath: (callback) => {
+    const handler = (_event, filePath) => callback(filePath);
+    ipcRenderer.on("pdf-workspace:open-path", handler);
+    // Deliver any path that arrived before the listener was attached.
+    if (pendingOpenPath) {
+      try {
+        callback(pendingOpenPath);
+      } catch {
+        // ignore
+      }
+    }
+    return () => ipcRenderer.removeListener("pdf-workspace:open-path", handler);
+  },
+  getPendingPdfOpenPath: () => pendingOpenPath
 });

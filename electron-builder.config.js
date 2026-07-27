@@ -37,6 +37,19 @@ module.exports = {
       ]
     }
   ],
+  // Register as a PDF viewer in “Open with” (installer / mac .app).
+  // Does not force system default — user chooses in OS settings.
+  fileAssociations: [
+    {
+      ext: "pdf",
+      name: "PDF",
+      description: "PDF Document — 快轉通 SwiftLocal",
+      mimeType: "application/pdf",
+      role: "Viewer",
+      // macOS: Alternate so we appear as a viewer without replacing Preview by default.
+      rank: "Alternate"
+    }
+  ],
   win: {
     icon: "build/icon.ico",
     target: [
@@ -77,7 +90,9 @@ module.exports = {
     createStartMenuShortcut: true,
     shortcutName: "快轉通 SwiftLocal",
     uninstallDisplayName: "快轉通 SwiftLocal",
-    runAfterFinish: true
+    runAfterFinish: true,
+    // Ensure file association keys are written for the installing user.
+    menuCategory: false
   },
   dmg: {
     artifactName: "SwiftLocal-${version}-mac-${arch}.${ext}"

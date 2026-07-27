@@ -470,16 +470,20 @@ class BackendService {
     }
     if (job.status === "running") {
       job.cancelRequested = true;
-      job.log.push(
-        "取消請求已送出：外部工具（FFmpeg／LibreOffice／Tesseract 等）會盡快中止；本機純處理步驟需等目前段落結束。"
-      );
+      let killed = false;
       if (job._child && !job._child.killed) {
         try {
           job._child.kill();
+          killed = true;
         } catch {
           // ignore kill races
         }
       }
+      job.log.push(
+        killed
+          ? "取消請求已送出：已中止外部工具程序；任務將盡快結束。"
+          : "取消請求已送出：外部工具會立即中止；本機處理會在目前頁面／檔案步驟完成後停止。"
+      );
       this.emitJobs();
       return publicJob(job);
     }
@@ -631,8 +635,9 @@ class BackendService {
   async runPdfToDocx(job) {
     ensureOutputDir(job.outputDir);
     for (const inputPath of job.inputPaths) {
+      ensureJobNotCancelled(job);
       const outputPath = nextAvailablePath(path.join(job.outputDir, `${path.parse(inputPath).name}.docx`));
-      const text = await extractPdfText(inputPath);
+      const text = await extractPdfText(inputPath, job);
       writeTextDocx(outputPath, text || path.basename(inputPath));
       ensureOutputFile(outputPath, inputPath);
       job.outputPaths.push(outputPath);
@@ -755,13 +760,23 @@ class BackendService {
     if (!job.inputPaths.length) {
       throw new Error("PDF merge requires at least one input file");
     }
+    ensureJobNotCancelled(job);
     const outputPath = nextAvailablePath(path.join(job.outputDir, "merged.pdf"));
     const output = await PDFDocument.create();
     for (const inputPath of job.inputPaths) {
+      ensureJobNotCancelled(job);
       const input = await loadPdf(inputPath);
-      const copiedPages = await output.copyPages(input, input.getPageIndices());
-      copiedPages.forEach((page) => output.addPage(page));
+      const pageIndexes = input.getPageIndices();
+      // Copy in chunks so cancel can land between page batches on large PDFs.
+      const chunkSize = 16;
+      for (let offset = 0; offset < pageIndexes.length; offset += chunkSize) {
+        ensureJobNotCancelled(job);
+        const chunk = pageIndexes.slice(offset, offset + chunkSize);
+        const copiedPages = await output.copyPages(input, chunk);
+        copiedPages.forEach((page) => output.addPage(page));
+      }
     }
+    ensureJobNotCancelled(job);
     await savePdf(output, outputPath);
     ensureOutputFile(outputPath, job.inputPaths[0]);
     job.outputPaths.push(outputPath);
@@ -773,6 +788,7 @@ class BackendService {
     if (job.inputPaths.length !== 1) {
       throw new Error("PDF split requires exactly one input file");
     }
+    ensureJobNotCancelled(job);
     const inputPath = job.inputPaths[0];
     const input = await loadPdf(inputPath);
     if (!String(job.options.pages || "").trim()) {
@@ -783,6 +799,7 @@ class BackendService {
       throw new Error("No valid page ranges provided (example: 1-3,5,7-9)");
     }
     for (let i = 0; i < ranges.length; i += 1) {
+      ensureJobNotCancelled(job);
       const indexes = ranges[i];
       const output = await PDFDocument.create();
       const pages = await output.copyPages(input, indexes);
@@ -800,13 +817,19 @@ class BackendService {
     ensureOutputDir(job.outputDir);
     const angle = sanitizeRotation(job.options.angle || "90");
     for (const inputPath of job.inputPaths) {
+      ensureJobNotCancelled(job);
       const input = await loadPdf(inputPath);
       const indexes = flattenPageRanges(parsePageRanges(job.options.pages || "", input.getPageCount()));
-      indexes.forEach((index) => {
+      for (let i = 0; i < indexes.length; i += 1) {
+        if (i % 8 === 0) {
+          ensureJobNotCancelled(job);
+        }
+        const index = indexes[i];
         const page = input.getPage(index);
         const current = page.getRotation().angle || 0;
         page.setRotation(degrees((current + angle) % 360));
-      });
+      }
+      ensureJobNotCancelled(job);
       const outputPath = nextAvailablePath(path.join(job.outputDir, `${path.parse(inputPath).name}_rotated.pdf`));
       await savePdf(input, outputPath);
       ensureOutputFile(outputPath, inputPath);
@@ -1773,7 +1796,10 @@ async function savePdf(pdfDoc, outputPath) {
   fs.writeFileSync(outputPath, bytes);
 }
 
-async function extractPdfText(inputPath) {
+async function extractPdfText(inputPath, job = null) {
+  if (job) {
+    ensureJobNotCancelled(job);
+  }
   const name = path.basename(inputPath);
   const data = new Uint8Array(fs.readFileSync(inputPath));
   if (pdfBytesLookEncrypted(data)) {
@@ -1800,6 +1826,9 @@ async function extractPdfText(inputPath) {
   const pages = [];
   try {
     for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+      if (job) {
+        ensureJobNotCancelled(job);
+      }
       const page = await pdf.getPage(pageNumber);
       const content = await page.getTextContent();
       const lines = textItemsToLines(content.items);
@@ -1843,7 +1872,7 @@ async function writeDocxWithScanStrategy(service, job, inputPath, scanOcr, ocrOu
   if (outMode === "pdf" || outMode === "searchable-pdf") outMode = "searchable";
   if (!["both", "searchable", "docx"].includes(outMode)) outMode = "both";
 
-  const text = await extractPdfText(inputPath);
+  const text = await extractPdfText(inputPath, job);
   const lowText = !String(text || "").trim() || String(text).trim().length < 40;
   const force = mode === "force" || mode === "on" || mode === "true" || mode === "1" || outMode === "searchable";
   const off = mode === "off" || mode === "false" || mode === "0" || mode === "never";
@@ -2376,7 +2405,9 @@ function publicJob(job) {
     errorCode: job.errorCode || "",
     errorCodeLabel: job.errorCode ? errorCodeLabel(job.errorCode) : "",
     errorHint: job.errorHint || "",
-    retriable: job.retriable !== false
+    retriable: job.retriable !== false,
+    // True while running after user asked to cancel (UI can show「取消中」).
+    cancelRequested: Boolean(job.cancelRequested && job.status === "running")
   };
 }
 

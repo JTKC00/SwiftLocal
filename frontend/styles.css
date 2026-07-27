@@ -1815,6 +1815,11 @@ td.code-cell {
   background: #fffaf0;
 }
 
+.backend-job.running.cancelling {
+  border-color: #c9a066;
+  background: #fff4e5;
+}
+
 .backend-job.done {
   border-color: #9fcab7;
   background: #eff8f3;

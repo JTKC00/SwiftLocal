@@ -47,6 +47,7 @@
     "presets-panel": "常用預設",
     "image-panel": "圖片轉換",
     "pdf-panel": "PDF 處理",
+    "pdf-reader-panel": "PDF 工作區",
     "data-panel": "資料格式",
     "text-panel": "文字編碼",
     "hash-panel": "檔案雜湊",
@@ -66,6 +67,7 @@
     "presets-panel": "常用預設",
     "image-panel": "圖片轉換",
     "pdf-panel": "PDF 處理",
+    "pdf-reader-panel": "PDF 工作區",
     "data-panel": "資料轉換",
     "text-panel": "文字處理",
     "hash-panel": "檔案驗證",
@@ -84,7 +86,8 @@
     "workflow-panel": { nav: "流程", hint: "把多個進階處理步驟串連；失敗可從未完成步驟繼續。", steps: ["選擇範本及來源檔案", "調整步驟和選項", "啟動後在右側追蹤；失敗可繼續"], keywords: "workflow pipeline automation 流程 串連 自動 接力 重試 繼續", platform: "desktop" },
     "presets-panel": { nav: "常用預設", hint: "一按套用常見組合，或保存目前工具的安全選項。", steps: [], keywords: "preset favorite 常用 預設 設定 快捷", platform: "web" },
     "image-panel": { nav: "圖片", hint: "轉 JPG / PNG / WebP、壓縮、縮放、加浮水印。", steps: ["選擇或拖放圖片", "保留預設或調整格式、品質、尺寸", "按「開始轉換」，在右邊下載結果"], keywords: "image 圖片 相片 jpg jpeg png webp 壓縮 縮小 浮水印 旋轉" },
-    "pdf-panel": { nav: "PDF", hint: "逐頁視覺編排、轉換、OCR、壓縮及保護 PDF。", steps: ["選擇 PDF 工作台或其他處理方式", "在工作台拖放頁面，並旋轉、複製或刪除", "輸出新 PDF，或在任務區查看後端進度"], keywords: "pdf 工作台 縮圖 排序 合併 分割 抽頁 旋轉 頁碼 浮水印 壓縮 加密 解密 ocr office word docx" },
+    "pdf-panel": { nav: "PDF 工具", hint: "逐頁視覺編排、轉換、OCR、壓縮及保護 PDF。", steps: ["選擇頁面工作台或其他處理方式", "在工作台拖放頁面，並旋轉、複製或刪除", "輸出新 PDF，或在任務區查看後端進度"], keywords: "pdf 工作台 縮圖 排序 合併 分割 抽頁 旋轉 頁碼 浮水印 壓縮 加密 解密 ocr office word docx" },
+    "pdf-reader-panel": { nav: "PDF 工作區", hint: "本機 PDF 閱讀、AcroForm 填表、簽名圖與日期章；關閉不鎖檔。", steps: ["開啟 PDF", "填表或放置簽名／日期", "儲存或另存"], keywords: "pdf reader 工作區 閱讀 填表 簽名 日期章 acroform 本機", platform: "web" },
     "data-panel": { nav: "資料", hint: "JSON、CSV、XML 互轉與格式化。", steps: ["貼上資料內容", "選擇想轉成的格式", "按「執行」，再複製或下載輸出"], keywords: "json csv xml 資料 表格 格式化 壓縮" },
     "text-panel": { nav: "文字", hint: "Base64、URL、HTML 編碼，以及搜尋取代。", steps: ["貼上文字", "選擇處理方式", "按「執行」，再複製結果"], keywords: "文字 text base64 url html encode decode 搜尋 取代 繁簡" },
     "hash-panel": { nav: "驗證", hint: "產生檔案雜湊值，用來確認檔案沒有被改動。", steps: ["選擇檔案", "選擇雜湊演算法", "按「開始計算」，需要時下載 CSV"], keywords: "hash sha md5 雜湊 校驗 驗證 checksum" },
@@ -124,6 +127,8 @@
   const pdfWorkspacePreviewCache = new Map();
   const PDF_WORKSPACE_MAX_PAGES = 250;
   const PDF_WORKSPACE_PREVIEW_CACHE_SIZE = 12;
+  /** @type {{ destroy: Function }|null} Reader workspace shell (not the page-edit grid). */
+  let pdfReaderShell = null;
 
   function init() {
     initTheme();
@@ -135,6 +140,7 @@
     updateRuntimeLabels();
     bindImageTool();
     bindPdfTool();
+    bindPdfReaderPanel();
     bindDataTool();
     bindTextTool();
     bindHashTool();
@@ -577,6 +583,53 @@
     });
   }
 
+  function bindPdfReaderPanel() {
+    const openWindowBtn = $("#pdf-reader-open-window");
+    if (openWindowBtn) {
+      const canOpenWindow = electronBridgeAvailable()
+        && window.swiftLocalBackend
+        && typeof window.swiftLocalBackend.openPdfWorkspace === "function";
+      openWindowBtn.hidden = !canOpenWindow;
+      openWindowBtn.addEventListener("click", async () => {
+        try {
+          await window.swiftLocalBackend.openPdfWorkspace("");
+          showToast("已開啟獨立 PDF 工作區視窗", "success");
+        } catch (error) {
+          showToast(readableError(error), "error");
+        }
+      });
+    }
+    const setDefaultBtn = $("#pdf-reader-set-default");
+    if (setDefaultBtn) {
+      const canSetDefault = electronBridgeAvailable()
+        && window.swiftLocalBackend
+        && typeof window.swiftLocalBackend.openPdfAssociationSettings === "function";
+      setDefaultBtn.hidden = !canSetDefault;
+      setDefaultBtn.addEventListener("click", async () => {
+        try {
+          const result = await window.swiftLocalBackend.openPdfAssociationSettings();
+          showToast((result && result.message) || "已開啟系統設定", result && result.ok === false ? "error" : "info", 7000);
+        } catch (error) {
+          showToast(readableError(error), "error");
+        }
+      });
+    }
+  }
+
+  function ensurePdfReaderShell() {
+    if (pdfReaderShell) return pdfReaderShell;
+    const host = $("#pdf-reader-host");
+    if (!host) return null;
+    if (!window.SwiftLocalPdfWorkspace || typeof window.SwiftLocalPdfWorkspace.mountPdfWorkspace !== "function") {
+      host.innerHTML = "<p class=\"panel-lead\">PDF 工作區模組尚未載入。</p>";
+      return null;
+    }
+    pdfReaderShell = window.SwiftLocalPdfWorkspace.mountPdfWorkspace(host, {
+      embedded: true
+    });
+    return pdfReaderShell;
+  }
+
   function activatePanel(panelId, focusSelector, moveFocus = true) {
     if (!panelId) return;
     if (presetPanelMeta(panelId)) state.lastPresetPanel = panelId;
@@ -600,10 +653,11 @@
     });
     $("#panel-title").textContent = titles[panelId] || "SwiftLocal";
     const clearButton = $("#clear-all");
-    if (clearButton) clearButton.hidden = panelId === "home-panel" || panelId === "tasks-panel" || panelId === "workflow-panel" || panelId === "presets-panel";
+    if (clearButton) clearButton.hidden = panelId === "home-panel" || panelId === "tasks-panel" || panelId === "workflow-panel" || panelId === "presets-panel" || panelId === "pdf-reader-panel";
     updatePanelAssist(panelId);
     closeMobileNavigation();
     if (panelId === "tasks-panel" && state.backendConnected) refreshBackendJobs();
+    if (panelId === "pdf-reader-panel") ensurePdfReaderShell();
     const target = focusSelector ? $(focusSelector) : null;
     if (target) target.focus({ preventScroll: true });
     else if (moveFocus) {
@@ -4363,7 +4417,7 @@
         || (state.taskFilter === "active" && (job.status === "queued" || job.status === "running"))
         || (state.taskFilter === "done" && job.status === "done")
         || (state.taskFilter === "attention" && (job.status === "failed" || job.status === "cancelled"));
-      const haystack = [jobTypeLabel(job.type), jobStatusLabel(job.status), ...(job.inputPaths || [])].join(" ").toLowerCase();
+      const haystack = [jobTypeLabel(job.type), jobStatusLabel(job.status, job), ...(job.inputPaths || [])].join(" ").toLowerCase();
       return statusMatches && (!query || haystack.includes(query));
     });
 
@@ -4473,14 +4527,18 @@
 
   function buildJobElement(job) {
     const div = document.createElement("div");
-    div.className = `backend-job ${escapeHtml(job.status)}`;
+    div.className = `backend-job ${escapeHtml(job.status)}${
+      job.cancelRequested && job.status === "running" ? " cancelling" : ""
+    }`;
 
     const header = document.createElement("div");
     const title = document.createElement("strong");
     title.textContent = jobTypeLabel(job.type);
     const statusSpan = document.createElement("span");
-    statusSpan.textContent = jobStatusLabel(job.status);
-    statusSpan.title = job.status;
+    statusSpan.textContent = jobStatusLabel(job.status, job);
+    statusSpan.title = job.cancelRequested && job.status === "running"
+      ? "取消中"
+      : job.status;
 
     const headerRight = document.createElement("div");
     headerRight.style.display = "flex";
@@ -4492,8 +4550,13 @@
       const cancelBtn = document.createElement("button");
       cancelBtn.className = "secondary-button compact danger-button";
       cancelBtn.type = "button";
-      cancelBtn.textContent = "取消";
-      cancelBtn.addEventListener("click", () => cancelBackendJob(job.id));
+      if (job.cancelRequested && job.status === "running") {
+        cancelBtn.textContent = "取消中…";
+        cancelBtn.disabled = true;
+      } else {
+        cancelBtn.textContent = "取消";
+        cancelBtn.addEventListener("click", () => cancelBackendJob(job.id));
+      }
       headerRight.appendChild(cancelBtn);
     } else if (job.status === "done" || job.status === "failed" || job.status === "cancelled") {
       if (job.status === "failed" || job.status === "cancelled") {
@@ -4681,7 +4744,7 @@
     try {
       await backendFetch(`/jobs/${encodeURIComponent(jobId)}/cancel`, { method: "POST" });
       await refreshBackendJobs();
-      showToast("已送出取消。外部工具會盡快中止；部分本機步驟可能需稍候目前工作結束。", "info", 5000);
+      showToast("已送出取消。外部工具會立即中止；本機處理會在目前頁面／檔案步驟完成後停止。", "info", 5000);
     } catch (error) {
       showToast(readableError(error), "error");
     }
@@ -4892,7 +4955,8 @@
     return file.path || "";
   }
 
-  function jobStatusLabel(status) {
+  function jobStatusLabel(status, job) {
+    if (status === "running" && job && job.cancelRequested) return "取消中…";
     if (status === "queued") return "排隊中";
     if (status === "running") return "處理中";
     if (status === "done") return "已完成";

@@ -756,6 +756,8 @@ class JobCancelTests(unittest.IsolatedAsyncioTestCase):
         assert public is not None
         self.assertTrue(fake.cancel_requested)
         self.assertTrue(cs._cancel_requested.get("run1"))
+        self.assertTrue(public.get("cancelRequested"))
+        self.assertTrue(any("取消請求" in line for line in fake.log))
 
     async def test_delete_running_rejected(self) -> None:
         from backend.services.job_service import Job
@@ -820,10 +822,64 @@ class JobCancelledProcessTests(unittest.TestCase):
         cs.begin_job("x")
         try:
             cs.request_cancel("x")
+            self.assertTrue(cs.is_cancel_requested())
             with self.assertRaises(cs.JobCancelled):
                 cs.ensure_not_cancelled()
         finally:
             cs.end_job("x")
+
+    def test_pure_pdf_ops_raise_when_cancelled(self) -> None:
+        """Pure pypdf steps must check cancel between files/pages (not only external tools)."""
+        cs.begin_job("pure-cancel")
+        try:
+            cs.request_cancel("pure-cancel")
+            with tempfile.TemporaryDirectory() as tmp:
+                src = Path(tmp) / "a.pdf"
+                _make_pdf(src, pages=4)
+                out = Path(tmp) / "out.pdf"
+                with self.assertRaises(cs.JobCancelled):
+                    cs._merge_pdfs_sync([src, src], out)
+                with self.assertRaises(cs.JobCancelled):
+                    cs._rotate_pdf_sync(src, out, 90)
+                with self.assertRaises(cs.JobCancelled):
+                    cs._compress_pdf_sync(src, out)
+                with self.assertRaises(cs.JobCancelled):
+                    cs._encrypt_pdf_sync(src, out, "secret")
+                with self.assertRaises(cs.JobCancelled):
+                    cs._split_pdf_sync(src, Path(tmp), [(1, 2), (3, 4)])
+        finally:
+            cs.end_job("pure-cancel")
+
+    def test_merge_cancels_between_input_files(self) -> None:
+        """Cancel mid-merge should stop before remaining inputs are appended."""
+        cs.begin_job("merge-mid")
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                paths = []
+                for i in range(3):
+                    path = Path(tmp) / f"p{i}.pdf"
+                    _make_pdf(path, pages=1)
+                    paths.append(path)
+                out = Path(tmp) / "merged.pdf"
+                checks = {"n": 0}
+                original = cs.ensure_not_cancelled
+
+                def flaky_ensure() -> None:
+                    checks["n"] += 1
+                    # First check (start of file 1) passes; second (file 2) cancels.
+                    if checks["n"] >= 2:
+                        cs._cancel_requested["merge-mid"] = True
+                    original()
+
+                cs.ensure_not_cancelled = flaky_ensure  # type: ignore[method-assign]
+                try:
+                    with self.assertRaises(cs.JobCancelled):
+                        cs._merge_pdfs_sync(paths, out)
+                finally:
+                    cs.ensure_not_cancelled = original  # type: ignore[method-assign]
+                self.assertFalse(out.exists())
+        finally:
+            cs.end_job("merge-mid")
 
 
 class ProcessErrorFormatterTests(unittest.TestCase):

@@ -28,6 +28,16 @@ describe("Electron renderer security", () => {
     assert.equal(isTrustedRendererUrl("file:///C:/SwiftLocal/frontend/other.html", trusted), false);
   });
 
+  test("accepts an allow-list of trusted renderer documents", () => {
+    const { buildTrustedRendererUrls } = require("../../desktop/security");
+    const frontendDir = path.resolve(__dirname, "..", "..", "frontend");
+    const list = buildTrustedRendererUrls(frontendDir);
+    assert.equal(list.length, 2);
+    assert.equal(isTrustedRendererUrl(list[0], list), true);
+    assert.equal(isTrustedRendererUrl(list[1], list), true);
+    assert.equal(isTrustedRendererUrl("file:///C:/SwiftLocal/frontend/other.html", list), false);
+  });
+
   test("opens only HTTP(S) links externally", () => {
     assert.equal(isAllowedExternalUrl("https://example.com"), true);
     assert.equal(isAllowedExternalUrl("http://example.com"), true);

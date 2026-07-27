@@ -517,7 +517,9 @@ describe("BackendService jobs", () => {
     for (let i = 0; i < 50 && backend.jobs[0].status === "queued"; i += 1) {
       await new Promise((r) => setTimeout(r, 10));
     }
-    backend.cancelJob(job.id);
+    const cancelling = backend.cancelJob(job.id);
+    assert.equal(cancelling.cancelRequested, true);
+    assert.match(String(cancelling.log.slice(-1)[0] || ""), /取消請求/);
 
     for (let i = 0; i < 100; i += 1) {
       if (backend.jobs[0].status === "cancelled") {
@@ -526,6 +528,56 @@ describe("BackendService jobs", () => {
       await new Promise((r) => setTimeout(r, 20));
     }
     assert.equal(backend.jobs[0].status, "cancelled");
+    const finished = backend.getJobs().find((item) => item.id === job.id);
+    assert.ok(finished);
+    assert.equal(finished.cancelRequested, false);
+  });
+
+  test("pure pdf ops raise JobCancelledError when cancel is already requested", async () => {
+    const backend = createTestBackend();
+    const a = path.join(outDir, "pure-cancel-a.pdf");
+    const b = path.join(outDir, "pure-cancel-b.pdf");
+    await writeBlankPdf(a, 2);
+    await writeBlankPdf(b, 2);
+    const jobOut = path.join(outDir, "pure-cancel-out");
+    fs.mkdirSync(jobOut, { recursive: true });
+
+    const base = {
+      outputDir: jobOut,
+      options: {},
+      outputPaths: [],
+      log: [],
+      cancelRequested: true
+    };
+
+    await assert.rejects(
+      () => backend.runPdfMerge({ ...base, id: "m1", type: "pdf-merge", inputPaths: [a, b] }),
+      (error) => error.name === "JobCancelledError"
+    );
+    await assert.rejects(
+      () => backend.runPdfSplit({
+        ...base,
+        id: "s1",
+        type: "pdf-split",
+        inputPaths: [a],
+        options: { pages: "1,2" }
+      }),
+      (error) => error.name === "JobCancelledError"
+    );
+    await assert.rejects(
+      () => backend.runPdfRotate({
+        ...base,
+        id: "r1",
+        type: "pdf-rotate",
+        inputPaths: [a],
+        options: { angle: "90" }
+      }),
+      (error) => error.name === "JobCancelledError"
+    );
+    await assert.rejects(
+      () => backend.runPdfCompress({ ...base, id: "c1", type: "pdf-compress", inputPaths: [a] }),
+      (error) => error.name === "JobCancelledError"
+    );
   });
 
   test("pdf-merge produces merged.pdf", async () => {

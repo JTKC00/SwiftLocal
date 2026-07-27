@@ -277,9 +277,13 @@ CI：GitHub Actions 工作流程 `.github/workflows/ci.yml` 在 `main` / `master
   - 任務結束、啟動還原、任務中心輪詢時會觸發；「清除已結束」走 `forceFinished`
 - 讀取相容 legacy 純陣列與缺 `version` 的物件；未來升版必須寫遷移（見 schema 文件）。
 
-## 待擴充（尚未做）
+## 取消行為（0.3.4+）
 
-- 取消時對純 Python 長步驟的更細粒度中斷
+- **排隊中**：立刻 `cancelled`，可重試。
+- **執行中外部工具**（FFmpeg／LibreOffice／Tesseract／QPDF）：送出 cancel 後 kill 子行程，任務盡快結束。
+- **執行中本機純處理**（pypdf 合併／分割／旋轉／壓縮／加解密、Pillow 轉圖、pdf-lib 桌面路徑、逐頁 OCR 渲染等）：在**檔案之間**與**頁面批次**檢查 `cancelRequested`，不必等整份多頁 PDF 跑完。
+- 公開任務含 `cancelRequested: true`（僅 `running` 且已請求取消時），前端顯示「取消中…」。
+- 仍可能在**單一頁面的壓縮／單次 pdf2docx.convert** 內部稍候片刻；不會卡死整段多檔佇列。
 
 ## 相關檔案速查
 

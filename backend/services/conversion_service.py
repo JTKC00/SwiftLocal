@@ -52,9 +52,19 @@ def request_cancel(job_id: str) -> bool:
     return True
 
 
-def ensure_not_cancelled() -> None:
+def is_cancel_requested() -> bool:
+    """True when the current job (if any) has a pending cancel request."""
     job_id = _current_job_id.get()
-    if job_id and _cancel_requested.get(job_id):
+    return bool(job_id and _cancel_requested.get(job_id))
+
+
+def ensure_not_cancelled() -> None:
+    """Raise JobCancelled if the active job was cancelled.
+
+    Call between files, pages, or other pure-Python steps so cancellation does
+    not wait for an entire multi-page / multi-file operation to finish.
+    """
+    if is_cancel_requested():
         raise JobCancelled("任務已取消")
 
 
@@ -434,7 +444,9 @@ def _merge_pdf_files_sync(page_pdfs: list[Path], output_path: Path) -> None:
         raise RuntimeError("合併可搜尋 PDF 需要 pypdf") from error
     writer = PdfWriter()
     for page_pdf in page_pdfs:
+        ensure_not_cancelled()
         writer.append(str(page_pdf))
+    ensure_not_cancelled()
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with open(output_path, "wb") as handle:
         writer.write(handle)
@@ -1414,9 +1426,12 @@ async def convert_image(input_paths: list[Path], output_dir: Path, extension: st
     outputs: list[Path] = []
     logs: list[str] = []
     for input_path in input_paths:
+        ensure_not_cancelled()
         output_path = next_available_path(output_dir / f"{input_path.stem}.{clean_ext}")
         try:
             await asyncio.to_thread(_convert_image_sync, input_path, output_path, pil_format)
+        except JobCancelled:
+            raise
         except Exception as error:
             raise RuntimeError(f"Image convert failed for {input_path.name}: {error}") from error
         if not output_path.exists():
@@ -1438,6 +1453,7 @@ def _convert_image_sync(input_path: Path, output_path: Path, pil_format: str) ->
 
 
 async def merge_pdfs(input_paths: list[Path], output_dir: Path) -> tuple[list[Path], list[str]]:
+    ensure_not_cancelled()
     output_path = next_available_path(output_dir / "merged.pdf")
     await asyncio.to_thread(_merge_pdfs_sync, input_paths, output_path)
     if not output_path.exists():
@@ -1478,8 +1494,10 @@ def _merge_pdfs_sync(input_paths: list[Path], output_path: Path) -> None:
         raise RuntimeError("PDF merge failed: pypdf is not installed") from error
     writer = PdfWriter()
     for input_path in input_paths:
+        ensure_not_cancelled()
         require_unencrypted_pdf(input_path)
         writer.append(str(input_path))
+    ensure_not_cancelled()
     with open(output_path, "wb") as f:
         writer.write(f)
 
@@ -1511,6 +1529,7 @@ def _parse_page_ranges(pages: str) -> list[tuple[int, int]]:
 async def split_pdf(input_paths: list[Path], output_dir: Path, pages: str) -> tuple[list[Path], list[str]]:
     if len(input_paths) != 1:
         raise ValueError("PDF split requires exactly one input file")
+    ensure_not_cancelled()
     input_path = input_paths[0]
     ranges = _parse_page_ranges(pages)
     if not ranges:
@@ -1531,8 +1550,11 @@ def _split_pdf_sync(input_path: Path, output_dir: Path, ranges: list[tuple[int, 
     outputs: list[Path] = []
     logs: list[str] = []
     for i, (start, end) in enumerate(ranges, 1):
+        ensure_not_cancelled()
         writer = PdfWriter()
         for page_num in range(start - 1, end):
+            if page_num % 8 == 0:
+                ensure_not_cancelled()
             if 0 <= page_num < total:
                 writer.add_page(reader.pages[page_num])
         if len(writer.pages) == 0:
@@ -1556,6 +1578,7 @@ async def rotate_pdf(input_paths: list[Path], output_dir: Path, angle: int) -> t
     outputs: list[Path] = []
     logs: list[str] = []
     for input_path in input_paths:
+        ensure_not_cancelled()
         output_path = next_available_path(output_dir / f"{input_path.stem}_rotated.pdf")
         await asyncio.to_thread(_rotate_pdf_sync, input_path, output_path, angle)
         if not output_path.exists():
@@ -1573,9 +1596,12 @@ def _rotate_pdf_sync(input_path: Path, output_path: Path, angle: int) -> None:
     require_unencrypted_pdf(input_path)
     reader = PdfReader(str(input_path))
     writer = PdfWriter()
-    for page in reader.pages:
+    for index, page in enumerate(reader.pages):
+        if index % 8 == 0:
+            ensure_not_cancelled()
         page.rotate(angle)
         writer.add_page(page)
+    ensure_not_cancelled()
     with open(output_path, "wb") as f:
         writer.write(f)
 
@@ -1585,9 +1611,12 @@ async def convert_pdf_to_docx(input_paths: list[Path], output_dir: Path) -> tupl
     outputs: list[Path] = []
 
     for input_path in input_paths:
+        ensure_not_cancelled()
         output_path = next_available_path(output_dir / f"{input_path.stem}.docx")
         try:
             await asyncio.to_thread(_pdf_to_docx_sync, input_path, output_path)
+        except JobCancelled:
+            raise
         except Exception as error:
             raise RuntimeError(f"PDF to DOCX failed: {error}") from error
         if not output_path.exists():
@@ -1599,11 +1628,16 @@ async def convert_pdf_to_docx(input_paths: list[Path], output_dir: Path) -> tupl
 
 
 def _pdf_to_docx_sync(input_path: Path, output_path: Path) -> None:
+    ensure_not_cancelled()
     require_unencrypted_pdf(input_path)
     from pdf2docx import Converter  # lazy import
     converter = Converter(str(input_path))
-    converter.convert(str(output_path))
-    converter.close()
+    try:
+        ensure_not_cancelled()
+        converter.convert(str(output_path))
+    finally:
+        converter.close()
+    ensure_not_cancelled()
 
 
 async def run_process(
@@ -1712,6 +1746,7 @@ async def encrypt_pdf(input_paths: list[Path], output_dir: Path, password: str) 
     outputs: list[Path] = []
     logs: list[str] = []
     for input_path in input_paths:
+        ensure_not_cancelled()
         output_path = next_available_path(output_dir / f"{input_path.stem}_encrypted.pdf")
         await asyncio.to_thread(_encrypt_pdf_sync, input_path, output_path, password)
         if not output_path.exists():
@@ -1726,12 +1761,16 @@ def _encrypt_pdf_sync(input_path: Path, output_path: Path, password: str) -> Non
         from pypdf import PdfReader, PdfWriter  # lazy import
     except ImportError as error:
         raise RuntimeError("PDF encrypt failed: pypdf is not installed") from error
+    ensure_not_cancelled()
     reader = PdfReader(str(input_path))
     if reader.is_encrypted:
         raise RuntimeError("PDF 已加密，請先解密後再重新加密")
     writer = PdfWriter()
-    for page in reader.pages:
+    for index, page in enumerate(reader.pages):
+        if index % 8 == 0:
+            ensure_not_cancelled()
         writer.add_page(page)
+    ensure_not_cancelled()
     writer.encrypt(user_password=password)
     with open(output_path, "wb") as f:
         writer.write(f)
@@ -1741,6 +1780,7 @@ async def decrypt_pdf(input_paths: list[Path], output_dir: Path, password: str) 
     outputs: list[Path] = []
     logs: list[str] = []
     for input_path in input_paths:
+        ensure_not_cancelled()
         output_path = next_available_path(output_dir / f"{input_path.stem}_decrypted.pdf")
         await asyncio.to_thread(_decrypt_pdf_sync, input_path, output_path, password)
         if not output_path.exists():
@@ -1755,14 +1795,18 @@ def _decrypt_pdf_sync(input_path: Path, output_path: Path, password: str) -> Non
         from pypdf import PdfReader, PdfWriter  # lazy import
     except ImportError as error:
         raise RuntimeError("PDF decrypt failed: pypdf is not installed") from error
+    ensure_not_cancelled()
     reader = PdfReader(str(input_path))
     if reader.is_encrypted:
         result = reader.decrypt(password)
         if not result:
             raise RuntimeError("解密失敗：密碼不正確或加密格式不支援")
     writer = PdfWriter()
-    for page in reader.pages:
+    for index, page in enumerate(reader.pages):
+        if index % 8 == 0:
+            ensure_not_cancelled()
         writer.add_page(page)
+    ensure_not_cancelled()
     with open(output_path, "wb") as f:
         writer.write(f)
 
@@ -1771,6 +1815,7 @@ async def compress_pdf(input_paths: list[Path], output_dir: Path) -> tuple[list[
     outputs: list[Path] = []
     logs: list[str] = []
     for input_path in input_paths:
+        ensure_not_cancelled()
         output_path = next_available_path(output_dir / f"{input_path.stem}_compressed.pdf")
         await asyncio.to_thread(_compress_pdf_sync, input_path, output_path)
         if not output_path.exists():
@@ -1788,8 +1833,11 @@ def _compress_pdf_sync(input_path: Path, output_path: Path) -> None:
     require_unencrypted_pdf(input_path)
     reader = PdfReader(str(input_path))
     writer = PdfWriter()
-    for page in reader.pages:
+    for index, page in enumerate(reader.pages):
+        if index % 4 == 0:
+            ensure_not_cancelled()
         page.compress_content_streams()
         writer.add_page(page)
+    ensure_not_cancelled()
     with open(output_path, "wb") as f:
         writer.write(f)
