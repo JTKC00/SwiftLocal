@@ -51,15 +51,15 @@
     "image-panel": "圖片轉換",
     "pdf-panel": "PDF 處理",
     "pdf-reader-panel": "PDF 工作區",
-    "data-panel": "資料格式",
-    "text-panel": "文字編碼",
-    "hash-panel": "檔案雜湊",
-    "zip-panel": "ZIP 壓縮",
-    "diff-panel": "文字比對",
-    "split-panel": "進階分片",
+    "data-panel": "CSV／JSON／XML 轉換",
+    "text-panel": "文字整理與繁簡轉換",
+    "hash-panel": "檔案雜湊驗證",
+    "zip-panel": "ZIP 壓縮與解壓",
+    "diff-panel": "文字差異比對",
+    "split-panel": "大型檔案分割與合併",
     "rename-panel": "批量改名",
     "media-panel": "影音轉換",
-    "tools-panel": "工具筱",
+    "tools-panel": "QR Code 與編碼工具",
     "backend-panel": "工具狀態"
   };
 
@@ -74,15 +74,15 @@
     "image-panel": "圖片轉換",
     "pdf-panel": "PDF 處理",
     "pdf-reader-panel": "PDF 工作區",
-    "data-panel": "資料轉換",
-    "text-panel": "文字處理",
-    "hash-panel": "檔案驗證",
-    "zip-panel": "ZIP 壓縮",
-    "diff-panel": "文字比對",
-    "split-panel": "進階分片",
+    "data-panel": "CSV／JSON／XML 轉換",
+    "text-panel": "文字整理與繁簡轉換",
+    "hash-panel": "檔案雜湊驗證",
+    "zip-panel": "ZIP 壓縮與解壓",
+    "diff-panel": "文字差異比對",
+    "split-panel": "大型檔案分割與合併",
     "rename-panel": "批量改名",
     "media-panel": "影音轉換",
-    "tools-panel": "常用工具",
+    "tools-panel": "QR Code 與編碼工具",
     "backend-panel": "工具狀態"
   });
 
@@ -97,15 +97,15 @@
     "image-panel": { nav: "圖片", hint: "格式、壓縮、尺寸、旋轉／翻轉、浮水印、批量及 OCR。", steps: ["選擇或拖放圖片", "保留預設或調整格式、品質、尺寸", "按「開始轉換」，在右邊下載結果"], keywords: "image 圖片 相片 jpg jpeg png webp 壓縮 縮小 浮水印 旋轉 翻轉 ocr" },
     "pdf-panel": { nav: "PDF 轉換與整理", hint: "PDF 入口內的頁面整理、轉換、OCR、壓縮及保護。", steps: ["選擇頁面工作台或其他處理方式", "在工作台拖放頁面，並旋轉、複製或刪除", "輸出新 PDF，或在任務區查看後端進度"], keywords: "pdf 工作台 縮圖 排序 合併 分割 抽頁 旋轉 頁碼 浮水印 壓縮 加密 解密 ocr office word docx" },
     "pdf-reader-panel": { nav: "PDF 工作區", hint: "本機 PDF 閱讀、AcroForm 填表、簽名圖與日期章；關閉不鎖檔。", steps: ["開啟 PDF", "填表或放置簽名／日期", "儲存或另存"], keywords: "pdf reader 工作區 閱讀 填表 簽名 日期章 acroform 本機", platform: "web" },
-    "data-panel": { nav: "資料", hint: "JSON、CSV、XML 互轉與格式化。", steps: ["貼上資料內容", "選擇想轉成的格式", "按「執行」，再複製或下載輸出"], keywords: "json csv xml 資料 表格 格式化 壓縮" },
-    "text-panel": { nav: "文字", hint: "Base64、URL、HTML 編碼，以及搜尋取代。", steps: ["貼上文字", "選擇處理方式", "按「執行」，再複製結果"], keywords: "文字 text base64 url html encode decode 搜尋 取代 繁簡" },
-    "hash-panel": { nav: "驗證", hint: "產生檔案雜湊值，用來確認檔案沒有被改動。", steps: ["選擇檔案", "選擇雜湊演算法", "按「開始計算」，需要時下載 CSV"], keywords: "hash sha md5 雜湊 校驗 驗證 checksum" },
-    "zip-panel": { nav: "壓縮", hint: "把多個檔案打包成一個 ZIP。", steps: ["選擇多個檔案", "確認 ZIP 檔名", "按「建立 ZIP」後下載"], keywords: "zip 壓縮 打包 archive" },
-    "diff-panel": { nav: "比對", hint: "比較兩段文字有哪些新增、刪除或修改。", steps: ["貼上原文字", "貼上新文字", "按「開始比對」查看差異"], keywords: "diff compare 比對 差異 文字" },
-    "split-panel": { nav: "分片", hint: "把原始檔案切成多個二進位 part 分片，需之後完整合併才能還原。", steps: ["選擇檔案", "設定每份大小", "按「產生分片檔」後下載全部 part 和 manifest"], keywords: "split 切割 分片 大檔 part binary manifest" },
-    "rename-panel": { nav: "改名", hint: "先預覽批量改名規則，再下載 PowerShell 腳本。", steps: ["選擇要改名的檔案", "輸入命名格式", "產生預覽，確認後下載腳本"], keywords: "rename 改名 批量 檔名 file name", platform: "device" },
+    "data-panel": { nav: "CSV／JSON／XML 轉換", hint: "在 CSV、JSON、XML 之間轉換與格式化。", steps: ["貼上資料內容", "選擇想轉成的格式", "按「執行」，再複製或下載輸出"], keywords: "json csv xml 資料 表格 格式化 壓縮 轉換" },
+    "text-panel": { nav: "文字整理與繁簡轉換", hint: "整理文字、轉換繁簡，並處理 Base64、URL、HTML 編碼。", steps: ["貼上文字", "選擇處理方式", "按「執行」，再複製結果"], keywords: "文字 text base64 url html encode decode 搜尋 取代 繁簡 整理" },
+    "hash-panel": { nav: "檔案雜湊驗證", hint: "產生檔案雜湊值，用來確認檔案沒有被改動。", steps: ["選擇檔案", "選擇雜湊演算法", "按「開始計算」，需要時下載 CSV"], keywords: "hash sha md5 雜湊 校驗 驗證 checksum 完整性" },
+    "zip-panel": { nav: "ZIP 壓縮與解壓", hint: "把多個檔案打包成 ZIP，或處理 ZIP 檔案。", steps: ["選擇多個檔案", "確認 ZIP 檔名", "按「建立 ZIP」後下載"], keywords: "zip 壓縮 解壓 打包 archive" },
+    "diff-panel": { nav: "文字差異比對", hint: "比較兩段文字有哪些新增、刪除或修改。", steps: ["貼上原文字", "貼上新文字", "按「開始比對」查看差異"], keywords: "diff compare 比對 差異 文字" },
+    "split-panel": { nav: "大型檔案分割與合併", hint: "把大型檔案切成分片，之後可依 manifest 合併還原。", steps: ["選擇檔案", "設定每份大小", "按「產生分片檔」後下載全部 part 和 manifest"], keywords: "split merge 切割 合併 分片 大檔 part binary manifest" },
+    "rename-panel": { nav: "批量改名", hint: "先預覽批量改名規則，再下載 PowerShell 腳本。", steps: ["選擇要改名的檔案", "輸入命名格式", "產生預覽，確認後下載腳本"], keywords: "rename 改名 批量 檔名 file name", platform: "device" },
     "media-panel": { nav: "影音", hint: "依用途壓縮影片、轉音訊、縮小、剪取或建立 GIF。", steps: ["先選常見用途", "選擇音訊或影片", "加入佇列並在任務中心追蹤"], keywords: "media audio video mp3 wav m4a mp4 mov ffmpeg 影音 音訊 影片 電郵 720p 剪取 gif", platform: "local" },
-    "tools-panel": { nav: "小工具", hint: "顏色格式、UUID、QR Code 等日常工具。", steps: ["選擇需要的小工具", "輸入內容或設定數量", "產生後複製或下載"], keywords: "color hex rgb hsl uuid qr qrcode 小工具 顏色" },
+    "tools-panel": { nav: "QR Code 與編碼工具", hint: "產生 QR Code、UUID，並處理顏色格式等快速值。", steps: ["選擇需要的小工具", "輸入內容或設定數量", "產生後複製或下載"], keywords: "color hex rgb hsl uuid qr qrcode 小工具 顏色 編碼" },
     "backend-panel": { nav: "狀態", hint: "查看整體健康狀態、可用功能及清楚的修復建議。", steps: ["先看整體狀態與功能可用情況", "按「重新檢查系統」取得最新結果", "缺少工具時展開進階設定並指定路徑"], keywords: "backend 後端 系統 健康 狀態 libreoffice ffmpeg tesseract qpdf ocr 設定 修復", platform: "local" }
   };
 
@@ -119,8 +119,8 @@
     { id: "builtin-ocr-searchable", name: "掃描 PDF 可搜尋化", description: "以繁中及英文 OCR 建立可搜尋 PDF。", category: "ocr", panelId: "pdf-panel", badge: "OCR", settings: { "#pdf-mode": "pdf-to-searchable-pdf", "#pdf-ocr-max-pages": "50" } },
     { id: "builtin-office-pdf", name: "Office 轉 PDF", description: "批量把 Word、Excel 或 PowerPoint 轉成 PDF。", category: "office", panelId: "pdf-panel", badge: "Office", settings: { "#pdf-mode": "office-to-pdf" } },
     { id: "builtin-office-word", name: "PDF 轉 Word", description: "輸出 DOCX，並保留版面及相容性提示。", category: "office", panelId: "pdf-panel", badge: "Office", settings: { "#pdf-mode": "pdf-to-office", "#pdf-office-format": "docx" } },
-    { id: "builtin-text-clean", name: "清理文字空行", description: "移除空白行，保留其餘文字內容。", category: "other", panelId: "text-panel", badge: "其他工具", actions: ["[data-text-mode='remove-empty-lines']"] },
-    { id: "builtin-text-dedupe", name: "文字去除重複", description: "依出現次序保留唯一文字行。", category: "other", panelId: "text-panel", badge: "其他工具", actions: ["[data-text-mode='dedupe-lines']"] },
+    { id: "builtin-text-clean", name: "清理文字空行", description: "移除空白行，保留其餘文字內容。", category: "other", panelId: "text-panel", badge: "文字、資料與進階工具", actions: ["[data-text-mode='remove-empty-lines']"] },
+    { id: "builtin-text-dedupe", name: "文字去除重複", description: "依出現次序保留唯一文字行。", category: "other", panelId: "text-panel", badge: "文字、資料與進階工具", actions: ["[data-text-mode='dedupe-lines']"] },
     { id: "builtin-workflow-office", name: "Office 歸檔流程", description: "Office 轉 PDF，再自動壓縮。", category: "automation", panelId: "workflow-panel", badge: "自動化", settings: { "#workflow-template": "office-archive" } },
     { id: "builtin-media-mp3", name: "標準 MP3 音訊", description: "輸出 MP3；其他進階參數保持空白。", category: "media", panelId: "media-panel", badge: "影音", settings: { "#media-output-extension": "mp3", "#media-video-bitrate": "", "#media-audio-bitrate": "", "#media-scale": "", "#media-crop": "", "#media-start": "", "#media-duration": "", "#media-gif-fps": "10" } }
   ];
@@ -336,14 +336,14 @@
     const map = {
       "image-panel": { title: "圖片轉換", category: "image", badge: "圖片" },
       "pdf-panel": { title: "PDF 處理", category: currentPdfPresetCategory(), badge: "PDF" },
-      "data-panel": { title: "資料轉換", category: "other", badge: "其他工具" },
-      "text-panel": { title: "文字處理", category: "other", badge: "其他工具" },
-      "hash-panel": { title: "檔案驗證", category: "other", badge: "其他工具" },
-      "zip-panel": { title: "ZIP 壓縮", category: "other", badge: "其他工具" },
-      "diff-panel": { title: "文字比對", category: "other", badge: "其他工具" },
-      "split-panel": { title: "進階分片", category: "other", badge: "其他工具" },
-      "rename-panel": { title: "批量改名", category: "other", badge: "其他工具" },
-      "tools-panel": { title: "快速小工具", category: "other", badge: "其他工具" },
+      "data-panel": { title: "CSV／JSON／XML 轉換", category: "other", badge: "文字、資料與進階工具" },
+      "text-panel": { title: "文字整理與繁簡轉換", category: "other", badge: "文字、資料與進階工具" },
+      "hash-panel": { title: "檔案雜湊驗證", category: "other", badge: "辦公輔助工具" },
+      "zip-panel": { title: "ZIP 壓縮與解壓", category: "other", badge: "辦公輔助工具" },
+      "diff-panel": { title: "文字差異比對", category: "other", badge: "辦公輔助工具" },
+      "split-panel": { title: "大型檔案分割與合併", category: "other", badge: "文字、資料與進階工具" },
+      "rename-panel": { title: "批量改名", category: "other", badge: "辦公輔助工具" },
+      "tools-panel": { title: "QR Code 與編碼工具", category: "other", badge: "快速小工具" },
       "workflow-panel": { title: "工作流程", category: "automation", badge: "自動化" },
       "media-panel": { title: "影音轉換", category: "media", badge: "影音" }
     };
@@ -1093,6 +1093,8 @@
         ? '<em class="nav-platform">本機引擎</em>'
         : guide.platform === "device" ? '<em class="nav-platform">裝置</em>' : "";
       const taskCount = button.dataset.panel === "tasks-panel" ? '<b id="sidebar-task-count">0</b>' : "";
+      button.title = guide.hint;
+      button.setAttribute("aria-label", `${guide.nav}：${guide.hint}`);
       button.innerHTML = `<span>${escapeHtml(guide.nav)}${platform}</span>${taskCount}<small>${escapeHtml(guide.hint)}</small>`;
     });
   }
