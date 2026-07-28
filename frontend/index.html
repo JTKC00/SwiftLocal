@@ -30,25 +30,35 @@
           <button class="nav-item" type="button" data-panel="presets-panel">常用預設</button>
           <button class="nav-item task-nav-item" type="button" data-panel="tasks-panel">任務中心 <b id="sidebar-task-count">0</b></button>
         </div>
-        <div class="nav-group">
-          <span class="nav-group-label">手機及瀏覽器可用</span>
+        <div class="nav-group core-nav-group">
+          <span class="nav-group-label">核心工作區</span>
+          <button class="nav-item" type="button" data-panel="pdf-hub-panel">PDF</button>
+          <button class="nav-item" type="button" data-panel="ocr-panel">OCR</button>
+          <button class="nav-item" type="button" data-panel="office-panel">Office</button>
           <button class="nav-item" type="button" data-panel="image-panel">圖片</button>
-          <button class="nav-item" type="button" data-panel="pdf-panel">PDF 工具</button>
-          <button class="nav-item" type="button" data-panel="pdf-reader-panel">PDF 工作區</button>
-          <button class="nav-item" type="button" data-panel="zip-panel">壓縮</button>
-          <button class="nav-item" type="button" data-panel="data-panel">資料</button>
-          <button class="nav-item" type="button" data-panel="text-panel">文字</button>
-          <button class="nav-item" type="button" data-panel="diff-panel">比對</button>
-          <button class="nav-item" type="button" data-panel="hash-panel">驗證</button>
-          <button class="nav-item" type="button" data-panel="split-panel">分片</button>
-          <button class="nav-item" type="button" data-panel="tools-panel">小工具</button>
-        </div>
-        <div class="nav-group desktop-nav-group">
-          <span class="nav-group-label">桌面進階</span>
-          <button class="nav-item" type="button" data-panel="workflow-panel">流程</button>
-          <button class="nav-item" type="button" data-panel="rename-panel">改名</button>
           <button class="nav-item" type="button" data-panel="media-panel">影音</button>
-          <button class="nav-item" type="button" data-panel="backend-panel">狀態</button>
+        </div>
+        <div class="nav-group">
+          <span class="nav-group-label">自動化</span>
+          <button class="nav-item" type="button" data-panel="workflow-panel">工作流程</button>
+        </div>
+        <details class="nav-group secondary-tools-group">
+          <summary class="nav-group-label">其他工具</summary>
+          <span class="nav-subgroup-label">辦公輔助工具</span>
+          <button class="nav-item" type="button" data-panel="zip-panel">ZIP</button>
+          <button class="nav-item" type="button" data-panel="rename-panel">批量改名</button>
+          <button class="nav-item" type="button" data-panel="hash-panel">Hash 驗證</button>
+          <button class="nav-item" type="button" data-panel="diff-panel">文字比對</button>
+          <span class="nav-subgroup-label">文字、資料與進階工具</span>
+          <button class="nav-item" type="button" data-panel="text-panel">文字整理與編碼</button>
+          <button class="nav-item" type="button" data-panel="data-panel">CSV / JSON / XML</button>
+          <button class="nav-item" type="button" data-panel="split-panel">檔案分片</button>
+          <span class="nav-subgroup-label">快速小工具</span>
+          <button class="nav-item" type="button" data-panel="tools-panel">QR / UUID / 顏色</button>
+        </details>
+        <div class="nav-group desktop-nav-group">
+          <span class="nav-group-label">系統</span>
+          <button class="nav-item" type="button" data-panel="backend-panel">狀態與設定</button>
         </div>
       </nav>
       <button id="theme-toggle" class="ghost-button sidebar-theme" type="button" title="切換暗色模式">☀</button>
@@ -89,13 +99,13 @@
         <section class="home-hero">
           <div class="home-hero-copy">
             <div class="hero-kicker"><span>本機優先</span><span>無需上載</span><span>手機可用</span></div>
-            <p class="eyebrow">Your Local All-in-One File Converter</p>
-            <h1 id="home-title">檔案轉換，<br>留在你的裝置。</h1>
-            <p class="hero-lead">用手機瀏覽器處理圖片、PDF、ZIP、文字及資料；在電腦桌面版再解鎖影音轉檔、Office、OCR 與完整系統工具。</p>
+            <p class="eyebrow">本機優先的辦公文件與媒體處理工作台</p>
+            <h1 id="home-title">PDF、OCR 與辦公檔案，<br>都留在你的裝置。</h1>
+            <p class="hero-lead">集中處理 PDF、OCR、Office、圖片及影音；所有檔案留在本機，批量任務與自動化流程也能可靠追蹤。</p>
             <div class="hero-actions">
-              <button class="primary-button" type="button" data-home-panel="pdf-reader-panel">開啟 PDF 工作區</button>
-              <button class="ghost-button" type="button" data-home-panel="pdf-panel" data-home-focus="#pdf-files">PDF 頁面工具</button>
-              <button class="ghost-button" type="button" data-home-panel="image-panel" data-home-focus="#image-files">處理圖片</button>
+              <button class="primary-button" type="button" data-home-panel="pdf-hub-panel">開啟 PDF</button>
+              <button class="ghost-button" type="button" data-home-panel="ocr-panel">掃描文件 OCR</button>
+              <button class="ghost-button" type="button" data-home-panel="office-panel">處理 Office</button>
             </div>
           </div>
           <aside class="device-status-card" aria-label="目前裝置模式">
@@ -105,24 +115,24 @@
             </div>
             <p id="home-runtime-note">這部裝置可使用所有瀏覽器處理工具。</p>
             <ul>
-              <li><span>圖片、PDF、ZIP、文字</span><strong>可用</strong></li>
+              <li><span>PDF、圖片及其他瀏覽器工具</span><strong>可用</strong></li>
               <li><span>檔案不經雲端上載</span><strong>本機</strong></li>
-              <li><span>影音、Office、進階 OCR</span><strong>需桌面版</strong></li>
+              <li><span>影音、Office、OCR 批量任務</span><strong>桌面進階</strong></li>
             </ul>
             <p class="device-network-note">手機需透過可連線網址開啟；電腦的 <code>127.0.0.1</code> 網址不能直接在手機使用。</p>
           </aside>
         </section>
 
-        <section class="platform-grid" aria-label="平台功能比較">
+        <section class="platform-grid" aria-label="平台能力說明">
           <article class="platform-card featured">
             <span class="platform-tag">手機 · 平板 · 瀏覽器</span>
-            <h2>隨手處理常用檔案</h2>
-            <p>不用安裝程式，介面會配合小螢幕。適合圖片、PDF 視覺工作台、壓縮、文字及資料轉換。</p>
+            <h2>同一套核心入口</h2>
+            <p>PDF、OCR、Office、圖片及影音依用途分類；各入口會標示目前裝置可用的能力。</p>
           </article>
           <article class="platform-card">
             <span class="platform-tag desktop">Windows · macOS · Linux</span>
-            <h2>桌面版完整能力</h2>
-            <p>連接本機後端及系統工具，處理影音、Office、OCR、加密與更大型的工作。</p>
+            <h2>桌面版擴充本機引擎</h2>
+            <p>連接本機 FFmpeg、LibreOffice、Tesseract 與 QPDF，處理批量任務、輸出資料夾及自動化。</p>
           </article>
         </section>
 
@@ -134,32 +144,79 @@
           </div>
           <label class="tool-search">
             <span class="visually-hidden">搜尋工具</span>
-            <input id="tool-search" type="search" placeholder="搜尋：PDF、圖片、壓縮、QR Code...">
+            <input id="tool-search" type="search" placeholder="搜尋：PDF、OCR、Office、圖片、影音...">
           </label>
         </div>
         <div class="quick-actions" id="quick-actions">
-          <button type="button" data-panel="image-panel" data-focus="#image-files">
-            <strong>轉換或壓縮圖片</strong>
-            <span>JPG、PNG、WebP，亦可調整尺寸與浮水印</span>
-            <em>手機及桌面</em>
+          <button type="button" data-panel="pdf-reader-panel">
+            <strong>開啟／填寫 PDF</strong>
+            <span>閱讀、填表、簽名圖片、日期章與儲存</span>
+            <em>PDF</em>
           </button>
-          <button type="button" data-panel="pdf-panel" data-focus="#pdf-files">
-            <strong>處理 PDF</strong>
-            <span>合併、分割、抽頁、轉成圖片、加頁碼</span>
-            <em>手機及桌面</em>
+          <button type="button" data-panel="ocr-panel">
+            <strong>掃描文件 OCR</strong>
+            <span>圖片或掃描 PDF 轉文字、Word 或可搜尋 PDF</span>
+            <em>OCR · 桌面進階</em>
+          </button>
+          <button type="button" data-panel="office-panel">
+            <strong>Office 轉 PDF</strong>
+            <span>Word、Excel、PowerPoint 與批量歸檔流程</span>
+            <em>Office · 桌面進階</em>
+          </button>
+          <button type="button" data-panel="image-panel" data-focus="#image-files">
+            <strong>壓縮圖片</strong>
+            <span>格式、品質、尺寸、旋轉、翻轉與浮水印</span>
+            <em>圖片</em>
           </button>
           <button type="button" data-panel="media-panel" data-focus="#media-files">
-            <strong>轉音訊 / 影片</strong>
-            <span>MP3、WAV、MP4 等需要本地後端支援</span>
-            <em>桌面版</em>
-          </button>
-          <button type="button" data-panel="zip-panel" data-focus="#zip-files">
-            <strong>把檔案打包成 ZIP</strong>
-            <span>多個檔案一次壓縮，方便傳送或備份</span>
-            <em>手機及桌面</em>
+            <strong>壓縮影片或轉音訊</strong>
+            <span>電郵影片、MP3、音訊擷取、720p、剪取與 GIF</span>
+            <em>影音 · 桌面進階</em>
           </button>
         </div>
       </section>
+      </section>
+
+      <section id="pdf-hub-panel" class="panel product-hub" aria-labelledby="pdf-hub-title">
+        <header class="product-hub-hero">
+          <div><p class="eyebrow">一個入口，處理整份文件</p><h1 id="pdf-hub-title">PDF</h1><p>閱讀操作與永久修改清楚分開；既有 PDF 工作區、頁面工作台與轉換引擎仍在原有模組執行。</p></div>
+          <span class="badge">瀏覽器 · 桌面</span>
+        </header>
+        <div class="product-route-grid">
+          <article><span>01</span><h2>閱讀與填表</h2><p>開啟、搜尋、填寫 AcroForm、簽名圖片、日期章、儲存、另存及列印。縮放與適合頁面只改變檢視。</p><button class="primary-button" type="button" data-product-panel="pdf-reader-panel">開啟 PDF</button></article>
+          <article><span>02</span><h2>頁面整理</h2><p>排序、旋轉、複製、刪除、插入與匯出頁面。這些操作會建立永久修改的新 PDF。</p><button class="secondary-button" type="button" data-product-panel="pdf-panel" data-pdf-mode="workspace" data-product-focus="#pdf-files">整理頁面</button></article>
+          <article><span>03</span><h2>轉換與 OCR</h2><p>轉成文字、圖片或 Office，亦可辨識掃描文件及建立可搜尋 PDF。</p><button class="secondary-button" type="button" data-product-panel="pdf-panel" data-pdf-mode="text" data-product-focus="#pdf-files">選擇轉換</button></article>
+          <article><span>04</span><h2>保護與壓縮</h2><p>壓縮、加密或解密 PDF；相容性受限時會顯示 QPDF 或 Adobe Acrobat 修復提示。</p><button class="secondary-button" type="button" data-product-panel="pdf-panel" data-pdf-mode="pdf-compress" data-product-focus="#pdf-files">壓縮或保護</button></article>
+        </div>
+      </section>
+
+      <section id="ocr-panel" class="panel product-hub" aria-labelledby="ocr-title">
+        <header class="product-hub-hero">
+          <div><p class="eyebrow">用途導向的文字辨識</p><h1 id="ocr-title">OCR</h1><p>預設辨識繁體中文及英文（chi_tra+eng）。語言代碼、最多頁數及輸出模式收在進階設定；所有任務沿用既有 Tesseract 管線。</p></div>
+          <span class="badge">Tesseract · 本機</span>
+        </header>
+        <div class="product-route-grid">
+          <article><span>圖片</span><h2>圖片 → 文字</h2><p>適合相片、截圖及單頁掃描，可一次加入多張圖片。</p><button class="primary-button" type="button" data-product-panel="image-panel" data-image-job="ocr-image" data-product-focus="#img-backend-files">辨識圖片</button></article>
+          <article><span>掃描 PDF</span><h2>掃描 PDF → 文字</h2><p>逐頁辨識並輸出文字，頁數上限可在進階設定調整。</p><button class="secondary-button" type="button" data-product-panel="pdf-panel" data-pdf-mode="ocr-pdf" data-product-focus="#pdf-files">辨識 PDF</button></article>
+          <article><span>可搜尋</span><h2>掃描 PDF → 可搜尋 PDF</h2><p>保留頁面影像並加入 OCR 文字層，方便搜尋及複製。</p><button class="secondary-button" type="button" data-product-panel="pdf-panel" data-pdf-mode="pdf-to-searchable-pdf" data-product-focus="#pdf-files">建立可搜尋 PDF</button></article>
+          <article><span>Word</span><h2>掃描 PDF → Word</h2><p>使用相容／OCR fallback 建立 DOCX；版面可能與原掃描件不同。</p><button class="secondary-button" type="button" data-product-panel="pdf-panel" data-pdf-mode="pdf-to-office" data-office-format="docx" data-scan-ocr="force" data-product-focus="#pdf-files">轉成 Word</button></article>
+          <article><span>批量</span><h2>批量 OCR</h2><p>一次選取多個檔案，處理進度、取消、重試與輸出集中在任務中心。</p><button class="secondary-button" type="button" data-product-panel="tasks-panel">查看任務中心</button></article>
+        </div>
+        <p class="product-repair-note">若未偵測到 Tesseract 或繁中語言包，入口會保留並在「狀態與設定」提供重新偵測、工具路徑與語言包修復提示。</p>
+      </section>
+
+      <section id="office-panel" class="panel product-hub" aria-labelledby="office-title">
+        <header class="product-hub-hero">
+          <div><p class="eyebrow">文件轉換與歸檔</p><h1 id="office-title">Office</h1><p>以用途選擇工作，LibreOffice、相容模式與 OCR fallback 留在進階設定。轉換仍使用既有任務與輸出資料夾。</p></div>
+          <span class="badge">LibreOffice · 本機</span>
+        </header>
+        <div class="product-route-grid">
+          <article><span>正式功能</span><h2>Office → PDF</h2><p>Word、Excel、PowerPoint 文件可批量轉成 PDF。</p><button class="primary-button" type="button" data-product-panel="pdf-panel" data-pdf-mode="office-to-pdf" data-product-focus="#pdf-files">Office 轉 PDF</button></article>
+          <article><span>可用</span><h2>PDF → Word</h2><p>建立 DOCX；PDF 並非原始 Word 文件，版面及相容性可能不同。</p><button class="secondary-button" type="button" data-product-panel="pdf-panel" data-pdf-mode="pdf-to-office" data-office-format="docx" data-product-focus="#pdf-files">PDF 轉 Word</button></article>
+          <article><span>實驗性</span><h2>PDF → Excel / PowerPoint</h2><p>適合試取表格或投影片內容，正式用途請核對輸出。</p><button class="secondary-button" type="button" data-product-panel="pdf-panel" data-pdf-mode="pdf-to-office" data-office-format="xlsx" data-product-focus="#pdf-files">選擇實驗格式</button></article>
+          <article><span>OCR</span><h2>掃描 PDF → Word</h2><p>文字不足時使用 OCR fallback，可輸出可搜尋 PDF 與 DOCX。</p><button class="secondary-button" type="button" data-product-panel="pdf-panel" data-pdf-mode="pdf-to-office" data-office-format="docx" data-scan-ocr="force" data-product-focus="#pdf-files">辨識並轉 Word</button></article>
+          <article><span>自動化</span><h2>Office 歸檔流程</h2><p>Office → PDF → 壓縮，自動接力並可從失敗步驟繼續。</p><button class="secondary-button" type="button" data-product-panel="workflow-panel" data-workflow-template="office-archive">建立歸檔流程</button></article>
+        </div>
       </section>
 
       <section class="panel-assist" id="panel-assist" role="status" aria-live="polite" aria-atomic="true"></section>
@@ -184,10 +241,13 @@
           <div class="preset-toolbar">
             <div class="preset-filters" role="group" aria-label="篩選預設">
               <button class="is-active" type="button" data-preset-filter="all" aria-pressed="true">全部</button>
-              <button type="button" data-preset-filter="image" aria-pressed="false">圖片</button>
               <button type="button" data-preset-filter="pdf" aria-pressed="false">PDF</button>
-              <button type="button" data-preset-filter="text" aria-pressed="false">文字</button>
-              <button type="button" data-preset-filter="desktop" aria-pressed="false">桌面進階</button>
+              <button type="button" data-preset-filter="ocr" aria-pressed="false">OCR</button>
+              <button type="button" data-preset-filter="office" aria-pressed="false">Office</button>
+              <button type="button" data-preset-filter="image" aria-pressed="false">圖片</button>
+              <button type="button" data-preset-filter="media" aria-pressed="false">影音</button>
+              <button type="button" data-preset-filter="automation" aria-pressed="false">自動化</button>
+              <button type="button" data-preset-filter="text" aria-pressed="false">其他工具</button>
               <button type="button" data-preset-filter="custom" aria-pressed="false">我的預設</button>
             </div>
             <label class="preset-search"><span class="visually-hidden">搜尋預設</span><input id="preset-search" type="search" placeholder="搜尋預設"></label>
@@ -290,6 +350,7 @@
       </section>
 
       <section id="image-panel" class="panel" aria-labelledby="image-title">
+        <div class="panel-context-bar"><span>圖片工作區</span><button type="button" data-product-panel="ocr-panel">前往 OCR</button></div>
         <div class="tool-grid">
           <form id="image-form" class="tool-surface">
             <div class="surface-heading">
@@ -442,11 +503,12 @@
       </section>
 
       <section id="pdf-reader-panel" class="panel" aria-labelledby="pdf-reader-title">
+        <div class="panel-context-bar"><span>PDF · 閱讀與填表</span><button type="button" data-product-panel="pdf-hub-panel">返回 PDF 總覽</button></div>
         <div class="pdf-reader-panel-intro">
           <div class="surface-heading">
             <div>
               <h3 id="pdf-reader-title">PDF 工作區</h3>
-              <p class="panel-lead">本機 PDF 閱讀與 AcroForm 填表：縮圖、翻頁、縮放、搜尋、文字選取複製、列印、儲存；關閉後釋放記憶體且不鎖原始檔。簽名／註解見後續版本。</p>
+              <p class="panel-lead">本機 PDF 閱讀與 AcroForm 填表：縮圖、翻頁、縮放、搜尋、文字選取複製、簽名圖片、日期章、列印、儲存及另存；關閉後釋放記憶體且不鎖原始檔。</p>
             </div>
             <span class="badge">閱讀核心</span>
           </div>
@@ -459,6 +521,7 @@
       </section>
 
       <section id="pdf-panel" class="panel" aria-labelledby="pdf-title">
+        <div class="panel-context-bar"><span>PDF · 整理、轉換、OCR 與保護</span><button type="button" data-product-panel="pdf-hub-panel">返回 PDF 總覽</button></div>
         <div class="tool-grid">
           <form id="pdf-form" class="tool-surface">
             <div class="surface-heading">
@@ -1014,6 +1077,17 @@
               <h3 id="media-title">音訊 / 影片轉換</h3>
               <span class="badge">FFmpeg</span>
             </div>
+            <fieldset class="media-purpose-picker">
+              <legend>想完成的工作</legend>
+              <div role="group" aria-label="影音常見用途">
+                <button type="button" data-media-purpose="email" aria-pressed="false">壓縮影片以供電郵</button>
+                <button type="button" data-media-purpose="mp3" aria-pressed="false">轉成 MP3</button>
+                <button type="button" data-media-purpose="audio" aria-pressed="false">擷取音訊</button>
+                <button type="button" data-media-purpose="720p" aria-pressed="false">縮小至 720p</button>
+                <button type="button" data-media-purpose="trim" aria-pressed="false">剪取片段</button>
+                <button type="button" data-media-purpose="gif" aria-pressed="false">建立 GIF</button>
+              </div>
+            </fieldset>
             <div class="control-row">
               <label>
                 <span>輸出格式</span>
@@ -1030,7 +1104,7 @@
               </label>
               <div></div>
             </div>
-            <details class="media-advanced" open>
+            <details class="media-advanced">
               <summary>進階參數（選填）</summary>
               <div class="control-row">
                 <label>
@@ -1326,7 +1400,7 @@
     <nav class="mobile-primary-nav" aria-label="手機主要導航">
       <button class="is-active" type="button" data-mobile-panel="home-panel"><span aria-hidden="true">⌂</span>首頁</button>
       <button type="button" data-mobile-panel="image-panel"><span aria-hidden="true">▧</span>圖片</button>
-      <button type="button" data-mobile-panel="pdf-panel"><span aria-hidden="true">▤</span>PDF</button>
+      <button type="button" data-mobile-panel="pdf-hub-panel"><span aria-hidden="true">▤</span>PDF</button>
       <button type="button" data-mobile-panel="tasks-panel"><span aria-hidden="true">◷</span>任務</button>
       <button id="mobile-more-tools" type="button"><span aria-hidden="true">☰</span>更多</button>
     </nav>

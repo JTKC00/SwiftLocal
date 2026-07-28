@@ -45,6 +45,9 @@
     "tasks-panel": "全域任務中心",
     "workflow-panel": "工作流程串連",
     "presets-panel": "常用預設",
+    "pdf-hub-panel": "PDF",
+    "ocr-panel": "OCR",
+    "office-panel": "Office",
     "image-panel": "圖片轉換",
     "pdf-panel": "PDF 處理",
     "pdf-reader-panel": "PDF 工作區",
@@ -65,6 +68,9 @@
     "tasks-panel": "全域任務中心",
     "workflow-panel": "工作流程串連",
     "presets-panel": "常用預設",
+    "pdf-hub-panel": "PDF",
+    "ocr-panel": "OCR",
+    "office-panel": "Office",
     "image-panel": "圖片轉換",
     "pdf-panel": "PDF 處理",
     "pdf-reader-panel": "PDF 工作區",
@@ -81,12 +87,15 @@
   });
 
   const toolGuides = {
-    "home-panel": { nav: "首頁", hint: "選擇常用工具，並查看手機版與桌面版的功能差異。", steps: [], keywords: "home 首頁 開始 mobile 手機 desktop 桌面", platform: "web" },
+    "home-panel": { nav: "首頁", hint: "從 PDF、OCR、Office、圖片及影音五大核心開始。", steps: [], keywords: "home 首頁 開始 本機 辦公 媒體", platform: "web" },
     "tasks-panel": { nav: "任務中心", hint: "集中追蹤所有進階處理、下載結果及處理失敗任務。", steps: [], keywords: "task job queue 任務 工作 佇列 進度 下載 失敗", platform: "desktop" },
-    "workflow-panel": { nav: "流程", hint: "把多個進階處理步驟串連；失敗可從未完成步驟繼續。", steps: ["選擇範本及來源檔案", "調整步驟和選項", "啟動後在右側追蹤；失敗可繼續"], keywords: "workflow pipeline automation 流程 串連 自動 接力 重試 繼續", platform: "desktop" },
+    "workflow-panel": { nav: "工作流程", hint: "把多個處理步驟串連；失敗可從未完成步驟繼續。", steps: ["選擇範本及來源檔案", "調整步驟和選項", "啟動後在右側追蹤；失敗可繼續"], keywords: "workflow pipeline automation 流程 串連 自動 接力 重試 繼續", platform: "desktop" },
     "presets-panel": { nav: "常用預設", hint: "一按套用常見組合，或保存目前工具的安全選項。", steps: [], keywords: "preset favorite 常用 預設 設定 快捷", platform: "web" },
-    "image-panel": { nav: "圖片", hint: "轉 JPG / PNG / WebP、壓縮、縮放、加浮水印。", steps: ["選擇或拖放圖片", "保留預設或調整格式、品質、尺寸", "按「開始轉換」，在右邊下載結果"], keywords: "image 圖片 相片 jpg jpeg png webp 壓縮 縮小 浮水印 旋轉" },
-    "pdf-panel": { nav: "PDF 工具", hint: "逐頁視覺編排、轉換、OCR、壓縮及保護 PDF。", steps: ["選擇頁面工作台或其他處理方式", "在工作台拖放頁面，並旋轉、複製或刪除", "輸出新 PDF，或在任務區查看後端進度"], keywords: "pdf 工作台 縮圖 排序 合併 分割 抽頁 旋轉 頁碼 浮水印 壓縮 加密 解密 ocr office word docx" },
+    "pdf-hub-panel": { nav: "PDF", hint: "閱讀填表、頁面整理、轉換與 OCR、保護與壓縮。", steps: ["選擇閱讀、整理、轉換或保護", "進入既有 PDF 工作區完成操作", "永久修改前另存或確認輸出"], keywords: "pdf 閱讀 填表 工作台 合併 分割 ocr 壓縮 加密" },
+    "ocr-panel": { nav: "OCR", hint: "圖片或掃描 PDF 轉文字、Word 或可搜尋 PDF。", steps: ["選擇來源和輸出用途", "加入圖片或 PDF", "在任務中心追蹤、取消或重試"], keywords: "ocr tesseract 掃描 辨識 圖片 文字 searchable 可搜尋 word 批量", platform: "desktop" },
+    "office-panel": { nav: "Office", hint: "Office 轉 PDF、PDF 轉 Office 與文件歸檔流程。", steps: ["選擇轉換用途", "加入 Office 或 PDF", "確認相容性提示並在任務中心追蹤"], keywords: "office word excel powerpoint docx xlsx pptx libreoffice 歸檔", platform: "desktop" },
+    "image-panel": { nav: "圖片", hint: "格式、壓縮、尺寸、旋轉／翻轉、浮水印、批量及 OCR。", steps: ["選擇或拖放圖片", "保留預設或調整格式、品質、尺寸", "按「開始轉換」，在右邊下載結果"], keywords: "image 圖片 相片 jpg jpeg png webp 壓縮 縮小 浮水印 旋轉 翻轉 ocr" },
+    "pdf-panel": { nav: "PDF 轉換與整理", hint: "PDF 入口內的頁面整理、轉換、OCR、壓縮及保護。", steps: ["選擇頁面工作台或其他處理方式", "在工作台拖放頁面，並旋轉、複製或刪除", "輸出新 PDF，或在任務區查看後端進度"], keywords: "pdf 工作台 縮圖 排序 合併 分割 抽頁 旋轉 頁碼 浮水印 壓縮 加密 解密 ocr office word docx" },
     "pdf-reader-panel": { nav: "PDF 工作區", hint: "本機 PDF 閱讀、AcroForm 填表、簽名圖與日期章；關閉不鎖檔。", steps: ["開啟 PDF", "填表或放置簽名／日期", "儲存或另存"], keywords: "pdf reader 工作區 閱讀 填表 簽名 日期章 acroform 本機", platform: "web" },
     "data-panel": { nav: "資料", hint: "JSON、CSV、XML 互轉與格式化。", steps: ["貼上資料內容", "選擇想轉成的格式", "按「執行」，再複製或下載輸出"], keywords: "json csv xml 資料 表格 格式化 壓縮" },
     "text-panel": { nav: "文字", hint: "Base64、URL、HTML 編碼，以及搜尋取代。", steps: ["貼上文字", "選擇處理方式", "按「執行」，再複製結果"], keywords: "文字 text base64 url html encode decode 搜尋 取代 繁簡" },
@@ -95,7 +104,7 @@
     "diff-panel": { nav: "比對", hint: "比較兩段文字有哪些新增、刪除或修改。", steps: ["貼上原文字", "貼上新文字", "按「開始比對」查看差異"], keywords: "diff compare 比對 差異 文字" },
     "split-panel": { nav: "分片", hint: "把原始檔案切成多個二進位 part 分片，需之後完整合併才能還原。", steps: ["選擇檔案", "設定每份大小", "按「產生分片檔」後下載全部 part 和 manifest"], keywords: "split 切割 分片 大檔 part binary manifest" },
     "rename-panel": { nav: "改名", hint: "先預覽批量改名規則，再下載 PowerShell 腳本。", steps: ["選擇要改名的檔案", "輸入命名格式", "產生預覽，確認後下載腳本"], keywords: "rename 改名 批量 檔名 file name", platform: "desktop" },
-    "media-panel": { nav: "影音", hint: "音訊與影片轉檔，需要 FFmpeg 與本地後端。", steps: ["選擇音訊或影片", "選擇輸出格式", "按「加入轉換佇列」，等完成後下載"], keywords: "media audio video mp3 wav mp4 mov ffmpeg 影音 音訊 影片", platform: "desktop" },
+    "media-panel": { nav: "影音", hint: "依用途壓縮影片、轉音訊、縮小、剪取或建立 GIF。", steps: ["先選常見用途", "選擇音訊或影片", "加入佇列並在任務中心追蹤"], keywords: "media audio video mp3 wav mp4 mov ffmpeg 影音 音訊 影片 電郵 720p 剪取 gif", platform: "desktop" },
     "tools-panel": { nav: "小工具", hint: "顏色格式、UUID、QR Code 等日常工具。", steps: ["選擇需要的小工具", "輸入內容或設定數量", "產生後複製或下載"], keywords: "color hex rgb hsl uuid qr qrcode 小工具 顏色" },
     "backend-panel": { nav: "狀態", hint: "查看整體健康狀態、可用功能及清楚的修復建議。", steps: ["先看整體狀態與功能可用情況", "按「重新檢查系統」取得最新結果", "缺少工具時展開進階設定並指定路徑"], keywords: "backend 後端 系統 健康 狀態 libreoffice ffmpeg tesseract qpdf ocr 設定", platform: "desktop" }
   };
@@ -106,10 +115,12 @@
     { id: "builtin-pdf-merge", name: "合併整理 PDF", description: "開啟合併模式，加入多份 PDF 後可視覺排序。", category: "pdf", panelId: "pdf-panel", badge: "PDF", settings: { "#pdf-mode": "merge" } },
     { id: "builtin-pdf-compress", name: "輕量 PDF", description: "直接切換至本機 PDF 壓縮任務。", category: "pdf", panelId: "pdf-panel", badge: "PDF", settings: { "#pdf-mode": "pdf-compress" } },
     { id: "builtin-pdf-images", name: "PDF 高清圖片", description: "每頁輸出 JPEG，使用 2× 渲染倍率。", category: "pdf", panelId: "pdf-panel", badge: "PDF", settings: { "#pdf-mode": "images", "#pdf-image-format": "image/jpeg", "#pdf-image-scale": "2" } },
+    { id: "builtin-ocr-searchable", name: "掃描 PDF 可搜尋化", description: "以繁中及英文 OCR 建立可搜尋 PDF。", category: "ocr", panelId: "pdf-panel", badge: "OCR", settings: { "#pdf-mode": "pdf-to-searchable-pdf", "#pdf-ocr-max-pages": "50" } },
+    { id: "builtin-office-pdf", name: "Office 轉 PDF", description: "批量把 Word、Excel 或 PowerPoint 轉成 PDF。", category: "office", panelId: "pdf-panel", badge: "Office", settings: { "#pdf-mode": "office-to-pdf" } },
     { id: "builtin-text-clean", name: "清理文字空行", description: "移除空白行，保留其餘文字內容。", category: "text", panelId: "text-panel", badge: "文字", actions: ["[data-text-mode='remove-empty-lines']"] },
     { id: "builtin-text-dedupe", name: "文字去除重複", description: "依出現次序保留唯一文字行。", category: "text", panelId: "text-panel", badge: "文字", actions: ["[data-text-mode='dedupe-lines']"] },
-    { id: "builtin-workflow-office", name: "Office 歸檔流程", description: "Office 轉 PDF，再自動壓縮。", category: "desktop", panelId: "workflow-panel", badge: "桌面流程", settings: { "#workflow-template": "office-archive" } },
-    { id: "builtin-media-mp3", name: "標準 MP3 音訊", description: "輸出 MP3；其他進階參數保持空白。", category: "desktop", panelId: "media-panel", badge: "桌面影音", settings: { "#media-output-extension": "mp3", "#media-video-bitrate": "", "#media-audio-bitrate": "", "#media-scale": "", "#media-crop": "", "#media-start": "", "#media-duration": "", "#media-gif-fps": "10" } }
+    { id: "builtin-workflow-office", name: "Office 歸檔流程", description: "Office 轉 PDF，再自動壓縮。", category: "automation", panelId: "workflow-panel", badge: "自動化", settings: { "#workflow-template": "office-archive" } },
+    { id: "builtin-media-mp3", name: "標準 MP3 音訊", description: "輸出 MP3；其他進階參數保持空白。", category: "media", panelId: "media-panel", badge: "影音", settings: { "#media-output-extension": "mp3", "#media-video-bitrate": "", "#media-audio-bitrate": "", "#media-scale": "", "#media-crop": "", "#media-start": "", "#media-duration": "", "#media-gif-fps": "10" } }
   ];
 
   const PDF_BACKEND_JOB_TYPES = new Set(["office-to-pdf", "pdf-to-docx", "pdf-to-office", "pdf-to-searchable-pdf", "ocr-pdf", "pdf-merge", "pdf-split", "pdf-rotate", "pdf-encrypt", "pdf-decrypt", "pdf-compress"]);
@@ -135,6 +146,7 @@
     bindAccessibilityAndPrivacy();
     bindNavigation();
     bindResponsiveNavigation();
+    bindProductRoutes();
     bindTaskCenter();
     bindWorkflowTool();
     updateRuntimeLabels();
@@ -632,16 +644,21 @@
 
   function activatePanel(panelId, focusSelector, moveFocus = true) {
     if (!panelId) return;
+    const navPanelId = ["pdf-panel", "pdf-reader-panel"].includes(panelId) ? "pdf-hub-panel" : panelId;
     if (presetPanelMeta(panelId)) state.lastPresetPanel = panelId;
     state.activePanel = panelId;
     $$(".nav-item").forEach((item) => {
-      const active = item.dataset.panel === panelId;
+      const active = item.dataset.panel === navPanelId;
       item.classList.toggle("is-active", active);
       if (active) item.setAttribute("aria-current", "page");
       else item.removeAttribute("aria-current");
     });
+    const activeNavItem = $(`.nav-item[data-panel='${navPanelId}']`);
+    const parentDetails = activeNavItem ? activeNavItem.closest("details") : null;
+    if (parentDetails) parentDetails.open = true;
     $$('[data-mobile-panel]').forEach((item) => {
-      const active = item.dataset.mobilePanel === panelId;
+      const mobilePanelId = ["pdf-panel", "pdf-reader-panel", "pdf-hub-panel"].includes(panelId) ? "pdf-hub-panel" : panelId;
+      const active = item.dataset.mobilePanel === mobilePanelId;
       item.classList.toggle("is-active", active);
       if (active) item.setAttribute("aria-current", "page");
       else item.removeAttribute("aria-current");
@@ -653,7 +670,7 @@
     });
     $("#panel-title").textContent = titles[panelId] || "SwiftLocal";
     const clearButton = $("#clear-all");
-    if (clearButton) clearButton.hidden = panelId === "home-panel" || panelId === "tasks-panel" || panelId === "workflow-panel" || panelId === "presets-panel" || panelId === "pdf-reader-panel";
+    if (clearButton) clearButton.hidden = ["home-panel", "tasks-panel", "workflow-panel", "presets-panel", "pdf-reader-panel", "pdf-hub-panel", "ocr-panel", "office-panel"].includes(panelId);
     updatePanelAssist(panelId);
     closeMobileNavigation();
     if (panelId === "tasks-panel" && state.backendConnected) refreshBackendJobs();
@@ -664,6 +681,65 @@
       const heading = $("#panel-title");
       if (heading) heading.focus({ preventScroll: true });
     }
+  }
+
+  function bindProductRoutes() {
+    $$('[data-product-panel]').forEach((button) => {
+      button.addEventListener("click", () => {
+        const pdfMode = button.dataset.pdfMode;
+        const imageJob = button.dataset.imageJob;
+        const officeFormat = button.dataset.officeFormat;
+        const scanOcr = button.dataset.scanOcr;
+        const workflowTemplate = button.dataset.workflowTemplate;
+        if (pdfMode && $("#pdf-mode")) {
+          $("#pdf-mode").value = pdfMode;
+          $("#pdf-mode").dispatchEvent(new Event("change", { bubbles: true }));
+        }
+        if (imageJob && $("#img-backend-job-type")) {
+          $("#img-backend-job-type").value = imageJob;
+          $("#img-backend-job-type").dispatchEvent(new Event("change", { bubbles: true }));
+        }
+        if (officeFormat && $("#pdf-office-format")) {
+          $("#pdf-office-format").value = officeFormat;
+          $("#pdf-office-format").dispatchEvent(new Event("change", { bubbles: true }));
+        }
+        if (scanOcr && $("#pdf-office-scan-ocr")) $("#pdf-office-scan-ocr").value = scanOcr;
+        if (workflowTemplate && $("#workflow-template")) {
+          $("#workflow-template").value = workflowTemplate;
+          $("#workflow-template").dispatchEvent(new Event("change", { bubbles: true }));
+        }
+        activatePanel(button.dataset.productPanel, button.dataset.productFocus || null, true);
+      });
+    });
+
+    $$('[data-media-purpose]').forEach((button) => {
+      button.addEventListener("click", () => {
+        const settings = {
+          email: { extension: "mp4", videoBitrate: "1M", audioBitrate: "128k", scale: "-2:720" },
+          mp3: { extension: "mp3", audioBitrate: "128k" },
+          audio: { extension: "m4a", audioBitrate: "128k" },
+          "720p": { extension: "mp4", scale: "-2:720" },
+          trim: { extension: "mp4" },
+          gif: { extension: "gif", scale: "-2:480" }
+        }[button.dataset.mediaPurpose];
+        if (!settings) return;
+        const fields = {
+          "#media-output-extension": settings.extension || "mp4",
+          "#media-video-bitrate": settings.videoBitrate || "",
+          "#media-audio-bitrate": settings.audioBitrate || "",
+          "#media-scale": settings.scale || "",
+          "#media-crop": ""
+        };
+        Object.entries(fields).forEach(([selector, value]) => { if ($(selector)) $(selector).value = value; });
+        $("#media-output-extension").dispatchEvent(new Event("change", { bubbles: true }));
+        $$('[data-media-purpose]').forEach((item) => item.setAttribute("aria-pressed", String(item === button)));
+        if (button.dataset.mediaPurpose === "trim") {
+          const details = $(".media-advanced");
+          if (details) details.open = true;
+          if ($("#media-start")) $("#media-start").focus();
+        } else if ($("#media-files")) $("#media-files").focus();
+      });
+    });
   }
 
   function bindResponsiveNavigation() {
