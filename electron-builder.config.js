@@ -64,9 +64,11 @@ module.exports = {
       }
     ],
     artifactName: "SwiftLocal-${version}-${arch}.${ext}",
-    // Keep resedit enabled so the EXE receives the SwiftLocal icon/name/version,
-    // while skipping code signing until a Windows certificate is configured.
-    signExecutable: false
+    // electron-builder 26.8.1 supports signAndEditExecutable, but not the newer
+    // signExecutable option. Keep resource editing enabled so the EXE receives
+    // the SwiftLocal icon/name/version. Without signing credentials the build
+    // remains unsigned, as intended for the current release process.
+    signAndEditExecutable: true
   },
   mac: {
     icon: "frontend/assets/swiftlocal-logo.png",
