@@ -576,10 +576,10 @@ pip install -r backend/requirements.txt
 
 ```bash
 npm run smoke
-npm run desktop   # 手動確認 UI：狀態中文、輸出資料夾、取消提示
+npm run desktop   # 最終集中人工驗收時啟動桌面版
 ```
 
-3. 建議手動點一次：PDF 合併、OCR、影音轉 MP3、取消排隊中任務、重開 app 看佇列是否還在
+3. 功能完成後依 [集中人工驗收清單](./docs/MANUAL_ACCEPTANCE.md) 一次過驗收；開發階段不需重複手動點選
 4. Windows 打包：
 
 ```bash
