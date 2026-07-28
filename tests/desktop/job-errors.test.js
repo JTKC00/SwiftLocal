@@ -1,6 +1,9 @@
 "use strict";
 
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const os = require("node:os");
+const path = require("node:path");
 const { describe, test } = require("node:test");
 const { classifyJobError, ERROR_CODES, errorCodeLabel } = require("../../desktop/job-errors");
 
@@ -23,8 +26,31 @@ describe("job error classification", () => {
     assert.equal(result.retriable, false);
   });
 
+  test("does not classify external process failures as missing input while inputs exist", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "swiftlocal-error-"));
+    try {
+      const input = path.join(dir, "sample.docx");
+      fs.writeFileSync(input, "docx");
+      const error = new Error("LibreOffice 轉換失敗（退出碼 3765269347）。input filter failed");
+      error.errorCode = ERROR_CODES.OFFICE_CONVERSION_FAILED;
+      const result = classifyJobError(error, { type: "office-to-pdf", inputPaths: [input] });
+      assert.equal(result.code, ERROR_CODES.OFFICE_CONVERSION_FAILED);
+      assert.notEqual(result.code, ERROR_CODES.MISSING_INPUT);
+      assert.match(result.hint, /LibreOffice 未能轉換此文件/);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("uses missing_input only when the filesystem confirms the input is gone", () => {
+    const missing = path.join(os.tmpdir(), `swiftlocal-missing-${Date.now()}.docx`);
+    const result = classifyJobError(new Error("anything"), { type: "office-to-pdf", inputPaths: [missing] });
+    assert.equal(result.code, ERROR_CODES.MISSING_INPUT);
+  });
+
   test("errorCodeLabel covers known codes", () => {
     assert.equal(errorCodeLabel(ERROR_CODES.MISSING_TOOL), "缺少工具");
+    assert.equal(errorCodeLabel(ERROR_CODES.OFFICE_CONVERSION_FAILED), "Office 轉換失敗");
     assert.equal(errorCodeLabel("nope"), "未知錯誤");
   });
 });

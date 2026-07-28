@@ -2,6 +2,7 @@
 
 const fs = require("node:fs");
 const path = require("node:path");
+const { pathToFileURL } = require("node:url");
 const { execFile, spawn } = require("node:child_process");
 const { PDFDocument, degrees } = require("pdf-lib");
 const {
@@ -1350,9 +1351,10 @@ function nextAvailablePath(filePath) {
 
 async function runLibreOfficeToUniqueOutput(toolPath, outputDir, inputPath, convertTo, extension, job) {
   const tempDir = fs.mkdtempSync(path.join(outputDir, ".swiftlocal-office-"));
+  const profileDir = createLibreOfficeProfileDir(tempDir);
   try {
     const before = snapshotOutputDir(tempDir);
-    const args = libreOfficeArgs(tempDir, inputPath, convertTo);
+    const args = libreOfficeArgs(tempDir, inputPath, convertTo, profileDir);
     const result = await runProcess(toolPath, args, job);
     const generated = resolveLibreOfficeOutput(tempDir, inputPath, extension, before);
     const outputPath = nextAvailablePath(path.join(outputDir, path.basename(generated)));
@@ -2200,22 +2202,32 @@ function crc32(bytes) {
 }
 
 function libreOfficeArgs(outputDir, inputPath, convertTo, profileDir) {
-  const resolvedProfile = profileDir || path.join(outputDir, `${path.parse(inputPath).name}_lo_profile`);
+  const resolvedProfile = profileDir || createLibreOfficeProfileDir(outputDir);
   fs.mkdirSync(resolvedProfile, { recursive: true });
-  const profileUri = path.resolve(resolvedProfile).replace(/\\/g, "/");
+  const profileUri = pathToLibreOfficeFileUri(resolvedProfile);
   return [
     "--headless",
     "--nologo",
     "--nodefault",
+    "--nofirststartwizard",
     "--norestore",
     "--nolockcheck",
-    `-env:UserInstallation=file:///${profileUri}`,
+    `-env:UserInstallation=${profileUri}`,
     "--convert-to",
     convertTo,
     "--outdir",
     outputDir,
     inputPath
   ];
+}
+
+function createLibreOfficeProfileDir(parentDir) {
+  fs.mkdirSync(parentDir, { recursive: true });
+  return fs.mkdtempSync(path.join(parentDir, "lo-profile-"));
+}
+
+function pathToLibreOfficeFileUri(filePath) {
+  return pathToFileURL(path.resolve(filePath)).href;
 }
 
 function cleanupLoProfile(profileDir) {
@@ -2262,6 +2274,8 @@ function formatProcessError({
   timeout = false,
   timeoutSeconds = null,
   executable = "",
+  args = [],
+  cwd = process.cwd(),
   toolLabel = "LibreOffice",
   notFound = false,
   permissionDenied = false,
@@ -2312,7 +2326,31 @@ function formatProcessError({
   } else if (returncode !== null && returncode !== 0 && !timeout) {
     parts.push(`【技術詳情】\nexit code=${returncode}`);
   }
+  const technical = [];
+  if (returncode !== null) {
+    technical.push(`exitCode=${returncode}`);
+  }
+  if (executable) {
+    const command = [executable, ...args].map((part) => quoteCommandPart(String(part))).join(" ");
+    technical.push(`command=${command}`);
+  }
+  if (cwd) {
+    technical.push(`cwd=${cwd}`);
+  }
+  if (stdout) {
+    technical.push(`stdout=${stdout}`);
+  }
+  if (stderr) {
+    technical.push(`stderr=${stderr}`);
+  }
+  if (technical.length) {
+    parts.push(`Technical details:\n${technical.join("\n")}`);
+  }
   return parts.join("\n");
+}
+
+function quoteCommandPart(part) {
+  return /\s/.test(part) ? `"${part.replace(/"/g, '\\"')}"` : part;
 }
 
 function fileSizeBytes(filePath) {
@@ -2443,6 +2481,40 @@ function isJobCancelledError(error) {
   return Boolean(error && (error.cancelled || error.name === "JobCancelledError"));
 }
 
+function processErrorCode({ code = null, stdout = "", stderr = "", toolLabel = "" } = {}) {
+  const combined = `${stdout || ""}\n${stderr || ""}`;
+  if (/userinstallation|bootstrap|user profile|profile/i.test(combined)) {
+    return ERROR_CODES.LIBREOFFICE_PROFILE_ERROR;
+  }
+  if (/LibreOffice/i.test(toolLabel)) {
+    if (isWindowsStackBufferOverrun(code) || /crash|access violation|stack.?buffer/i.test(combined)) {
+      return ERROR_CODES.EXTERNAL_PROCESS_CRASH;
+    }
+    return ERROR_CODES.OFFICE_CONVERSION_FAILED;
+  }
+  if (isWindowsStackBufferOverrun(code)) {
+    return ERROR_CODES.EXTERNAL_PROCESS_CRASH;
+  }
+  return ERROR_CODES.UNKNOWN;
+}
+
+function createProcessError(message, details = {}) {
+  const error = new Error(message);
+  Object.assign(error, details);
+  return error;
+}
+
+function filterSuccessfulToolOutput(output, toolLabel = "") {
+  if (!/LibreOffice/i.test(toolLabel) || !output) {
+    return output;
+  }
+  return output
+    .split(/\r?\n/)
+    .filter((line) => !/Could not find platform independent libraries <prefix>/i.test(line))
+    .join("\n")
+    .trim();
+}
+
 function runProcess(file, args, job, toolLabel = "外部程序") {
   return new Promise((resolve, reject) => {
     if (job && job.cancelRequested) {
@@ -2455,40 +2527,61 @@ function runProcess(file, args, job, toolLabel = "外部程序") {
     } catch (error) {
       const notFound = error && (error.code === "ENOENT" || /ENOENT/i.test(String(error)));
       const permissionDenied = error && (error.code === "EACCES" || /EACCES|permission/i.test(String(error)));
-      reject(new Error(formatProcessError({
+      reject(createProcessError(formatProcessError({
         notFound,
         permissionDenied,
         executable: file,
+        args,
+        cwd: process.cwd(),
         toolLabel,
         stdout: String(error && error.message ? error.message : error || "")
-      })));
+      }), {
+        errorCode: notFound ? ERROR_CODES.MISSING_TOOL : permissionDenied ? ERROR_CODES.PERMISSION_DENIED : ERROR_CODES.UNKNOWN,
+        executable: file,
+        args,
+        cwd: process.cwd(),
+        stdout: String(error && error.message ? error.message : error || ""),
+        stderr: ""
+      }));
       return;
     }
     if (job) {
       job._child = child;
     }
-    const chunks = [];
-    child.stdout.on("data", (chunk) => chunks.push(chunk.toString()));
-    child.stderr.on("data", (chunk) => chunks.push(chunk.toString()));
+    const stdoutChunks = [];
+    const stderrChunks = [];
+    child.stdout.on("data", (chunk) => stdoutChunks.push(chunk.toString()));
+    child.stderr.on("data", (chunk) => stderrChunks.push(chunk.toString()));
     child.on("error", (error) => {
       if (job) {
         job._child = null;
       }
       const notFound = error && (error.code === "ENOENT" || /ENOENT/i.test(String(error)));
       const permissionDenied = error && (error.code === "EACCES" || /EACCES|permission/i.test(String(error)));
-      reject(new Error(formatProcessError({
+      reject(createProcessError(formatProcessError({
         notFound,
         permissionDenied,
         executable: file,
+        args,
+        cwd: process.cwd(),
         toolLabel,
         stdout: String(error && error.message ? error.message : error || "")
-      })));
+      }), {
+        errorCode: notFound ? ERROR_CODES.MISSING_TOOL : permissionDenied ? ERROR_CODES.PERMISSION_DENIED : ERROR_CODES.UNKNOWN,
+        executable: file,
+        args,
+        cwd: process.cwd(),
+        stdout: String(error && error.message ? error.message : error || ""),
+        stderr: ""
+      }));
     });
     child.on("close", (code) => {
       if (job) {
         job._child = null;
       }
-      const output = chunks.join("").trim();
+      const stdout = stdoutChunks.join("");
+      const stderr = stderrChunks.join("");
+      const output = `${stdout}${stderr}`.trim();
       if (job && job.cancelRequested) {
         reject(new JobCancelledError());
         return;
@@ -2498,22 +2591,45 @@ function runProcess(file, args, job, toolLabel = "外部程序") {
       const qpdfWarningOk = isQpdf && code === 3 && /succeeded with warnings/i.test(output);
       if (code === 0 || qpdfWarningOk) {
         if (/impl_store|error area:io|class:write/i.test(output)) {
-          reject(new Error(formatProcessError({
+          reject(createProcessError(formatProcessError({
             returncode: code,
-            stdout: output,
+            stdout,
+            stderr,
             executable: file,
+            args,
+            cwd: process.cwd(),
             toolLabel
-          })));
+          }), {
+            errorCode: processErrorCode({ code, stdout, stderr, toolLabel }),
+            exitCode: code,
+            executable: file,
+            args,
+            cwd: process.cwd(),
+            stdout,
+            stderr
+          }));
           return;
         }
-        resolve({ output });
+        resolve({ output: filterSuccessfulToolOutput(output, toolLabel), stdout, stderr, exitCode: code });
       } else {
-        reject(new Error(formatProcessError({
+        const errorCode = processErrorCode({ code, stdout, stderr, toolLabel: isQpdf ? "QPDF" : toolLabel });
+        reject(createProcessError(formatProcessError({
           returncode: code,
-          stdout: output,
+          stdout,
+          stderr,
           executable: file,
+          args,
+          cwd: process.cwd(),
           toolLabel: isQpdf ? "QPDF" : toolLabel
-        })));
+        }), {
+          errorCode,
+          exitCode: code,
+          executable: file,
+          args,
+          cwd: process.cwd(),
+          stdout,
+          stderr
+        }));
       }
     });
   });
@@ -2532,6 +2648,10 @@ module.exports = {
   buildFfmpegMediaArgs,
   formatProcessError,
   isWindowsStackBufferOverrun,
+  libreOfficeArgs,
+  pathToLibreOfficeFileUri,
+  createLibreOfficeProfileDir,
+  filterSuccessfulToolOutput,
   removeIncompleteOfficeOutput,
   cleanupLoProfile,
   sanitizeMediaBitrate,

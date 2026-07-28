@@ -12,6 +12,9 @@ ERROR_CODES = {
     "PERMISSION_DENIED": "permission_denied",
     "TOOL_TIMEOUT": "tool_timeout",
     "TOOL_CRASHED": "tool_crashed",
+    "EXTERNAL_PROCESS_CRASH": "external_process_crash",
+    "OFFICE_CONVERSION_FAILED": "office_conversion_failed",
+    "LIBREOFFICE_PROFILE_ERROR": "libreoffice_profile_error",
     "MISSING_INPUT": "missing_input",
     "OUTPUT_CONFLICT": "output_conflict",
     "CANCELLED": "cancelled",
@@ -52,9 +55,23 @@ def classify_job_error(error: BaseException | str, job_type: str = "") -> dict[s
         }
     if "0xc0000409" in text or "崩潰" in message or "crash" in text:
         return {
-            "code": ERROR_CODES["TOOL_CRASHED"],
+            "code": ERROR_CODES["EXTERNAL_PROCESS_CRASH"],
             "message": message,
-            "hint": "工具程序崩潰。請更新工具、改試其他格式，或重試。",
+            "hint": "LibreOffice 未能轉換此文件。文件可能包含不相容內容，或轉換引擎發生錯誤。",
+            "retriable": True,
+        }
+    if "userinstallation" in text or "bootstrap" in text or "user profile" in text:
+        return {
+            "code": ERROR_CODES["LIBREOFFICE_PROFILE_ERROR"],
+            "message": message,
+            "hint": "LibreOffice 使用者設定檔無法建立或啟動。請確認輸出資料夾可寫入後重試。",
+            "retriable": True,
+        }
+    if "libreoffice" in text and ("退出碼" in message or "exit code" in text or "process exited" in text):
+        return {
+            "code": ERROR_CODES["OFFICE_CONVERSION_FAILED"],
+            "message": message,
+            "hint": "LibreOffice 未能轉換此文件。文件可能包含不相容內容，或轉換引擎發生錯誤。",
             "retriable": True,
         }
     if "permission" in text or "eacces" in text or "沒有權限" in message:
@@ -132,6 +149,9 @@ def error_code_label(code: str) -> str:
         ERROR_CODES["PERMISSION_DENIED"]: "權限不足",
         ERROR_CODES["TOOL_TIMEOUT"]: "工具逾時",
         ERROR_CODES["TOOL_CRASHED"]: "工具崩潰",
+        ERROR_CODES["EXTERNAL_PROCESS_CRASH"]: "外部程序崩潰",
+        ERROR_CODES["OFFICE_CONVERSION_FAILED"]: "Office 轉換失敗",
+        ERROR_CODES["LIBREOFFICE_PROFILE_ERROR"]: "LibreOffice 設定檔錯誤",
         ERROR_CODES["MISSING_INPUT"]: "輸入檔遺失",
         ERROR_CODES["OUTPUT_CONFLICT"]: "輸出衝突",
         ERROR_CODES["CANCELLED"]: "使用者取消",

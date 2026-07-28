@@ -18,6 +18,10 @@ const {
   resolveLibreOfficeOutput,
   formatProcessError,
   isWindowsStackBufferOverrun,
+  libreOfficeArgs,
+  pathToLibreOfficeFileUri,
+  createLibreOfficeProfileDir,
+  filterSuccessfulToolOutput,
   removeIncompleteOfficeOutput,
   cleanupLoProfile,
   pdfBytesLookEncrypted,
@@ -133,6 +137,52 @@ describe("office convert targets", () => {
   });
 });
 
+describe("LibreOffice profile isolation", () => {
+  test("creates a different user profile for each task", () => {
+    const dir = tempDir("sl-lo-profile-");
+    try {
+      const first = createLibreOfficeProfileDir(dir);
+      const second = createLibreOfficeProfileDir(dir);
+      assert.notEqual(first, second);
+      assert.equal(fs.existsSync(first), true);
+      assert.equal(fs.existsSync(second), true);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("encodes spaces, Chinese characters, and Windows paths as file URIs", () => {
+    const winPath = "C:\\Users\\測試 使用者\\Libre Office\\profile";
+    const uri = pathToLibreOfficeFileUri(winPath);
+    assert.match(uri, /^file:\/\/\//);
+    assert.match(uri, /%E6%B8%AC%E8%A9%A6/);
+    assert.match(uri, /%20/);
+    assert.doesNotMatch(uri, /\\/);
+  });
+
+  test("LibreOffice args use isolated profile URI and first-start suppression", () => {
+    const dir = tempDir("sl-lo-args-");
+    try {
+      const input = path.join(dir, "含 空格.docx");
+      fs.writeFileSync(input, "docx");
+      const profile = path.join(dir, "profile 中文");
+      const args = libreOfficeArgs(dir, input, "pdf", profile);
+      const envArg = args.find((arg) => arg.startsWith("-env:UserInstallation="));
+      assert.ok(envArg);
+      assert.match(envArg, /file:\/\/\//);
+      assert.doesNotMatch(envArg, /file:\/\/\/file:/);
+      assert.match(envArg, /%E4%B8%AD%E6%96%87/);
+      assert.ok(args.includes("--headless"));
+      assert.ok(args.includes("--nologo"));
+      assert.ok(args.includes("--nodefault"));
+      assert.ok(args.includes("--nofirststartwizard"));
+      assert.ok(args.includes("--nolockcheck"));
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
 describe("process error formatter", () => {
   test("maps 3221226505 and signed -1073740791 to 0xC0000409 message", () => {
     assert.equal(isWindowsStackBufferOverrun(3221226505), true);
@@ -149,6 +199,31 @@ describe("process error formatter", () => {
   test("timeout and missing output messages", () => {
     assert.match(formatProcessError({ timeout: true, timeoutSeconds: 180 }), /逾時/);
     assert.match(formatProcessError({ outputMissing: true, expectedOutput: "a.docx" }), /未產生輸出檔/);
+  });
+
+  test("non-zero exits retain stderr, exit code, command, and cwd", () => {
+    const msg = formatProcessError({
+      returncode: 3765269347,
+      stderr: "LibreOffice stderr",
+      stdout: "LibreOffice stdout",
+      executable: "C:\\Program Files\\LibreOffice\\program\\soffice.com",
+      args: ["--headless", "--convert-to", "pdf", "input.docx"],
+      cwd: "C:\\Work Dir",
+      toolLabel: "LibreOffice"
+    });
+    assert.match(msg, /exitCode=3765269347/);
+    assert.match(msg, /stderr=LibreOffice stderr/);
+    assert.match(msg, /stdout=LibreOffice stdout/);
+    assert.match(msg, /command="C:\\Program Files\\LibreOffice\\program\\soffice.com"/);
+    assert.match(msg, /cwd=C:\\Work Dir/);
+  });
+
+  test("filters unrelated LibreOffice Python prefix warnings from successful logs", () => {
+    const output = filterSuccessfulToolOutput(
+      "Could not find platform independent libraries <prefix>\nconvert ok",
+      "LibreOffice"
+    );
+    assert.equal(output, "convert ok");
   });
 
   test("removes incomplete outputs and cleans profiles", () => {

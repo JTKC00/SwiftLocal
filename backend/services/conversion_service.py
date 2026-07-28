@@ -214,6 +214,8 @@ def format_process_error(
     timeout: bool = False,
     timeout_seconds: int | None = None,
     executable: str = "",
+    args: list[str] | None = None,
+    cwd: str | None = None,
     tool_label: str = "LibreOffice",
     not_found: bool = False,
     permission_denied: bool = False,
@@ -276,9 +278,26 @@ def format_process_error(
         parts.append(f"【技術詳情】\n{detail}")
     elif returncode not in (None, 0) and not timeout:
         parts.append(f"【技術詳情】\nexit code={normalize_returncode_display(returncode)}")
-        if executable:
-            parts.append(f"executable={executable}")
+    technical: list[str] = []
+    if returncode is not None:
+        technical.append(f"exitCode={normalize_returncode_display(returncode)}")
+    if executable:
+        command = " ".join(_quote_command_part(part) for part in [executable, *(args or [])])
+        technical.append(f"command={command}")
+    if cwd:
+        technical.append(f"cwd={cwd}")
+    if stdout:
+        technical.append(f"stdout={stdout}")
+    if stderr:
+        technical.append(f"stderr={stderr}")
+    if technical:
+        parts.append("Technical details:\n" + "\n".join(technical))
     return "\n".join(parts)
+
+
+def _quote_command_part(part: str) -> str:
+    text = str(part)
+    return '"' + text.replace('"', '\\"') + '"' if re.search(r"\s", text) else text
 
 
 def should_try_docx_fallback(error: BaseException | str) -> bool:
@@ -820,14 +839,15 @@ async def convert_pdf_to_office(
         temp_dir = Path(tempfile.mkdtemp(prefix=".swiftlocal-office-", dir=output_dir))
         profile_dir = temp_dir / "profile"
         profile_dir.mkdir(parents=True, exist_ok=True)
-        profile_uri = profile_dir.resolve().as_posix()
+        profile_uri = profile_dir.resolve().as_uri()
         args = [
             "--headless",
             "--nologo",
             "--nodefault",
+            "--nofirststartwizard",
             "--norestore",
             "--nolockcheck",
-            f"-env:UserInstallation=file:///{profile_uri}",
+            f"-env:UserInstallation={profile_uri}",
             "--convert-to",
             convert_to,
             "--outdir",
@@ -960,14 +980,15 @@ async def _run_libreoffice_to_unique_output(
         temp_dir = Path(temp_name)
         profile_dir = temp_dir / "profile"
         profile_dir.mkdir(parents=True, exist_ok=True)
-        profile_uri = profile_dir.resolve().as_posix()
+        profile_uri = profile_dir.resolve().as_uri()
         args = [
             "--headless",
             "--nologo",
             "--nodefault",
+            "--nofirststartwizard",
             "--norestore",
             "--nolockcheck",
-            f"-env:UserInstallation=file:///{profile_uri}",
+            f"-env:UserInstallation={profile_uri}",
             "--convert-to",
             convert_to,
             "--outdir",
@@ -1674,6 +1695,8 @@ def _run_process_sync(
             format_process_error(
                 not_found=True,
                 executable=executable,
+                args=args,
+                cwd=os.getcwd(),
                 tool_label=tool_label,
             )
         ) from error
@@ -1682,6 +1705,8 @@ def _run_process_sync(
             format_process_error(
                 permission_denied=True,
                 executable=executable,
+                args=args,
+                cwd=os.getcwd(),
                 tool_label=tool_label,
             )
         ) from error
@@ -1701,6 +1726,8 @@ def _run_process_sync(
                     stdout=stdout or "",
                     stderr=stderr or "",
                     executable=executable,
+                    args=args,
+                    cwd=os.getcwd(),
                     tool_label=tool_label,
                 )
             ) from None
@@ -1718,6 +1745,8 @@ def _run_process_sync(
                 stdout=stdout or "",
                 stderr=stderr or "",
                 executable=executable,
+                args=args,
+                cwd=os.getcwd(),
                 tool_label=tool_label,
             )
         )
@@ -1729,10 +1758,22 @@ def _run_process_sync(
                 stdout=stdout or "",
                 stderr=stderr or "",
                 executable=executable,
+                args=args,
+                cwd=os.getcwd(),
                 tool_label=tool_label,
             )
         )
-    return output
+    return filter_successful_tool_output(output, tool_label)
+
+
+def filter_successful_tool_output(output: str, tool_label: str = "") -> str:
+    if "libreoffice" not in tool_label.lower() or not output:
+        return output
+    return "\n".join(
+        line
+        for line in output.splitlines()
+        if "Could not find platform independent libraries <prefix>" not in line
+    ).strip()
 
 
 def sanitize_extension(extension: str) -> str:

@@ -96,6 +96,9 @@
 | `permission_denied` | 權限不足 |
 | `tool_timeout` | 工具逾時 |
 | `tool_crashed` | 工具崩潰 |
+| `external_process_crash` | 外部程序崩潰 |
+| `office_conversion_failed` | Office 轉換失敗 |
+| `libreoffice_profile_error` | LibreOffice 設定檔錯誤 |
 | `missing_input` | 輸入檔遺失 |
 | `cancelled` | 使用者取消 |
 | `unknown` | 未知錯誤 |

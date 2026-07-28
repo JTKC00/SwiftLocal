@@ -1,5 +1,7 @@
 "use strict";
 
+const fs = require("node:fs");
+
 /**
  * Shared job error taxonomy for desktop backend.
  * Keep codes aligned with backend/services/job_errors.py and docs/jobs-state-schema.md.
@@ -15,6 +17,9 @@ const ERROR_CODES = Object.freeze({
   PERMISSION_DENIED: "permission_denied",
   TOOL_TIMEOUT: "tool_timeout",
   TOOL_CRASHED: "tool_crashed",
+  EXTERNAL_PROCESS_CRASH: "external_process_crash",
+  OFFICE_CONVERSION_FAILED: "office_conversion_failed",
+  LIBREOFFICE_PROFILE_ERROR: "libreoffice_profile_error",
   MISSING_INPUT: "missing_input",
   OUTPUT_CONFLICT: "output_conflict",
   CANCELLED: "cancelled",
@@ -38,6 +43,10 @@ const PASSWORD_JOB_TYPES = new Set(["pdf-encrypt", "pdf-decrypt"]);
 function classifyJobError(error, job = {}) {
   const rawMessage = error instanceof Error ? error.message : String(error || "");
   const message = rawMessage.trim() || "未知錯誤";
+  const explicitCode = error && error.errorCode ? String(error.errorCode) : "";
+  if (explicitCode && Object.values(ERROR_CODES).includes(explicitCode)) {
+    return classifiedFromCode(explicitCode, message);
+  }
   const cancelled =
     Boolean(error && (error.cancelled || error.name === "JobCancelledError")) ||
     /任務已取消/.test(message);
@@ -62,9 +71,9 @@ function classifyJobError(error, job = {}) {
 
   if (/0xC0000409|stack.?buffer|意外崩潰|crashed|access violation/i.test(message)) {
     return {
-      code: ERROR_CODES.TOOL_CRASHED,
+      code: ERROR_CODES.EXTERNAL_PROCESS_CRASH,
       message,
-      hint: "工具程序崩潰。請更新工具、改試其他格式，或重試。",
+      hint: "LibreOffice 未能轉換此文件。文件可能包含不相容內容，或轉換引擎發生錯誤。",
       retriable: true
     };
   }
@@ -132,10 +141,10 @@ function classifyJobError(error, job = {}) {
     };
   }
 
-  if (/輸入|input.*(missing|not exist)|找不到輸入/i.test(message)) {
+  if (hasConfirmedMissingInput(job)) {
     return {
       code: ERROR_CODES.MISSING_INPUT,
-      message,
+      message: "原始輸入檔已不存在",
       hint: "原始輸入檔已不存在，請重新選擇檔案後建立任務。",
       retriable: false
     };
@@ -159,6 +168,45 @@ function classifyJobError(error, job = {}) {
   };
 }
 
+function hasConfirmedMissingInput(job = {}) {
+  const inputs = Array.isArray(job.inputPaths) ? job.inputPaths : [];
+  if (!inputs.length) {
+    return false;
+  }
+  return inputs.some((inputPath) => {
+    try {
+      return !fs.existsSync(inputPath);
+    } catch {
+      return false;
+    }
+  });
+}
+
+function classifiedFromCode(code, message) {
+  if (code === ERROR_CODES.EXTERNAL_PROCESS_CRASH || code === ERROR_CODES.OFFICE_CONVERSION_FAILED) {
+    return {
+      code,
+      message,
+      hint: "LibreOffice 未能轉換此文件。文件可能包含不相容內容，或轉換引擎發生錯誤。",
+      retriable: true
+    };
+  }
+  if (code === ERROR_CODES.LIBREOFFICE_PROFILE_ERROR) {
+    return {
+      code,
+      message,
+      hint: "LibreOffice 使用者設定檔無法建立或啟動。請確認輸出資料夾可寫入後重試。",
+      retriable: true
+    };
+  }
+  return {
+    code,
+    message,
+    hint: "請查看技術詳情後重試；若持續失敗可匯出診斷報告。",
+    retriable: true
+  };
+}
+
 function errorCodeLabel(code) {
   const map = {
     [ERROR_CODES.MISSING_TOOL]: "缺少工具",
@@ -170,6 +218,9 @@ function errorCodeLabel(code) {
     [ERROR_CODES.PERMISSION_DENIED]: "權限不足",
     [ERROR_CODES.TOOL_TIMEOUT]: "工具逾時",
     [ERROR_CODES.TOOL_CRASHED]: "工具崩潰",
+    [ERROR_CODES.EXTERNAL_PROCESS_CRASH]: "外部程序崩潰",
+    [ERROR_CODES.OFFICE_CONVERSION_FAILED]: "Office 轉換失敗",
+    [ERROR_CODES.LIBREOFFICE_PROFILE_ERROR]: "LibreOffice 設定檔錯誤",
     [ERROR_CODES.MISSING_INPUT]: "輸入檔遺失",
     [ERROR_CODES.OUTPUT_CONFLICT]: "輸出衝突",
     [ERROR_CODES.CANCELLED]: "使用者取消",
