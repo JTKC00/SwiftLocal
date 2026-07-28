@@ -73,6 +73,19 @@ test("preset filters follow the product taxonomy without breaking legacy categor
   assert.match(app, /"media-panel": "media"/);
 });
 
+test("personal settings have an in-tool save and clear edit path", () => {
+  assert.match(html, /id="save-tool-preset"[^>]*>保存這組設定</);
+  assert.match(html, /我的常用設定/);
+  assert.match(html, /建立我的常用設定步驟/);
+  assert.match(html, /按「保存這組設定」/);
+  assert.match(html, /我保存的/);
+  assert.match(app, /const panelId = state\.activePanel/);
+  assert.match(app, /function editPresetSettings\(preset\)/);
+  assert.match(app, /function updatePresetAction\(panelId\)/);
+  assert.match(app, /pending\.mode === "update"/);
+  assert.match(app, /更新這組設定/);
+});
+
 test("search and mobile navigation expose all five core workspaces", () => {
   assert.match(html, /id="quick-actions"[^>]*aria-live="polite"/);
   assert.match(app, /terms\.every\(\(term\) => haystack\.includes\(term\)\)/);

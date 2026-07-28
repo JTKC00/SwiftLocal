@@ -27,7 +27,7 @@
         <div class="nav-group">
           <span class="nav-group-label">開始</span>
           <button class="nav-item is-active" type="button" data-panel="home-panel">首頁</button>
-          <button class="nav-item" type="button" data-panel="presets-panel">常用預設</button>
+          <button class="nav-item" type="button" data-panel="presets-panel">我的常用設定</button>
           <button class="nav-item task-nav-item" type="button" data-panel="tasks-panel">任務中心 <b id="sidebar-task-count">0</b></button>
         </div>
         <div class="nav-group core-nav-group">
@@ -83,7 +83,8 @@
           </div>
         </div>
         <div class="topbar-actions">
-          <button id="preset-shortcut" class="preset-shortcut" type="button" aria-label="開啟常用預設"><span aria-hidden="true">★</span><strong>預設</strong></button>
+          <button id="save-tool-preset" class="save-tool-preset" type="button" hidden>保存這組設定</button>
+          <button id="preset-shortcut" class="preset-shortcut" type="button" aria-label="開啟我的常用設定"><span aria-hidden="true">★</span><strong>常用設定</strong></button>
           <button class="privacy-shortcut" type="button" data-open-privacy aria-label="查看私隱及資料處理詳情">
             <span aria-hidden="true">◉</span><strong>本機私隱</strong>
           </button>
@@ -241,16 +242,22 @@
       <section id="presets-panel" class="panel presets-panel" aria-labelledby="presets-title">
         <header class="presets-hero">
           <div>
-            <p class="eyebrow">一按套用常用設定</p>
-            <h1 id="presets-title">常用預設</h1>
-            <p>快速套用內置組合，或把目前工具的安全選項保存到這部裝置，下次毋須逐項設定。</p>
+            <p class="eyebrow">把常用選項變成自己的快捷方式</p>
+            <h1 id="presets-title">我的常用設定</h1>
+            <p>先到工具調整格式、品質或其他選項，再按頁頂的「保存這組設定」。下次按一下便可直接使用。</p>
           </div>
-          <button id="save-current-preset" class="primary-button" type="button">儲存目前設定</button>
+          <button id="save-current-preset" class="primary-button" type="button">前往選擇工具</button>
         </header>
 
+        <ol class="preset-guide" aria-label="建立我的常用設定步驟">
+          <li><span>1</span><div><strong>開啟一個工具</strong><p>例如圖片、PDF 或影音。</p></div></li>
+          <li><span>2</span><div><strong>調整成你常用的選項</strong><p>例如 WebP、80% 品質、1600px。</p></div></li>
+          <li><span>3</span><div><strong>按「保存這組設定」</strong><p>以後可在這裡一按使用或修改。</p></div></li>
+        </ol>
+
         <div class="preset-summary" aria-label="預設摘要">
-          <div><strong id="preset-total-count">0</strong><span>全部預設</span></div>
-          <div><strong id="preset-custom-count">0</strong><span>我的預設</span></div>
+          <div><strong id="preset-total-count">0</strong><span>推薦＋我的</span></div>
+          <div><strong id="preset-custom-count">0</strong><span>我保存的</span></div>
           <div class="preset-privacy"><strong>只存選項</strong><span>不保存檔案、內容、密碼或路徑</span></div>
         </div>
 
@@ -265,9 +272,9 @@
               <button type="button" data-preset-filter="media" aria-pressed="false">影音</button>
               <button type="button" data-preset-filter="automation" aria-pressed="false">自動化</button>
               <button type="button" data-preset-filter="other" aria-pressed="false">其他工具</button>
-              <button type="button" data-preset-filter="custom" aria-pressed="false">我的預設</button>
+              <button type="button" data-preset-filter="custom" aria-pressed="false">我保存的</button>
             </div>
-            <label class="preset-search"><span class="visually-hidden">搜尋預設</span><input id="preset-search" type="search" placeholder="搜尋預設"></label>
+            <label class="preset-search"><span class="visually-hidden">搜尋常用設定</span><input id="preset-search" type="search" placeholder="搜尋常用設定"></label>
           </div>
           <div id="preset-list" class="preset-list" aria-live="polite"></div>
         </section>
@@ -1424,16 +1431,16 @@
   <dialog id="preset-dialog" class="info-dialog preset-dialog" aria-labelledby="preset-dialog-title">
     <form id="preset-dialog-form" class="dialog-card">
       <header>
-        <div><p class="eyebrow">保存到這部裝置</p><h2 id="preset-dialog-title">儲存目前設定</h2></div>
+        <div><p class="eyebrow">保存到這部裝置</p><h2 id="preset-dialog-title">保存這組設定</h2></div>
         <button id="preset-dialog-close" class="dialog-close" type="button" aria-label="關閉預設視窗">×</button>
       </header>
-      <label><span>預設名稱</span><input id="preset-name" type="text" maxlength="40" required autocomplete="off" placeholder="例如：每週報告 PDF"></label>
+      <label><span>為這組設定命名</span><input id="preset-name" type="text" maxlength="40" required autocomplete="off" placeholder="例如：每週報告 PDF"></label>
       <div class="preset-save-preview">
         <span>來源工具</span><strong id="preset-source-tool">—</strong>
         <span>將會保存</span><strong id="preset-field-count">0 項安全選項</strong>
       </div>
       <p class="dialog-lead">不會保存選擇的檔案、文字內容、浮水印文字、密碼、檔名或本機路徑。</p>
-      <footer><button id="preset-dialog-cancel" class="secondary-button" type="button">取消</button><button class="primary-button" type="submit">儲存預設</button></footer>
+      <footer><button id="preset-dialog-cancel" class="secondary-button" type="button">取消</button><button id="preset-dialog-submit" class="primary-button" type="submit">保存</button></footer>
     </form>
   </dialog>
 
@@ -1447,7 +1454,7 @@
       <div class="privacy-grid">
         <section><span class="privacy-mode memory">瀏覽器記憶體</span><h3>基礎工具</h3><p>圖片、PDF 工作台、ZIP、文字及資料主要在目前頁面的記憶體處理。只有按下下載後，結果才會寫入你選擇的下載位置。</p></section>
         <section><span class="privacy-mode disk">本機磁碟</span><h3>桌面進階處理</h3><p>影音、Office、OCR、工作流程及進階 PDF 會把選定檔案交給這部電腦的本機服務，並把結果寫入本機輸出資料夾。</p></section>
-        <section><span class="privacy-mode history">本機紀錄</span><h3>設定與任務歷史</h3><p>主題、顯示偏好、常用預設、工作流程、檔名及本機路徑可能儲存在此裝置，方便恢復狀態。預設不保存內容或密碼，工作流程的 PDF 密碼亦不會寫入歷史。</p></section>
+        <section><span class="privacy-mode history">本機紀錄</span><h3>設定與任務歷史</h3><p>主題、顯示偏好、我的常用設定、工作流程、檔名及本機路徑可能儲存在此裝置，方便恢復狀態。常用設定不保存內容或密碼，工作流程的 PDF 密碼亦不會寫入歷史。</p></section>
         <section><span class="privacy-mode network">只連本機</span><h3>網絡連線</h3><p>程式只會按需要連接這部電腦的 <code>127.0.0.1</code> 處理服務；目前沒有第三方分析、廣告或遙測連線。</p></section>
       </div>
       <div class="dialog-note"><strong>你可以控制的資料</strong><span>任務中心可刪除已結束任務；重新整理頁面會清除未下載的瀏覽器記憶體結果。桌面輸出檔需由你在檔案系統自行刪除。</span></div>

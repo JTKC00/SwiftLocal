@@ -33,7 +33,7 @@
     userPresets: [],
     presetFilter: "all",
     pendingPreset: null,
-    lastPresetPanel: null,
+    editingPresetId: null,
     desktopOutputDir: "",
     hashRows: [],
     renameRows: [],
@@ -44,7 +44,7 @@
     "home-panel": "首頁",
     "tasks-panel": "全域任務中心",
     "workflow-panel": "工作流程串連",
-    "presets-panel": "常用預設",
+    "presets-panel": "我的常用設定",
     "pdf-hub-panel": "PDF",
     "ocr-panel": "OCR",
     "office-panel": "Office",
@@ -67,7 +67,7 @@
     "home-panel": "首頁",
     "tasks-panel": "全域任務中心",
     "workflow-panel": "工作流程串連",
-    "presets-panel": "常用預設",
+    "presets-panel": "我的常用設定",
     "pdf-hub-panel": "PDF",
     "ocr-panel": "OCR",
     "office-panel": "Office",
@@ -90,7 +90,7 @@
     "home-panel": { nav: "首頁", hint: "從 PDF、OCR、Office、圖片及影音五大核心開始。", steps: [], keywords: "home 首頁 開始 本機 辦公 媒體", platform: "web" },
     "tasks-panel": { nav: "任務中心", hint: "集中追蹤所有進階處理、下載結果及處理失敗任務。", steps: [], keywords: "task job queue 任務 工作 佇列 進度 下載 失敗", platform: "local" },
     "workflow-panel": { nav: "工作流程", hint: "把多個處理步驟串連；失敗可從未完成步驟繼續。", steps: ["選擇範本及來源檔案", "調整步驟和選項", "啟動後在右側追蹤；失敗可繼續"], keywords: "workflow pipeline automation 流程 串連 自動 接力 重試 繼續", platform: "local" },
-    "presets-panel": { nav: "常用預設", hint: "一按套用常見組合，或保存目前工具的安全選項。", steps: [], keywords: "preset favorite 常用 預設 設定 快捷", platform: "web" },
+    "presets-panel": { nav: "我的常用設定", hint: "在工具調好選項後保存，下次一按使用；也可返回原工具修改。", steps: ["開啟工具並調整選項", "按頁頂的「保存這組設定」", "下次在這裡使用或修改"], keywords: "preset favorite 常用 預設 設定 快捷 個人化 保存", platform: "web" },
     "pdf-hub-panel": { nav: "PDF", hint: "閱讀填表、頁面整理、轉換與 OCR、保護與壓縮。", steps: ["選擇閱讀、整理、轉換或保護", "進入既有 PDF 工作區完成操作", "永久修改前另存或確認輸出"], keywords: "pdf 閱讀 填表 簽名 日期章 列印 工作台 合併 分割 旋轉 ocr word 圖片 壓縮 加密 解密" },
     "ocr-panel": { nav: "OCR", hint: "圖片或掃描 PDF 轉文字、Word 或可搜尋 PDF。", steps: ["選擇來源和輸出用途", "加入圖片或 PDF", "在任務中心追蹤、取消或重試"], keywords: "ocr tesseract 掃描 辨識 圖片 文字 searchable 可搜尋 word 批量 繁中 英文", platform: "local" },
     "office-panel": { nav: "Office", hint: "Office 轉 PDF、PDF 轉 Office 與文件歸檔流程。", steps: ["選擇轉換用途", "加入 Office 或 PDF", "確認相容性提示並在任務中心追蹤"], keywords: "office word excel powerpoint doc docx xls xlsx ppt pptx libreoffice 歸檔 批量", platform: "local" },
@@ -305,12 +305,17 @@
     }
     const shortcut = $("#preset-shortcut");
     const save = $("#save-current-preset");
+    const saveTool = $("#save-tool-preset");
     const search = $("#preset-search");
     const form = $("#preset-dialog-form");
     const close = $("#preset-dialog-close");
     const cancel = $("#preset-dialog-cancel");
     if (shortcut) shortcut.addEventListener("click", () => activatePanel("presets-panel", null, true));
-    if (save) save.addEventListener("click", openSavePresetDialog);
+    if (save) save.addEventListener("click", () => {
+      activatePanel("home-panel", null, true);
+      showToast("先開啟一個工具並調整選項，再按頁頂的「保存這組設定」", "info");
+    });
+    if (saveTool) saveTool.addEventListener("click", openSavePresetDialog);
     if (search) search.addEventListener("input", renderPresetLibrary);
     if (form) form.addEventListener("submit", savePresetFromDialog);
     if (close) close.addEventListener("click", closePresetDialog);
@@ -387,7 +392,7 @@
   }
 
   function openSavePresetDialog() {
-    const panelId = state.lastPresetPanel;
+    const panelId = state.activePanel;
     const meta = presetPanelMeta(panelId);
     if (!meta) {
       showToast("請先開啟一個支援的工具並調整設定", "info");
@@ -399,11 +404,14 @@
       showToast("目前工具沒有可安全保存的選項", "info");
       return;
     }
-    state.pendingPreset = { mode: "create", panelId, meta, ...captured };
+    const editingPreset = state.userPresets.find((item) => item.id === state.editingPresetId && item.panelId === panelId);
+    state.pendingPreset = { mode: editingPreset ? "update" : "create", presetId: editingPreset?.id, panelId, meta, ...captured };
     const title = $("#preset-dialog-title");
     const name = $("#preset-name");
-    if (title) title.textContent = "儲存目前設定";
-    if (name) name.value = `${meta.title}預設`;
+    const submit = $("#preset-dialog-submit");
+    if (title) title.textContent = editingPreset ? "更新我的常用設定" : "保存這組設定";
+    if (name) name.value = editingPreset?.name || `${meta.title}常用設定`;
+    if (submit) submit.textContent = editingPreset ? "更新設定" : "保存";
     setTextIfPresent("#preset-source-tool", meta.title);
     setTextIfPresent("#preset-field-count", `${count} 項安全選項`);
     openInfoDialog("#preset-dialog");
@@ -414,7 +422,9 @@
     state.pendingPreset = { mode: "rename", presetId: preset.id };
     const title = $("#preset-dialog-title");
     const name = $("#preset-name");
-    if (title) title.textContent = "重新命名預設";
+    if (title) title.textContent = "重新命名常用設定";
+    const submit = $("#preset-dialog-submit");
+    if (submit) submit.textContent = "儲存名稱";
     if (name) name.value = preset.name;
     setTextIfPresent("#preset-source-tool", titles[preset.panelId] || preset.badge || "工具");
     setTextIfPresent("#preset-field-count", `${Object.keys(preset.settings || {}).length + (preset.actions || []).length} 項安全選項`);
@@ -437,7 +447,22 @@
     if (pending.mode === "rename") {
       const preset = state.userPresets.find((item) => item.id === pending.presetId);
       if (preset) preset.name = name;
-      showToast("預設已重新命名", "success");
+      showToast("常用設定已重新命名", "success");
+    } else if (pending.mode === "update") {
+      const preset = state.userPresets.find((item) => item.id === pending.presetId);
+      if (preset) Object.assign(preset, {
+        name,
+        description: `從「${pending.meta.title}」保存的自訂選項。`,
+        category: pending.meta.category,
+        badge: pending.meta.badge,
+        panelId: pending.panelId,
+        settings: pending.settings,
+        actions: pending.actions,
+        updatedAt: new Date().toISOString()
+      });
+      state.editingPresetId = null;
+      updatePresetAction(state.activePanel);
+      showToast(`已更新「${name}」`, "success");
     } else {
       state.userPresets.unshift({
         id: `preset-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
@@ -452,7 +477,7 @@
         createdAt: new Date().toISOString()
       });
       state.userPresets = state.userPresets.slice(0, 50);
-      showToast("常用預設已儲存到這部裝置", "success");
+      showToast(`已保存「${name}」；下次可在「我的常用設定」使用`, "success");
     }
     persistUserPresets();
     closePresetDialog();
@@ -491,7 +516,9 @@
     container.innerHTML = "";
     container.classList.toggle("empty", visible.length === 0);
     if (!visible.length) {
-      container.innerHTML = '<div class="task-empty-state"><strong>找不到預設</strong><span>請更改分類或搜尋字詞。</span></div>';
+      container.innerHTML = state.presetFilter === "custom"
+        ? '<div class="task-empty-state"><strong>你還未保存常用設定</strong><span>開啟工具、調整選項，再按頁頂的「保存這組設定」。</span></div>'
+        : '<div class="task-empty-state"><strong>找不到常用設定</strong><span>請更改分類或搜尋字詞。</span></div>';
       return;
     }
     visible.forEach((preset) => container.appendChild(buildPresetCard(preset)));
@@ -500,16 +527,21 @@
   function buildPresetCard(preset) {
     const card = document.createElement("article");
     card.className = `preset-card${preset.custom ? " custom" : ""}`;
-    card.innerHTML = `<div class="preset-card-heading"><span class="preset-card-icon" aria-hidden="true">${preset.custom ? "★" : "◆"}</span><div><span class="preset-card-badge">${escapeHtml(preset.badge || "預設")}</span><h3>${escapeHtml(preset.name)}</h3></div></div><p>${escapeHtml(preset.description || "")}</p><div class="preset-card-meta"><span>${preset.custom ? "我的預設 · 儲存在本機" : "SwiftLocal 內置"}</span></div>`;
+    card.innerHTML = `<div class="preset-card-heading"><span class="preset-card-icon" aria-hidden="true">${preset.custom ? "★" : "◆"}</span><div><span class="preset-card-badge">${escapeHtml(preset.badge || "設定")}</span><h3>${escapeHtml(preset.name)}</h3></div></div><p>${escapeHtml(preset.description || "")}</p><div class="preset-card-meta"><span>${preset.custom ? "我保存的 · 只在這部裝置" : "SwiftLocal 推薦設定"}</span></div>`;
     const actions = document.createElement("div");
     actions.className = "preset-card-actions";
     const apply = document.createElement("button");
     apply.type = "button";
     apply.className = "primary-button compact";
-    apply.textContent = "套用預設";
+    apply.textContent = preset.custom ? "使用這組設定" : "使用推薦設定";
     apply.addEventListener("click", () => applyPreset(preset));
     actions.appendChild(apply);
     if (preset.custom) {
+      const edit = document.createElement("button");
+      edit.type = "button";
+      edit.className = "secondary-button compact";
+      edit.textContent = "修改設定";
+      edit.addEventListener("click", () => editPresetSettings(preset));
       const rename = document.createElement("button");
       rename.type = "button";
       rename.className = "secondary-button compact";
@@ -534,9 +566,10 @@
         state.userPresets = state.userPresets.filter((item) => item.id !== preset.id);
         persistUserPresets();
         renderPresetLibrary();
-        showToast("預設已刪除", "success");
+        if (state.editingPresetId === preset.id) state.editingPresetId = null;
+        showToast("常用設定已刪除", "success");
       });
-      actions.append(rename, remove);
+      actions.append(edit, rename, remove);
     }
     card.appendChild(actions);
     return card;
@@ -557,6 +590,24 @@
       control.dispatchEvent(new Event("change", { bubbles: true }));
     });
     showToast(`已套用「${preset.name}」`, "success");
+  }
+
+  function editPresetSettings(preset) {
+    state.editingPresetId = preset.id;
+    applyPreset(preset);
+    updatePresetAction(preset.panelId);
+    showToast(`正在修改「${preset.name}」；調整後按頁頂的「更新這組設定」`, "info");
+  }
+
+  function updatePresetAction(panelId) {
+    const button = $("#save-tool-preset");
+    if (!button) return;
+    const supported = Boolean(presetPanelMeta(panelId));
+    button.hidden = !supported;
+    if (!supported) return;
+    const editing = state.userPresets.find((item) => item.id === state.editingPresetId && item.panelId === panelId);
+    button.textContent = editing ? "更新這組設定" : "保存這組設定";
+    button.setAttribute("aria-label", editing ? `更新「${editing.name}」` : `保存${titles[panelId] || "目前工具"}的這組設定`);
   }
 
   // ─── file-zone drag-and-drop ──────────────────────────────────────
@@ -668,8 +719,9 @@
 
   function activatePanel(panelId, focusSelector, moveFocus = true) {
     if (!panelId) return;
+    const editingPreset = state.userPresets.find((item) => item.id === state.editingPresetId);
+    if (editingPreset && panelId !== editingPreset.panelId && panelId !== "presets-panel") state.editingPresetId = null;
     const navPanelId = ["pdf-panel", "pdf-reader-panel"].includes(panelId) ? "pdf-hub-panel" : panelId;
-    if (presetPanelMeta(panelId)) state.lastPresetPanel = panelId;
     state.activePanel = panelId;
     $$(".nav-item").forEach((item) => {
       const active = item.dataset.panel === navPanelId;
@@ -695,6 +747,7 @@
     $("#panel-title").textContent = titles[panelId] || "SwiftLocal";
     const clearButton = $("#clear-all");
     if (clearButton) clearButton.hidden = ["home-panel", "tasks-panel", "workflow-panel", "presets-panel", "pdf-reader-panel", "pdf-hub-panel", "ocr-panel", "office-panel"].includes(panelId);
+    updatePresetAction(panelId);
     updatePanelAssist(panelId);
     closeMobileNavigation();
     if (panelId === "tasks-panel" && state.backendConnected) refreshBackendJobs();

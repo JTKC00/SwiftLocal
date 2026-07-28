@@ -681,6 +681,7 @@ textarea {
 }
 
 .preset-shortcut,
+.save-tool-preset,
 .privacy-shortcut,
 .accessibility-shortcut {
   display: inline-flex;
@@ -701,6 +702,8 @@ textarea {
 }
 
 .preset-shortcut span { color: #b36b00; }
+.save-tool-preset { min-height: 38px; padding: 8px 13px; border: 1px solid #ad752d; border-radius: 10px; background: #fff6e7; color: #6e491c; font-weight: 800; }
+.save-tool-preset:hover { background: #fbe7c6; }
 
 .privacy-shortcut span {
   color: #2f9c71;
@@ -2983,6 +2986,11 @@ td.code-cell {
 .presets-hero .eyebrow { color: #f0dab6; }
 .presets-hero .primary-button { flex: 0 0 auto; background: #f1b65c; color: #30220e; }
 .preset-summary { display: grid; grid-template-columns: 160px 160px minmax(0, 1fr); gap: 10px; margin-bottom: 14px; }
+.preset-guide { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 0 0 14px; padding: 0; list-style: none; }
+.preset-guide li { display: flex; gap: 11px; padding: 14px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface); }
+.preset-guide li > span { display: grid; width: 28px; height: 28px; place-items: center; flex: 0 0 auto; border-radius: 50%; background: #816238; color: #fff; font-size: 12px; font-weight: 900; }
+.preset-guide strong { font-size: 13px; }
+.preset-guide p { margin: 4px 0 0; color: var(--muted); font-size: 11px; line-height: 1.45; }
 .preset-summary > div { display: grid; gap: 3px; padding: 15px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface); }
 .preset-summary strong { font-size: 25px; }
 .preset-summary span { color: var(--muted); font-size: 11px; }
@@ -3019,6 +3027,7 @@ td.code-cell {
   .presets-hero { align-items: stretch; flex-direction: column; padding: 22px 18px; }
   .presets-hero .primary-button { width: 100%; }
   .preset-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .preset-guide { grid-template-columns: 1fr; }
   .preset-summary .preset-privacy { grid-column: 1 / -1; }
   .preset-toolbar { align-items: stretch; flex-direction: column; }
   .preset-search { width: 100%; }
@@ -3026,6 +3035,7 @@ td.code-cell {
 }
 
 [data-theme="dark"] .preset-shortcut,
+[data-theme="dark"] .save-tool-preset,
 [data-theme="dark"] .preset-card.custom,
 [data-theme="dark"] .preset-summary .preset-privacy { background: #2d2414; }
 [data-theme="dark"] .preset-filters button.is-active { background: #2d2414; color: #f0c27c; }
