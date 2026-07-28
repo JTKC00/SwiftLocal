@@ -44,6 +44,7 @@ module.exports = {
       ext: "pdf",
       name: "PDF",
       description: "PDF Document — 快轉通 SwiftLocal",
+      icon: "icon.ico",
       mimeType: "application/pdf",
       role: "Viewer",
       // macOS: Alternate so we appear as a viewer without replacing Preview by default.
@@ -63,7 +64,9 @@ module.exports = {
       }
     ],
     artifactName: "SwiftLocal-${version}-${arch}.${ext}",
-    signAndEditExecutable: false
+    // Keep resedit enabled so the EXE receives the SwiftLocal icon/name/version,
+    // while skipping code signing until a Windows certificate is configured.
+    signExecutable: false
   },
   mac: {
     icon: "frontend/assets/swiftlocal-logo.png",
