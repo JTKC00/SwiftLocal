@@ -47,7 +47,7 @@ function verifyWindowsRelease(options = {}) {
   const version = options.version || require(path.join(projectRoot, "package.json")).version;
   const full = Boolean(options.full);
   const outputDir = path.resolve(projectRoot, options.outputDir || (full ? "dist-full" : "dist"));
-  const artifacts = expectedWindowsArtifactNames(version, options.arch || "x64", full).map((name) => {
+  const artifacts = (options.unpackedOnly ? [] : expectedWindowsArtifactNames(version, options.arch || "x64", full)).map((name) => {
     const filePath = path.join(outputDir, name);
     const stat = requireReleaseFile(filePath);
     return { filePath, size: stat.size };
@@ -57,10 +57,11 @@ function verifyWindowsRelease(options = {}) {
 }
 
 function parseArgs(args) {
-  const output = { full: false };
+  const output = { full: false, unpackedOnly: false };
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
     if (arg === "--full") output.full = true;
+    else if (arg === "--unpacked") output.unpackedOnly = true;
     else if (arg === "--dir" && args[index + 1]) output.outputDir = args[++index];
     else if (arg === "--arch" && args[index + 1]) output.arch = args[++index];
     else throw new Error(`不支援的參數：${arg}`);
@@ -75,7 +76,7 @@ if (require.main === module) {
     for (const artifact of result.artifacts) {
       console.log(`OK ${path.basename(artifact.filePath)} (${Math.round(artifact.size / 1024 / 1024)} MB)`);
     }
-    console.log("OK app.asar 版本與 tools 資源");
+    console.log("OK win-unpacked、app.asar 版本與 tools 資源");
   } catch (error) {
     console.error(`FAIL ${error.message}`);
     process.exit(1);

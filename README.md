@@ -531,6 +531,8 @@ npm test                 # Node + Python 單元測試
 npm run typecheck        # 主要 JS 語法檢查（CI 會跑）
 npm run check:ci         # 版本／依賴 pin／產物命名一致性（CI 會跑）
 npm run smoke            # 發佈 smoke：語法 + 單元測試 + 本機轉換
+npm run verify:win:dir   # 打包目錄版後驗證 app.asar 版本與 tools 資源
+npm run smoke:packaged-ui # 隔離啟動 Windows 目錄版並驗證 UI、IPC 與 CSP
 ```
 
 Python 後端依賴（`backend/requirements.txt` 已固定版本，與 CI 的 Python 3.12 對齊）：
@@ -596,6 +598,10 @@ npm run pack:win:full
 - JS 語法檢查、`npm test`
 - 自動產生 `smoke-temp/` 測試 fixtures（無需手動放檔）
 - 桌面後端：PDF 合併／分割／旋轉／壓縮、加密解密（有 QPDF 時）、OCR、影音、取消排隊
+
+### Windows 打包版自動驗證
+
+執行 `npm run pack:win:dir` 後，可依序執行 `npm run verify:win:dir` 與 `npm run smoke:packaged-ui`。後者會使用臨時 profile 及可用的本機偵錯連接埠，在隱藏視窗中啟動打包版，驗證 IPC、五大核心導航、PDF 主入口、搜尋 live region、CSP 及首頁按鈕對比，完成後停止自己的程序樹並清理暫存。
 
 ### 已知限制（PDF → Office）
 

@@ -107,7 +107,7 @@
 - [ ] 一般版及 Full 版安裝、啟動、升級與移除符合預期，產物版本和檔名正確。
 - [ ] 全新 Windows 使用者環境不依賴開發機 PATH；Full 版能找到內建工具。
 - [ ] macOS 包可啟動，簽章／公證及權限提示符合發佈設定。
-- [ ] `npm run smoke`、`npm run check:pack` 及 Full 版的 `npm run check:pack:full` 全部通過。
+- [ ] `npm run smoke`、`npm run check:pack`、`npm run verify:win:dir`、`npm run smoke:packaged-ui` 及 Full 版的 `npm run check:pack:full` 全部通過。
 - [ ] 沒有阻斷核心流程的錯誤、資料遺失、原檔覆蓋或隱私文案錯誤後，才標記發佈候選版本通過。
 
 ## 驗收記錄

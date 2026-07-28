@@ -12,6 +12,8 @@ const {
 } = require("../../scripts/verify-release-artifacts");
 
 const temporaryDirectories = [];
+const packagedUiVerifier = fs.readFileSync(path.join(__dirname, "..", "..", "scripts", "verify-packaged-ui.js"), "utf8");
+const packagedUiRunner = fs.readFileSync(path.join(__dirname, "..", "..", "scripts", "smoke-packaged-ui.js"), "utf8");
 
 afterEach(() => {
   for (const directory of temporaryDirectories.splice(0)) {
@@ -20,6 +22,18 @@ afterEach(() => {
 });
 
 describe("release artifact verification", () => {
+  test("packaged UI smoke follows the current product hubs", () => {
+    assert.ok(packagedUiVerifier.includes('[data-home-panel="pdf-hub-panel"]'));
+    assert.match(packagedUiVerifier, /pdf-hub-panel/);
+    assert.match(packagedUiVerifier, /ocr-panel/);
+    assert.match(packagedUiVerifier, /office-panel/);
+    assert.doesNotMatch(packagedUiVerifier, /開啟 PDF 工作台/);
+    assert.ok(!packagedUiVerifier.includes('[data-home-panel="pdf-panel"]'));
+    assert.match(packagedUiRunner, /--user-data-dir=/);
+    assert.match(packagedUiRunner, /taskkill\.exe/);
+    assert.match(packagedUiRunner, /swiftlocal-packaged-ui-smoke-/);
+  });
+
   test("derives exact portable and installer names from the package version", () => {
     assert.deepEqual(expectedWindowsArtifactNames("0.3.1"), [
       "SwiftLocal-0.3.1-portable-x64.exe",
@@ -34,9 +48,11 @@ describe("release artifact verification", () => {
   test("parses full-build and output-directory arguments", () => {
     assert.deepEqual(parseArgs(["--full", "--dir", "release", "--arch", "arm64"]), {
       full: true,
+      unpackedOnly: false,
       outputDir: "release",
       arch: "arm64"
     });
+    assert.deepEqual(parseArgs(["--unpacked"]), { full: false, unpackedOnly: true });
     assert.throws(() => parseArgs(["--unknown"]), /不支援的參數/);
   });
 
