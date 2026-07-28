@@ -6,6 +6,7 @@
  */
 
 const { spawnSync } = require("node:child_process");
+const fs = require("node:fs");
 const path = require("node:path");
 
 const root = path.join(__dirname, "..");
@@ -50,7 +51,12 @@ function pythonCmd() {
 
 let code = 0;
 
-code = run("node", ["--test", "tests/desktop"], "Desktop (Node)") || code;
+const desktopTestDir = path.join(root, "tests", "desktop");
+const desktopTests = fs.readdirSync(desktopTestDir)
+  .filter((name) => name.endsWith(".test.js"))
+  .sort()
+  .map((name) => path.join(desktopTestDir, name));
+code = run("node", ["--test", ...desktopTests], "Desktop (Node)") || code;
 
 const py = pythonCmd();
 if (!py) {
