@@ -61,3 +61,26 @@ test("homepage positioning and quick actions prioritize the five core areas", ()
   const quickStart = html.slice(html.indexOf('<div class="quick-actions"'), html.indexOf('</section>', html.indexOf('<div class="quick-actions"')));
   assert.doesNotMatch(quickStart, /zip-panel|ZIP/);
 });
+
+test("preset filters follow the product taxonomy without breaking legacy categories", () => {
+  for (const category of ["pdf", "ocr", "office", "image", "media", "automation", "other", "custom"]) {
+    assert.match(html, new RegExp(`data-preset-filter="${category}"`));
+  }
+  assert.doesNotMatch(html, /data-preset-filter="text"/);
+  assert.match(app, /function presetDisplayCategory\(preset\)/);
+  assert.match(app, /state\.presetFilter === "custom" \? Boolean\(preset\.custom\)/);
+  assert.match(app, /"workflow-panel": "automation"/);
+  assert.match(app, /"media-panel": "media"/);
+});
+
+test("search and mobile navigation expose all five core workspaces", () => {
+  assert.match(html, /id="quick-actions"[^>]*aria-live="polite"/);
+  assert.match(app, /terms\.every\(\(term\) => haystack\.includes\(term\)\)/);
+  assert.match(app, /SEARCH_HIDDEN_PANEL_IDS = new Set\(\["home-panel", "pdf-panel", "pdf-reader-panel"\]\)/);
+  assert.match(app, /function toolAreaLabel\(panelId\)/);
+  const mobileStart = html.indexOf('<nav class="mobile-primary-nav"');
+  const mobileNav = html.slice(mobileStart, html.indexOf("</nav>", mobileStart));
+  for (const panelId of ["pdf-hub-panel", "ocr-panel", "office-panel", "image-panel", "media-panel"]) {
+    assert.match(mobileNav, new RegExp(`data-mobile-panel="${panelId}"`));
+  }
+});

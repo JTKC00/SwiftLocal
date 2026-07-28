@@ -144,10 +144,10 @@
           </div>
           <label class="tool-search">
             <span class="visually-hidden">搜尋工具</span>
-            <input id="tool-search" type="search" placeholder="搜尋：PDF、OCR、Office、圖片、影音...">
+            <input id="tool-search" type="search" placeholder="搜尋用途或格式，例如：PDF OCR、Word、MP3">
           </label>
         </div>
-        <div class="quick-actions" id="quick-actions">
+        <div class="quick-actions" id="quick-actions" aria-label="工具搜尋結果" aria-live="polite">
           <button type="button" data-panel="pdf-reader-panel">
             <strong>開啟／填寫 PDF</strong>
             <span>閱讀、填表、簽名圖片、日期章與儲存</span>
@@ -264,7 +264,7 @@
               <button type="button" data-preset-filter="image" aria-pressed="false">圖片</button>
               <button type="button" data-preset-filter="media" aria-pressed="false">影音</button>
               <button type="button" data-preset-filter="automation" aria-pressed="false">自動化</button>
-              <button type="button" data-preset-filter="text" aria-pressed="false">其他工具</button>
+              <button type="button" data-preset-filter="other" aria-pressed="false">其他工具</button>
               <button type="button" data-preset-filter="custom" aria-pressed="false">我的預設</button>
             </div>
             <label class="preset-search"><span class="visually-hidden">搜尋預設</span><input id="preset-search" type="search" placeholder="搜尋預設"></label>
@@ -1412,9 +1412,11 @@
     </main>
     <nav class="mobile-primary-nav" aria-label="手機主要導航">
       <button class="is-active" type="button" data-mobile-panel="home-panel"><span aria-hidden="true">⌂</span>首頁</button>
-      <button type="button" data-mobile-panel="image-panel"><span aria-hidden="true">▧</span>圖片</button>
       <button type="button" data-mobile-panel="pdf-hub-panel"><span aria-hidden="true">▤</span>PDF</button>
-      <button type="button" data-mobile-panel="tasks-panel"><span aria-hidden="true">◷</span>任務</button>
+      <button type="button" data-mobile-panel="ocr-panel"><span aria-hidden="true">⌕</span>OCR</button>
+      <button type="button" data-mobile-panel="office-panel"><span aria-hidden="true">▣</span>Office</button>
+      <button type="button" data-mobile-panel="image-panel"><span aria-hidden="true">▧</span>圖片</button>
+      <button type="button" data-mobile-panel="media-panel"><span aria-hidden="true">▷</span>影音</button>
       <button id="mobile-more-tools" type="button"><span aria-hidden="true">☰</span>更多</button>
     </nav>
   </div>

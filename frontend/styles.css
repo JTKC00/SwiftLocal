@@ -2395,7 +2395,7 @@ td.code-cell {
     bottom: max(10px, env(safe-area-inset-bottom));
     left: 12px;
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(7, minmax(0, 1fr));
     padding: 7px;
     border: 1px solid var(--line);
     border-radius: 16px;
@@ -2413,8 +2413,9 @@ td.code-cell {
     border-radius: 10px;
     background: transparent;
     color: var(--muted);
-    font-size: 10px;
+    font-size: 9px;
     font-weight: 700;
+    white-space: nowrap;
   }
 
   .mobile-primary-nav button span { font-size: 17px; line-height: 1; }

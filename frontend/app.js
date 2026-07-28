@@ -88,12 +88,12 @@
 
   const toolGuides = {
     "home-panel": { nav: "首頁", hint: "從 PDF、OCR、Office、圖片及影音五大核心開始。", steps: [], keywords: "home 首頁 開始 本機 辦公 媒體", platform: "web" },
-    "tasks-panel": { nav: "任務中心", hint: "集中追蹤所有進階處理、下載結果及處理失敗任務。", steps: [], keywords: "task job queue 任務 工作 佇列 進度 下載 失敗", platform: "desktop" },
-    "workflow-panel": { nav: "工作流程", hint: "把多個處理步驟串連；失敗可從未完成步驟繼續。", steps: ["選擇範本及來源檔案", "調整步驟和選項", "啟動後在右側追蹤；失敗可繼續"], keywords: "workflow pipeline automation 流程 串連 自動 接力 重試 繼續", platform: "desktop" },
+    "tasks-panel": { nav: "任務中心", hint: "集中追蹤所有進階處理、下載結果及處理失敗任務。", steps: [], keywords: "task job queue 任務 工作 佇列 進度 下載 失敗", platform: "local" },
+    "workflow-panel": { nav: "工作流程", hint: "把多個處理步驟串連；失敗可從未完成步驟繼續。", steps: ["選擇範本及來源檔案", "調整步驟和選項", "啟動後在右側追蹤；失敗可繼續"], keywords: "workflow pipeline automation 流程 串連 自動 接力 重試 繼續", platform: "local" },
     "presets-panel": { nav: "常用預設", hint: "一按套用常見組合，或保存目前工具的安全選項。", steps: [], keywords: "preset favorite 常用 預設 設定 快捷", platform: "web" },
-    "pdf-hub-panel": { nav: "PDF", hint: "閱讀填表、頁面整理、轉換與 OCR、保護與壓縮。", steps: ["選擇閱讀、整理、轉換或保護", "進入既有 PDF 工作區完成操作", "永久修改前另存或確認輸出"], keywords: "pdf 閱讀 填表 工作台 合併 分割 ocr 壓縮 加密" },
-    "ocr-panel": { nav: "OCR", hint: "圖片或掃描 PDF 轉文字、Word 或可搜尋 PDF。", steps: ["選擇來源和輸出用途", "加入圖片或 PDF", "在任務中心追蹤、取消或重試"], keywords: "ocr tesseract 掃描 辨識 圖片 文字 searchable 可搜尋 word 批量", platform: "desktop" },
-    "office-panel": { nav: "Office", hint: "Office 轉 PDF、PDF 轉 Office 與文件歸檔流程。", steps: ["選擇轉換用途", "加入 Office 或 PDF", "確認相容性提示並在任務中心追蹤"], keywords: "office word excel powerpoint docx xlsx pptx libreoffice 歸檔", platform: "desktop" },
+    "pdf-hub-panel": { nav: "PDF", hint: "閱讀填表、頁面整理、轉換與 OCR、保護與壓縮。", steps: ["選擇閱讀、整理、轉換或保護", "進入既有 PDF 工作區完成操作", "永久修改前另存或確認輸出"], keywords: "pdf 閱讀 填表 簽名 日期章 列印 工作台 合併 分割 旋轉 ocr word 圖片 壓縮 加密 解密" },
+    "ocr-panel": { nav: "OCR", hint: "圖片或掃描 PDF 轉文字、Word 或可搜尋 PDF。", steps: ["選擇來源和輸出用途", "加入圖片或 PDF", "在任務中心追蹤、取消或重試"], keywords: "ocr tesseract 掃描 辨識 圖片 文字 searchable 可搜尋 word 批量 繁中 英文", platform: "local" },
+    "office-panel": { nav: "Office", hint: "Office 轉 PDF、PDF 轉 Office 與文件歸檔流程。", steps: ["選擇轉換用途", "加入 Office 或 PDF", "確認相容性提示並在任務中心追蹤"], keywords: "office word excel powerpoint doc docx xls xlsx ppt pptx libreoffice 歸檔 批量", platform: "local" },
     "image-panel": { nav: "圖片", hint: "格式、壓縮、尺寸、旋轉／翻轉、浮水印、批量及 OCR。", steps: ["選擇或拖放圖片", "保留預設或調整格式、品質、尺寸", "按「開始轉換」，在右邊下載結果"], keywords: "image 圖片 相片 jpg jpeg png webp 壓縮 縮小 浮水印 旋轉 翻轉 ocr" },
     "pdf-panel": { nav: "PDF 轉換與整理", hint: "PDF 入口內的頁面整理、轉換、OCR、壓縮及保護。", steps: ["選擇頁面工作台或其他處理方式", "在工作台拖放頁面，並旋轉、複製或刪除", "輸出新 PDF，或在任務區查看後端進度"], keywords: "pdf 工作台 縮圖 排序 合併 分割 抽頁 旋轉 頁碼 浮水印 壓縮 加密 解密 ocr office word docx" },
     "pdf-reader-panel": { nav: "PDF 工作區", hint: "本機 PDF 閱讀、AcroForm 填表、簽名圖與日期章；關閉不鎖檔。", steps: ["開啟 PDF", "填表或放置簽名／日期", "儲存或另存"], keywords: "pdf reader 工作區 閱讀 填表 簽名 日期章 acroform 本機", platform: "web" },
@@ -103,10 +103,10 @@
     "zip-panel": { nav: "壓縮", hint: "把多個檔案打包成一個 ZIP。", steps: ["選擇多個檔案", "確認 ZIP 檔名", "按「建立 ZIP」後下載"], keywords: "zip 壓縮 打包 archive" },
     "diff-panel": { nav: "比對", hint: "比較兩段文字有哪些新增、刪除或修改。", steps: ["貼上原文字", "貼上新文字", "按「開始比對」查看差異"], keywords: "diff compare 比對 差異 文字" },
     "split-panel": { nav: "分片", hint: "把原始檔案切成多個二進位 part 分片，需之後完整合併才能還原。", steps: ["選擇檔案", "設定每份大小", "按「產生分片檔」後下載全部 part 和 manifest"], keywords: "split 切割 分片 大檔 part binary manifest" },
-    "rename-panel": { nav: "改名", hint: "先預覽批量改名規則，再下載 PowerShell 腳本。", steps: ["選擇要改名的檔案", "輸入命名格式", "產生預覽，確認後下載腳本"], keywords: "rename 改名 批量 檔名 file name", platform: "desktop" },
-    "media-panel": { nav: "影音", hint: "依用途壓縮影片、轉音訊、縮小、剪取或建立 GIF。", steps: ["先選常見用途", "選擇音訊或影片", "加入佇列並在任務中心追蹤"], keywords: "media audio video mp3 wav mp4 mov ffmpeg 影音 音訊 影片 電郵 720p 剪取 gif", platform: "desktop" },
+    "rename-panel": { nav: "改名", hint: "先預覽批量改名規則，再下載 PowerShell 腳本。", steps: ["選擇要改名的檔案", "輸入命名格式", "產生預覽，確認後下載腳本"], keywords: "rename 改名 批量 檔名 file name", platform: "device" },
+    "media-panel": { nav: "影音", hint: "依用途壓縮影片、轉音訊、縮小、剪取或建立 GIF。", steps: ["先選常見用途", "選擇音訊或影片", "加入佇列並在任務中心追蹤"], keywords: "media audio video mp3 wav m4a mp4 mov ffmpeg 影音 音訊 影片 電郵 720p 剪取 gif", platform: "local" },
     "tools-panel": { nav: "小工具", hint: "顏色格式、UUID、QR Code 等日常工具。", steps: ["選擇需要的小工具", "輸入內容或設定數量", "產生後複製或下載"], keywords: "color hex rgb hsl uuid qr qrcode 小工具 顏色" },
-    "backend-panel": { nav: "狀態", hint: "查看整體健康狀態、可用功能及清楚的修復建議。", steps: ["先看整體狀態與功能可用情況", "按「重新檢查系統」取得最新結果", "缺少工具時展開進階設定並指定路徑"], keywords: "backend 後端 系統 健康 狀態 libreoffice ffmpeg tesseract qpdf ocr 設定", platform: "desktop" }
+    "backend-panel": { nav: "狀態", hint: "查看整體健康狀態、可用功能及清楚的修復建議。", steps: ["先看整體狀態與功能可用情況", "按「重新檢查系統」取得最新結果", "缺少工具時展開進階設定並指定路徑"], keywords: "backend 後端 系統 健康 狀態 libreoffice ffmpeg tesseract qpdf ocr 設定 修復", platform: "local" }
   };
 
   const BUILT_IN_PRESETS = [
@@ -115,10 +115,12 @@
     { id: "builtin-pdf-merge", name: "合併整理 PDF", description: "開啟合併模式，加入多份 PDF 後可視覺排序。", category: "pdf", panelId: "pdf-panel", badge: "PDF", settings: { "#pdf-mode": "merge" } },
     { id: "builtin-pdf-compress", name: "輕量 PDF", description: "直接切換至本機 PDF 壓縮任務。", category: "pdf", panelId: "pdf-panel", badge: "PDF", settings: { "#pdf-mode": "pdf-compress" } },
     { id: "builtin-pdf-images", name: "PDF 高清圖片", description: "每頁輸出 JPEG，使用 2× 渲染倍率。", category: "pdf", panelId: "pdf-panel", badge: "PDF", settings: { "#pdf-mode": "images", "#pdf-image-format": "image/jpeg", "#pdf-image-scale": "2" } },
+    { id: "builtin-ocr-image", name: "繁中及英文圖片 OCR", description: "一次加入多張圖片，以繁中及英文辨識文字。", category: "ocr", panelId: "image-panel", badge: "OCR", settings: { "#img-backend-job-type": "ocr-image", "#img-backend-ocr-language": "chi_tra+eng" } },
     { id: "builtin-ocr-searchable", name: "掃描 PDF 可搜尋化", description: "以繁中及英文 OCR 建立可搜尋 PDF。", category: "ocr", panelId: "pdf-panel", badge: "OCR", settings: { "#pdf-mode": "pdf-to-searchable-pdf", "#pdf-ocr-max-pages": "50" } },
     { id: "builtin-office-pdf", name: "Office 轉 PDF", description: "批量把 Word、Excel 或 PowerPoint 轉成 PDF。", category: "office", panelId: "pdf-panel", badge: "Office", settings: { "#pdf-mode": "office-to-pdf" } },
-    { id: "builtin-text-clean", name: "清理文字空行", description: "移除空白行，保留其餘文字內容。", category: "text", panelId: "text-panel", badge: "文字", actions: ["[data-text-mode='remove-empty-lines']"] },
-    { id: "builtin-text-dedupe", name: "文字去除重複", description: "依出現次序保留唯一文字行。", category: "text", panelId: "text-panel", badge: "文字", actions: ["[data-text-mode='dedupe-lines']"] },
+    { id: "builtin-office-word", name: "PDF 轉 Word", description: "輸出 DOCX，並保留版面及相容性提示。", category: "office", panelId: "pdf-panel", badge: "Office", settings: { "#pdf-mode": "pdf-to-office", "#pdf-office-format": "docx" } },
+    { id: "builtin-text-clean", name: "清理文字空行", description: "移除空白行，保留其餘文字內容。", category: "other", panelId: "text-panel", badge: "其他工具", actions: ["[data-text-mode='remove-empty-lines']"] },
+    { id: "builtin-text-dedupe", name: "文字去除重複", description: "依出現次序保留唯一文字行。", category: "other", panelId: "text-panel", badge: "其他工具", actions: ["[data-text-mode='dedupe-lines']"] },
     { id: "builtin-workflow-office", name: "Office 歸檔流程", description: "Office 轉 PDF，再自動壓縮。", category: "automation", panelId: "workflow-panel", badge: "自動化", settings: { "#workflow-template": "office-archive" } },
     { id: "builtin-media-mp3", name: "標準 MP3 音訊", description: "輸出 MP3；其他進階參數保持空白。", category: "media", panelId: "media-panel", badge: "影音", settings: { "#media-output-extension": "mp3", "#media-video-bitrate": "", "#media-audio-bitrate": "", "#media-scale": "", "#media-crop": "", "#media-start": "", "#media-duration": "", "#media-gif-fps": "10" } }
   ];
@@ -126,6 +128,7 @@
   const PDF_BACKEND_JOB_TYPES = new Set(["office-to-pdf", "pdf-to-docx", "pdf-to-office", "pdf-to-searchable-pdf", "ocr-pdf", "pdf-merge", "pdf-split", "pdf-rotate", "pdf-encrypt", "pdf-decrypt", "pdf-compress"]);
   const IMG_BACKEND_JOB_TYPES = new Set(["image-convert", "ocr-image"]);
   const MEDIA_BACKEND_JOB_TYPES = new Set(["media-convert"]);
+  const SEARCH_HIDDEN_PANEL_IDS = new Set(["home-panel", "pdf-panel", "pdf-reader-panel"]);
 
   const $ = (selector) => document.querySelector(selector);
   const $$ = (selector) => Array.from(document.querySelectorAll(selector));
@@ -327,15 +330,37 @@
   function presetPanelMeta(panelId) {
     const map = {
       "image-panel": { title: "圖片轉換", category: "image", badge: "圖片" },
-      "pdf-panel": { title: "PDF 處理", category: "pdf", badge: "PDF" },
-      "data-panel": { title: "資料轉換", category: "text", badge: "資料" },
-      "text-panel": { title: "文字處理", category: "text", badge: "文字" },
-      "hash-panel": { title: "檔案驗證", category: "custom", badge: "驗證" },
-      "split-panel": { title: "進階分片", category: "custom", badge: "分片" },
-      "workflow-panel": { title: "工作流程", category: "desktop", badge: "桌面流程" },
-      "media-panel": { title: "影音轉換", category: "desktop", badge: "桌面影音" }
+      "pdf-panel": { title: "PDF 處理", category: currentPdfPresetCategory(), badge: "PDF" },
+      "data-panel": { title: "資料轉換", category: "other", badge: "其他工具" },
+      "text-panel": { title: "文字處理", category: "other", badge: "其他工具" },
+      "hash-panel": { title: "檔案驗證", category: "other", badge: "其他工具" },
+      "zip-panel": { title: "ZIP 壓縮", category: "other", badge: "其他工具" },
+      "diff-panel": { title: "文字比對", category: "other", badge: "其他工具" },
+      "split-panel": { title: "進階分片", category: "other", badge: "其他工具" },
+      "rename-panel": { title: "批量改名", category: "other", badge: "其他工具" },
+      "tools-panel": { title: "快速小工具", category: "other", badge: "其他工具" },
+      "workflow-panel": { title: "工作流程", category: "automation", badge: "自動化" },
+      "media-panel": { title: "影音轉換", category: "media", badge: "影音" }
     };
     return map[panelId] || null;
+  }
+
+  function currentPdfPresetCategory() {
+    const mode = $("#pdf-mode");
+    if (mode && ["ocr-pdf", "pdf-to-searchable-pdf"].includes(mode.value)) return "ocr";
+    if (mode && ["office-to-pdf", "pdf-to-docx", "pdf-to-office"].includes(mode.value)) return "office";
+    return "pdf";
+  }
+
+  function presetDisplayCategory(preset) {
+    if (["pdf", "ocr", "office", "image", "media", "automation", "other"].includes(preset.category)) return preset.category;
+    const fallback = {
+      "workflow-panel": "automation",
+      "media-panel": "media",
+      "image-panel": "image",
+      "pdf-panel": "pdf"
+    }[preset.panelId];
+    return fallback || "other";
   }
 
   function collectSafePresetSettings(panelId) {
@@ -457,9 +482,8 @@
     const all = [...state.userPresets, ...BUILT_IN_PRESETS];
     const visible = all.filter((preset) => {
       const filterMatches = state.presetFilter === "all"
-        || (state.presetFilter === "custom" && preset.custom)
-        || preset.category === state.presetFilter;
-      const haystack = [preset.name, preset.description, preset.badge].join(" ").toLowerCase();
+        || (state.presetFilter === "custom" ? Boolean(preset.custom) : presetDisplayCategory(preset) === state.presetFilter);
+      const haystack = [preset.name, preset.description, preset.badge, presetDisplayCategory(preset)].join(" ").toLowerCase();
       return filterMatches && (!query || haystack.includes(query));
     });
     setTextIfPresent("#preset-total-count", all.length);
@@ -1012,7 +1036,9 @@
       const guide = toolGuides[button.dataset.panel];
       if (!guide) return;
       button.dataset.keywords = `${guide.nav} ${guide.hint} ${guide.keywords}`;
-      const platform = guide.platform === "desktop" ? '<em class="nav-platform">桌面</em>' : "";
+      const platform = guide.platform === "local"
+        ? '<em class="nav-platform">本機引擎</em>'
+        : guide.platform === "device" ? '<em class="nav-platform">裝置</em>' : "";
       const taskCount = button.dataset.panel === "tasks-panel" ? '<b id="sidebar-task-count">0</b>' : "";
       button.innerHTML = `<span>${escapeHtml(guide.nav)}${platform}</span>${taskCount}<small>${escapeHtml(guide.hint)}</small>`;
     });
@@ -1045,16 +1071,17 @@
     }
 
     function renderSearchResults(query) {
-      const hasQuery = Boolean(query);
+      const terms = query.split(/\s+/).filter(Boolean);
+      const hasQuery = terms.length > 0;
       const matches = Object.entries(toolGuides).filter(([panelId, guide]) => {
-        if (panelId === "home-panel") return false;
-        const haystack = [guide.nav, guide.hint, guide.keywords, titles[panelId]].join(" ").toLowerCase();
-        return !hasQuery || haystack.includes(query);
+        if (SEARCH_HIDDEN_PANEL_IDS.has(panelId)) return false;
+        const haystack = [guide.nav, guide.hint, guide.keywords, titles[panelId], toolAreaLabel(panelId)].join(" ").toLowerCase();
+        return !hasQuery || terms.every((term) => haystack.includes(term));
       });
 
       $$(".nav-item").forEach((button) => {
         const haystack = (button.dataset.keywords || button.textContent || "").toLowerCase();
-        button.hidden = hasQuery && !haystack.includes(query);
+        button.hidden = hasQuery && !terms.every((term) => haystack.includes(term));
       });
       $$(".nav-group").forEach((group) => {
         group.hidden = hasQuery && !group.querySelector(".nav-item:not([hidden])");
@@ -1079,7 +1106,7 @@
         const button = document.createElement("button");
         button.type = "button";
         button.dataset.panel = panelId;
-        button.innerHTML = `<strong>${escapeHtml(guide.nav)}</strong><span>${escapeHtml(guide.hint)}</span>`;
+        button.innerHTML = `<strong>${escapeHtml(guide.nav)}</strong><span>${escapeHtml(guide.hint)}</span><em>${escapeHtml(toolAreaLabel(panelId))}</em>`;
         quickActions.appendChild(button);
       });
       bindQuickActionButtons();
@@ -3904,6 +3931,17 @@
     } else {
       setHubReadiness("#office-hub-readiness", "missing", "尚未偵測到 Office 轉換引擎", "Office → PDF 需要 LibreOffice；PDF → Word 可另裝相容引擎。");
     }
+  }
+
+  function toolAreaLabel(panelId) {
+    if (["pdf-hub-panel", "pdf-panel", "pdf-reader-panel"].includes(panelId)) return "PDF";
+    if (panelId === "ocr-panel") return "OCR";
+    if (panelId === "office-panel") return "Office";
+    if (panelId === "image-panel") return "圖片";
+    if (panelId === "media-panel") return "影音";
+    if (["tasks-panel", "workflow-panel", "presets-panel"].includes(panelId)) return "共用能力";
+    if (panelId === "backend-panel") return "系統";
+    return "其他工具";
   }
 
   function setHubReadiness(selector, status, title, detail) {
