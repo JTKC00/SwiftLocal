@@ -64,11 +64,14 @@ module.exports = {
       }
     ],
     artifactName: "SwiftLocal-${version}-${arch}.${ext}",
-    // electron-builder 26.8.1 supports signAndEditExecutable, but not the newer
-    // signExecutable option. Keep resource editing enabled so the EXE receives
-    // the SwiftLocal icon/name/version. Without signing credentials the build
-    // remains unsigned, as intended for the current release process.
-    signAndEditExecutable: true
+    // Keep resource editing enabled so the main EXE receives the SwiftLocal
+    // icon/name/version. The current releases are intentionally unsigned.
+    signAndEditExecutable: true,
+    // Full builds bundle many third-party EXEs (LibreOffice, Tesseract, FFmpeg,
+    // QPDF). Exclude all EXEs from the signing pass so electron-builder does not
+    // download winCodeSign or require Windows symlink privileges. The main app
+    // EXE is still resource-edited before this negative signing rule is applied.
+    signExts: ["!.exe"]
   },
   mac: {
     icon: "frontend/assets/swiftlocal-logo.png",
