@@ -3,7 +3,7 @@
   "version": "0.4.0-alpha",
   "private": true,
   "author": "SwiftLocal",
-  "description": "快轉通 SwiftLocal - Your Local All-in-One File Converter",
+  "description": "快轉通 SwiftLocal - 本機優先的辦公文件與媒體處理工作台",
   "main": "desktop/main.js",
   "scripts": {
     "start": "node scripts/serve.js",
