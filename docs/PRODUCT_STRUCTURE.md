@@ -57,6 +57,9 @@ SwiftLocal 是「本機優先的辦公文件與媒體處理工作台，集中處
 - PDF → Excel／PowerPoint：實驗性。
 - 掃描 PDF → Word：沿用 PDF → Office 的 OCR fallback 與可搜尋 PDF 管線。
 - OCR 預設語言：`chi_tra+eng`；語言代碼、頁數及輸出模式屬進階設定。
+- OCR 與 Office 主入口直接顯示本機引擎、繁中語言包及相容 fallback 的即時狀態；入口在工具缺失時仍保留，並連到狀態與修復。
+- 批量 OCR 依來源導向既有圖片或 PDF 多檔表單；批量 Office 沿用 `office-to-pdf` 多檔任務，不建立重複 job type。
+- PDF 內部以閱讀與填表、頁面整理、轉換與 OCR、保護與壓縮四個分區互相導向；Office 技術引擎與掃描 OCR fallback 收在進階設定。
 
 ## 平台呈現原則
 

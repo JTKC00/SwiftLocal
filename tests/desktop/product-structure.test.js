@@ -31,6 +31,26 @@ test("OCR and Office product routes reuse existing job modes", () => {
   assert.match(html, /id="pdf-ocr-language"[^>]*value="chi_tra\+eng"/);
   assert.match(html, /data-image-job="ocr-image"/);
   assert.match(html, /data-workflow-template="office-archive"/);
+  assert.match(html, /id="ocr-hub-readiness"[^>]*role="status"/);
+  assert.match(html, /id="office-hub-readiness"[^>]*role="status"/);
+  assert.match(app, /function updateProductHubReadiness\(/);
+  assert.match(app, /Tesseract 與 chi_tra\+eng 語言包均可使用/);
+  assert.match(app, /只有 PDF → Word 相容模式可用/);
+});
+
+test("batch routes open multi-file forms without new job types", () => {
+  assert.match(html, /class="product-route-actions"[\s\S]*data-image-job="ocr-image"[\s\S]*data-pdf-mode="ocr-pdf"/);
+  assert.match(html, /批量 Office 轉換[\s\S]*data-pdf-mode="office-to-pdf"/);
+  assert.match(app, /input\.multiple = showWorkspace \|\| mode === "merge" \|\| usesBackgroundTask/);
+  assert.doesNotMatch(app, /batch-ocr|batch-office/);
+});
+
+test("PDF sections keep technical Office options in advanced settings", () => {
+  const pdfSectionLabels = ["閱讀與填表", "頁面整理", "轉換與 OCR", "保護與壓縮"];
+  for (const label of pdfSectionLabels) assert.ok(html.includes(label), `missing PDF section: ${label}`);
+  assert.match(html, /<details class="pdf-office-advanced" id="pdf-office-advanced" hidden>/);
+  assert.match(html, /進階：相容引擎與掃描件 OCR/);
+  assert.match(app, /function updatePdfSectionNavigation\(/);
 });
 
 test("homepage positioning and quick actions prioritize the five core areas", () => {

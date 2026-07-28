@@ -704,6 +704,7 @@
           $("#pdf-office-format").dispatchEvent(new Event("change", { bubbles: true }));
         }
         if (scanOcr && $("#pdf-office-scan-ocr")) $("#pdf-office-scan-ocr").value = scanOcr;
+        if (scanOcr && $("#pdf-office-advanced")) $("#pdf-office-advanced").open = true;
         if (workflowTemplate && $("#workflow-template")) {
           $("#workflow-template").value = workflowTemplate;
           $("#workflow-template").dispatchEvent(new Event("change", { bubbles: true }));
@@ -1104,10 +1105,10 @@
   }
 
   function panelPrivacyInfo(panelId) {
-    if (panelId === "workflow-panel" || panelId === "media-panel" || panelId === "backend-panel") {
+    if (["workflow-panel", "media-panel", "backend-panel", "ocr-panel", "office-panel"].includes(panelId)) {
       return { kind: "disk", label: "本機磁碟", note: "由這部電腦的本機服務讀寫" };
     }
-    if (panelId === "pdf-panel" || panelId === "image-panel") {
+    if (panelId === "pdf-panel" || panelId === "pdf-hub-panel" || panelId === "image-panel") {
       return { kind: "mixed", label: "按處理方式", note: "即時工具用記憶體；進階任務寫入本機" };
     }
     return { kind: "memory", label: "瀏覽器記憶體", note: "不會上載；下載時才寫入檔案" };
@@ -1590,6 +1591,11 @@
     $(".pdf-image-controls").style.display = showImages ? "" : "none";
     $(".pdf-pagenumber-controls").style.display = showPageNumbers ? "" : "none";
     $(".pdf-office-format-controls").style.display = showOfficeFormat ? "" : "none";
+    const officeAdvanced = $("#pdf-office-advanced");
+    if (officeAdvanced) {
+      officeAdvanced.hidden = !showOfficeFormat;
+      if (!showOfficeFormat) officeAdvanced.open = false;
+    }
     const scanRow = $("#pdf-office-scan-row");
     const langRow = $("#pdf-office-ocr-lang-row");
     const ocrAdv = $("#pdf-ocr-advanced");
@@ -1628,8 +1634,23 @@
         : "可即時處理");
     }
     updatePdfModeNote(mode);
+    updatePdfSectionNavigation(mode);
     renderPdfOrderList("#pdf-merge-order", "pdfFiles");
     renderPdfWorkspace();
+  }
+
+  function updatePdfSectionNavigation(mode) {
+    let section = "convert";
+    if (mode === "workspace" || ["merge", "split", "extract", "rotate", "watermark", "page-numbers"].includes(mode)) section = "pages";
+    if (["pdf-compress", "pdf-encrypt", "pdf-decrypt"].includes(mode)) section = "protect";
+    $$("#pdf-panel .pdf-section-nav button").forEach((button) => {
+      const buttonMode = button.dataset.pdfMode || "";
+      const buttonSection = buttonMode === "workspace" ? "pages" : buttonMode === "pdf-compress" ? "protect" : buttonMode ? "convert" : "reader";
+      const active = buttonSection === section;
+      button.classList.toggle("is-active", active);
+      if (active) button.setAttribute("aria-current", "page");
+      else button.removeAttribute("aria-current");
+    });
   }
 
   function pdfFilesMatchMode(mode, files) {
@@ -3846,6 +3867,53 @@
       );
     }
     renderCapabilityStatus("#capability-security", checking, connected && Boolean(tools.qpdf && tools.qpdf.available), "QPDF 已就緒", "需要 QPDF");
+    updateProductHubReadiness(tools, connected, checking);
+  }
+
+  function updateProductHubReadiness(tools, connected, checking) {
+    if (checking) {
+      setHubReadiness("#ocr-hub-readiness", "pending", "正在檢查 OCR", "確認本機服務、Tesseract 與繁中語言包。");
+      setHubReadiness("#office-hub-readiness", "pending", "正在檢查 Office 引擎", "確認本機服務、LibreOffice 與 DOCX 相容引擎。");
+      return;
+    }
+    if (!connected) {
+      setHubReadiness("#ocr-hub-readiness", "offline", "OCR 需要桌面本機服務", "瀏覽器工具仍可用；啟動桌面版或本機服務後可執行批量 OCR。");
+      setHubReadiness("#office-hub-readiness", "offline", "Office 轉換需要桌面本機服務", "啟動桌面版或本機服務後，程式會偵測 LibreOffice 與相容引擎。");
+      return;
+    }
+
+    const tess = tools.tesseract || {};
+    const tessReady = Boolean(tess.available);
+    const languages = typeof tess.languages === "string" ? tess.languages.split(",") : [];
+    const hasChi = tess.hasChiTra === true || languages.includes("chi_tra");
+    const hasEng = tess.hasEng === true || languages.includes("eng");
+    if (tessReady && hasChi && hasEng) {
+      setHubReadiness("#ocr-hub-readiness", "ready", "OCR 已就緒", "Tesseract 與 chi_tra+eng 語言包均可使用。");
+    } else if (tessReady) {
+      setHubReadiness("#ocr-hub-readiness", "warning", "OCR 可用，但語言包不完整", hasChi ? "缺少英文語言包；任務會按可用語言 fallback。" : "缺少 chi_tra 繁中語言包；請到狀態與修復補齊。");
+    } else {
+      setHubReadiness("#ocr-hub-readiness", "missing", "尚未偵測到 Tesseract", "請檢查內建工具、指定路徑或重新偵測。");
+    }
+
+    const libreOfficeReady = Boolean(tools.libreOffice && tools.libreOffice.available);
+    const compatReady = Boolean(tools.pdf2docx && tools.pdf2docx.available);
+    if (libreOfficeReady) {
+      setHubReadiness("#office-hub-readiness", "ready", "Office 轉換已就緒", compatReady ? "LibreOffice 與 DOCX 相容 fallback 均可使用。" : "LibreOffice 可使用；DOCX 相容 fallback 尚未偵測到。");
+    } else if (compatReady) {
+      setHubReadiness("#office-hub-readiness", "warning", "只有 PDF → Word 相容模式可用", "Office → PDF 仍需要 LibreOffice；請到狀態與修復設定。");
+    } else {
+      setHubReadiness("#office-hub-readiness", "missing", "尚未偵測到 Office 轉換引擎", "Office → PDF 需要 LibreOffice；PDF → Word 可另裝相容引擎。");
+    }
+  }
+
+  function setHubReadiness(selector, status, title, detail) {
+    const row = $(selector);
+    if (!row) return;
+    const icons = { ready: "✓", warning: "!", missing: "×", offline: "!", pending: "○" };
+    row.className = `hub-readiness ${status}`;
+    row.querySelector(".hub-readiness-icon").textContent = icons[status] || "○";
+    row.querySelector("strong").textContent = title;
+    row.querySelector("small").textContent = detail;
   }
 
   function updateSystemSummaryCard(selector, status) {

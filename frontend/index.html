@@ -182,6 +182,12 @@
           <div><p class="eyebrow">一個入口，處理整份文件</p><h1 id="pdf-hub-title">PDF</h1><p>閱讀操作與永久修改清楚分開；既有 PDF 工作區、頁面工作台與轉換引擎仍在原有模組執行。</p></div>
           <span class="badge">瀏覽器 · 桌面</span>
         </header>
+        <nav class="pdf-section-nav" aria-label="PDF 工作分區">
+          <button type="button" data-product-panel="pdf-reader-panel">閱讀與填表</button>
+          <button type="button" data-product-panel="pdf-panel" data-pdf-mode="workspace">頁面整理</button>
+          <button type="button" data-product-panel="pdf-panel" data-pdf-mode="text">轉換與 OCR</button>
+          <button type="button" data-product-panel="pdf-panel" data-pdf-mode="pdf-compress">保護與壓縮</button>
+        </nav>
         <div class="product-route-grid">
           <article><span>01</span><h2>閱讀與填表</h2><p>開啟、搜尋、填寫 AcroForm、簽名圖片、日期章、儲存、另存及列印。縮放與適合頁面只改變檢視。</p><button class="primary-button" type="button" data-product-panel="pdf-reader-panel">開啟 PDF</button></article>
           <article><span>02</span><h2>頁面整理</h2><p>排序、旋轉、複製、刪除、插入與匯出頁面。這些操作會建立永久修改的新 PDF。</p><button class="secondary-button" type="button" data-product-panel="pdf-panel" data-pdf-mode="workspace" data-product-focus="#pdf-files">整理頁面</button></article>
@@ -195,12 +201,17 @@
           <div><p class="eyebrow">用途導向的文字辨識</p><h1 id="ocr-title">OCR</h1><p>預設辨識繁體中文及英文（chi_tra+eng）。語言代碼、最多頁數及輸出模式收在進階設定；所有任務沿用既有 Tesseract 管線。</p></div>
           <span class="badge">Tesseract · 本機</span>
         </header>
+        <div id="ocr-hub-readiness" class="hub-readiness pending" role="status" aria-live="polite">
+          <span class="hub-readiness-icon" aria-hidden="true">○</span>
+          <div><strong>正在檢查 OCR</strong><small>確認本機服務、Tesseract 與繁中語言包。</small></div>
+          <button type="button" data-product-panel="backend-panel">狀態與修復</button>
+        </div>
         <div class="product-route-grid">
           <article><span>圖片</span><h2>圖片 → 文字</h2><p>適合相片、截圖及單頁掃描，可一次加入多張圖片。</p><button class="primary-button" type="button" data-product-panel="image-panel" data-image-job="ocr-image" data-product-focus="#img-backend-files">辨識圖片</button></article>
           <article><span>掃描 PDF</span><h2>掃描 PDF → 文字</h2><p>逐頁辨識並輸出文字，頁數上限可在進階設定調整。</p><button class="secondary-button" type="button" data-product-panel="pdf-panel" data-pdf-mode="ocr-pdf" data-product-focus="#pdf-files">辨識 PDF</button></article>
           <article><span>可搜尋</span><h2>掃描 PDF → 可搜尋 PDF</h2><p>保留頁面影像並加入 OCR 文字層，方便搜尋及複製。</p><button class="secondary-button" type="button" data-product-panel="pdf-panel" data-pdf-mode="pdf-to-searchable-pdf" data-product-focus="#pdf-files">建立可搜尋 PDF</button></article>
           <article><span>Word</span><h2>掃描 PDF → Word</h2><p>使用相容／OCR fallback 建立 DOCX；版面可能與原掃描件不同。</p><button class="secondary-button" type="button" data-product-panel="pdf-panel" data-pdf-mode="pdf-to-office" data-office-format="docx" data-scan-ocr="force" data-product-focus="#pdf-files">轉成 Word</button></article>
-          <article><span>批量</span><h2>批量 OCR</h2><p>一次選取多個檔案，處理進度、取消、重試與輸出集中在任務中心。</p><button class="secondary-button" type="button" data-product-panel="tasks-panel">查看任務中心</button></article>
+          <article><span>批量</span><h2>批量 OCR</h2><p>一次加入多張圖片或多份 PDF，處理進度、取消、重試與輸出集中在任務中心。</p><div class="product-route-actions"><button class="secondary-button" type="button" data-product-panel="image-panel" data-image-job="ocr-image" data-product-focus="#img-backend-files">批量圖片</button><button class="secondary-button" type="button" data-product-panel="pdf-panel" data-pdf-mode="ocr-pdf" data-product-focus="#pdf-files">批量 PDF</button></div></article>
         </div>
         <p class="product-repair-note">若未偵測到 Tesseract 或繁中語言包，入口會保留並在「狀態與設定」提供重新偵測、工具路徑與語言包修復提示。</p>
       </section>
@@ -210,12 +221,18 @@
           <div><p class="eyebrow">文件轉換與歸檔</p><h1 id="office-title">Office</h1><p>以用途選擇工作，LibreOffice、相容模式與 OCR fallback 留在進階設定。轉換仍使用既有任務與輸出資料夾。</p></div>
           <span class="badge">LibreOffice · 本機</span>
         </header>
+        <div id="office-hub-readiness" class="hub-readiness pending" role="status" aria-live="polite">
+          <span class="hub-readiness-icon" aria-hidden="true">○</span>
+          <div><strong>正在檢查 Office 引擎</strong><small>確認本機服務、LibreOffice 與 DOCX 相容引擎。</small></div>
+          <button type="button" data-product-panel="backend-panel">狀態與修復</button>
+        </div>
         <div class="product-route-grid">
           <article><span>正式功能</span><h2>Office → PDF</h2><p>Word、Excel、PowerPoint 文件可批量轉成 PDF。</p><button class="primary-button" type="button" data-product-panel="pdf-panel" data-pdf-mode="office-to-pdf" data-product-focus="#pdf-files">Office 轉 PDF</button></article>
           <article><span>可用</span><h2>PDF → Word</h2><p>建立 DOCX；PDF 並非原始 Word 文件，版面及相容性可能不同。</p><button class="secondary-button" type="button" data-product-panel="pdf-panel" data-pdf-mode="pdf-to-office" data-office-format="docx" data-product-focus="#pdf-files">PDF 轉 Word</button></article>
           <article><span>實驗性</span><h2>PDF → Excel / PowerPoint</h2><p>適合試取表格或投影片內容，正式用途請核對輸出。</p><button class="secondary-button" type="button" data-product-panel="pdf-panel" data-pdf-mode="pdf-to-office" data-office-format="xlsx" data-product-focus="#pdf-files">選擇實驗格式</button></article>
           <article><span>OCR</span><h2>掃描 PDF → Word</h2><p>文字不足時使用 OCR fallback，可輸出可搜尋 PDF 與 DOCX。</p><button class="secondary-button" type="button" data-product-panel="pdf-panel" data-pdf-mode="pdf-to-office" data-office-format="docx" data-scan-ocr="force" data-product-focus="#pdf-files">辨識並轉 Word</button></article>
           <article><span>自動化</span><h2>Office 歸檔流程</h2><p>Office → PDF → 壓縮，自動接力並可從失敗步驟繼續。</p><button class="secondary-button" type="button" data-product-panel="workflow-panel" data-workflow-template="office-archive">建立歸檔流程</button></article>
+          <article><span>批量</span><h2>批量 Office 轉換</h2><p>一次選擇多份 Word、Excel、PowerPoint 或 OpenDocument，個別任務可取消或重試。</p><button class="secondary-button" type="button" data-product-panel="pdf-panel" data-pdf-mode="office-to-pdf" data-product-focus="#pdf-files">選擇多份 Office 文件</button></article>
         </div>
       </section>
 
@@ -504,6 +521,12 @@
 
       <section id="pdf-reader-panel" class="panel" aria-labelledby="pdf-reader-title">
         <div class="panel-context-bar"><span>PDF · 閱讀與填表</span><button type="button" data-product-panel="pdf-hub-panel">返回 PDF 總覽</button></div>
+        <nav class="pdf-section-nav compact" aria-label="PDF 工作分區">
+          <button class="is-active" type="button" aria-current="page">閱讀與填表</button>
+          <button type="button" data-product-panel="pdf-panel" data-pdf-mode="workspace">頁面整理</button>
+          <button type="button" data-product-panel="pdf-panel" data-pdf-mode="text">轉換與 OCR</button>
+          <button type="button" data-product-panel="pdf-panel" data-pdf-mode="pdf-compress">保護與壓縮</button>
+        </nav>
         <div class="pdf-reader-panel-intro">
           <div class="surface-heading">
             <div>
@@ -522,6 +545,12 @@
 
       <section id="pdf-panel" class="panel" aria-labelledby="pdf-title">
         <div class="panel-context-bar"><span>PDF · 整理、轉換、OCR 與保護</span><button type="button" data-product-panel="pdf-hub-panel">返回 PDF 總覽</button></div>
+        <nav class="pdf-section-nav compact" aria-label="PDF 工作分區">
+          <button type="button" data-product-panel="pdf-reader-panel">閱讀與填表</button>
+          <button type="button" data-product-panel="pdf-panel" data-pdf-mode="workspace">頁面整理</button>
+          <button type="button" data-product-panel="pdf-panel" data-pdf-mode="text">轉換與 OCR</button>
+          <button type="button" data-product-panel="pdf-panel" data-pdf-mode="pdf-compress">保護與壓縮</button>
+        </nav>
         <div class="tool-grid">
           <form id="pdf-form" class="tool-surface">
             <div class="surface-heading">
@@ -647,36 +676,20 @@
                   <option value="odt">ODT（OpenDocument，實驗性）</option>
                 </select>
               </label>
+              <div></div>
+            </div>
+            <details class="pdf-office-advanced" id="pdf-office-advanced" hidden>
+              <summary>進階：相容引擎與掃描件 OCR</summary>
               <label id="pdf-office-compat-label" class="pdf-office-compat-control">
                 <span>DOCX 引擎</span>
-                <span class="check-row">
-                  <input id="pdf-office-compat-only" type="checkbox">
-                  直接相容模式（略過 LibreOffice）
-                </span>
+                <span class="check-row"><input id="pdf-office-compat-only" type="checkbox">直接相容模式（略過 LibreOffice）</span>
               </label>
-            </div>
-            <div class="control-row pdf-office-scan-controls" id="pdf-office-scan-row" hidden>
-              <label>
-                <span>掃描件 OCR</span>
-                <select id="pdf-office-scan-ocr">
-                  <option value="auto" selected>自動（文字少時）</option>
-                  <option value="force">一律使用 OCR</option>
-                  <option value="off">關閉</option>
-                </select>
-              </label>
-              <label>
-                <span>OCR 輸出</span>
-                <select id="pdf-office-ocr-output">
-                  <option value="both" selected>可搜尋 PDF + DOCX</option>
-                  <option value="searchable">僅可搜尋 PDF</option>
-                  <option value="docx">僅 DOCX</option>
-                </select>
-              </label>
-            </div>
-            <details class="pdf-office-scan-controls pdf-office-ocr-lang-row" id="pdf-office-ocr-lang-row" hidden>
-              <summary>進階：OCR 語言代碼（預設繁中+英文，一般無需更改）</summary>
-              <label>
-                <span>OCR 語言</span>
+              <div class="control-row pdf-office-scan-controls" id="pdf-office-scan-row" hidden>
+                <label><span>掃描件 OCR</span><select id="pdf-office-scan-ocr"><option value="auto" selected>自動（文字少時）</option><option value="force">一律使用 OCR</option><option value="off">關閉</option></select></label>
+                <label><span>OCR 輸出</span><select id="pdf-office-ocr-output"><option value="both" selected>可搜尋 PDF + DOCX</option><option value="searchable">僅可搜尋 PDF</option><option value="docx">僅 DOCX</option></select></label>
+              </div>
+              <label class="pdf-office-scan-controls pdf-office-ocr-lang-row" id="pdf-office-ocr-lang-row" hidden>
+                <span>OCR 語言代碼（預設繁中+英文）</span>
                 <input id="pdf-office-ocr-language" type="text" value="chi_tra+eng" placeholder="一般無需更改">
               </label>
             </details>

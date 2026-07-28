@@ -249,6 +249,58 @@ textarea:disabled {
 .product-route-grid p { flex: 1; margin: 0 0 18px; color: var(--muted); line-height: 1.6; }
 .product-repair-note { margin: 14px 0 0; padding: 14px 16px; border-radius: 11px; background: var(--surface-2); color: var(--muted); line-height: 1.55; }
 
+.hub-readiness {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 14px;
+  padding: 13px 15px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.hub-readiness-icon { display: grid; width: 34px; height: 34px; place-items: center; border-radius: 50%; background: var(--surface-2); font-weight: 900; }
+.hub-readiness strong, .hub-readiness small { display: block; }
+.hub-readiness small { margin-top: 2px; color: var(--muted); line-height: 1.4; }
+.hub-readiness > button { min-height: 36px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-2); color: var(--text); font-size: 11px; font-weight: 800; }
+.hub-readiness.ready { border-color: var(--accent); }
+.hub-readiness.ready .hub-readiness-icon { background: var(--accent); color: #fff; }
+.hub-readiness.warning { border-color: #c99a3d; }
+.hub-readiness.warning .hub-readiness-icon, .hub-readiness.offline .hub-readiness-icon { background: #f4e4b5; color: #72500b; }
+.hub-readiness.missing { border-color: #c9796d; }
+.hub-readiness.missing .hub-readiness-icon { background: #efd2cc; color: #8d3025; }
+
+.product-route-actions { display: flex; flex-wrap: wrap; gap: 7px; width: 100%; }
+
+.pdf-section-nav {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px;
+  margin: 0 0 14px;
+  padding: 7px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-2);
+}
+
+.pdf-section-nav button { min-height: 40px; padding: 8px 10px; border: 0; border-radius: 8px; background: transparent; color: var(--muted); font-size: 12px; font-weight: 800; }
+.pdf-section-nav button:hover, .pdf-section-nav button:focus-visible, .pdf-section-nav button.is-active { background: var(--surface); color: var(--accent-dark); box-shadow: 0 1px 4px rgba(0, 0, 0, .08); }
+.pdf-section-nav.compact { margin-top: -3px; }
+
+.pdf-office-advanced {
+  margin: 0 0 14px;
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-2);
+}
+
+.pdf-office-advanced summary { cursor: pointer; color: var(--accent-dark); font-size: 12px; font-weight: 800; }
+.pdf-office-advanced > label { display: grid; gap: 7px; margin-top: 12px; }
+.pdf-office-advanced .control-row { margin-top: 12px; }
+
 .panel-context-bar {
   display: flex;
   align-items: center;
@@ -277,6 +329,9 @@ textarea:disabled {
   .product-route-grid { grid-template-columns: 1fr; }
   .product-route-grid article { min-height: 0; }
   .media-purpose-picker > div { grid-template-columns: 1fr; }
+  .hub-readiness { grid-template-columns: 34px 1fr; }
+  .hub-readiness > button { grid-column: 1 / -1; width: 100%; }
+  .pdf-section-nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 .nav-item {
