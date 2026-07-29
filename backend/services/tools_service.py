@@ -179,11 +179,8 @@ class ToolsService:
                 "message": "available",
             }
             if key == "tesseract":
-                langs = self._list_tessdata_languages(Path(normalized))
-                entry["languages"] = ",".join(langs)
-                entry["hasChiTra"] = "chi_tra" in langs
-                entry["hasEng"] = "eng" in langs
-                if langs and "chi_tra" not in langs:
+                entry.update(await self._detect_tesseract_language_support(Path(normalized)))
+                if entry["detectedLanguages"] and "chi_tra" not in entry["detectedLanguages"]:
                     entry["message"] = "available (missing chi_tra language pack)"
             return key, entry
 
@@ -260,8 +257,66 @@ class ToolsService:
                 matches.extend(self._walk_bundled_tool_dir(entry, executable_names, depth - 1))
         return matches
 
-    def _list_tessdata_languages(self, tool_path: Path) -> list[str]:
-        """List *.traineddata basenames next to a Tesseract install (for Full chi_tra checks)."""
+    async def _detect_tesseract_language_support(self, tool_path: Path) -> dict[str, str | bool | list[str]]:
+        tessdata_path = self._resolve_tessdata_path(tool_path)
+        env_prefix = os.environ.get("TESSDATA_PREFIX", "")
+        base: dict[str, str | bool | list[str]] = {
+            "tessdataPath": str(tessdata_path) if tessdata_path else "",
+            "detectedLanguages": [],
+            "detectionMethod": "none",
+            "TESSDATA_PREFIX": env_prefix,
+            "languages": "",
+            "hasChiTra": False,
+            "hasEng": False,
+        }
+        args = ["--list-langs"]
+        if tessdata_path:
+            args = ["--tessdata-dir", str(tessdata_path), "--list-langs"]
+        try:
+            result = await asyncio.to_thread(
+                subprocess.run,
+                [str(tool_path), *args],
+                capture_output=True,
+                text=True,
+                timeout=8,
+                check=False,
+            )
+            if result.returncode == 0:
+                languages = self._parse_tesseract_list_languages(f"{result.stdout or ''}\n{result.stderr or ''}")
+                if languages:
+                    return self._tesseract_language_entry(base, languages, "list-langs")
+        except Exception:
+            pass
+        scanned = self._scan_tessdata_languages(tessdata_path)
+        return self._tesseract_language_entry(base, scanned, "traineddata-scan" if scanned else "none")
+
+    def _tesseract_language_entry(
+        self,
+        base: dict[str, str | bool | list[str]],
+        languages: list[str],
+        detection_method: str,
+    ) -> dict[str, str | bool | list[str]]:
+        detected = sorted(set(languages))
+        return {
+            **base,
+            "detectedLanguages": detected,
+            "detectionMethod": detection_method,
+            "languages": ",".join(detected),
+            "hasChiTra": "chi_tra" in detected,
+            "hasEng": "eng" in detected,
+        }
+
+    def _parse_tesseract_list_languages(self, output: str) -> list[str]:
+        languages: list[str] = []
+        for line in str(output or "").splitlines():
+            item = line.strip()
+            if not item or item.lower().startswith("list of available languages"):
+                continue
+            if all(char.isalnum() or char in "_+-" for char in item):
+                languages.append(item)
+        return sorted(set(languages))
+
+    def _resolve_tessdata_path(self, tool_path: Path) -> Path | None:
         try:
             from .conversion_service import resolve_tessdata_dir
         except Exception:
@@ -280,6 +335,17 @@ class ToolsService:
                 if candidate.is_dir():
                     tessdata_dir = candidate
                     break
+        if tessdata_dir is not None and tessdata_dir.is_dir():
+            return tessdata_dir
+        env_prefix = os.environ.get("TESSDATA_PREFIX", "").strip()
+        if env_prefix:
+            for candidate in (Path(env_prefix), Path(env_prefix) / "tessdata"):
+                if candidate.is_dir():
+                    return candidate
+        return None
+
+    def _scan_tessdata_languages(self, tessdata_dir: Path | None) -> list[str]:
+        """List *.traineddata basenames from tessdata as fallback only."""
         if tessdata_dir is None or not tessdata_dir.is_dir():
             return []
         langs: list[str] = []

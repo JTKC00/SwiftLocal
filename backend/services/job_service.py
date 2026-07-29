@@ -662,6 +662,10 @@ class JobService:
                 "version": str(info.get("version") or ""),
                 "source": str(info.get("source") or ""),
                 "path": str(info.get("path") or ""),
+                "tessdataPath": str(info.get("tessdataPath") or ""),
+                "detectedLanguages": list(info.get("detectedLanguages") or []),
+                "detectionMethod": str(info.get("detectionMethod") or ""),
+                "TESSDATA_PREFIX": str(info.get("TESSDATA_PREFIX") or ""),
             }
             for key, info in (tools or {}).items()
         }

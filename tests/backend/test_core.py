@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import sys
 import tempfile
 import unittest
@@ -22,6 +23,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from backend.services import conversion_service as cs
+from backend.services.tools_service import ToolsService
 from backend.services.conversion_service import next_available_path
 from backend.services.job_service import (
     JOBS_STATE_SCHEMA_VERSION,
@@ -33,6 +35,17 @@ from backend.security import ALLOWED_FRONTEND_ORIGINS, SESSION_TOKEN, is_valid_s
 from backend.version import APP_VERSION, read_app_version
 
 
+def write_fake_tesseract(directory: Path, body: str) -> Path:
+    if os.name == "nt":
+        path = directory / "tesseract.cmd"
+        path.write_text(f"@echo off\r\n{body}\r\n", encoding="utf-8")
+        return path
+    path = directory / "tesseract"
+    path.write_text(f"#!/bin/sh\n{body}\n", encoding="utf-8")
+    path.chmod(0o755)
+    return path
+
+
 def _make_pdf(path: Path, pages: int = 2) -> None:
     from pypdf import PdfWriter
 
@@ -41,6 +54,65 @@ def _make_pdf(path: Path, pages: int = 2) -> None:
         writer.add_blank_page(width=200, height=200)
     with path.open("wb") as handle:
         writer.write(handle)
+
+
+class ToolsServiceTessdataTests(unittest.IsolatedAsyncioTestCase):
+    async def test_list_langs_is_primary_detection_source(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            body = (
+                "echo List of available languages ^(3^):\r\necho chi_tra\r\necho eng\r\necho osd\r\nexit /b 0"
+                if os.name == "nt"
+                else 'printf "List of available languages (3):\\nchi_tra\\neng\\nosd\\n"\nexit 0'
+            )
+            exe = write_fake_tesseract(base, body)
+            service = ToolsService(config_path=base / "tools.json")
+            result = await service._detect_tesseract_language_support(exe)
+            self.assertEqual(result["detectionMethod"], "list-langs")
+            self.assertTrue(result["hasChiTra"])
+            self.assertEqual(result["detectedLanguages"], ["chi_tra", "eng", "osd"])
+
+    async def test_manifest_missing_chi_tra_does_not_override_command(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            tessdata = base / "tessdata"
+            tessdata.mkdir()
+            (tessdata / "swiftlocal-tessdata.json").write_text('{"languages":["eng"]}', encoding="utf-8")
+            body = (
+                "echo List of available languages ^(2^):\r\necho chi_tra\r\necho eng\r\nexit /b 0"
+                if os.name == "nt"
+                else 'printf "List of available languages (2):\\nchi_tra\\neng\\n"\nexit 0'
+            )
+            exe = write_fake_tesseract(base, body)
+            service = ToolsService(config_path=base / "tools.json")
+            result = await service._detect_tesseract_language_support(exe)
+            self.assertEqual(result["detectionMethod"], "list-langs")
+            self.assertTrue(result["hasChiTra"])
+
+    async def test_command_failure_falls_back_to_traineddata_scan(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            tessdata = base / "tessdata"
+            tessdata.mkdir()
+            (tessdata / "chi_tra.traineddata").write_bytes(b"0" * 60_000)
+            (tessdata / "eng.traineddata").write_bytes(b"0" * 60_000)
+            exe = write_fake_tesseract(base, "exit /b 9" if os.name == "nt" else "exit 9")
+            service = ToolsService(config_path=base / "tools.json")
+            result = await service._detect_tesseract_language_support(exe)
+            self.assertEqual(result["detectionMethod"], "traineddata-scan")
+            self.assertTrue(result["hasChiTra"])
+            self.assertEqual(result["detectedLanguages"], ["chi_tra", "eng"])
+
+    def test_no_chi_tra_is_reported_only_when_absent(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            (base / "eng.traineddata").write_bytes(b"0" * 60_000)
+            service = ToolsService(config_path=base / "tools.json")
+            parsed = service._parse_tesseract_list_languages("List of available languages (1):\neng\n")
+            self.assertEqual(parsed, ["eng"])
+            langs = service._scan_tessdata_languages(base)
+            self.assertEqual(langs, ["eng"])
+            self.assertNotIn("chi_tra", langs)
 
 
 class TessdataTests(unittest.TestCase):

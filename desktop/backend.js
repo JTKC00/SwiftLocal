@@ -397,7 +397,11 @@ class BackendService {
         version: tool && tool.version ? String(tool.version) : "",
         source: tool && tool.source ? String(tool.source) : "",
         // Path is useful for support; not a secret.
-        path: tool && tool.path ? String(tool.path) : ""
+        path: tool && tool.path ? String(tool.path) : "",
+        tessdataPath: tool && tool.tessdataPath ? String(tool.tessdataPath) : "",
+        detectedLanguages: Array.isArray(tool && tool.detectedLanguages) ? tool.detectedLanguages : [],
+        detectionMethod: tool && tool.detectionMethod ? String(tool.detectionMethod) : "",
+        TESSDATA_PREFIX: tool && tool.TESSDATA_PREFIX ? String(tool.TESSDATA_PREFIX) : ""
       };
     }
     return {
@@ -1110,7 +1114,7 @@ async function detectTool(definition, configuredPath) {
     }
     const normalized = normalizeToolPath(definition, resolved);
     const version = await readVersion(normalized, definition.versionArgs);
-    return {
+    const entry = {
       available: true,
       label: definition.label,
       path: normalized,
@@ -1118,6 +1122,13 @@ async function detectTool(definition, configuredPath) {
       source: candidate.source,
       message: "available"
     };
+    if (definition.label === "Tesseract") {
+      Object.assign(entry, await detectTesseractLanguageSupport(normalized));
+      if (entry.detectedLanguages && !entry.detectedLanguages.includes("chi_tra")) {
+        entry.message = "available (missing chi_tra language pack)";
+      }
+    }
+    return entry;
   }
   return {
     available: false,
@@ -1286,6 +1297,54 @@ function bundledTessdataDir(toolPath) {
     }
   }
   return "";
+}
+
+function resolveTessdataPath(toolPath) {
+  const adjacent = bundledTessdataDir(toolPath);
+  if (adjacent) {
+    return adjacent;
+  }
+  const envPrefix = String(process.env.TESSDATA_PREFIX || "").trim();
+  if (!envPrefix) {
+    return "";
+  }
+  const candidates = [
+    envPrefix,
+    path.join(envPrefix, "tessdata")
+  ];
+  for (const candidate of candidates) {
+    const resolved = path.resolve(candidate);
+    if (fs.existsSync(resolved)) {
+      return resolved;
+    }
+  }
+  return "";
+}
+
+function scanTessdataLanguages(tessdataPath) {
+  if (!tessdataPath || !fs.existsSync(tessdataPath)) {
+    return [];
+  }
+  const languages = [];
+  try {
+    for (const entry of fs.readdirSync(tessdataPath, { withFileTypes: true })) {
+      if (!entry.isFile() || !entry.name.endsWith(".traineddata")) {
+        continue;
+      }
+      const fullPath = path.join(tessdataPath, entry.name);
+      try {
+        if (fs.statSync(fullPath).size < 50_000) {
+          continue;
+        }
+      } catch {
+        continue;
+      }
+      languages.push(entry.name.slice(0, -".traineddata".length));
+    }
+  } catch {
+    return [];
+  }
+  return Array.from(new Set(languages)).sort();
 }
 
 function ensureOutputDir(outputDir) {
@@ -2221,6 +2280,52 @@ function libreOfficeArgs(outputDir, inputPath, convertTo, profileDir) {
   ];
 }
 
+async function detectTesseractLanguageSupport(toolPath, execText = execFileText) {
+  const tessdataPath = resolveTessdataPath(toolPath);
+  const envPrefix = process.env.TESSDATA_PREFIX || "";
+  const base = {
+    tessdataPath,
+    detectedLanguages: [],
+    detectionMethod: "none",
+    TESSDATA_PREFIX: envPrefix,
+    languages: "",
+    hasChiTra: false,
+    hasEng: false
+  };
+  const args = tessdataPath ? ["--tessdata-dir", tessdataPath, "--list-langs"] : ["--list-langs"];
+  try {
+    const output = await execText(toolPath, args, { timeout: 8000 });
+    const languages = parseTesseractListLanguages(output);
+    if (languages.length) {
+      return tesseractLanguageEntry(base, languages, "list-langs");
+    }
+  } catch {
+    // Fall back to scanning traineddata below.
+  }
+  const scanned = scanTessdataLanguages(tessdataPath);
+  return tesseractLanguageEntry(base, scanned, scanned.length ? "traineddata-scan" : "none");
+}
+
+function tesseractLanguageEntry(base, languages, detectionMethod) {
+  const detectedLanguages = Array.from(new Set(languages)).sort();
+  return {
+    ...base,
+    detectedLanguages,
+    detectionMethod,
+    languages: detectedLanguages.join(","),
+    hasChiTra: detectedLanguages.includes("chi_tra"),
+    hasEng: detectedLanguages.includes("eng")
+  };
+}
+
+function parseTesseractListLanguages(output) {
+  return String(output || "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line && !/^List of available languages/i.test(line))
+    .filter((line) => /^[A-Za-z0-9_+-]+$/.test(line));
+}
+
 function createLibreOfficeProfileDir(parentDir) {
   fs.mkdirSync(parentDir, { recursive: true });
   return fs.mkdtempSync(path.join(parentDir, "lo-profile-"));
@@ -2654,6 +2759,10 @@ module.exports = {
   filterSuccessfulToolOutput,
   removeIncompleteOfficeOutput,
   cleanupLoProfile,
+  detectTesseractLanguageSupport,
+  parseTesseractListLanguages,
+  resolveTessdataPath,
+  scanTessdataLanguages,
   sanitizeMediaBitrate,
   sanitizeGifFps,
   JOBS_STATE_SCHEMA_VERSION,

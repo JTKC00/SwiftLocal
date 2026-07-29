@@ -22,6 +22,9 @@ const {
   pathToLibreOfficeFileUri,
   createLibreOfficeProfileDir,
   filterSuccessfulToolOutput,
+  detectTesseractLanguageSupport,
+  parseTesseractListLanguages,
+  scanTessdataLanguages,
   removeIncompleteOfficeOutput,
   cleanupLoProfile,
   pdfBytesLookEncrypted,
@@ -43,6 +46,18 @@ const {
 
 function tempDir(prefix) {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+}
+
+function writeFakeTesseract(dir, body) {
+  if (process.platform === "win32") {
+    const file = path.join(dir, "tesseract.cmd");
+    fs.writeFileSync(file, `@echo off\r\n${body}\r\n`, "utf8");
+    return file;
+  }
+  const file = path.join(dir, "tesseract");
+  fs.writeFileSync(file, `#!/bin/sh\n${body}\n`, "utf8");
+  fs.chmodSync(file, 0o755);
+  return file;
 }
 
 async function writeBlankPdf(filePath, pages = 2) {
@@ -71,6 +86,77 @@ describe("isEncryptedPdfMessage", () => {
     assert.equal(isEncryptedPdfMessage("需要密碼"), true);
     assert.equal(isEncryptedPdfMessage("PDF 已加密"), true);
     assert.equal(isEncryptedPdfMessage("parse failed"), false);
+  });
+});
+
+describe("Tesseract language detection", () => {
+  test("--list-langs containing chi_tra marks Traditional Chinese as installed", async () => {
+    const dir = tempDir("sl-tess-list-");
+    try {
+      const exe = path.join(dir, "tesseract.exe");
+      fs.writeFileSync(exe, "");
+      let seenArgs = [];
+      const result = await detectTesseractLanguageSupport(exe, async (_file, args) => {
+        seenArgs = args;
+        return "List of available languages (4):\nchi_sim\nchi_tra\neng\nosd\n";
+      });
+      assert.equal(result.detectionMethod, "list-langs");
+      assert.equal(result.hasChiTra, true);
+      assert.equal(result.hasEng, true);
+      assert.ok(seenArgs.includes("--list-langs"));
+      assert.deepEqual(result.detectedLanguages, ["chi_sim", "chi_tra", "eng", "osd"]);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("manifest missing chi_tra does not override actual listed languages", async () => {
+    const dir = tempDir("sl-tess-manifest-");
+    try {
+      const tessdata = path.join(dir, "tessdata");
+      fs.mkdirSync(tessdata);
+      fs.writeFileSync(path.join(tessdata, "swiftlocal-tessdata.json"), JSON.stringify({ languages: ["eng"] }));
+      const exe = path.join(dir, "tesseract.exe");
+      fs.writeFileSync(exe, "");
+      const result = await detectTesseractLanguageSupport(exe, async () => {
+        return "List of available languages (2):\nchi_tra\neng\n";
+      });
+      assert.equal(result.detectionMethod, "list-langs");
+      assert.equal(result.hasChiTra, true);
+      assert.deepEqual(result.detectedLanguages, ["chi_tra", "eng"]);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("falls back to scanning traineddata when --list-langs fails", async () => {
+    const dir = tempDir("sl-tess-scan-");
+    try {
+      const tessdata = path.join(dir, "tessdata");
+      fs.mkdirSync(tessdata);
+      fs.writeFileSync(path.join(tessdata, "chi_tra.traineddata"), Buffer.alloc(60_000));
+      fs.writeFileSync(path.join(tessdata, "eng.traineddata"), Buffer.alloc(60_000));
+      const exe = writeFakeTesseract(dir, process.platform === "win32" ? "exit /b 9" : "exit 9");
+      const result = await detectTesseractLanguageSupport(exe);
+      assert.equal(result.detectionMethod, "traineddata-scan");
+      assert.equal(result.hasChiTra, true);
+      assert.deepEqual(result.detectedLanguages, ["chi_tra", "eng"]);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("reports missing chi_tra only when it is absent", () => {
+    assert.deepEqual(parseTesseractListLanguages("List of available languages (2):\neng\nosd\n"), ["eng", "osd"]);
+    const dir = tempDir("sl-tess-nochi-");
+    try {
+      fs.writeFileSync(path.join(dir, "eng.traineddata"), Buffer.alloc(60_000));
+      const langs = scanTessdataLanguages(dir);
+      assert.equal(langs.includes("chi_tra"), false);
+      assert.deepEqual(langs, ["eng"]);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
 
