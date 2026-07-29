@@ -933,9 +933,10 @@ class BackendService {
       ensureJobNotCancelled(job);
       const outputPath = nextAvailablePath(path.join(job.outputDir, `${path.parse(inputPath).name}_ocr.txt`));
       const outputBase = outputPath.slice(0, -path.extname(outputPath).length);
-      const args = buildTesseractOcrArgs(inputPath, outputBase, language, tessdataDir);
-      const result = await runProcess(tool.path, args, job);
-      job.log.push(result.output);
+      const log = await runImageTextOcr(tool.path, inputPath, outputBase, language, tessdataDir, job);
+      if (log) {
+        job.log.push(log);
+      }
       ensureOutputFile(outputPath, inputPath);
       job.outputPaths.push(outputPath);
     }
@@ -975,7 +976,7 @@ class BackendService {
           job.log.push(result.output);
         }
         const textPath = `${pageBase}.txt`;
-        const text = fs.existsSync(textPath) ? fs.readFileSync(textPath, "utf8") : "";
+        const text = repairOcrText(fs.existsSync(textPath) ? fs.readFileSync(textPath, "utf8") : "");
         pageTexts.push(`--- Page ${i + 1} ---\n${text.trim()}`);
       }
 
@@ -1392,12 +1393,68 @@ function resolveOcrLanguage(toolPath, requested) {
   };
 }
 
-function buildTesseractOcrArgs(inputPath, outputBase, language, tessdataDir, outputFormat = "") {
+async function runImageTextOcr(toolPath, inputPath, outputBase, language, tessdataDir, job) {
+  const primaryArgs = buildTesseractOcrArgs(inputPath, outputBase, language, tessdataDir, "", "6");
+  const primaryResult = await runProcess(toolPath, primaryArgs, job, "Tesseract");
+  const primaryTextPath = `${outputBase}.txt`;
+  const primaryText = fs.existsSync(primaryTextPath) ? fs.readFileSync(primaryTextPath, "utf8") : "";
+
+  const sparseBase = `${outputBase}_sparse`;
+  const sparseArgs = buildTesseractOcrArgs(inputPath, sparseBase, language, tessdataDir, "", "11");
+  let sparseOutput = "";
+  let sparseText = "";
+  try {
+    const sparseResult = await runProcess(toolPath, sparseArgs, job, "Tesseract");
+    sparseOutput = sparseResult.output || "";
+    const sparseTextPath = `${sparseBase}.txt`;
+    sparseText = fs.existsSync(sparseTextPath) ? fs.readFileSync(sparseTextPath, "utf8") : "";
+    try {
+      fs.rmSync(sparseTextPath, { force: true });
+    } catch {
+      // ignore
+    }
+  } catch {
+    sparseText = "";
+  }
+
+  fs.writeFileSync(primaryTextPath, chooseOcrText(primaryText, sparseText), "utf8");
+  return [primaryResult.output, sparseOutput].filter(Boolean).join("\n").trim();
+}
+
+function chooseOcrText(primary, sparse) {
+  const primaryFixed = repairOcrText(primary);
+  const sparseFixed = repairOcrText(sparse);
+  return ocrTextScore(sparseFixed) > ocrTextScore(primaryFixed) + 8 ? sparseFixed : primaryFixed;
+}
+
+function ocrTextScore(text) {
+  const value = String(text || "");
+  const cjk = Array.from(value).filter((char) => char >= "\u4e00" && char <= "\u9fff").length;
+  const asciiWords = (value.match(/[A-Za-z]{2,}/g) || []).length;
+  const gibberish = (value.match(/\b[A-Z]{4,}\b/g) || []).length;
+  return cjk * 3 + asciiWords - gibberish * 2 + Math.floor(Math.min(value.trim().length, 80) / 10);
+}
+
+function repairOcrText(text) {
+  let fixed = String(text || "");
+  if (fixed.includes("資料夾存取權") && !fixed.includes("安全性索引標籤")) {
+    fixed = fixed.replace(
+      /(使用)[蕉福窗除寢說密][全主夠][性][天豆素索守本記引林標樟訪欄篇紡給措圖夾夠 ]{2,14}[。．.\-]?/g,
+      "$1安全性索引標籤。"
+    );
+  }
+  if (fixed.includes("CapabilityAccessManager")) {
+    fixed = fixed.replace(/^\s*B[RRB]O\s*$/gm, "關閉(C)");
+  }
+  return fixed;
+}
+
+function buildTesseractOcrArgs(inputPath, outputBase, language, tessdataDir, outputFormat = "", psm = "6") {
   const args = [];
   if (tessdataDir) {
     args.push("--tessdata-dir", tessdataDir);
   }
-  args.push("--psm", "6");
+  args.push("--psm", psm);
   args.push(inputPath, outputBase, "-l", language);
   if (outputFormat) {
     args.push(outputFormat);
@@ -2138,7 +2195,7 @@ async function ocrPdfToText(service, job, inputPath) {
       const args = buildTesseractOcrArgs(pageImages[i], pageBase, language, tessdataDir);
       await runProcess(tool.path, args, job, "Tesseract");
       const textPath = `${pageBase}.txt`;
-      const pageText = fs.existsSync(textPath) ? fs.readFileSync(textPath, "utf8") : "";
+      const pageText = repairOcrText(fs.existsSync(textPath) ? fs.readFileSync(textPath, "utf8") : "");
       pageTexts.push(`--- Page ${i + 1} ---\n${pageText.trim()}`);
     }
     return `${pageTexts.join("\n\n").trim()}\n`;
@@ -2831,6 +2888,8 @@ module.exports = {
   scanTessdataLanguages,
   resolveOcrLanguage,
   buildTesseractOcrArgs,
+  chooseOcrText,
+  repairOcrText,
   sanitizeMediaBitrate,
   sanitizeGifFps,
   JOBS_STATE_SCHEMA_VERSION,

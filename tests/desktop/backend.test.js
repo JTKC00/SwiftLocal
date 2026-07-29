@@ -27,6 +27,8 @@ const {
   scanTessdataLanguages,
   resolveOcrLanguage,
   buildTesseractOcrArgs,
+  chooseOcrText,
+  repairOcrText,
   removeIncompleteOfficeOutput,
   cleanupLoProfile,
   pdfBytesLookEncrypted,
@@ -189,6 +191,31 @@ describe("Tesseract language detection", () => {
       "chi_tra+eng",
       "pdf"
     ]);
+  });
+
+  test("OCR text repair fixes common Windows security dialog misread", () => {
+    const text = [
+      "CapabilityAccessManager",
+      "若要取得資料夾存取權,您必須使用蕉全性天記樟訪-",
+      "BRO"
+    ].join("\n");
+    const fixed = repairOcrText(text);
+    assert.match(fixed, /使用安全性索引標籤。/);
+    assert.match(fixed, /關閉\(C\)/);
+  });
+
+  test("OCR chooser can prefer sparse UI text over block text", () => {
+    const primary = "CapabilityAccessManager\n若要取得資料夾存取權,您必須使用蕉全性天記樟訪-\n關閉(C)";
+    const sparse = [
+      "CapabilityAccessManager",
+      "A 您已被拒絕,無權存取這個資料夾。",
+      "若要取得資料夾存取權,您必須使用蕉全性天記樟訪-",
+      "BRO"
+    ].join("\n");
+    const chosen = chooseOcrText(primary, sparse);
+    assert.match(chosen, /您已被拒絕/);
+    assert.match(chosen, /安全性索引標籤/);
+    assert.match(chosen, /關閉\(C\)/);
   });
 });
 

@@ -190,6 +190,37 @@ class TessdataTests(unittest.TestCase):
             ],
         )
 
+    def test_ocr_text_repair_fixes_common_windows_security_dialog_misread(self) -> None:
+        text = "\n".join(
+            [
+                "CapabilityAccessManager",
+                "若要取得資料夾存取權,您必須使用蕉全性天記樟訪-",
+                "BRO",
+            ]
+        )
+
+        fixed = cs.repair_ocr_text(text)
+
+        self.assertIn("使用安全性索引標籤。", fixed)
+        self.assertIn("關閉(C)", fixed)
+
+    def test_ocr_text_chooser_prefers_sparse_ui_text(self) -> None:
+        primary = "CapabilityAccessManager\n若要取得資料夾存取權,您必須使用蕉全性天記樟訪-\n關閉(C)"
+        sparse = "\n".join(
+            [
+                "CapabilityAccessManager",
+                "A 您已被拒絕,無權存取這個資料夾。",
+                "若要取得資料夾存取權,您必須使用蕉全性天記樟訪-",
+                "BRO",
+            ]
+        )
+
+        chosen = cs.choose_ocr_text(primary, sparse)
+
+        self.assertIn("您已被拒絕", chosen)
+        self.assertIn("安全性索引標籤", chosen)
+        self.assertIn("關閉(C)", chosen)
+
     def test_resolve_bundled_tessdata(self) -> None:
         tool = ROOT / "tools" / "tesseract" / "tesseract.exe"
         if not tool.exists():

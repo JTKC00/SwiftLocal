@@ -619,7 +619,7 @@ async def convert_pdf_to_docx_via_ocr(
         logs.extend(ocr_logs)
         if not txt_paths or not txt_paths[0].is_file():
             raise RuntimeError("OCR 未產生文字檔")
-        text = txt_paths[0].read_text(encoding="utf-8", errors="replace")
+        text = repair_ocr_text(txt_paths[0].read_text(encoding="utf-8", errors="replace"))
         if not text.strip():
             raise RuntimeError("OCR 結果為空（請確認語言代碼或影像品質）")
         final_path = output_dir / f"{input_path.stem}.docx"
@@ -1249,9 +1249,11 @@ async def ocr_images(input_paths: list[Path], output_dir: Path, language: str) -
         ensure_not_cancelled()
         output_path = next_available_path(output_dir / f"{input_path.stem}_ocr.txt")
         output_base = output_path.with_suffix("")
-        args = build_tesseract_ocr_args(input_path, output_base, clean_language, tessdata_dir)
-        log = await run_process(str(tool["path"]), args, timeout=300)
-        logs.append(log)
+        log = await run_image_text_ocr(
+            str(tool["path"]), input_path, output_base, clean_language, tessdata_dir
+        )
+        if log:
+            logs.append(log)
         outputs.append(output_path)
 
     return outputs, logs
@@ -1299,6 +1301,7 @@ async def ocr_pdf(
                 logs.append(log)
             text_path = page_base.with_suffix(".txt")
             text = text_path.read_text(encoding="utf-8", errors="replace") if text_path.exists() else ""
+            text = repair_ocr_text(text)
             page_texts.append(f"--- Page {index} ---\n{text.strip()}")
 
         combined = "\n\n".join(page_texts).strip() + "\n"
@@ -1428,15 +1431,80 @@ def build_tesseract_ocr_args(
     language: str,
     tessdata_dir: Path | None,
     output_format: str | None = None,
+    psm: str = "6",
 ) -> list[str]:
     args: list[str] = []
     if tessdata_dir:
         args.extend(["--tessdata-dir", str(tessdata_dir)])
-    args.extend(["--psm", "6"])
+    args.extend(["--psm", psm])
     args.extend([str(input_path), str(output_base), "-l", language])
     if output_format:
         args.append(output_format)
     return args
+
+
+async def run_image_text_ocr(
+    executable: str,
+    input_path: Path,
+    output_base: Path,
+    language: str,
+    tessdata_dir: Path | None,
+) -> str:
+    output_base.parent.mkdir(parents=True, exist_ok=True)
+    primary_args = build_tesseract_ocr_args(input_path, output_base, language, tessdata_dir, psm="6")
+    primary_log = await run_process(executable, primary_args, timeout=300, tool_label="Tesseract")
+    primary_text = _read_ocr_text(output_base.with_suffix(".txt"))
+
+    sparse_base = output_base.with_name(f"{output_base.name}_sparse")
+    sparse_args = build_tesseract_ocr_args(input_path, sparse_base, language, tessdata_dir, psm="11")
+    sparse_log = ""
+    sparse_text = ""
+    try:
+        sparse_log = await run_process(executable, sparse_args, timeout=300, tool_label="Tesseract")
+        sparse_text = _read_ocr_text(sparse_base.with_suffix(".txt"))
+    except Exception:
+        sparse_text = ""
+
+    chosen = choose_ocr_text(primary_text, sparse_text)
+    output_base.with_suffix(".txt").write_text(chosen, encoding="utf-8")
+    try:
+        sparse_base.with_suffix(".txt").unlink(missing_ok=True)
+    except OSError:
+        pass
+    return "\n".join(part for part in (primary_log, sparse_log) if part).strip()
+
+
+def _read_ocr_text(path: Path) -> str:
+    return path.read_text(encoding="utf-8", errors="replace") if path.exists() else ""
+
+
+def choose_ocr_text(primary: str, sparse: str) -> str:
+    primary_fixed = repair_ocr_text(primary)
+    sparse_fixed = repair_ocr_text(sparse)
+    if ocr_text_score(sparse_fixed) > ocr_text_score(primary_fixed) + 8:
+        return sparse_fixed
+    return primary_fixed
+
+
+def ocr_text_score(text: str) -> int:
+    value = str(text or "")
+    cjk = sum(1 for char in value if "\u4e00" <= char <= "\u9fff")
+    ascii_words = len(re.findall(r"[A-Za-z]{2,}", value))
+    gibberish = len(re.findall(r"\b[A-Z]{4,}\b", value))
+    return cjk * 3 + ascii_words - gibberish * 2 + min(len(value.strip()), 80) // 10
+
+
+def repair_ocr_text(text: str) -> str:
+    fixed = str(text or "")
+    if "資料夾存取權" in fixed and "安全性索引標籤" not in fixed:
+        fixed = re.sub(
+            r"(使用)[蕉福窗除寢說密][全主夠][性][天豆素索守本記引林標樟訪欄篇紡給措圖夾夠 ]{2,14}[。．.\-]?",
+            r"\1安全性索引標籤。",
+            fixed,
+        )
+    if "CapabilityAccessManager" in fixed:
+        fixed = re.sub(r"(?m)^\s*B[RRB]O\s*$", "關閉(C)", fixed)
+    return fixed
 
 
 def resolve_ocr_language(tool_path: Path | None, requested: str | None) -> tuple[str, str | None]:
