@@ -25,6 +25,8 @@ const {
   detectTesseractLanguageSupport,
   parseTesseractListLanguages,
   scanTessdataLanguages,
+  resolveOcrLanguage,
+  buildTesseractOcrArgs,
   removeIncompleteOfficeOutput,
   cleanupLoProfile,
   pdfBytesLookEncrypted,
@@ -157,6 +159,36 @@ describe("Tesseract language detection", () => {
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
+  });
+
+  test("OCR language resolver keeps chi_tra from --list-langs even without traineddata scan", () => {
+    const dir = tempDir("sl-tess-ocr-lang-");
+    try {
+      const body = process.platform === "win32"
+        ? "echo List of available languages ^(2^):\r\necho chi_tra\r\necho eng\r\nexit /b 0"
+        : 'printf "List of available languages (2):\\nchi_tra\\neng\\n"\nexit 0';
+      const exe = writeFakeTesseract(dir, body);
+      const result = resolveOcrLanguage(exe, "chi_tra+eng");
+      assert.equal(result.language, "chi_tra+eng");
+      assert.equal(result.note, "");
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("Tesseract OCR args pass tessdata before input and keep language", () => {
+    const args = buildTesseractOcrArgs("scan.png", "scan_ocr", "chi_tra+eng", "C:\\tools\\tesseract\\tessdata", "pdf");
+    assert.deepEqual(args, [
+      "--tessdata-dir",
+      "C:\\tools\\tesseract\\tessdata",
+      "--psm",
+      "6",
+      "scan.png",
+      "scan_ocr",
+      "-l",
+      "chi_tra+eng",
+      "pdf"
+    ]);
   });
 });
 

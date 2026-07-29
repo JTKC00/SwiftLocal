@@ -508,9 +508,7 @@ async def create_searchable_pdf_via_ocr(
         for index, image_path in enumerate(page_images, start=1):
             ensure_not_cancelled()
             page_base = work / f"page_{index:03d}_searchable"
-            args = [str(image_path), str(page_base), "-l", clean_language, "pdf"]
-            if tessdata_dir:
-                args.extend(["--tessdata-dir", str(tessdata_dir)])
+            args = build_tesseract_ocr_args(image_path, page_base, clean_language, tessdata_dir, "pdf")
             log = await run_process(str(tool["path"]), args, timeout=300, tool_label="Tesseract")
             if log:
                 logs.append(log)
@@ -1251,9 +1249,7 @@ async def ocr_images(input_paths: list[Path], output_dir: Path, language: str) -
         ensure_not_cancelled()
         output_path = next_available_path(output_dir / f"{input_path.stem}_ocr.txt")
         output_base = output_path.with_suffix("")
-        args = [str(input_path), str(output_base), "-l", clean_language]
-        if tessdata_dir:
-            args.extend(["--tessdata-dir", str(tessdata_dir)])
+        args = build_tesseract_ocr_args(input_path, output_base, clean_language, tessdata_dir)
         log = await run_process(str(tool["path"]), args, timeout=300)
         logs.append(log)
         outputs.append(output_path)
@@ -1297,9 +1293,7 @@ async def ocr_pdf(
         for index, image_path in enumerate(page_images, start=1):
             ensure_not_cancelled()
             page_base = page_dir / f"page_{index:03d}_ocr"
-            args = [str(image_path), str(page_base), "-l", clean_language]
-            if tessdata_dir:
-                args.extend(["--tessdata-dir", str(tessdata_dir)])
+            args = build_tesseract_ocr_args(image_path, page_base, clean_language, tessdata_dir)
             log = await run_process(str(tool["path"]), args, timeout=300)
             if log:
                 logs.append(log)
@@ -1374,10 +1368,42 @@ def resolve_tessdata_dir(tool_path: Path) -> Path | None:
 
 
 def list_tessdata_languages(tool_path: Path | None) -> set[str]:
-    """Return installed traineddata language codes (non-stub packs only)."""
+    """Return installed language codes, preferring Tesseract's own language list."""
     if tool_path is None:
         return set()
     tessdata_dir = resolve_tessdata_dir(tool_path)
+    args = ["--list-langs"]
+    if tessdata_dir is not None:
+        args = ["--tessdata-dir", str(tessdata_dir), "--list-langs"]
+    try:
+        result = subprocess.run(
+            [str(tool_path), *args],
+            capture_output=True,
+            text=True,
+            timeout=8,
+            check=False,
+        )
+        if result.returncode == 0:
+            langs = parse_tesseract_list_languages(f"{result.stdout or ''}\n{result.stderr or ''}")
+            if langs:
+                return set(langs)
+    except Exception:
+        pass
+    return scan_tessdata_languages(tessdata_dir)
+
+
+def parse_tesseract_list_languages(output: str) -> list[str]:
+    languages: list[str] = []
+    for line in str(output or "").splitlines():
+        item = line.strip()
+        if not item or item.lower().startswith("list of available languages"):
+            continue
+        if all(char.isalnum() or char in "_+-" for char in item):
+            languages.append(item)
+    return sorted(set(languages))
+
+
+def scan_tessdata_languages(tessdata_dir: Path | None) -> set[str]:
     if tessdata_dir is None:
         return set()
     langs: set[str] = set()
@@ -1394,6 +1420,23 @@ def list_tessdata_languages(tool_path: Path | None) -> set[str]:
     except OSError:
         return set()
     return langs
+
+
+def build_tesseract_ocr_args(
+    input_path: Path,
+    output_base: Path,
+    language: str,
+    tessdata_dir: Path | None,
+    output_format: str | None = None,
+) -> list[str]:
+    args: list[str] = []
+    if tessdata_dir:
+        args.extend(["--tessdata-dir", str(tessdata_dir)])
+    args.extend(["--psm", "6"])
+    args.extend([str(input_path), str(output_base), "-l", language])
+    if output_format:
+        args.append(output_format)
+    return args
 
 
 def resolve_ocr_language(tool_path: Path | None, requested: str | None) -> tuple[str, str | None]:

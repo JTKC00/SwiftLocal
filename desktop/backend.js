@@ -3,7 +3,7 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const { pathToFileURL } = require("node:url");
-const { execFile, spawn } = require("node:child_process");
+const { execFile, execFileSync, spawn } = require("node:child_process");
 const { PDFDocument, degrees } = require("pdf-lib");
 const {
   ERROR_CODES,
@@ -925,16 +925,15 @@ class BackendService {
   async runOcrImage(job) {
     const tool = requireTool(this.tools, "tesseract");
     ensureOutputDir(job.outputDir);
-    const language = job.options.language || "eng";
+    const { language, tessdataDir, note } = resolveOcrLanguage(tool.path, job.options.language || "chi_tra+eng");
+    if (note) {
+      job.log.push(note);
+    }
     for (const inputPath of job.inputPaths) {
       ensureJobNotCancelled(job);
       const outputPath = nextAvailablePath(path.join(job.outputDir, `${path.parse(inputPath).name}_ocr.txt`));
       const outputBase = outputPath.slice(0, -path.extname(outputPath).length);
-      const args = [inputPath, outputBase, "-l", language];
-      const tessdataDir = bundledTessdataDir(tool.path);
-      if (tessdataDir) {
-        args.push("--tessdata-dir", tessdataDir);
-      }
+      const args = buildTesseractOcrArgs(inputPath, outputBase, language, tessdataDir);
       const result = await runProcess(tool.path, args, job);
       job.log.push(result.output);
       ensureOutputFile(outputPath, inputPath);
@@ -945,9 +944,11 @@ class BackendService {
   async runOcrPdf(job) {
     const tool = requireTool(this.tools, "tesseract");
     ensureOutputDir(job.outputDir);
-    const language = String(job.options.language || "eng").trim() || "eng";
+    const { language, tessdataDir, note } = resolveOcrLanguage(tool.path, job.options.language || "chi_tra+eng");
+    if (note) {
+      job.log.push(note);
+    }
     const maxPages = sanitizeOcrPdfMaxPages(job.options.maxPages);
-    const tessdataDir = bundledTessdataDir(tool.path);
 
     for (const inputPath of job.inputPaths) {
       ensureJobNotCancelled(job);
@@ -968,10 +969,7 @@ class BackendService {
       for (let i = 0; i < pageImages.length; i += 1) {
         ensureJobNotCancelled(job);
         const pageBase = path.join(pageDir, `page_${String(i + 1).padStart(3, "0")}_ocr`);
-        const args = [pageImages[i], pageBase, "-l", language];
-        if (tessdataDir) {
-          args.push("--tessdata-dir", tessdataDir);
-        }
+        const args = buildTesseractOcrArgs(pageImages[i], pageBase, language, tessdataDir);
         const result = await runProcess(tool.path, args, job);
         if (result.output) {
           job.log.push(result.output);
@@ -1345,6 +1343,66 @@ function scanTessdataLanguages(tessdataPath) {
     return [];
   }
   return Array.from(new Set(languages)).sort();
+}
+
+function listTesseractLanguagesSync(toolPath) {
+  const tessdataPath = resolveTessdataPath(toolPath);
+  const args = tessdataPath ? ["--tessdata-dir", tessdataPath, "--list-langs"] : ["--list-langs"];
+  try {
+    const output = execFileSyncText(toolPath, args, { timeout: 8000 });
+    const languages = parseTesseractListLanguages(output);
+    if (languages.length) {
+      return { languages, tessdataPath, method: "list-langs" };
+    }
+  } catch {
+    // Fall back to scanning traineddata below.
+  }
+  const scanned = scanTessdataLanguages(tessdataPath);
+  return { languages: scanned, tessdataPath, method: scanned.length ? "traineddata-scan" : "none" };
+}
+
+function resolveOcrLanguage(toolPath, requested) {
+  const preferred = String(requested || "chi_tra+eng").trim() || "chi_tra+eng";
+  let parts = preferred.split(/[,+]/).map((part) => part.trim()).filter(Boolean);
+  if (!parts.length) {
+    parts = ["chi_tra", "eng"];
+  }
+  const { languages, tessdataPath } = listTesseractLanguagesSync(toolPath);
+  const available = new Set(languages);
+  if (!available.size) {
+    return { language: parts.join("+"), tessdataDir: tessdataPath, note: "" };
+  }
+  const kept = parts.filter((part) => available.has(part));
+  if (kept.length === parts.length) {
+    return { language: kept.join("+"), tessdataDir: tessdataPath, note: "" };
+  }
+  if (kept.length) {
+    const missing = parts.filter((part) => !available.has(part));
+    return {
+      language: kept.join("+"),
+      tessdataDir: tessdataPath,
+      note: `OCR 語言包缺少 ${missing.join(", ")}，已改用 ${kept.join("+")}。`
+    };
+  }
+  const fallback = available.has("eng") ? "eng" : languages[0];
+  return {
+    language: fallback,
+    tessdataDir: tessdataPath,
+    note: `OCR 語言包不支援 ${preferred}，已改用 ${fallback}。`
+  };
+}
+
+function buildTesseractOcrArgs(inputPath, outputBase, language, tessdataDir, outputFormat = "") {
+  const args = [];
+  if (tessdataDir) {
+    args.push("--tessdata-dir", tessdataDir);
+  }
+  args.push("--psm", "6");
+  args.push(inputPath, outputBase, "-l", language);
+  if (outputFormat) {
+    args.push(outputFormat);
+  }
+  return args;
 }
 
 function ensureOutputDir(outputDir) {
@@ -2017,9 +2075,11 @@ async function writeDocxWithScanStrategy(service, job, inputPath, scanOcr, ocrOu
 
 async function createSearchablePdfViaOcr(service, job, inputPath, outputPath) {
   const tool = requireTool(service.tools, "tesseract");
-  const language = String(job.options.language || "eng").trim() || "eng";
+  const { language, tessdataDir, note } = resolveOcrLanguage(tool.path, job.options.language || "chi_tra+eng");
+  if (note) {
+    job.log.push(note);
+  }
   const maxPages = sanitizeOcrPdfMaxPages(job.options.maxPages);
-  const tessdataDir = bundledTessdataDir(tool.path);
   const pageDir = path.join(job.outputDir, `${path.parse(inputPath).name}_ocr_searchable_work`);
   fs.mkdirSync(pageDir, { recursive: true });
   try {
@@ -2032,10 +2092,7 @@ async function createSearchablePdfViaOcr(service, job, inputPath, outputPath) {
     for (let i = 0; i < pageImages.length; i += 1) {
       ensureJobNotCancelled(job);
       const pageBase = path.join(pageDir, `page_${String(i + 1).padStart(3, "0")}_searchable`);
-      const args = [pageImages[i], pageBase, "-l", language, "pdf"];
-      if (tessdataDir) {
-        args.push("--tessdata-dir", tessdataDir);
-      }
+      const args = buildTesseractOcrArgs(pageImages[i], pageBase, language, tessdataDir, "pdf");
       await runProcess(tool.path, args, job, "Tesseract");
       const pagePdf = `${pageBase}.pdf`;
       if (!fs.existsSync(pagePdf) || fs.statSync(pagePdf).size < 64) {
@@ -2062,9 +2119,11 @@ async function createSearchablePdfViaOcr(service, job, inputPath, outputPath) {
 
 async function ocrPdfToText(service, job, inputPath) {
   const tool = requireTool(service.tools, "tesseract");
-  const language = String(job.options.language || "eng").trim() || "eng";
+  const { language, tessdataDir, note } = resolveOcrLanguage(tool.path, job.options.language || "chi_tra+eng");
+  if (note) {
+    job.log.push(note);
+  }
   const maxPages = sanitizeOcrPdfMaxPages(job.options.maxPages);
-  const tessdataDir = bundledTessdataDir(tool.path);
   const pageDir = path.join(job.outputDir, `${path.parse(inputPath).name}_ocr_docx_pages`);
   fs.mkdirSync(pageDir, { recursive: true });
   try {
@@ -2076,10 +2135,7 @@ async function ocrPdfToText(service, job, inputPath) {
     for (let i = 0; i < pageImages.length; i += 1) {
       ensureJobNotCancelled(job);
       const pageBase = path.join(pageDir, `page_${String(i + 1).padStart(3, "0")}_ocr`);
-      const args = [pageImages[i], pageBase, "-l", language];
-      if (tessdataDir) {
-        args.push("--tessdata-dir", tessdataDir);
-      }
+      const args = buildTesseractOcrArgs(pageImages[i], pageBase, language, tessdataDir);
       await runProcess(tool.path, args, job, "Tesseract");
       const textPath = `${pageBase}.txt`;
       const pageText = fs.existsSync(textPath) ? fs.readFileSync(textPath, "utf8") : "";
@@ -2568,6 +2624,16 @@ function execFileText(file, args, options = {}) {
   });
 }
 
+function execFileSyncText(file, args, options = {}) {
+  const stdout = execFileSync(file, args, {
+    windowsHide: true,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+    timeout: options.timeout || 30000
+  });
+  return String(stdout || "");
+}
+
 class JobCancelledError extends Error {
   constructor(message = "任務已取消") {
     super(message);
@@ -2763,6 +2829,8 @@ module.exports = {
   parseTesseractListLanguages,
   resolveTessdataPath,
   scanTessdataLanguages,
+  resolveOcrLanguage,
+  buildTesseractOcrArgs,
   sanitizeMediaBitrate,
   sanitizeGifFps,
   JOBS_STATE_SCHEMA_VERSION,

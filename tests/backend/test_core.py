@@ -151,6 +151,45 @@ class TessdataTests(unittest.TestCase):
             self.assertEqual(lang3, "chi_tra+eng")
             self.assertIsNone(note3)
 
+    def test_resolve_ocr_language_uses_list_langs_before_scan(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            body = (
+                "echo List of available languages ^(2^):\r\necho chi_tra\r\necho eng\r\nexit /b 0"
+                if os.name == "nt"
+                else 'printf "List of available languages (2):\\nchi_tra\\neng\\n"\nexit 0'
+            )
+            exe = write_fake_tesseract(base, body)
+
+            lang, note = cs.resolve_ocr_language(exe, "chi_tra+eng")
+
+            self.assertEqual(lang, "chi_tra+eng")
+            self.assertIsNone(note)
+
+    def test_tesseract_ocr_args_keep_tessdata_before_input(self) -> None:
+        args = cs.build_tesseract_ocr_args(
+            Path("scan.png"),
+            Path("scan_ocr"),
+            "chi_tra+eng",
+            Path(r"C:\tools\tesseract\tessdata"),
+            "pdf",
+        )
+
+        self.assertEqual(
+            args,
+            [
+                "--tessdata-dir",
+                r"C:\tools\tesseract\tessdata",
+                "--psm",
+                "6",
+                "scan.png",
+                "scan_ocr",
+                "-l",
+                "chi_tra+eng",
+                "pdf",
+            ],
+        )
+
     def test_resolve_bundled_tessdata(self) -> None:
         tool = ROOT / "tools" / "tesseract" / "tesseract.exe"
         if not tool.exists():
