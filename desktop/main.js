@@ -18,6 +18,7 @@ const {
 } = require("./file-associations");
 
 const APP_NAME = "快轉通 SwiftLocal";
+const APP_USER_MODEL_ID = "com.swiftlocal.converter";
 const isDev = !app.isPackaged;
 let backend = null;
 let mainWindow = null;
@@ -28,6 +29,13 @@ const FRONTEND_DIR = path.join(__dirname, "..", "frontend");
 const FRONTEND_PATH = path.join(FRONTEND_DIR, "index.html");
 const PRELOAD_PATH = path.join(__dirname, "preload.js");
 const TRUSTED_RENDERER_URLS = buildTrustedRendererUrls(FRONTEND_DIR);
+
+// Must run before app ready so Windows Open With / jump lists use product name
+// (not the default Electron host identity).
+app.setName(APP_NAME);
+if (process.platform === "win32") {
+  app.setAppUserModelId(APP_USER_MODEL_ID);
+}
 
 // Single instance: second "Open with" should focus existing app and open the PDF.
 const gotSingleInstanceLock = app.requestSingleInstanceLock();
@@ -448,8 +456,6 @@ function installBackendIpc() {
     return { ok: true };
   });
 }
-
-app.setName(APP_NAME);
 
 if (gotSingleInstanceLock) {
   app.whenReady().then(() => {

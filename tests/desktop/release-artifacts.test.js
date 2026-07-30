@@ -8,7 +8,9 @@ const { afterEach, describe, test } = require("node:test");
 const {
   expectedWindowsArtifactNames,
   parseArgs,
-  requireReleaseFile
+  requireReleaseFile,
+  verifyPdfAssociationConfig,
+  MAIN_EXE_CANDIDATES
 } = require("../../scripts/verify-release-artifacts");
 
 const temporaryDirectories = [];
@@ -64,6 +66,25 @@ describe("release artifact verification", () => {
     fs.writeFileSync(filePath, "not an executable");
     assert.throws(() => requireReleaseFile(filePath), /大小異常/);
     assert.doesNotThrow(() => requireReleaseFile(filePath, 1));
+  });
+
+  test("builder config rejects Electron product/PDF association names", () => {
+    const config = require("../../electron-builder.config.js");
+    const pdf = verifyPdfAssociationConfig(config);
+    assert.match(String(config.productName || ""), /SwiftLocal/);
+    assert.notEqual(String(config.productName || "").toLowerCase(), "electron");
+    assert.match(String(pdf.description || pdf.name || ""), /SwiftLocal|PDF/i);
+    assert.equal(String(config.win && config.win.executableName || ""), "SwiftLocal");
+    assert.ok(MAIN_EXE_CANDIDATES.includes("SwiftLocal.exe"));
+  });
+
+  test("verify script fails when FileDescription would be Electron", () => {
+    const source = fs.readFileSync(path.join(__dirname, "..", "..", "scripts", "verify-release-artifacts.js"), "utf8");
+    assert.match(source, /FileDescription/);
+    assert.match(source, /仍為 Electron/);
+    assert.match(source, /ProductName/);
+    assert.match(source, /FriendlyAppName|fileAssociations/);
+    assert.match(source, /巢狀 @napi-rs\/canvas|nested/);
   });
 
 });

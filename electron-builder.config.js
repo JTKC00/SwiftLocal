@@ -53,6 +53,9 @@ module.exports = {
   ],
   win: {
     icon: "build/icon.ico",
+    // Stable ASCII EXE name for Windows shell / Open With registry keys.
+    // productName remains "快轉通 SwiftLocal" (FileDescription / ProductName via rcedit).
+    executableName: "SwiftLocal",
     target: [
       {
         target: "portable",
@@ -66,6 +69,8 @@ module.exports = {
     artifactName: "SwiftLocal-${version}-${arch}.${ext}",
     // Keep resource editing enabled so the main EXE receives the SwiftLocal
     // icon/name/version. The current releases are intentionally unsigned.
+    // Note: signExts only affects code signing (signIf), not rcedit resource
+    // editing of the main product EXE (signAndEditResources still runs).
     signAndEditExecutable: true,
     // Full builds bundle many third-party EXEs (LibreOffice, Tesseract, FFmpeg,
     // QPDF). Exclude all EXEs from the signing pass so electron-builder does not

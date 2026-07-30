@@ -8,7 +8,21 @@ const { spawn, spawnSync } = require("node:child_process");
 const { main: verifyPackagedUi } = require("./verify-packaged-ui");
 
 const projectRoot = path.resolve(__dirname, "..");
-const packagedExe = path.resolve(projectRoot, process.argv[2] || path.join("dist", "win-unpacked", "快轉通 SwiftLocal.exe"));
+function resolveDefaultPackagedExe() {
+  const candidates = [
+    path.join("dist", "win-unpacked", "SwiftLocal.exe"),
+    path.join("dist", "win-unpacked", "快轉通 SwiftLocal.exe"),
+    path.join("dist-full", "win-unpacked", "SwiftLocal.exe"),
+    path.join("dist-full", "win-unpacked", "快轉通 SwiftLocal.exe")
+  ];
+  for (const relative of candidates) {
+    const absolute = path.resolve(projectRoot, relative);
+    if (fs.existsSync(absolute)) return absolute;
+  }
+  return path.resolve(projectRoot, candidates[0]);
+}
+
+const packagedExe = path.resolve(projectRoot, process.argv[2] || resolveDefaultPackagedExe());
 
 function findAvailablePort() {
   return new Promise((resolve, reject) => {

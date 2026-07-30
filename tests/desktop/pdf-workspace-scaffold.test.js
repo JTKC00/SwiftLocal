@@ -154,6 +154,9 @@ describe("PDF workspace scaffold", () => {
     assert.ok(pdf);
     assert.match(String(pdf.mimeType || ""), /pdf/i);
     assert.match(String(pdf.role || ""), /Viewer/i);
+    assert.match(String(pdf.description || ""), /SwiftLocal|PDF/i);
+    assert.notEqual(String(config.productName || "").toLowerCase(), "electron");
+    assert.equal(String(config.win && config.win.executableName || ""), "SwiftLocal");
   });
 });
 
