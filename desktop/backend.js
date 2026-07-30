@@ -960,31 +960,48 @@ class BackendService {
 
       const pageDir = path.join(job.outputDir, `${path.parse(inputPath).name}_ocr_pages`);
       fs.mkdirSync(pageDir, { recursive: true });
-      const pageImages = await renderPdfPagesToPng(inputPath, pageDir, maxPages, job);
-      if (!pageImages.length) {
-        throw new Error(`PDF 沒有可 OCR 的頁面：${path.basename(inputPath)}`);
-      }
-      job.log.push(`render: ${path.basename(inputPath)} ${pageImages.length} page(s)`);
-
-      const pageTexts = [];
-      for (let i = 0; i < pageImages.length; i += 1) {
-        ensureJobNotCancelled(job);
-        const pageBase = path.join(pageDir, `page_${String(i + 1).padStart(3, "0")}_ocr`);
-        const args = buildTesseractOcrArgs(pageImages[i], pageBase, language, tessdataDir);
-        const result = await runProcess(tool.path, args, job);
-        if (result.output) {
-          job.log.push(result.output);
+      try {
+        const pageImages = await renderPdfPagesToPng(inputPath, pageDir, maxPages, job);
+        if (!pageImages.length) {
+          throw new Error(`PDF 沒有可 OCR 的頁面：${path.basename(inputPath)}`);
         }
-        const textPath = `${pageBase}.txt`;
-        const text = repairOcrText(fs.existsSync(textPath) ? fs.readFileSync(textPath, "utf8") : "");
-        pageTexts.push(`--- Page ${i + 1} ---\n${text.trim()}`);
-      }
+        job.log.push(`render: ${path.basename(inputPath)} ${pageImages.length} page(s)`);
 
-      const outputPath = nextAvailablePath(path.join(job.outputDir, `${path.parse(inputPath).name}_ocr.txt`));
-      fs.writeFileSync(outputPath, `${pageTexts.join("\n\n").trim()}\n`, "utf8");
-      ensureOutputFile(outputPath, inputPath);
-      job.outputPaths.push(outputPath);
-      job.log.push(`ocr-pdf: ${path.basename(inputPath)} -> ${path.basename(outputPath)} (${pageImages.length} page(s))`);
+        const pageTexts = [];
+        for (let i = 0; i < pageImages.length; i += 1) {
+          ensureJobNotCancelled(job);
+          const pageBase = path.join(pageDir, `page_${String(i + 1).padStart(3, "0")}_ocr`);
+          const args = buildTesseractOcrArgs(pageImages[i], pageBase, language, tessdataDir);
+          let result;
+          try {
+            result = await runProcess(tool.path, args, job);
+          } catch (error) {
+            throw annotatePdfOcrStageError(error, {
+              stage: "tesseract_ocr",
+              pageNumber: i + 1,
+              inputPath
+            });
+          }
+          if (result.output) {
+            job.log.push(result.output);
+          }
+          const textPath = `${pageBase}.txt`;
+          const text = repairOcrText(fs.existsSync(textPath) ? fs.readFileSync(textPath, "utf8") : "");
+          pageTexts.push(`--- Page ${i + 1} ---\n${text.trim()}`);
+        }
+
+        const outputPath = nextAvailablePath(path.join(job.outputDir, `${path.parse(inputPath).name}_ocr.txt`));
+        fs.writeFileSync(outputPath, `${pageTexts.join("\n\n").trim()}\n`, "utf8");
+        ensureOutputFile(outputPath, inputPath);
+        job.outputPaths.push(outputPath);
+        job.log.push(`ocr-pdf: ${path.basename(inputPath)} -> ${path.basename(outputPath)} (${pageImages.length} page(s))`);
+      } finally {
+        try {
+          fs.rmSync(pageDir, { recursive: true, force: true });
+        } catch {
+          // ignore cleanup failures
+        }
+      }
     }
   }
 
@@ -1818,16 +1835,129 @@ function sanitizeOcrPdfMaxPages(value) {
   return Math.min(parsed, OCR_PDF_MAX_PAGES_HARD_LIMIT);
 }
 
-async function renderPdfPagesToPng(inputPath, pageDir, maxPages, job) {
-  ensureJobNotCancelled(job);
-  let createCanvas;
+/**
+ * Resolve @napi-rs/canvas from the same package graph entry that PDF.js
+ * NodeCanvasFactory uses. Mixing top-level 1.x with pdfjs-dist's nested 0.1.x
+ * causes native Path/Path2D cross-instance failures:
+ *   "Value is none of these types `String`, `Path`"
+ *
+ * Prefer the require scope of pdfjs-dist/legacy/build/pdf.mjs so intermediate
+ * NodeCanvasFactory surfaces and our page canvas share one native binding.
+ */
+function loadPdfJsCompatibleCanvas() {
+  const { createRequire } = require("node:module");
+  const candidates = [];
   try {
-    ({ createCanvas } = require("@napi-rs/canvas"));
-  } catch (error) {
-    throw new Error("PDF OCR 需要 @napi-rs/canvas，請執行 npm install");
+    candidates.push({
+      label: "pdfjs",
+      req: createRequire(require.resolve("pdfjs-dist/legacy/build/pdf.mjs"))
+    });
+  } catch {
+    // pdfjs-dist not installed or path changed
+  }
+  candidates.push({ label: "app", req: require });
+  let lastError = null;
+  for (const candidate of candidates) {
+    try {
+      const canvasModule = candidate.req("@napi-rs/canvas");
+      if (canvasModule && typeof canvasModule.createCanvas === "function") {
+        let version = "unknown";
+        let modulePath = "";
+        try {
+          modulePath = candidate.req.resolve("@napi-rs/canvas");
+          const pkgPath = path.join(path.dirname(modulePath), "package.json");
+          if (fs.existsSync(pkgPath)) {
+            version = JSON.parse(fs.readFileSync(pkgPath, "utf8")).version || "unknown";
+          }
+        } catch {
+          // keep defaults
+        }
+        return {
+          createCanvas: canvasModule.createCanvas,
+          version,
+          modulePath,
+          source: candidate.label
+        };
+      }
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  const detail = lastError instanceof Error ? lastError.message : String(lastError || "");
+  const error = new Error(
+    detail
+      ? `PDF OCR 需要 @napi-rs/canvas，請執行 npm install（${detail}）`
+      : "PDF OCR 需要 @napi-rs/canvas，請執行 npm install"
+  );
+  error.errorCode = ERROR_CODES.MISSING_TOOL;
+  throw error;
+}
+
+function annotatePdfOcrStageError(error, meta = {}) {
+  if (error && (error.cancelled || error.name === "JobCancelledError")) {
+    return error;
+  }
+  if (error && error.errorCode === ERROR_CODES.ENCRYPTED_PDF) {
+    return error;
   }
 
-  const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  const stage = String(meta.stage || "unknown");
+  const pageNumber = meta.pageNumber != null ? Number(meta.pageNumber) : null;
+  const detail = error instanceof Error ? error.message : String(error || "unknown");
+  const stack = error instanceof Error ? error.stack || "" : "";
+  const pdfjsVersion = meta.pdfjsVersion ? String(meta.pdfjsVersion) : "";
+  const canvasVersion = meta.canvasVersion ? String(meta.canvasVersion) : "";
+  const parts = [
+    `PDF 渲染失敗 [${stage}]`,
+    pageNumber != null && Number.isFinite(pageNumber) ? `page=${pageNumber}` : "",
+    pdfjsVersion ? `pdfjs=${pdfjsVersion}` : "",
+    canvasVersion ? `canvas=${canvasVersion}` : "",
+    detail
+  ].filter(Boolean);
+  const wrapped = new Error(parts.join(" | "));
+  wrapped.errorCode = ERROR_CODES.PDF_RENDER_FAILED;
+  wrapped.stage = stage;
+  if (pageNumber != null && Number.isFinite(pageNumber)) {
+    wrapped.pageNumber = pageNumber;
+  }
+  if (pdfjsVersion) {
+    wrapped.pdfjsVersion = pdfjsVersion;
+  }
+  if (canvasVersion) {
+    wrapped.canvasVersion = canvasVersion;
+  }
+  if (stack) {
+    wrapped.stack = `${wrapped.message}\n${stack}`;
+  }
+  return wrapped;
+}
+
+async function renderPdfPagesToPng(inputPath, pageDir, maxPages, job) {
+  ensureJobNotCancelled(job);
+
+  let createCanvas;
+  let canvasVersion = "unknown";
+  try {
+    const canvasBinding = loadPdfJsCompatibleCanvas();
+    createCanvas = canvasBinding.createCanvas;
+    canvasVersion = canvasBinding.version || "unknown";
+  } catch (error) {
+    throw annotatePdfOcrStageError(error, { stage: "pdf_load", canvasVersion });
+  }
+
+  let pdfjs;
+  let pdfjsVersion = "unknown";
+  try {
+    pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+    pdfjsVersion = pdfjs.version || "unknown";
+  } catch (error) {
+    throw annotatePdfOcrStageError(error, {
+      stage: "pdf_load",
+      pdfjsVersion,
+      canvasVersion
+    });
+  }
+
   const data = new Uint8Array(fs.readFileSync(inputPath));
   const loadingTask = pdfjs.getDocument({
     data,
@@ -1845,7 +1975,11 @@ async function renderPdfPagesToPng(inputPath, pageDir, maxPages, job) {
     if (isEncryptedPdfMessage(detail)) {
       throw encryptedPdfError(path.basename(inputPath));
     }
-    throw new Error(`無法讀取 PDF「${path.basename(inputPath)}」：${detail}`);
+    throw annotatePdfOcrStageError(error, {
+      stage: "pdf_load",
+      pdfjsVersion,
+      canvasVersion
+    });
   }
 
   const limit = Math.min(pdf.numPages, maxPages);
@@ -1853,26 +1987,61 @@ async function renderPdfPagesToPng(inputPath, pageDir, maxPages, job) {
   try {
     for (let pageNumber = 1; pageNumber <= limit; pageNumber += 1) {
       ensureJobNotCancelled(job);
-      const page = await pdf.getPage(pageNumber);
-      const viewport = page.getViewport({ scale: OCR_PDF_RENDER_SCALE });
-      const width = Math.max(1, Math.ceil(viewport.width));
-      const height = Math.max(1, Math.ceil(viewport.height));
-      if (width * height > OCR_PDF_MAX_PIXELS) {
-        throw new Error(
-          `PDF OCR page ${pageNumber} is too large (${width}x${height}); limit is ${(OCR_PDF_MAX_PIXELS / 1_000_000).toFixed(0)} megapixels`
-        );
+      let canvas;
+      try {
+        const page = await pdf.getPage(pageNumber);
+        const viewport = page.getViewport({ scale: OCR_PDF_RENDER_SCALE });
+        const width = Math.max(1, Math.ceil(viewport.width));
+        const height = Math.max(1, Math.ceil(viewport.height));
+        if (width * height > OCR_PDF_MAX_PIXELS) {
+          throw new Error(
+            `PDF OCR page ${pageNumber} is too large (${width}x${height}); limit is ${(OCR_PDF_MAX_PIXELS / 1_000_000).toFixed(0)} megapixels`
+          );
+        }
+        // PDF.js 5.x: pass canvas OR canvasContext, never both non-null.
+        // Prefer canvas mode; NodeCanvasFactory intermediate surfaces must share
+        // the same @napi-rs/canvas instance (see loadPdfJsCompatibleCanvas).
+        canvas = createCanvas(width, height);
+        await page.render({
+          canvas,
+          viewport,
+          background: "#ffffff"
+        }).promise;
+      } catch (error) {
+        throw annotatePdfOcrStageError(error, {
+          stage: "pdf_page_render",
+          pageNumber,
+          pdfjsVersion,
+          canvasVersion
+        });
       }
-      const canvas = createCanvas(width, height);
-      const context = canvas.getContext("2d");
-      context.fillStyle = "#ffffff";
-      context.fillRect(0, 0, width, height);
-      await page.render({ canvasContext: context, viewport, canvas }).promise;
+
       const imagePath = path.join(pageDir, `page_${String(pageNumber).padStart(3, "0")}.png`);
-      fs.writeFileSync(imagePath, canvas.toBuffer("image/png"));
+      try {
+        const png = canvas.toBuffer("image/png");
+        if (!png || !png.length) {
+          throw new Error(`empty PNG buffer for page ${pageNumber}`);
+        }
+        fs.writeFileSync(imagePath, png);
+        if (!fs.existsSync(imagePath) || fs.statSync(imagePath).size < 32) {
+          throw new Error(`PNG write produced empty file for page ${pageNumber}`);
+        }
+      } catch (error) {
+        throw annotatePdfOcrStageError(error, {
+          stage: "png_write",
+          pageNumber,
+          pdfjsVersion,
+          canvasVersion
+        });
+      }
       images.push(imagePath);
     }
   } finally {
-    await loadingTask.destroy();
+    try {
+      await loadingTask.destroy();
+    } catch {
+      // ignore
+    }
   }
   return images;
 }
@@ -2892,6 +3061,9 @@ module.exports = {
   repairOcrText,
   sanitizeMediaBitrate,
   sanitizeGifFps,
+  renderPdfPagesToPng,
+  loadPdfJsCompatibleCanvas,
+  annotatePdfOcrStageError,
   JOBS_STATE_SCHEMA_VERSION,
   JOB_RETENTION_HOURS,
   MAX_PERSISTED_JOBS,

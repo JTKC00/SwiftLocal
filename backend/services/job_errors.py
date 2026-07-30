@@ -15,6 +15,7 @@ ERROR_CODES = {
     "EXTERNAL_PROCESS_CRASH": "external_process_crash",
     "OFFICE_CONVERSION_FAILED": "office_conversion_failed",
     "LIBREOFFICE_PROFILE_ERROR": "libreoffice_profile_error",
+    "PDF_RENDER_FAILED": "pdf_render_failed",
     "MISSING_INPUT": "missing_input",
     "OUTPUT_CONFLICT": "output_conflict",
     "CANCELLED": "cancelled",
@@ -123,6 +124,18 @@ def classify_job_error(error: BaseException | str, job_type: str = "") -> dict[s
             "hint": "請確認檔案完整後再試。",
             "retriable": False,
         }
+    if (
+        "pdf_render_failed" in text
+        or "PDF 渲染失敗" in message
+        or "none of these types" in text
+        or "cannot use the same canvas" in text
+    ):
+        return {
+            "code": ERROR_CODES["PDF_RENDER_FAILED"],
+            "message": message,
+            "hint": "PDF 頁面無法轉成圖片。請確認檔案未損壞；若持續失敗請匯出診斷報告。",
+            "retriable": True,
+        }
     if job_type in PASSWORD_JOB_TYPES and "重新輸入密碼" in message:
         return {
             "code": ERROR_CODES["ENCRYPTED_PDF"],
@@ -152,6 +165,7 @@ def error_code_label(code: str) -> str:
         ERROR_CODES["EXTERNAL_PROCESS_CRASH"]: "外部程序崩潰",
         ERROR_CODES["OFFICE_CONVERSION_FAILED"]: "Office 轉換失敗",
         ERROR_CODES["LIBREOFFICE_PROFILE_ERROR"]: "LibreOffice 設定檔錯誤",
+        ERROR_CODES["PDF_RENDER_FAILED"]: "PDF 渲染失敗",
         ERROR_CODES["MISSING_INPUT"]: "輸入檔遺失",
         ERROR_CODES["OUTPUT_CONFLICT"]: "輸出衝突",
         ERROR_CODES["CANCELLED"]: "使用者取消",

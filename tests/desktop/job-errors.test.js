@@ -51,6 +51,15 @@ describe("job error classification", () => {
   test("errorCodeLabel covers known codes", () => {
     assert.equal(errorCodeLabel(ERROR_CODES.MISSING_TOOL), "缺少工具");
     assert.equal(errorCodeLabel(ERROR_CODES.OFFICE_CONVERSION_FAILED), "Office 轉換失敗");
+    assert.equal(errorCodeLabel(ERROR_CODES.PDF_RENDER_FAILED), "PDF 渲染失敗");
     assert.equal(errorCodeLabel("nope"), "未知錯誤");
+  });
+
+  test("classifies pdf render path-type failures", () => {
+    const result = classifyJobError(
+      new Error("PDF 渲染失敗 [pdf_page_render] | page=1 | Value is none of these types `String`, `Path`")
+    );
+    assert.equal(result.code, ERROR_CODES.PDF_RENDER_FAILED);
+    assert.equal(result.retriable, true);
   });
 });

@@ -53,8 +53,11 @@
     "electron-builder": "26.8.1"
   },
   "dependencies": {
-    "@napi-rs/canvas": "^1.0.2",
+    "@napi-rs/canvas": "1.0.2",
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^5.6.205"
+  },
+  "overrides": {
+    "@napi-rs/canvas": "1.0.2"
   }
 }

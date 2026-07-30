@@ -99,6 +99,7 @@
 | `external_process_crash` | 外部程序崩潰 |
 | `office_conversion_failed` | Office 轉換失敗 |
 | `libreoffice_profile_error` | LibreOffice 設定檔錯誤 |
+| `pdf_render_failed` | PDF 渲染失敗 |
 | `missing_input` | 輸入檔遺失 |
 | `cancelled` | 使用者取消 |
 | `unknown` | 未知錯誤 |

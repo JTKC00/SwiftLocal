@@ -20,6 +20,7 @@ const ERROR_CODES = Object.freeze({
   EXTERNAL_PROCESS_CRASH: "external_process_crash",
   OFFICE_CONVERSION_FAILED: "office_conversion_failed",
   LIBREOFFICE_PROFILE_ERROR: "libreoffice_profile_error",
+  PDF_RENDER_FAILED: "pdf_render_failed",
   MISSING_INPUT: "missing_input",
   OUTPUT_CONFLICT: "output_conflict",
   CANCELLED: "cancelled",
@@ -141,6 +142,15 @@ function classifyJobError(error, job = {}) {
     };
   }
 
+  if (/pdf_render_failed|PDF 渲染失敗|none of these types.*Path|Cannot use the same canvas/i.test(message)) {
+    return {
+      code: ERROR_CODES.PDF_RENDER_FAILED,
+      message,
+      hint: "PDF 頁面無法轉成圖片。請確認檔案未損壞；若持續失敗請匯出診斷報告。",
+      retriable: true
+    };
+  }
+
   if (hasConfirmedMissingInput(job)) {
     return {
       code: ERROR_CODES.MISSING_INPUT,
@@ -199,6 +209,14 @@ function classifiedFromCode(code, message) {
       retriable: true
     };
   }
+  if (code === ERROR_CODES.PDF_RENDER_FAILED) {
+    return {
+      code,
+      message,
+      hint: "PDF 頁面無法轉成圖片。請確認檔案未損壞；若持續失敗請匯出診斷報告。",
+      retriable: true
+    };
+  }
   return {
     code,
     message,
@@ -221,6 +239,7 @@ function errorCodeLabel(code) {
     [ERROR_CODES.EXTERNAL_PROCESS_CRASH]: "外部程序崩潰",
     [ERROR_CODES.OFFICE_CONVERSION_FAILED]: "Office 轉換失敗",
     [ERROR_CODES.LIBREOFFICE_PROFILE_ERROR]: "LibreOffice 設定檔錯誤",
+    [ERROR_CODES.PDF_RENDER_FAILED]: "PDF 渲染失敗",
     [ERROR_CODES.MISSING_INPUT]: "輸入檔遺失",
     [ERROR_CODES.OUTPUT_CONFLICT]: "輸出衝突",
     [ERROR_CODES.CANCELLED]: "使用者取消",
