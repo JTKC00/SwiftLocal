@@ -3,6 +3,7 @@
 const path = require("node:path");
 const { app, BrowserWindow, Menu, shell, ipcMain, dialog } = require("electron");
 const { BackendService } = require("./backend");
+const { MediaDownloadService, publicMediaError } = require("./media-download");
 const {
   assertTrustedIpcSender,
   isAllowedExternalUrl,
@@ -21,6 +22,9 @@ const APP_NAME = "快轉通 SwiftLocal";
 const APP_USER_MODEL_ID = "com.swiftlocal.converter";
 const isDev = !app.isPackaged;
 let backend = null;
+let mediaDownload = null;
+let mediaDisposeStarted = false;
+let mediaDisposeFinished = false;
 let mainWindow = null;
 let pdfWorkspaceWindow = null;
 /** PDF paths received before app ready (macOS open-file). */
@@ -77,6 +81,20 @@ function createBackend() {
     onJobsUpdated: (jobs) => {
       BrowserWindow.getAllWindows().forEach((window) => {
         window.webContents.send("backend:jobs-updated", jobs);
+      });
+    }
+  });
+  mediaDownload = new MediaDownloadService({
+    getDefaultOutputDir: () => backend.getConfig().defaultOutputDir,
+    getFfmpegPath: async () => {
+      if (!backend.tools) await backend.detectTools();
+      const ffmpeg = backend.tools && backend.tools.ffmpeg;
+      return ffmpeg && ffmpeg.available ? ffmpeg.path : "";
+    },
+    diagnosticPath: path.join(app.getPath("userData"), "media-download.log"),
+    onProgress: (progress) => {
+      BrowserWindow.getAllWindows().forEach((window) => {
+        window.webContents.send("media-download:progress", progress);
       });
     }
   });
@@ -272,6 +290,13 @@ function installBackendIpc() {
       return handler(event, ...args);
     });
   };
+  const mediaResponse = async (handler) => {
+    try {
+      return { ok: true, data: await handler() };
+    } catch (error) {
+      return { ok: false, error: publicMediaError(error) };
+    }
+  };
   handleTrusted("backend:detect-tools", () => backend.detectTools());
   handleTrusted("backend:get-config", () => backend.getConfig());
   handleTrusted("backend:set-default-output-dir", (_event, outputDir) => backend.setDefaultOutputDir(outputDir));
@@ -314,6 +339,16 @@ function installBackendIpc() {
     }
     return shell.openPath(targetPath);
   });
+  handleTrusted("media-download:status", () => mediaResponse(() => mediaDownload.getStatus()));
+  handleTrusted("media-download:analyze", (_event, payload) => mediaResponse(() => mediaDownload.analyze(payload || {})));
+  handleTrusted("media-download:start", (_event, payload) => mediaResponse(() => mediaDownload.startDownload(payload || {})));
+  handleTrusted("media-download:cancel", () => mediaResponse(() => mediaDownload.cancelDownload()));
+  handleTrusted("media-download:open-result", async (_event, kind) => mediaResponse(async () => {
+    const target = mediaDownload.getCompletedTarget(kind === "folder" ? "folder" : "file");
+    const errorMessage = await shell.openPath(target);
+    if (errorMessage) throw new Error(errorMessage);
+    return { opened: true };
+  }));
   handleTrusted("pdf-workspace:open", (_event, filePath) => openPdfWorkspace(filePath || ""));
   handleTrusted("pdf-workspace:open-files", (_event, filePaths) => openPdfFiles(filePaths || []));
   handleTrusted("pdf-workspace:association-status", () => getAssociationStatus(app));
@@ -496,5 +531,20 @@ if (gotSingleInstanceLock) {
     if (process.platform !== "darwin") {
       app.quit();
     }
+  });
+  app.on("before-quit", (event) => {
+    if (!mediaDownload) return;
+    if (mediaDisposeFinished) return;
+    if (mediaDisposeStarted) {
+      event.preventDefault();
+      return;
+    }
+    if (!mediaDownload.analysisActive && !mediaDownload.analysisChild && !mediaDownload.activeOperation) return;
+    event.preventDefault();
+    mediaDisposeStarted = true;
+    void mediaDownload.dispose().catch(() => {}).finally(() => {
+      mediaDisposeFinished = true;
+      app.quit();
+    });
   });
 }

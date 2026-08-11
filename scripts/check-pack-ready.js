@@ -12,6 +12,7 @@
 
 const fs = require("node:fs");
 const path = require("node:path");
+const { verifyInstalled } = require("./ensure-media-download-tools");
 
 const projectRoot = path.resolve(__dirname, "..");
 const toolsRoot = path.join(projectRoot, "tools");
@@ -79,6 +80,19 @@ function validTraineddata(filePath) {
   }
 }
 
+function validWindowsExecutable(filePath) {
+  try {
+    if (!filePath || !fs.statSync(filePath).isFile() || fs.statSync(filePath).size < 50_000) return false;
+    const handle = fs.openSync(filePath, "r");
+    const header = Buffer.alloc(2);
+    fs.readSync(handle, header, 0, 2, 0);
+    fs.closeSync(handle);
+    return header.toString("ascii") === "MZ";
+  } catch {
+    return false;
+  }
+}
+
 console.log("");
 console.log(wantFull ? "【打包前檢查 · Full 版】" : "【打包前檢查 · 一般版】");
 console.log(`tools 目錄: ${toolsRoot}`);
@@ -92,8 +106,8 @@ if (!fs.existsSync(toolsRoot)) {
 }
 
 // --- Tesseract exe ---
-const tesseract = findExecutable(toolsRoot, new Set(["tesseract.exe", "tesseract"]), 6);
-if (tesseract) {
+const tesseract = findExecutable(toolsRoot, new Set(["tesseract.exe"]), 6);
+if (validWindowsExecutable(tesseract)) {
   ok(`Tesseract 執行檔: ${path.relative(projectRoot, tesseract)}`);
 } else {
   bad(
@@ -127,25 +141,36 @@ if (!fs.existsSync(tessdataDir)) {
 }
 
 // --- FFmpeg ---
-const ffmpeg = findExecutable(toolsRoot, new Set(["ffmpeg.exe", "ffmpeg"]), 6);
-if (ffmpeg) {
+const ffmpeg = findExecutable(toolsRoot, new Set(["ffmpeg.exe"]), 6);
+if (validWindowsExecutable(ffmpeg)) {
   ok(`FFmpeg: ${path.relative(projectRoot, ffmpeg)}`);
 } else {
   bad("缺少 FFmpeg", "請放入 tools/ffmpeg/…/ffmpeg.exe");
 }
 
 // --- QPDF ---
-const qpdf = findExecutable(toolsRoot, new Set(["qpdf.exe", "qpdf"]), 6);
-if (qpdf) {
+const qpdf = findExecutable(toolsRoot, new Set(["qpdf.exe"]), 6);
+if (validWindowsExecutable(qpdf)) {
   ok(`QPDF: ${path.relative(projectRoot, qpdf)}`);
 } else {
   bad("缺少 QPDF", "請放入 tools/qpdf/…/qpdf.exe");
 }
 
+// --- Online media downloader (pinned, checksum-verified) ---
+try {
+  const mediaTarget = { targetPlatform: "win32", targetArch: "x64", targetKey: "win32-x64" };
+  const ytDlp = verifyInstalled("ytDlp", mediaTarget);
+  const deno = verifyInstalled("deno", mediaTarget);
+  ok(`yt-dlp ${ytDlp.version}: ${path.relative(projectRoot, ytDlp.filePath)}`);
+  ok(`Deno ${deno.version}: ${path.relative(projectRoot, deno.filePath)}`);
+} catch (error) {
+  bad("線上媒體下載元件缺少、版本不符或校驗失敗", `執行: npm run tools:media-download （${error.message}）`);
+}
+
 // --- LibreOffice (Full only) ---
-const soffice = findExecutable(toolsRoot, new Set(["soffice.exe", "soffice.com", "soffice"]), 8);
+const soffice = findExecutable(toolsRoot, new Set(["soffice.exe", "soffice.com"]), 8);
 if (wantFull) {
-  if (soffice) {
+  if (validWindowsExecutable(soffice)) {
     ok(`LibreOffice: ${path.relative(projectRoot, soffice)}`);
   } else {
     bad(
@@ -153,7 +178,7 @@ if (wantFull) {
       "請放入 tools/libreoffice/program/soffice.exe"
     );
   }
-} else if (soffice) {
+} else if (validWindowsExecutable(soffice)) {
   ok(`LibreOffice（可選，已找到）: ${path.relative(projectRoot, soffice)}`);
 } else {
   console.log("  ·  LibreOffice 未放入 tools/（一般版可選；Office 轉 PDF 需系統安裝或 Full 版）");
@@ -175,8 +200,9 @@ console.log(`結果: 未就緒（${failed} 項缺漏）`);
 console.log("");
 console.log("建議順序:");
 console.log("  1. 依 tools/README.md 放好 tesseract / ffmpeg / qpdf" + (wantFull ? " / libreoffice" : ""));
-console.log("  2. npm run tools:tessdata");
-console.log("  3. npm run check:pack" + (wantFull ? ":full" : ""));
-console.log("  4. npm run pack:win" + (wantFull ? ":full" : ""));
+console.log("  2. npm run tools:media-download");
+console.log("  3. npm run tools:tessdata");
+console.log("  4. npm run check:pack" + (wantFull ? ":full" : ""));
+console.log("  5. npm run pack:win" + (wantFull ? ":full" : ""));
 console.log("");
 process.exit(1);

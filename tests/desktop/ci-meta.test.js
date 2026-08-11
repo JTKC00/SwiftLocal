@@ -31,5 +31,14 @@ describe("CI metadata", () => {
     assert.equal(config.portable.artifactName, "SwiftLocal-${version}-portable-${arch}.${ext}");
     assert.equal(config.nsis.artifactName, "SwiftLocal-${version}-installer-${arch}.${ext}");
     assert.equal(config.mac.artifactName, "SwiftLocal-${version}-mac-${arch}.${ext}");
+    assert.equal(config.extraResources, undefined);
+    const windowsFilters = config.win.extraResources[0].filter;
+    const macFilters = config.mac.extraResources[0].filter;
+    for (const pattern of ["!**/*.dylib", "!LibreOffice.app/**/*", "!yt-dlp/bin/yt-dlp", "!deno/bin/deno"]) {
+      assert.ok(windowsFilters.includes(pattern), `Windows tools filter missing ${pattern}`);
+    }
+    for (const pattern of ["!**/*.exe", "!**/*.dll", "!libreoffice/**/*"]) {
+      assert.ok(macFilters.includes(pattern), `macOS tools filter missing ${pattern}`);
+    }
   });
 });

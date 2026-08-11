@@ -174,6 +174,11 @@
             <span>電郵影片、MP3、音訊擷取、720p、剪取與 GIF</span>
             <em>影音 · 桌面進階</em>
           </button>
+          <button type="button" data-panel="media-download-panel" data-focus="#media-download-url">
+            <strong>下載線上媒體</strong>
+            <span>分析單一公開網址，選擇影片畫質或音訊格式</span>
+            <em>影音 · 需要網絡</em>
+          </button>
         </div>
       </section>
       </section>
@@ -1115,6 +1120,10 @@
       </section>
 
       <section id="media-panel" class="panel" aria-labelledby="media-title">
+        <nav class="media-section-nav" aria-label="影音工具">
+          <button class="is-active" type="button" aria-current="page">本機影音轉換</button>
+          <button type="button" data-product-panel="media-download-panel">線上媒體下載</button>
+        </nav>
         <div class="tool-grid">
           <form id="media-backend-form" class="tool-surface">
             <div class="surface-heading">
@@ -1205,6 +1214,117 @@
               <span id="media-backend-status" class="status-pill">待偵測</span>
             </div>
             <div id="media-backend-jobs" class="backend-jobs empty">尚未建立任務</div>
+          </div>
+        </div>
+      </section>
+
+      <section id="media-download-panel" class="panel" aria-labelledby="media-download-title">
+        <nav class="media-section-nav" aria-label="影音工具">
+          <button type="button" data-product-panel="media-panel">本機影音轉換</button>
+          <button class="is-active" type="button" aria-current="page">線上媒體下載</button>
+        </nav>
+
+        <div id="media-download-browser-note" class="media-download-browser-note" hidden>
+          <strong>此功能只在 SwiftLocal 桌面版提供</strong>
+          <span>下載、合併與轉檔會在你的電腦上執行，瀏覽器版本不會把網址送到任何 SwiftLocal 伺服器。</span>
+        </div>
+
+        <div id="media-download-workspace" class="media-download-workspace">
+          <form id="media-download-form" class="tool-surface media-download-controls">
+            <div class="surface-heading">
+              <div>
+                <p class="eyebrow">單一公開媒體</p>
+                <h3 id="media-download-title">線上媒體下載</h3>
+              </div>
+              <span id="media-download-tool-status" class="status-pill">正在檢查</span>
+            </div>
+
+            <label class="media-download-url-label" for="media-download-url">
+              <span>媒體網址</span>
+              <input id="media-download-url" type="url" inputmode="url" autocomplete="url" spellcheck="false" placeholder="貼上 http:// 或 https:// 網址" required>
+            </label>
+            <div class="actions media-download-analyze-actions">
+              <button id="media-download-analyze" class="primary-button" type="submit">分析媒體</button>
+              <span id="media-download-analysis-status" class="backend-inline-note" role="status">先貼上單一影片或音訊網址。</span>
+            </div>
+
+            <fieldset id="media-download-options" class="media-download-options" disabled>
+              <legend>下載設定</legend>
+              <div class="media-download-option-group">
+                <strong>內容</strong>
+                <label><input type="radio" name="media-download-mode" value="video" checked><span>影片（包含音訊）</span></label>
+                <label><input type="radio" name="media-download-mode" value="audio"><span>只下載音訊</span></label>
+              </div>
+              <div id="media-download-video-options" class="media-download-option-group">
+                <strong>影片畫質</strong>
+                <label><input id="media-download-quality-720" type="radio" name="media-download-quality" value="720"><span>720p</span></label>
+                <label><input id="media-download-quality-1080" type="radio" name="media-download-quality" value="1080"><span>1080p</span></label>
+                <label><input id="media-download-quality-best" type="radio" name="media-download-quality" value="best" checked><span>最佳可用畫質</span></label>
+              </div>
+              <div id="media-download-audio-options" class="media-download-option-group" hidden>
+                <strong>音訊格式</strong>
+                <label><input type="radio" name="media-download-audio-format" value="mp3" checked><span>MP3</span></label>
+                <label><input type="radio" name="media-download-audio-format" value="best"><span>保留最佳音訊格式</span></label>
+              </div>
+            </fieldset>
+
+            <label for="media-download-output-dir">
+              <span>輸出資料夾</span>
+              <div class="media-download-output-row">
+                <input id="media-download-output-dir" type="text" readonly placeholder="請選擇輸出資料夾">
+                <button id="media-download-pick-output" class="secondary-button" type="button">選擇…</button>
+              </div>
+            </label>
+
+            <div class="actions">
+              <button id="media-download-start" class="primary-button" type="button" disabled>開始下載</button>
+              <button id="media-download-cancel" class="secondary-button" type="button" hidden>取消下載</button>
+            </div>
+            <p class="media-download-legal">只下載你有權保存的公開內容，並遵守來源網站的條款及所在地法律。V1 不支援播放清單、登入、Cookie 或 DRM 內容。</p>
+          </form>
+
+          <div class="media-download-side">
+            <section class="result-surface media-download-preview" aria-live="polite">
+              <div class="surface-heading">
+                <h3>媒體預覽</h3>
+                <span id="media-download-preview-badge" class="badge muted">等待分析</span>
+              </div>
+              <div id="media-download-preview-empty" class="media-download-preview-empty">分析後會在這裡顯示縮圖與媒體資料。</div>
+              <div id="media-download-preview-content" hidden>
+                <div class="media-download-thumbnail-frame">
+                  <img id="media-download-thumbnail" alt="" hidden>
+                  <span id="media-download-thumbnail-empty">沒有可用縮圖</span>
+                </div>
+                <h4 id="media-download-media-title"></h4>
+                <dl id="media-download-metadata" class="media-download-metadata"></dl>
+              </div>
+            </section>
+
+            <section id="media-download-progress-card" class="result-surface media-download-progress-card" hidden aria-live="polite">
+              <div class="surface-heading">
+                <h3>下載進度</h3>
+                <span id="media-download-progress-percent" class="status-pill">準備中</span>
+              </div>
+              <progress id="media-download-progress" max="100" aria-label="下載進度"></progress>
+              <strong id="media-download-progress-message">正在準備下載…</strong>
+              <div id="media-download-progress-metrics" class="media-download-progress-metrics"></div>
+            </section>
+
+            <section id="media-download-error-card" class="result-surface media-download-error-card" hidden role="alert">
+              <div class="surface-heading"><h3>無法完成</h3><span class="status-pill">需要處理</span></div>
+              <p id="media-download-error-message"></p>
+              <details id="media-download-error-details" hidden><summary>技術詳情</summary><pre></pre></details>
+            </section>
+
+            <section id="media-download-complete-card" class="result-surface media-download-complete-card" hidden aria-live="polite">
+              <div class="surface-heading"><h3>下載完成</h3><span class="status-pill">已儲存</span></div>
+              <strong id="media-download-complete-name"></strong>
+              <p id="media-download-complete-path"></p>
+              <div class="actions">
+                <button id="media-download-open-file" class="primary-button" type="button">開啟檔案</button>
+                <button id="media-download-open-folder" class="secondary-button" type="button">開啟資料夾</button>
+              </div>
+            </section>
           </div>
         </div>
       </section>
@@ -1479,7 +1599,7 @@
         <section><span class="privacy-mode memory">瀏覽器記憶體</span><h3>基礎工具</h3><p>圖片、PDF 工作台、ZIP、文字及資料主要在目前頁面的記憶體處理。只有按下下載後，結果才會寫入你選擇的下載位置。</p></section>
         <section><span class="privacy-mode disk">本機磁碟</span><h3>桌面進階處理</h3><p>影音、Office、OCR、工作流程及進階 PDF 會把選定檔案交給這部電腦的本機服務，並把結果寫入本機輸出資料夾。</p></section>
         <section><span class="privacy-mode history">本機紀錄</span><h3>設定與任務歷史</h3><p>主題、顯示偏好、我的常用設定、工作流程、檔名及本機路徑可能儲存在此裝置，方便恢復狀態。常用設定不保存內容或密碼，工作流程的 PDF 密碼亦不會寫入歷史。</p></section>
-        <section><span class="privacy-mode network">只連本機</span><h3>網絡連線</h3><p>程式只會按需要連接這部電腦的 <code>127.0.0.1</code> 處理服務；目前沒有第三方分析、廣告或遙測連線。</p></section>
+        <section><span class="privacy-mode network">按需要連線</span><h3>網絡連線</h3><p>一般工具只按需要連接這部電腦的 <code>127.0.0.1</code> 處理服務。使用線上媒體下載時，內建工具會直接連接你貼上的來源及其媒體服務；SwiftLocal 不設第三方分析、廣告或遙測。</p></section>
       </div>
       <div class="dialog-note"><strong>你可以控制的資料</strong><span>任務中心可刪除已結束任務；重新整理頁面會清除未下載的瀏覽器記憶體結果。桌面輸出檔需由你在檔案系統自行刪除。</span></div>
       <footer><button class="primary-button" type="submit" value="close">明白</button></footer>
@@ -1520,6 +1640,7 @@
   <script src="pdf-core/pages.js"></script>
   <script src="pdf-core/index.js"></script>
   <script src="pdf-workspace/shell.js"></script>
+  <script src="media-downloader.js"></script>
   <script src="app.js"></script>
   <div id="toast-container" aria-live="assertive"></div>
 </body>

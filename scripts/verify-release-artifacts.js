@@ -2,6 +2,8 @@
 
 const fs = require("node:fs");
 const path = require("node:path");
+const os = require("node:os");
+const crypto = require("node:crypto");
 const { execFileSync } = require("node:child_process");
 const asar = require("@electron/asar");
 
@@ -27,6 +29,124 @@ function requireReleaseFile(filePath, minimumBytes = 1024 * 1024) {
     throw new Error(`發行產物大小異常：${filePath} (${stat.size} bytes)`);
   }
   return stat;
+}
+
+function requireWindowsExecutable(filePath, minimumBytes = 50_000) {
+  const stat = requireReleaseFile(filePath, minimumBytes);
+  const handle = fs.openSync(filePath, "r");
+  const header = Buffer.alloc(2);
+  fs.readSync(handle, header, 0, 2, 0);
+  fs.closeSync(handle);
+  if (header.toString("ascii") !== "MZ") {
+    throw new Error(`封裝工具不是有效的 Windows PE 執行檔：${filePath}`);
+  }
+  return stat;
+}
+
+function requireArtifactNotOlderThan(artifactPath, referencePaths, toleranceMs = 2000) {
+  const artifactTime = fs.statSync(artifactPath).mtimeMs;
+  const references = referencePaths.filter((filePath) => filePath && fs.existsSync(filePath));
+  const newestReference = references.reduce((latest, filePath) => Math.max(latest, fs.statSync(filePath).mtimeMs), 0);
+  if (newestReference && artifactTime + toleranceMs < newestReference) {
+    throw new Error(`發行產物早於 win-unpacked 內容，可能是舊檔：${artifactPath}`);
+  }
+  return { artifactTime, newestReference };
+}
+
+function verifyArtifactPayloadMatches(artifactPath, packaged) {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "swiftlocal-artifact-verify-"));
+  try {
+    const payloadRoot = extractReleasePayload(artifactPath, tempDir);
+    const expected = {
+      appAsar: packaged.archivePath,
+      ytDlp: packaged.mediaTools.ytDlp,
+      deno: packaged.mediaTools.deno,
+      ffmpeg: packaged.mediaTools.ffmpeg
+    };
+    const suffixes = {
+      appAsar: path.join("resources", "app.asar"),
+      ytDlp: path.join("resources", "tools", "yt-dlp", "bin", "yt-dlp.exe"),
+      deno: path.join("resources", "tools", "deno", "bin", "deno.exe"),
+      ffmpeg: path.join("resources", "tools", "ffmpeg", "bin", "ffmpeg.exe")
+    };
+    const hashes = {};
+    for (const [key, expectedPath] of Object.entries(expected)) {
+      const extractedPath = findFileBySuffix(payloadRoot, suffixes[key]);
+      if (!extractedPath) throw new Error(`發行產物內缺少 ${suffixes[key]}：${artifactPath}`);
+      const expectedHash = sha256File(expectedPath);
+      const extractedHash = sha256File(extractedPath);
+      if (expectedHash !== extractedHash) {
+        throw new Error(`發行產物內容與 win-unpacked 不一致（${key}）：${artifactPath}`);
+      }
+      hashes[key] = extractedHash;
+    }
+    return hashes;
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+}
+
+function extractReleasePayload(artifactPath, tempDir) {
+  const sevenZip = require("7zip-bin").path7za;
+  const outerDir = path.join(tempDir, "outer");
+  fs.mkdirSync(outerDir, { recursive: true });
+  extractWith7Zip(sevenZip, artifactPath, outerDir);
+  if (findFileBySuffix(outerDir, path.join("resources", "app.asar"))) return outerDir;
+
+  const nestedArchives = findFiles(outerDir).filter((filePath) => /\.(?:7z|zip)$/i.test(filePath)).slice(0, 12);
+  for (let index = 0; index < nestedArchives.length; index += 1) {
+    const nestedDir = path.join(tempDir, `nested-${index}`);
+    fs.mkdirSync(nestedDir, { recursive: true });
+    try {
+      extractWith7Zip(sevenZip, nestedArchives[index], nestedDir);
+    } catch {
+      continue;
+    }
+    if (findFileBySuffix(nestedDir, path.join("resources", "app.asar"))) return nestedDir;
+  }
+  throw new Error(`無法從發行產物抽出 app.asar 進行內容比對：${artifactPath}`);
+}
+
+function extractWith7Zip(sevenZip, archivePath, outputDir) {
+  try {
+    execFileSync(sevenZip, ["x", "-y", `-o${outputDir}`, archivePath], {
+      encoding: "utf8",
+      windowsHide: true,
+      maxBuffer: 16 * 1024 * 1024
+    });
+  } catch (error) {
+    const detail = String(error && (error.stderr || error.message) || error).split(/\r?\n/).slice(-5).join(" ");
+    throw new Error(`無法解壓發行產物：${archivePath}（${detail}）`);
+  }
+}
+
+function findFileBySuffix(root, suffix) {
+  const normalizedSuffix = path.normalize(suffix).toLowerCase();
+  return findFiles(root).find((filePath) => path.normalize(filePath).toLowerCase().endsWith(normalizedSuffix)) || "";
+}
+
+function findFiles(root) {
+  const output = [];
+  const pending = [root];
+  while (pending.length) {
+    const current = pending.pop();
+    let entries = [];
+    try {
+      entries = fs.readdirSync(current, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    for (const entry of entries) {
+      const fullPath = path.join(current, entry.name);
+      if (entry.isDirectory()) pending.push(fullPath);
+      else if (entry.isFile()) output.push(fullPath);
+    }
+  }
+  return output;
+}
+
+function sha256File(filePath) {
+  return crypto.createHash("sha256").update(fs.readFileSync(filePath)).digest("hex");
 }
 
 function findMainWindowsExecutable(unpackedDir) {
@@ -190,7 +310,15 @@ function verifyPackagedApplication(outputDir, version) {
   if (!fs.existsSync(toolsDir) || fs.readdirSync(toolsDir).length === 0) {
     throw new Error(`封裝程式缺少 tools 資源：${toolsDir}`);
   }
-  return { archivePath, toolsDir, mainExe, versionCheck };
+  const mediaTools = {
+    ytDlp: path.join(toolsDir, "yt-dlp", "bin", "yt-dlp.exe"),
+    deno: path.join(toolsDir, "deno", "bin", "deno.exe"),
+    ffmpeg: path.join(toolsDir, "ffmpeg", "bin", "ffmpeg.exe")
+  };
+  requireWindowsExecutable(mediaTools.ytDlp, 1_000_000);
+  requireWindowsExecutable(mediaTools.deno, 1_000_000);
+  requireWindowsExecutable(mediaTools.ffmpeg, 100_000);
+  return { archivePath, toolsDir, mediaTools, mainExe, versionCheck };
 }
 
 function verifyWindowsRelease(options = {}) {
@@ -200,7 +328,10 @@ function verifyWindowsRelease(options = {}) {
   const config = require(path.join(projectRoot, "electron-builder.config.js"));
   const pdfAssociation = verifyPdfAssociationConfig(config);
 
-  const artifacts = (options.unpackedOnly ? [] : expectedWindowsArtifactNames(version, options.arch || "x64", full)).map((name) => {
+  const requestedKinds = new Set(options.artifactKinds || ["portable", "installer"]);
+  const artifactNames = expectedWindowsArtifactNames(version, options.arch || "x64", full)
+    .filter((name) => requestedKinds.has(/installer/i.test(name) ? "installer" : "portable"));
+  const artifacts = (options.unpackedOnly ? [] : artifactNames).map((name) => {
     const filePath = path.join(outputDir, name);
     const stat = requireReleaseFile(filePath);
     return { filePath, size: stat.size };
@@ -216,6 +347,15 @@ function verifyWindowsRelease(options = {}) {
   }
 
   const packaged = verifyPackagedApplication(outputDir, version);
+  const packagedReferences = [
+    packaged.mainExe,
+    packaged.archivePath,
+    ...Object.values(packaged.mediaTools)
+  ];
+  for (const artifact of artifacts) {
+    requireArtifactNotOlderThan(artifact.filePath, packagedReferences);
+    verifyArtifactPayloadMatches(artifact.filePath, packaged);
+  }
   return { version, outputDir, artifacts, packaged, pdfAssociation };
 }
 
@@ -225,6 +365,12 @@ function parseArgs(args) {
     const arg = args[index];
     if (arg === "--full") output.full = true;
     else if (arg === "--unpacked") output.unpackedOnly = true;
+    else if (arg === "--artifact" && args[index + 1]) {
+      const kind = args[++index];
+      if (!["portable", "installer"].includes(kind)) throw new Error(`不支援的產物種類：${kind}`);
+      if (!output.artifactKinds) output.artifactKinds = [];
+      if (!output.artifactKinds.includes(kind)) output.artifactKinds.push(kind);
+    }
     else if (arg === "--dir" && args[index + 1]) output.outputDir = args[++index];
     else if (arg === "--arch" && args[index + 1]) output.arch = args[++index];
     else throw new Error(`不支援的參數：${arg}`);
@@ -247,7 +393,7 @@ if (require.main === module) {
       );
     }
     console.log("OK PDF fileAssociations / productName");
-    console.log("OK win-unpacked、app.asar 版本、無巢狀 canvas、tools 資源");
+    console.log("OK win-unpacked、app.asar 版本、無巢狀 canvas、yt-dlp / Deno / FFmpeg 資源");
   } catch (error) {
     console.error(`FAIL ${error.message}`);
     process.exit(1);
@@ -259,8 +405,11 @@ module.exports = {
   findMainWindowsExecutable,
   parseArgs,
   readWindowsVersionInfo,
+  requireArtifactNotOlderThan,
   requireReleaseFile,
+  requireWindowsExecutable,
   verifyPackagedApplication,
+  verifyArtifactPayloadMatches,
   verifyPdfAssociationConfig,
   verifyWindowsRelease,
   MAIN_EXE_CANDIDATES

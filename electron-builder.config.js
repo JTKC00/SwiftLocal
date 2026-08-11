@@ -7,6 +7,27 @@ const hasNotarizationCredentials = Boolean(
   (process.env.APPLE_KEYCHAIN && process.env.APPLE_KEYCHAIN_PROFILE)
 );
 
+const windowsToolFilters = [
+  "**/*",
+  "!**/*.dylib",
+  "!**/*.so",
+  "!**/*.jnilib",
+  "!**/*.bin",
+  "!LibreOffice.app/**/*",
+  "!ffmpeg/bin/ffmpeg",
+  "!qpdf/bin/qpdf",
+  "!tesseract/bin/tesseract",
+  "!yt-dlp/bin/yt-dlp",
+  "!deno/bin/deno"
+];
+
+const macToolFilters = [
+  "**/*",
+  "!**/*.exe",
+  "!**/*.dll",
+  "!libreoffice/**/*"
+];
+
 module.exports = {
   appId: "com.swiftlocal.converter",
   productName: "快轉通 SwiftLocal",
@@ -27,15 +48,6 @@ module.exports = {
     "scripts/start-backend.js",
     "README.md",
     "package.json"
-  ],
-  extraResources: [
-    {
-      from: "tools",
-      to: "tools",
-      filter: [
-        "**/*"
-      ]
-    }
   ],
   // Register as a PDF viewer in “Open with” (installer / mac .app).
   // Does not force system default — user chooses in OS settings.
@@ -76,7 +88,14 @@ module.exports = {
     // QPDF). Exclude all EXEs from the signing pass so electron-builder does not
     // download winCodeSign or require Windows symlink privileges. The main app
     // EXE is still resource-edited before this negative signing rule is applied.
-    signExts: ["!.exe"]
+    signExts: ["!.exe"],
+    extraResources: [
+      {
+        from: "tools",
+        to: "tools",
+        filter: windowsToolFilters
+      }
+    ]
   },
   mac: {
     icon: "frontend/assets/swiftlocal-logo.png",
@@ -88,7 +107,14 @@ module.exports = {
     gatekeeperAssess: false,
     entitlements: "build/entitlements.mac.plist",
     entitlementsInherit: "build/entitlements.mac.inherit.plist",
-    notarize: shouldSignMac && hasNotarizationCredentials
+    notarize: shouldSignMac && hasNotarizationCredentials,
+    extraResources: [
+      {
+        from: "tools",
+        to: "tools",
+        filter: macToolFilters
+      }
+    ]
   },
   portable: {
     artifactName: "SwiftLocal-${version}-portable-${arch}.${ext}"

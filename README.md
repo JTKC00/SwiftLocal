@@ -24,7 +24,7 @@
 | OCR | 圖片或掃描 PDF 轉文字、建立可搜尋 PDF、掃描 PDF 轉 Word、批量辨識 |
 | Office | Word／Excel／PowerPoint 轉 PDF、PDF 轉 Office、Office 歸檔流程 |
 | 圖片 | 格式轉換、壓縮、尺寸、旋轉／翻轉、浮水印與批量處理 |
-| 影音 | 影片壓縮、轉 MP3、擷取音訊、縮小解析度、剪取片段與 GIF |
+| 影音 | 影片壓縮、轉 MP3、擷取音訊、縮小解析度、剪取片段、GIF 與線上媒體下載 |
 
 任務中心、取消／重試、工作流程、我的常用設定、診斷、工具偵測與輸出資料夾是各工作區共用的平台能力。ZIP、批量改名、Hash、檔案分片、文字／資料及快速小工具仍完整保留，但列於「其他工具」。詳見 [產品資訊架構](./docs/PRODUCT_STRUCTURE.md)。
 
@@ -50,6 +50,7 @@
 | PDF OCR → TXT | 渲染 + Tesseract | 適合掃描件 |
 | 圖片 OCR → TXT | Tesseract | 語言碼如 `eng`、`chi_tra` |
 | 音訊／影片轉換 | FFmpeg | 可設碼率、解析度、裁切、GIF FPS |
+| 線上媒體下載 | yt-dlp + Deno + FFmpeg | 單一公開網址；影片／音訊、720p／1080p／最佳、MP3、進度與取消 |
 | 圖片格式轉換（後端） | FFmpeg 或 Pillow | |
 
 ### 任務系統（0.2）
@@ -67,7 +68,7 @@
 
 1. **下載** `SwiftLocal-*-installer-x64.exe`（或免安裝 portable）。
 2. **雙擊安裝**（一鍵安裝，完成後可自動開啟；桌面會有「快轉通 SwiftLocal」捷徑）。
-3. **選檔 → 開始處理**。打包版已內建常用工具與繁中 OCR（`chi_tra+eng`），**不必自行安裝 Tesseract／FFmpeg**。
+3. **選檔或貼上公開媒體網址 → 開始處理**。打包版已內建常用工具、繁中 OCR（`chi_tra+eng`）、yt-dlp 與 Deno，**不必自行安裝 Python、yt-dlp、Deno、Tesseract 或 FFmpeg**。
 
 **用 SwiftLocal 開 PDF：** 安裝版會出現在「開啟方式」。在檔案總管對 PDF 右鍵 → **開啟方式 → 快轉通 SwiftLocal**；若要當預設，到 Windows **設定 → 應用程式 → 預設應用程式** 搜尋 PDF 或 SwiftLocal。也可用應用內「設為 PDF 開啟程式…」。雙擊開啟時會直接進入 **PDF 工作區**（不先顯示工具箱）。
 
@@ -87,6 +88,7 @@ SmartScreen 若提示「未知發行者」：選「仍要執行」即可（目�
 
 ```bash
 npm run check:pack        # 或缺什麼會紅字列出
+npm run tools:media-download # 下載並校驗 Windows yt-dlp / Deno
 npm run tools:tessdata    # 補齊 chi_tra/eng
 npm run pack:win          # 或 pack:win:full
 ```
@@ -169,12 +171,18 @@ Intel Mac 也可能在：
 
 ## Windows 打包前的工具佈局
 
-如果要讓朋友安裝後直接可用，打包前請先把 portable 工具放進專案根目錄的 `tools/`。`electron-builder` 會把整個資料夾複製到 app 的 `resources/tools/`，桌面版啟動後會自動偵測。
+如果要讓朋友安裝後直接可用，打包前請先把 portable 工具放進專案根目錄的 `tools/`。`electron-builder` 會依目標平台過濾後複製到 app 的 `resources/tools/`，桌面版啟動後會自動偵測。
 
 建議結構：
 
 ```text
 tools/
+  yt-dlp/
+    bin/
+      yt-dlp.exe
+  deno/
+    bin/
+      deno.exe
   ffmpeg/
     bin/
       ffmpeg.exe
@@ -516,7 +524,7 @@ desktop/    Electron 桌面殼、preload、桌面本機任務處理器
 backend/    瀏覽器模式可選用的 FastAPI 後端
 scripts/    開發用啟動腳本
 build/      打包資源，例如 Windows icon.ico
-tools/      可選的內建 FFmpeg、Tesseract、QPDF 與 LibreOffice
+tools/      可選的內建 yt-dlp、Deno、FFmpeg、Tesseract、QPDF 與 LibreOffice
 dist/       打包輸出，不納入版本控制
 ```
 
@@ -530,6 +538,7 @@ npm run backend          # FastAPI（瀏覽器模式需要時）
 npm test                 # Node + Python 單元測試
 npm run typecheck        # 主要 JS 語法檢查（CI 會跑）
 npm run check:ci         # 版本／依賴 pin／產物命名一致性（CI 會跑）
+npm run tools:media-download:check # 校驗 Windows yt-dlp / Deno 版本與 SHA-256
 npm run smoke            # 發佈 smoke：語法 + 單元測試 + 本機轉換
 npm run verify:win:dir   # 打包目錄版後驗證 app.asar 版本與 tools 資源
 npm run smoke:packaged-ui # 隔離啟動 Windows 目錄版並驗證 UI、IPC 與 CSP
@@ -617,7 +626,7 @@ npm run pack:win:full
 ## 維護備註
 
 - LibreOffice 體積大：一般版可不內建；Full 版或系統安裝皆可
-- 內建 FFmpeg、Tesseract、QPDF 前請確認授權與防毒誤判
+- 內建 yt-dlp、Deno、FFmpeg、Tesseract、QPDF 前請確認授權、第三方 notices 與防毒誤判
 - 正式外發 Windows 建議 code signing，降低 SmartScreen 警告
 - 正式外發 macOS 需 Developer ID 簽章與 notarization
 - `electron` / `electron-builder` 已固定版本（見 `package.json`），升級時請一併跑 `npm run smoke`

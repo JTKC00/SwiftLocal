@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "ytDlp": {
+    "version": "2026.07.04",
+    "license": "GPL-3.0-or-later (standalone executable distribution)",
+    "targets": {
+      "win32-x64": {
+        "url": "https://github.com/yt-dlp/yt-dlp/releases/download/2026.07.04/yt-dlp.exe",
+        "sha256": "52fe3c26dcf71fbdc85b528589020bb0b8e383155cfa81b64dd447bbe35e24b8",
+        "archive": false
+      },
+      "darwin-arm64": {
+        "url": "https://github.com/yt-dlp/yt-dlp/releases/download/2026.07.04/yt-dlp_macos",
+        "sha256": "498bd0dae17855c599d371d68ec5bafc439a9d8640e838be25c765a9792f261b",
+        "archive": false
+      }
+    }
+  },
+  "deno": {
+    "version": "2.9.5",
+    "license": "MIT",
+    "targets": {
+      "win32-x64": {
+        "url": "https://github.com/denoland/deno/releases/download/v2.9.5/deno-x86_64-pc-windows-msvc.zip",
+        "sha256": "171efab55ac6b9881fd53ee4c20f8bf3bb1340ffc618483746909014db12216a",
+        "archive": true
+      },
+      "darwin-arm64": {
+        "url": "https://github.com/denoland/deno/releases/download/v2.9.5/deno-aarch64-apple-darwin.zip",
+        "sha256": "b796aadd131f6930560c1ee040cf0d6f53933fbb987464e9ff46bd7ea4830615",
+        "archive": true
+      }
+    }
+  }
+}

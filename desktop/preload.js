@@ -18,6 +18,16 @@ contextBridge.exposeInMainWorld("swiftLocalBackend", {
   chooseFiles: (options) => ipcRenderer.invoke("backend:choose-files", options),
   chooseDirectory: () => ipcRenderer.invoke("backend:choose-directory"),
   openPath: (targetPath) => ipcRenderer.invoke("backend:open-path", targetPath),
+  getMediaDownloadStatus: () => ipcRenderer.invoke("media-download:status"),
+  analyzeMediaUrl: (payload) => ipcRenderer.invoke("media-download:analyze", payload || {}),
+  startMediaDownload: (payload) => ipcRenderer.invoke("media-download:start", payload || {}),
+  cancelMediaDownload: () => ipcRenderer.invoke("media-download:cancel"),
+  openMediaDownloadResult: (kind) => ipcRenderer.invoke("media-download:open-result", kind || "file"),
+  onMediaDownloadProgress: (callback) => {
+    const handler = (_event, progress) => callback(progress);
+    ipcRenderer.on("media-download:progress", handler);
+    return () => ipcRenderer.removeListener("media-download:progress", handler);
+  },
   enqueueJob: (payload) => ipcRenderer.invoke("backend:enqueue-job", payload),
   deleteJob: (jobId) => ipcRenderer.invoke("backend:delete-job", jobId),
   cancelJob: (jobId) => ipcRenderer.invoke("backend:cancel-job", jobId),

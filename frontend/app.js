@@ -76,6 +76,7 @@
     "split-panel": "大型檔案分割與合併",
     "rename-panel": "批量改名",
     "media-panel": "影音轉換",
+    "media-download-panel": "線上媒體下載",
     "tools-panel": "QR Code 與編碼工具",
     "backend-panel": "工具狀態"
   };
@@ -99,6 +100,7 @@
     "split-panel": "大型檔案分割與合併",
     "rename-panel": "批量改名",
     "media-panel": "影音轉換",
+    "media-download-panel": "線上媒體下載",
     "tools-panel": "QR Code 與編碼工具",
     "backend-panel": "工具狀態"
   });
@@ -122,6 +124,7 @@
     "split-panel": { nav: "大型檔案分割與合併", hint: "把大型檔案切成分片，之後可依 manifest 合併還原。", steps: ["選擇檔案", "設定每份大小", "按「產生分片檔」後下載全部 part 和 manifest"], keywords: "split merge 切割 合併 分片 大檔 part binary manifest" },
     "rename-panel": { nav: "批量改名", hint: "先預覽批量改名規則，再下載 PowerShell 腳本。", steps: ["選擇要改名的檔案", "輸入命名格式", "產生預覽，確認後下載腳本"], keywords: "rename 改名 批量 檔名 file name", platform: "device" },
     "media-panel": { nav: "影音", hint: "依用途壓縮影片、轉音訊、縮小、剪取或建立 GIF。", steps: ["先選常見用途", "選擇音訊或影片", "加入佇列並在任務中心追蹤"], keywords: "media audio video mp3 wav m4a mp4 mov ffmpeg 影音 音訊 影片 電郵 720p 剪取 gif", platform: "local" },
+    "media-download-panel": { nav: "線上媒體下載", hint: "分析單一公開媒體網址，再下載影片或音訊到本機。", steps: ["貼上網址並分析", "選擇影片畫質或音訊格式", "選擇資料夾並下載"], keywords: "online media download yt-dlp youtube video audio mp3 720p 1080p 線上 媒體 下載 網址", platform: "network" },
     "tools-panel": { nav: "QR Code 與編碼工具", hint: "產生 QR Code、UUID，並處理顏色格式等快速值。", steps: ["選擇需要的小工具", "輸入內容或設定數量", "產生後複製或下載"], keywords: "color hex rgb hsl uuid qr qrcode 小工具 顏色 編碼" },
     "backend-panel": { nav: "狀態", hint: "查看整體健康狀態、可用功能及清楚的修復建議。", steps: ["先看整體狀態與功能可用情況", "按「重新檢查系統」取得最新結果", "缺少工具時展開進階設定並指定路徑"], keywords: "backend 後端 系統 健康 狀態 libreoffice ffmpeg tesseract qpdf ocr 設定 修復", platform: "local" }
   };
@@ -162,6 +165,7 @@
   const PDF_WORKSPACE_PREVIEW_CACHE_SIZE = 12;
   /** @type {{ destroy: Function }|null} Reader workspace shell (not the page-edit grid). */
   let pdfReaderShell = null;
+  let mediaDownloader = null;
 
   function init() {
     initTheme();
@@ -183,6 +187,7 @@
     bindSplitTool();
     bindRenameTool();
     bindBackendTool();
+    bindMediaDownloader();
     bindToolsPanel();
     bindPresetCenter();
     bindGlobalActions();
@@ -740,7 +745,9 @@
     if (!panelId) return;
     const editingPreset = state.userPresets.find((item) => item.id === state.editingPresetId);
     if (editingPreset && panelId !== editingPreset.panelId && panelId !== "presets-panel") state.editingPresetId = null;
-    const navPanelId = ["pdf-panel", "pdf-reader-panel"].includes(panelId) ? "pdf-hub-panel" : panelId;
+    const navPanelId = ["pdf-panel", "pdf-reader-panel"].includes(panelId)
+      ? "pdf-hub-panel"
+      : panelId === "media-download-panel" ? "media-panel" : panelId;
     state.activePanel = panelId;
     $$(".nav-item").forEach((item) => {
       const active = item.dataset.panel === navPanelId;
@@ -752,7 +759,9 @@
     const parentDetails = activeNavItem ? activeNavItem.closest("details") : null;
     if (parentDetails) parentDetails.open = true;
     $$('[data-mobile-panel]').forEach((item) => {
-      const mobilePanelId = ["pdf-panel", "pdf-reader-panel", "pdf-hub-panel"].includes(panelId) ? "pdf-hub-panel" : panelId;
+      const mobilePanelId = ["pdf-panel", "pdf-reader-panel", "pdf-hub-panel"].includes(panelId)
+        ? "pdf-hub-panel"
+        : panelId === "media-download-panel" ? "media-panel" : panelId;
       const active = item.dataset.mobilePanel === mobilePanelId;
       item.classList.toggle("is-active", active);
       if (active) item.setAttribute("aria-current", "page");
@@ -1206,6 +1215,9 @@
   }
 
   function panelPrivacyInfo(panelId) {
+    if (panelId === "media-download-panel") {
+      return { kind: "network", label: "連接媒體來源", note: "網址由本機工具直接分析及下載；不作遙測" };
+    }
     if (["workflow-panel", "media-panel", "backend-panel", "ocr-panel", "office-panel"].includes(panelId)) {
       return { kind: "disk", label: "本機磁碟", note: "由這部電腦的本機服務讀寫" };
     }
@@ -1340,6 +1352,9 @@
       c.textContent = "尚未選擇檔案";
       renderPanelBackendJobs("#media-backend-jobs", "#media-backend-status", [], MEDIA_BACKEND_JOB_TYPES);
       setStatus("#media-backend-status", state.backendConnected ? "已連線" : "FastAPI 未連線");
+    }
+    if (panelId === "media-download-panel" && mediaDownloader) {
+      mediaDownloader.reset();
     }
     const panel = $(`#${panelId}`);
     if (panel) {
@@ -4496,6 +4511,15 @@
     updateImageWorkspaceAvailability();
   }
 
+  function bindMediaDownloader() {
+    if (!window.SwiftLocalMediaDownloader || typeof window.SwiftLocalMediaDownloader.mount !== "function") return;
+    mediaDownloader = window.SwiftLocalMediaDownloader.mount({
+      api: window.swiftLocalBackend || null,
+      desktopAvailable: electronBridgeAvailable(),
+      showToast
+    });
+  }
+
   function updateDesktopOutputDirVisibility() {
     const block = $("#desktop-output-dir-block");
     if (!block) return;
@@ -4820,7 +4844,7 @@
     if (panelId === "ocr-panel") return "OCR";
     if (panelId === "office-panel") return "Office";
     if (panelId === "image-panel") return "圖片";
-    if (panelId === "media-panel") return "影音";
+    if (["media-panel", "media-download-panel"].includes(panelId)) return "影音";
     if (["tasks-panel", "workflow-panel", "presets-panel"].includes(panelId)) return "共用能力";
     if (panelId === "backend-panel") return "系統";
     return "其他工具";

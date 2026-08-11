@@ -8,6 +8,14 @@ Recommended Windows layout:
 
 ```text
 tools/
+  yt-dlp/
+    bin/
+      yt-dlp.exe
+    .swiftlocal-media-tool-win32-x64.json
+  deno/
+    bin/
+      deno.exe
+    .swiftlocal-media-tool-win32-x64.json
   ffmpeg/
     bin/
       ffmpeg.exe
@@ -22,6 +30,29 @@ tools/
     bin/
       qpdf.exe
 ```
+
+### 線上媒體下載（安裝包內建）
+
+Windows 封裝前會自動下載並校驗鎖定版本的 `yt-dlp.exe` 與 `deno.exe`：
+
+```bash
+npm run tools:media-download        # Windows x64，供 Full / Portable 封裝
+npm run tools:media-download:check  # 不連網，只檢查版本 stamp、格式與 checksum
+```
+
+鎖定版本、官方發行 URL 與 SHA-256 位於 `tools/media-download-tools.lock.json`。下載腳本只接受鎖檔所列的官方 GitHub release，SHA-256 不符即中止。Deno 是 yt-dlp 完整 YouTube 支援所需的外部 JavaScript runtime；用家不需自行安裝 Python、yt-dlp 或 Deno。既有 FFmpeg 會負責影音合併及 MP3 轉檔。
+
+本機 macOS 開發驗證可執行：
+
+```bash
+npm run tools:media-download:current
+```
+
+發行注意：yt-dlp 的 standalone executable 按其官方說明以 GPL-3.0-or-later 發佈，Deno 為 MIT。封裝時本 README、鎖檔與各工具隨附的版本 stamp 會一併置於 `resources/tools`；發行前仍應依各上游 release 的授權與 notices 做最終合規審閱：
+
+- https://github.com/yt-dlp/yt-dlp/blob/master/LICENSE
+- https://github.com/yt-dlp/yt-dlp/blob/master/README.md#release-files
+- https://github.com/denoland/deno/blob/main/LICENSE.md
 
 ### Full 版必備：繁中 tessdata
 
@@ -69,7 +100,7 @@ npm run pack:win
 npm run pack:win:full
 ```
 
-`pack:win` / `pack:win:full` 也會自動跑此檢查。
+`pack:win` / `pack:win:full` 也會自動跑此檢查；electron-builder 成功後還會立即抽出成品，核對 `app.asar`、yt-dlp、Deno 與 FFmpeg 的 SHA-256，不一致就以失敗結束。
 
 Optional LibreOffice layout:
 
