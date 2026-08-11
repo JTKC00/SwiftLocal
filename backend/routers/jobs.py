@@ -27,6 +27,13 @@ async def create_job(
     docxEngine: str = Form("auto"),
     scanOcr: str = Form("auto"),
     ocrOutput: str = Form("both"),
+    imageOps: str = Form(""),
+    quality: str = Form(""),
+    maxWidth: str = Form(""),
+    maxHeight: str = Form(""),
+    keepRatio: str = Form("true"),
+    watermarkText: str = Form(""),
+    watermarkPosition: str = Form("se"),
 ):
     try:
         return await job_service.create_job(
@@ -49,6 +56,13 @@ async def create_job(
                 "docxEngine": docxEngine,
                 "scanOcr": scanOcr,
                 "ocrOutput": ocrOutput,
+                "imageOps": imageOps,
+                "quality": quality,
+                "maxWidth": maxWidth,
+                "maxHeight": maxHeight,
+                "keepRatio": keepRatio,
+                "watermarkText": watermarkText,
+                "watermarkPosition": watermarkPosition,
             },
         )
     except ValueError as error:

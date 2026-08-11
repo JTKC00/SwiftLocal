@@ -45,8 +45,25 @@ const {
   redactJobOptions,
   nextAvailablePath,
   validateJobInputLimits,
+  DEFAULT_OCR_LANGUAGE,
+  sanitizeOcrLanguage,
+  sanitizeDesktopJobOptions,
+  sanitizeImageOps,
+  sanitizeImageRectangle,
+  sanitizeImageQuality,
+  sanitizeImageDimension,
+  sanitizeImageKeepRatio,
+  resolveWorkspaceImageSize,
+  renderWorkspaceImageCanvas,
+  sanitizeOcrPageSelection,
+  assertOcrLanguagesAvailable,
+  createFriendlyOcrError,
+  bundledTessdataDir,
+  listOcrLanguages,
   JobCancelledError
 } = require("../../desktop/backend.js");
+
+const { createCanvas } = require("@napi-rs/canvas");
 
 function tempDir(prefix) {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -70,6 +87,25 @@ async function writeBlankPdf(filePath, pages = 2) {
     doc.addPage([200, 200]);
   }
   fs.writeFileSync(filePath, await doc.save());
+}
+
+function jpegWithExifOrientation(jpeg, orientation) {
+  const tiff = Buffer.alloc(26);
+  tiff.write("II", 0, "ascii");
+  tiff.writeUInt16LE(42, 2);
+  tiff.writeUInt32LE(8, 4);
+  tiff.writeUInt16LE(1, 8);
+  tiff.writeUInt16LE(0x0112, 10);
+  tiff.writeUInt16LE(3, 12);
+  tiff.writeUInt32LE(1, 14);
+  tiff.writeUInt16LE(orientation, 18);
+  tiff.writeUInt32LE(0, 22);
+  const payload = Buffer.concat([Buffer.from("Exif\0\0", "binary"), tiff]);
+  const marker = Buffer.alloc(4);
+  marker[0] = 0xff;
+  marker[1] = 0xe1;
+  marker.writeUInt16BE(payload.length + 2, 2);
+  return Buffer.concat([jpeg.subarray(0, 2), marker, payload, jpeg.subarray(2)]);
 }
 
 describe("pdfBytesLookEncrypted", () => {
@@ -230,6 +266,183 @@ describe("parsePageRanges", () => {
 
   test("rejects inverted ranges", () => {
     assert.deepEqual(parsePageRanges("5-1", 10), []);
+  });
+});
+
+describe("PDF workspace OCR helpers", () => {
+  test("uses Traditional Chinese plus English as the default language", () => {
+    assert.equal(DEFAULT_OCR_LANGUAGE, "chi_tra+eng");
+    assert.equal(sanitizeOcrLanguage(""), "chi_tra+eng");
+    assert.equal(sanitizeOcrLanguage("chi_tra+eng+chi_tra"), "chi_tra+eng");
+    assert.throws(() => sanitizeOcrLanguage("eng;rm"), /語言設定無效/);
+  });
+
+  test("constructs Tesseract argv safely for paths with spaces and Chinese", () => {
+    const args = buildTesseractOcrArgs(
+      "C:\\使用者\\James Tong\\掃描文件.png",
+      "C:\\輸出資料\\page_001_ocr",
+      "chi_tra+eng",
+      "C:\\Program Files\\Tesseract-OCR\\tessdata"
+    );
+    assert.deepEqual(args, [
+      "C:\\使用者\\James Tong\\掃描文件.png",
+      "C:\\輸出資料\\page_001_ocr",
+      "-l",
+      "chi_tra+eng",
+      "--tessdata-dir",
+      "C:\\Program Files\\Tesseract-OCR\\tessdata"
+    ]);
+  });
+
+  test("supports current-page and multi-page OCR selections", () => {
+    assert.deepEqual(sanitizeOcrPageSelection("3"), [3]);
+    assert.deepEqual(sanitizeOcrPageSelection("1-2,4,2"), [1, 2, 4]);
+    assert.deepEqual(sanitizeOcrPageSelection(""), []);
+    assert.throws(() => sanitizeOcrPageSelection("3-1"), /頁碼範圍無效/);
+  });
+
+  test("distinguishes missing language data and friendly OCR failures", () => {
+    const dir = tempDir("sl-tessdata-");
+    try {
+      fs.writeFileSync(path.join(dir, "eng.traineddata"), Buffer.alloc(60_001));
+      assert.deepEqual(listOcrLanguages(dir), ["eng"]);
+      assert.throws(() => assertOcrLanguagesAvailable("chi_tra+eng", dir), /chi_tra/);
+      assert.match(createFriendlyOcrError(new Error("OCR 結果為空"), "scan.pdf").message, /未辨識到文字/);
+      assert.match(createFriendlyOcrError(new Error("PDF render failed"), "scan.pdf").message, /頁面影像/);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("resolves Unix share tessdata beside a bundled executable", () => {
+    const root = tempDir("sl-tess-root-");
+    try {
+      const bin = path.join(root, "bin");
+      const tessdata = path.join(root, "share", "tessdata");
+      fs.mkdirSync(bin, { recursive: true });
+      fs.mkdirSync(tessdata, { recursive: true });
+      const executable = path.join(bin, "tesseract");
+      fs.writeFileSync(executable, "x");
+      assert.equal(bundledTessdataDir(executable), tessdata);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("Visual-first image workspace helpers", () => {
+  test("validates imageOps count, coordinates, limits, and shared export settings", () => {
+    const options = sanitizeDesktopJobOptions("image-convert", {
+      extension: "webp",
+      imageOps: JSON.stringify([
+        { rotation: 90, flip: "horizontal", crop: { x: 0.1, y: 0.2, width: 0.5, height: 0.4 }, ocrRegion: null },
+        { rotation: 0, flip: "none", crop: null, ocrRegion: null }
+      ]),
+      quality: "0.8",
+      maxWidth: "1600",
+      maxHeight: "900",
+      keepRatio: "true",
+      watermarkText: "香港 Office",
+      watermarkPosition: "center"
+    }, 2);
+    assert.equal(options.extension, "webp");
+    assert.equal(options.quality, "0.8");
+    assert.equal(options.maxWidth, "1600");
+    assert.equal(options.watermarkText, "香港 Office");
+    assert.deepEqual(JSON.parse(options.imageOps)[0], {
+      rotation: 90,
+      flip: "horizontal",
+      crop: { x: 0.1, y: 0.2, width: 0.5, height: 0.4 },
+      ocrRegion: null
+    });
+    assert.throws(() => sanitizeImageOps("[{\"rotation\":0}]", 2), /數量/);
+    assert.throws(() => sanitizeImageOps("[null]", 1), /必須是物件/);
+    assert.throws(() => sanitizeImageOps("[]", 101), /最多處理 100/);
+    assert.throws(() => sanitizeImageRectangle({ x: 0.8, y: 0, width: 0.3, height: 1 }), /圖片範圍/);
+    assert.throws(() => sanitizeImageQuality("0.2"), /30%/);
+    assert.throws(() => sanitizeImageDimension("32769", "maxWidth"), /32768/);
+    assert.throws(() => sanitizeImageDimension("100.5", "maxWidth"), /32768/);
+    assert.equal(sanitizeImageKeepRatio("false"), false);
+    assert.throws(() => sanitizeImageKeepRatio("yes"), /true 或 false/);
+    assert.throws(() => sanitizeImageOps('[{"rotation":"90deg"}]', 1), /旋轉角度/);
+    assert.throws(() => sanitizeImageOps('[{"rotation":false}]', 1), /旋轉角度/);
+    assert.throws(() => sanitizeImageRectangle({ x: false, y: 0, width: 1, height: 1 }), /座標/);
+    assert.deepEqual(resolveWorkspaceImageSize(4000, 2000, 1000, 1000, true), { width: 1000, height: 500 });
+    assert.deepEqual(resolveWorkspaceImageSize(400, 200, 100, 80, false), { width: 100, height: 80 });
+  });
+
+  test("applies EXIF orientation before rotation, crop, and export resize", async () => {
+    const dir = tempDir("sl-image-order-");
+    try {
+      const source = createCanvas(40, 20);
+      const context = source.getContext("2d");
+      context.fillStyle = "#f00";
+      context.fillRect(0, 0, 20, 20);
+      context.fillStyle = "#00f";
+      context.fillRect(20, 0, 20, 20);
+      const input = path.join(dir, "香港 文件.jpg");
+      fs.writeFileSync(input, jpegWithExifOrientation(source.toBuffer("image/jpeg", 95), 6));
+
+      const exifOnly = await renderWorkspaceImageCanvas(input, {
+        rotation: 0, flip: "none", crop: null, ocrRegion: null
+      }, {}, true);
+      assert.deepEqual([exifOnly.width, exifOnly.height], [20, 40]);
+
+      const rendered = await renderWorkspaceImageCanvas(input, {
+        rotation: 90,
+        flip: "none",
+        crop: { x: 0, y: 0, width: 1, height: 0.5 },
+        ocrRegion: null
+      }, {
+        maxWidth: 20,
+        maxHeight: 20,
+        keepRatio: true,
+        watermarkText: "",
+        watermarkPosition: "se"
+      }, false);
+      assert.deepEqual([rendered.width, rendered.height], [20, 5]);
+
+      const plainInput = path.join(dir, "transform.png");
+      fs.writeFileSync(plainInput, source.toBuffer("image/png"));
+      const rotatedThenFlipped = await renderWorkspaceImageCanvas(plainInput, {
+        rotation: 90,
+        flip: "horizontal",
+        crop: null,
+        ocrRegion: null
+      }, {}, true);
+      const topPixel = rotatedThenFlipped.getContext("2d").getImageData(10, 5, 1, 1).data;
+      assert.ok(topPixel[0] > topPixel[2], "horizontal flip must apply after the 90° rotation");
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("uses the same normalized crop for OCR regions and enforces 8px minimum", async () => {
+    const dir = tempDir("sl-image-region-");
+    try {
+      const source = createCanvas(64, 32);
+      source.getContext("2d").fillRect(0, 0, 64, 32);
+      const input = path.join(dir, "region.png");
+      fs.writeFileSync(input, source.toBuffer("image/png"));
+      const canvas = await renderWorkspaceImageCanvas(input, {
+        rotation: 0,
+        flip: "none",
+        crop: { x: 0, y: 0, width: 0.5, height: 1 },
+        ocrRegion: { x: 0, y: 0, width: 0.5, height: 0.5 }
+      }, {}, true);
+      assert.deepEqual([canvas.width, canvas.height], [16, 16]);
+      await assert.rejects(
+        renderWorkspaceImageCanvas(input, {
+          rotation: 0,
+          flip: "none",
+          crop: null,
+          ocrRegion: { x: 0, y: 0, width: 0.1, height: 0.1 }
+        }, {}, true),
+        /8 × 8 pixels/
+      );
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
 
@@ -660,11 +873,15 @@ describe("BackendService jobs", () => {
 
   function createTestBackend() {
     backendSequence += 1;
-    return new BackendService({
+    const backend = new BackendService({
       defaultOutputDir: outDir,
       configPath: path.join(outDir, `tools-${backendSequence}.json`),
       jobsStatePath: path.join(outDir, `jobs-${backendSequence}.json`)
     });
+    // These queue tests exercise built-in PDF behavior, not system tool discovery.
+    // Avoid making their short async assertions depend on first-run version scans.
+    backend.tools = {};
+    return backend;
   }
 
   before(() => {
@@ -673,6 +890,112 @@ describe("BackendService jobs", () => {
 
   after(() => {
     fs.rmSync(outDir, { recursive: true, force: true });
+  });
+
+  test("returns only completed TXT outputs for workspace OCR", () => {
+    const backend = createTestBackend();
+    const textPath = path.join(outDir, "香港 文件_ocr.txt");
+    const pdfPath = path.join(outDir, "other.pdf");
+    fs.writeFileSync(textPath, "--- Page 1 ---\n香港\nHONG KONG\n", "utf8");
+    fs.writeFileSync(pdfPath, "%PDF");
+    backend.jobs.unshift({
+      id: "workspace-ocr",
+      type: "ocr-pdf",
+      inputPaths: [],
+      outputDir: outDir,
+      options: {},
+      status: "done",
+      createdAt: new Date().toISOString(),
+      startedAt: null,
+      finishedAt: new Date().toISOString(),
+      outputPaths: [textPath, pdfPath],
+      log: [],
+      error: "",
+      progress: { current: 1, total: 1, phase: "ocr", message: "已辨識第 1 / 1 頁" },
+      cancelRequested: false,
+      _child: null
+    });
+    assert.deepEqual(backend.readJobTextOutputs("workspace-ocr"), [{
+      name: "香港 文件_ocr.txt",
+      text: "--- Page 1 ---\n香港\nHONG KONG\n"
+    }]);
+    const publicResult = backend.getJobs().find((job) => job.id === "workspace-ocr");
+    assert.deepEqual(publicResult.progress, {
+      current: 1,
+      total: 1,
+      phase: "ocr",
+      message: "已辨識第 1 / 1 頁"
+    });
+  });
+
+  test("image batch keeps successful outputs and reports a failed file", async () => {
+    const backend = createTestBackend();
+    const batchDir = tempDir("sl-image-batch-");
+    try {
+      const valid = path.join(batchDir, "中英 document.png");
+      const broken = path.join(batchDir, "broken image.png");
+      const canvas = createCanvas(40, 24);
+      canvas.getContext("2d").fillRect(0, 0, 40, 24);
+      fs.writeFileSync(valid, canvas.toBuffer("image/png"));
+      fs.writeFileSync(broken, "not an image");
+      const job = {
+        id: "image-partial",
+        type: "image-convert",
+        inputPaths: [valid, broken],
+        outputDir: batchDir,
+        options: {
+          extension: "png",
+          imageOps: JSON.stringify([
+            { rotation: 90, flip: "none", crop: null, ocrRegion: null },
+            { rotation: 0, flip: "none", crop: null, ocrRegion: null }
+          ]),
+          quality: "0.85",
+          maxWidth: "20",
+          maxHeight: "20",
+          keepRatio: "true",
+          watermarkText: "",
+          watermarkPosition: "se"
+        },
+        status: "running",
+        outputPaths: [],
+        itemResults: [],
+        log: [],
+        error: "",
+        cancelRequested: false
+      };
+      await backend.runImageConvert(job);
+      assert.equal(job.outputPaths.length, 1);
+      assert.deepEqual(job.itemResults.map((item) => item.status), ["done", "failed"]);
+      assert.equal(job.itemResults[0].name, "中英 document.png");
+      assert.deepEqual([job.progress.current, job.progress.total], [2, 2]);
+      assert.match(job.progress.message, /1 個未完成/);
+    } finally {
+      fs.rmSync(batchDir, { recursive: true, force: true });
+    }
+  });
+
+  test("cancelled image work removes its controlled OS temp directory", async () => {
+    const backend = createTestBackend();
+    const input = path.join(outDir, "cancel-image.png");
+    const canvas = createCanvas(16, 16);
+    fs.writeFileSync(input, canvas.toBuffer("image/png"));
+    const before = new Set(fs.readdirSync(os.tmpdir()).filter((name) => name.startsWith("swiftlocal-image-convert-")));
+    const job = {
+      id: "image-cancel",
+      type: "image-convert",
+      inputPaths: [input],
+      outputDir: outDir,
+      options: { extension: "png", imageOps: "", quality: "0.85", keepRatio: "true" },
+      status: "running",
+      outputPaths: [],
+      itemResults: [],
+      log: [],
+      error: "",
+      cancelRequested: true
+    };
+    await assert.rejects(backend.runImageConvert(job), /取消/);
+    const after = fs.readdirSync(os.tmpdir()).filter((name) => name.startsWith("swiftlocal-image-convert-"));
+    assert.deepEqual(new Set(after), before);
   });
 
   test("cancel queued job marks cancelled", async () => {

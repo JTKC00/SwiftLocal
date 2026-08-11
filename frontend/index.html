@@ -375,154 +375,152 @@
 
       <section id="image-panel" class="panel" aria-labelledby="image-title">
         <div class="panel-context-bar"><span>圖片工作區</span><button type="button" data-product-panel="ocr-panel">前往 OCR</button></div>
-        <div class="tool-grid">
-          <form id="image-form" class="tool-surface">
-            <div class="surface-heading">
-              <h3 id="image-title">圖片轉檔與壓縮</h3>
-              <span class="badge">Canvas</span>
+        <div id="image-workspace" class="image-workspace tool-surface">
+          <div class="image-workspace-heading">
+            <div>
+              <h3 id="image-title">圖片工作區</h3>
+              <p>看到甚麼，就直接裁切、調整、辨識或匯出；原始圖片不會被修改。</p>
             </div>
-            <label class="file-zone" for="image-files">
-              <input id="image-files" type="file" accept="image/*" multiple>
-              <span>選擇圖片</span>
-              <small>JPG、PNG、WebP 等瀏覽器可讀格式</small>
-            </label>
-
-            <div class="control-row">
-              <label>
-                <span>輸出格式</span>
-                <select id="image-format">
-                  <option value="image/jpeg">JPEG</option>
-                  <option value="image/png">PNG</option>
-                  <option value="image/webp">WebP</option>
-                </select>
-              </label>
-              <label>
-                <span>品質</span>
-                <input id="image-quality" type="range" min="0.3" max="1" step="0.05" value="0.85">
-                <output id="quality-output">85%</output>
-              </label>
+            <div class="actions compact-actions">
+              <label class="primary-button compact" for="image-files">＋ 加入圖片</label>
+              <input id="image-files" class="visually-hidden" type="file" accept="image/*,.tif,.tiff,.bmp" multiple tabindex="-1">
+              <button class="secondary-button compact" type="button" data-clear-panel="image-panel">清空</button>
+              <span id="image-workspace-count" class="badge muted">0 張圖片</span>
             </div>
-
-            <div class="control-row">
-              <label>
-                <span>最大寬度</span>
-                <input id="image-width" type="number" min="1" step="1" placeholder="原尺寸">
-              </label>
-              <label>
-                <span>最大高度</span>
-                <input id="image-height" type="number" min="1" step="1" placeholder="原尺寸">
-              </label>
-            </div>
-
-            <label class="check-row">
-              <input id="image-keep-ratio" type="checkbox" checked>
-              <span>保持比例</span>
-            </label>
-
-            <div class="control-row">
-              <label>
-                <span>旋轉</span>
-                <select id="image-rotate">
-                  <option value="0">0°</option>
-                  <option value="90">90°</option>
-                  <option value="180">180°</option>
-                  <option value="270">270°</option>
-                </select>
-              </label>
-              <label>
-                <span>翻轉</span>
-                <select id="image-flip">
-                  <option value="none">不翻轉</option>
-                  <option value="horizontal">水平</option>
-                  <option value="vertical">垂直</option>
-                  <option value="both">水平 + 垂直</option>
-                </select>
-              </label>
-            </div>
-
-            <div class="control-row">
-              <label>
-                <span>浮水印文字</span>
-                <input id="image-watermark" type="text" placeholder="可留空">
-              </label>
-              <label>
-                <span>浮水印位置</span>
-                <select id="image-watermark-position">
-                  <option value="se">右下</option>
-                  <option value="sw">左下</option>
-                  <option value="ne">右上</option>
-                  <option value="nw">左上</option>
-                  <option value="center">中央</option>
-                </select>
-              </label>
-            </div>
-
-            <div class="actions">
-              <button class="primary-button" type="submit">轉換圖片</button>
-              <button class="secondary-button" type="button" data-clear-panel="image-panel">重設</button>
-            </div>
-          </form>
-
-          <div class="result-surface" aria-live="polite">
-            <div class="surface-heading">
-              <h3>輸出</h3>
-              <button id="download-all-images" class="secondary-button compact" type="button" disabled>全部下載</button>
-            </div>
-            <div id="image-results" class="result-list empty">尚未產生檔案</div>
           </div>
 
-          <form id="img-backend-form" class="tool-surface">
-            <div class="surface-heading">
-              <h3>後端圖片處理</h3>
-              <span class="badge">FFmpeg · Tesseract</span>
-            </div>
-            <div class="control-row">
-              <label>
-                <span>處理類型</span>
-                <select id="img-backend-job-type">
-                  <option value="image-convert">圖片格式轉換</option>
-                  <option value="ocr-image">圖片 OCR → TXT</option>
-                </select>
-              </label>
-              <div></div>
-            </div>
-            <div class="control-row img-backend-image-format-row">
-              <label>
-                <span>輸出格式</span>
-                <select id="img-backend-image-format">
-                  <option value="jpg">JPG</option>
-                  <option value="png">PNG</option>
-                  <option value="webp">WebP</option>
-                  <option value="tiff">TIFF</option>
-                  <option value="bmp">BMP</option>
-                </select>
-              </label>
-              <div></div>
-            </div>
-            <div class="control-row img-backend-language-row">
-              <label>
-                <span>OCR 語言（預設繁中+英文）</span>
-                <input id="img-backend-ocr-language" type="text" value="chi_tra+eng" placeholder="一般無需更改">
-              </label>
-              <div></div>
-            </div>
-            <label class="file-drop-zone" id="img-backend-drop" for="img-backend-files">
-              <input id="img-backend-files" type="file" multiple>
-              <span>選擇或拖放檔案</span>
-              <div id="img-backend-selected-files" class="drop-file-list empty">尚未選擇檔案</div>
+          <div class="image-workspace-toolbar" aria-label="圖片編輯工具">
+            <button id="image-rotate-left" class="secondary-button compact" type="button" disabled>↶ 左轉</button>
+            <button id="image-rotate-right" class="secondary-button compact" type="button" disabled>↷ 右轉</button>
+            <label>
+              <span>翻轉</span>
+              <select id="image-flip" disabled>
+                <option value="none">不翻轉</option>
+                <option value="horizontal">水平</option>
+                <option value="vertical">垂直</option>
+                <option value="both">水平 + 垂直</option>
+              </select>
             </label>
-            <div class="actions">
-              <button class="primary-button" type="submit">加入後端佇列</button>
-            </div>
-          </form>
+            <label class="visually-hidden" aria-hidden="true">
+              <span>旋轉</span>
+              <select id="image-rotate" tabindex="-1">
+                <option value="0">0°</option>
+                <option value="90">90°</option>
+                <option value="180">180°</option>
+                <option value="270">270°</option>
+              </select>
+            </label>
+            <button id="image-select-region" class="secondary-button compact" type="button" disabled>▣ 框選區域</button>
+            <button id="image-apply-crop" class="secondary-button compact" type="button" disabled>套用裁切</button>
+            <button id="image-clear-selection" class="secondary-button compact" type="button" disabled>清除框選</button>
+            <button id="image-reset-edits" class="secondary-button compact" type="button" disabled>重設目前圖片</button>
+            <span id="image-workspace-file" class="image-workspace-file">尚未選擇圖片</span>
+          </div>
 
-          <div class="result-surface" aria-live="polite">
-            <div class="surface-heading">
-              <h3>圖片處理結果</h3>
-              <span id="img-backend-status" class="status-pill">待偵測</span>
+          <div class="image-workspace-body">
+            <div class="image-preview-column">
+              <div id="image-preview-stage" class="image-preview-stage empty" tabindex="0" aria-label="圖片預覽與框選區域">
+                <div id="image-preview-media" class="image-preview-media" hidden>
+                  <canvas id="image-preview-canvas" hidden></canvas>
+                  <svg id="image-selection-box" class="image-selection-box" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true" hidden>
+                    <rect id="image-selection-rect" class="image-selection-rect"></rect>
+                  </svg>
+                </div>
+                <div id="image-preview-empty" class="image-preview-empty">
+                  <strong>加入圖片開始處理</strong>
+                  <span>支援多張圖片；所有處理都在這部裝置完成。</span>
+                </div>
+              </div>
+              <div class="image-preview-meta">
+                <span id="image-preview-dimensions">—</span>
+                <span id="image-preview-crop">尚未裁切</span>
+                <span id="image-preview-selection">尚未框選</span>
+              </div>
             </div>
+
+            <aside class="image-workspace-inspector">
+              <section class="image-inspector-section">
+                <div class="surface-heading compact-heading">
+                  <h4>匯出設定</h4>
+                  <span class="badge">本機處理</span>
+                </div>
+                <div class="control-row">
+                  <label>
+                    <span>輸出格式</span>
+                    <select id="image-format">
+                      <option value="image/jpeg">JPEG</option>
+                      <option value="image/png">PNG</option>
+                      <option value="image/webp">WebP</option>
+                      <option value="image/tiff" data-requires-image-backend data-requires-image-ffmpeg>TIFF · 桌面</option>
+                      <option value="image/bmp" data-requires-image-backend data-requires-image-ffmpeg>BMP · 桌面</option>
+                      <option value="image/gif" data-requires-image-backend>GIF · 桌面</option>
+                    </select>
+                  </label>
+                  <label>
+                    <span>品質</span>
+                    <input id="image-quality" type="range" min="0.3" max="1" step="0.05" value="0.85">
+                    <output id="quality-output">85%</output>
+                  </label>
+                </div>
+                <small id="image-advanced-format-note">JPEG、PNG、WebP 可直接在瀏覽器記憶體匯出。</small>
+                <div class="control-row">
+                  <label><span>最大寬度</span><input id="image-width" type="number" min="1" max="32768" step="1" placeholder="原尺寸"></label>
+                  <label><span>最大高度</span><input id="image-height" type="number" min="1" max="32768" step="1" placeholder="原尺寸"></label>
+                </div>
+                <label class="check-row"><input id="image-keep-ratio" type="checkbox" checked><span>保持比例</span></label>
+                <div class="control-row">
+                  <label><span>浮水印文字</span><input id="image-watermark" type="text" maxlength="200" placeholder="可留空"></label>
+                  <label>
+                    <span>位置</span>
+                    <select id="image-watermark-position">
+                      <option value="se">右下</option><option value="sw">左下</option><option value="ne">右上</option>
+                      <option value="nw">左上</option><option value="center">中央</option>
+                    </select>
+                  </label>
+                </div>
+                <div class="actions">
+                  <button id="image-export-current" class="primary-button" type="button" disabled>匯出目前圖片</button>
+                  <button id="download-all-images" class="secondary-button" type="button" disabled>匯出全部</button>
+                  <button id="image-export-cancel" class="secondary-button danger-button" type="button" hidden>Cancel</button>
+                </div>
+                <p id="image-export-progress" class="image-export-progress" aria-live="polite">尚未匯出圖片。</p>
+                <div id="image-results" class="result-list empty compact-results">尚未產生檔案</div>
+              </section>
+
+              <section id="image-ocr-panel" class="image-inspector-section image-ocr-panel empty" aria-labelledby="image-ocr-title">
+                <div class="surface-heading compact-heading">
+                  <div><h4 id="image-ocr-title">OCR / 辨識文字</h4><small>繁體中文 + English</small></div>
+                  <span id="image-ocr-status" class="status-pill">尚未辨識</span>
+                </div>
+                <div class="image-ocr-actions">
+                  <button id="image-ocr-current" class="primary-button compact" type="button" disabled>目前圖片</button>
+                  <button id="image-ocr-all" class="secondary-button compact" type="button" disabled>全部圖片</button>
+                  <button id="image-ocr-region" class="secondary-button compact" type="button" disabled>辨識框選</button>
+                  <button id="image-ocr-cancel" class="secondary-button compact danger-button" type="button" hidden>Cancel</button>
+                </div>
+                <details class="advanced-details compact-details">
+                  <summary>進階語言設定</summary>
+                  <label><span>OCR language code</span><input id="img-backend-ocr-language" type="text" value="chi_tra+eng" placeholder="一般無需更改"></label>
+                </details>
+                <p id="image-ocr-progress" class="image-ocr-progress">選擇圖片後，可辨識目前圖片、全部圖片或框選區域。</p>
+                <div id="image-ocr-error" class="image-ocr-error" role="alert" hidden></div>
+                <textarea id="image-ocr-text" class="image-ocr-text" readonly spellcheck="false" aria-label="圖片 OCR 辨識文字" hidden></textarea>
+                <div id="image-ocr-empty" class="image-ocr-empty">辨識結果會直接顯示在這裡。</div>
+                <div class="image-ocr-result-actions">
+                  <button id="image-ocr-copy" class="secondary-button compact" type="button" disabled>Copy</button>
+                  <button id="image-ocr-export" class="secondary-button compact" type="button" disabled>Export TXT</button>
+                  <button id="image-ocr-clear" class="secondary-button compact" type="button" disabled>Clear / Close</button>
+                </div>
+                <small>技術詳情保留在任務紀錄；一般錯誤不會顯示 raw stack trace。</small>
+              </section>
+            </aside>
+          </div>
+
+          <div id="image-workspace-thumbnails" class="image-workspace-thumbnails empty">圖片縮圖會顯示在這裡</div>
+          <details class="image-workspace-diagnostics">
+            <summary>圖片任務紀錄 <span id="img-backend-status" class="status-pill">待偵測</span></summary>
             <div id="img-backend-jobs" class="backend-jobs empty">尚未建立任務</div>
-          </div>
+          </details>
         </div>
       </section>
 
@@ -767,6 +765,12 @@
               <button id="pdf-workspace-add-files" class="secondary-button compact" type="button">＋ 加入 PDF</button>
               <input id="pdf-workspace-add-input" class="visually-hidden" type="file" accept="application/pdf,.pdf" multiple tabindex="-1">
               <button id="pdf-workspace-add-blank" class="secondary-button compact" type="button">＋ 空白頁</button>
+              <div class="pdf-workspace-ocr-actions" aria-label="OCR 辨識文字">
+                <strong>OCR / 辨識文字</strong>
+                <button id="pdf-workspace-ocr-page" class="primary-button compact" type="button" disabled>目前頁面</button>
+                <button id="pdf-workspace-ocr-document" class="secondary-button compact" type="button" disabled>整份 PDF</button>
+                <span class="badge muted">繁體中文 + English</span>
+              </div>
               <span class="pdf-workspace-toolbar-spacer"></span>
               <button id="pdf-workspace-undo" class="secondary-button compact" type="button" disabled>復原</button>
               <button id="pdf-workspace-redo" class="secondary-button compact" type="button" disabled>重做</button>
@@ -789,6 +793,26 @@
                   <button id="pdf-preview-rotate" class="secondary-button compact" type="button" disabled>↻ 旋轉</button>
                   <button id="pdf-preview-next" class="secondary-button compact" type="button" disabled>下一頁 →</button>
                 </div>
+              </aside>
+              <aside id="pdf-workspace-ocr-panel" class="pdf-workspace-ocr-panel empty" aria-labelledby="pdf-workspace-ocr-title">
+                <div class="pdf-workspace-ocr-heading">
+                  <div>
+                    <strong id="pdf-workspace-ocr-title">辨識結果</strong>
+                    <small id="pdf-workspace-ocr-scope">繁體中文 + English</small>
+                  </div>
+                  <span id="pdf-workspace-ocr-status" class="status-pill">尚未辨識</span>
+                </div>
+                <p id="pdf-workspace-ocr-progress" class="pdf-workspace-ocr-progress">選擇頁面後，可直接辨識目前頁面或整份 PDF。</p>
+                <div id="pdf-workspace-ocr-error" class="pdf-workspace-ocr-error" role="alert" hidden></div>
+                <textarea id="pdf-workspace-ocr-text" class="pdf-workspace-ocr-text" readonly spellcheck="false" aria-label="OCR 辨識文字" hidden></textarea>
+                <div id="pdf-workspace-ocr-empty" class="pdf-workspace-ocr-empty">OCR 完成後，文字會直接顯示在這裡。</div>
+                <div class="pdf-workspace-ocr-result-actions">
+                  <button id="pdf-workspace-ocr-copy" class="secondary-button compact" type="button" disabled>Copy</button>
+                  <button id="pdf-workspace-ocr-export" class="secondary-button compact" type="button" disabled>Export TXT</button>
+                  <button id="pdf-workspace-ocr-clear" class="secondary-button compact" type="button" disabled>Clear / Close</button>
+                  <button id="pdf-workspace-ocr-cancel" class="secondary-button compact danger-button" type="button" hidden>Cancel</button>
+                </div>
+                <small class="pdf-workspace-ocr-diagnostic">技術詳情會保留在下方「任務紀錄」，方便診斷而不干擾閱讀。</small>
               </aside>
               <div id="pdf-workspace-grid" class="pdf-workspace-grid empty">選擇 PDF 後，所有頁面會在這裡顯示</div>
             </div>

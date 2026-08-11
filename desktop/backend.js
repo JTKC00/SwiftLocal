@@ -1,6 +1,7 @@
 "use strict";
 
 const fs = require("node:fs");
+const os = require("node:os");
 const path = require("node:path");
 const { pathToFileURL } = require("node:url");
 const { execFile, execFileSync, spawn } = require("node:child_process");
@@ -104,6 +105,10 @@ const MAX_QUEUED_JOBS = positiveEnvNumber("SWIFTLOCAL_MAX_QUEUED_JOBS", 50);
 const MIN_DISK_MULTIPLIER = positiveEnvNumber("SWIFTLOCAL_DISK_MULTIPLIER", 2);
 /** Finished jobs older than this (hours) are dropped from jobs-state on prune. */
 const JOB_RETENTION_HOURS = positiveEnvNumber("SWIFTLOCAL_JOB_RETENTION_HOURS", DEFAULT_JOB_RETENTION_HOURS);
+const DEFAULT_OCR_LANGUAGE = "chi_tra+eng";
+const IMAGE_MAX_PIXELS = 50_000_000;
+const IMAGE_OPS_MAX_JSON_BYTES = 64 * 1024;
+const IMAGE_REGION_MIN_PIXELS = 8;
 
 function redactJobOptions(options = {}) {
   if (!options || typeof options !== "object" || Array.isArray(options)) {
@@ -186,6 +191,16 @@ class BackendService {
       ])
     );
     this.tools = Object.fromEntries(entries);
+    const tesseract = this.tools.tesseract;
+    if (tesseract && tesseract.available) {
+      const tessdataDir = bundledTessdataDir(tesseract.path);
+      const languages = listOcrLanguages(tessdataDir);
+      tesseract.tessdataDir = tessdataDir;
+      tesseract.languages = languages.join(",");
+      tesseract.hasChiTra = languages.includes("chi_tra");
+      tesseract.hasEng = languages.includes("eng");
+      tesseract.hasOsd = languages.includes("osd");
+    }
     // Desktop fallback uses built-in text DOCX writer (always available in this process).
     this.tools.pdf2docx = {
       available: true,
@@ -243,6 +258,22 @@ class BackendService {
     return this.jobs.map(publicJob);
   }
 
+  readJobTextOutputs(jobId) {
+    const job = this.jobs.find((item) => item.id === jobId);
+    if (!job) {
+      throw new Error("找不到 OCR 任務");
+    }
+    if (job.status !== "done") {
+      throw new Error("OCR 任務尚未完成");
+    }
+    return job.outputPaths
+      .filter((item) => path.extname(item).toLowerCase() === ".txt" && fs.existsSync(item))
+      .map((item) => ({
+        name: path.basename(item),
+        text: fs.readFileSync(item, "utf8")
+      }));
+  }
+
   async enqueue(payload) {
     if (this.jobs.filter((item) => item.status === "queued").length >= MAX_QUEUED_JOBS) {
       throw new Error(`Too many queued jobs (limit: ${MAX_QUEUED_JOBS})`);
@@ -250,7 +281,7 @@ class BackendService {
     const outputDir = payload.outputDir || this.defaultOutputDir;
     const inputPaths = payload.inputPaths || [];
     const type = payload.type;
-    const options = payload.options || {};
+    const options = sanitizeDesktopJobOptions(type, payload.options || {}, inputPaths.length);
     const preflight = await this.preflightJob({ type, inputPaths, outputDir, options });
     if (!preflight.ok) {
       const first = preflight.issues[0];
@@ -275,6 +306,8 @@ class BackendService {
       errorCode: "",
       errorHint: "",
       retriable: true,
+      progress: null,
+      itemResults: [],
       cancelRequested: false,
       _child: null
     };
@@ -523,6 +556,8 @@ class BackendService {
     this.running = true;
     job.status = "running";
     job.startedAt = new Date().toISOString();
+    job.progress = null;
+    job.itemResults = [];
     this.emitJobs();
 
     try {
@@ -562,6 +597,19 @@ class BackendService {
       this.emitJobs();
       this.runNext();
     }
+  }
+
+  updateJobProgress(job, progress) {
+    if (!job || job.status !== "running") return;
+    const current = Math.max(0, Number.parseInt(String(progress.current || 0), 10) || 0);
+    const total = Math.max(current, Number.parseInt(String(progress.total || 0), 10) || 0);
+    job.progress = {
+      current,
+      total,
+      phase: String(progress.phase || ""),
+      message: String(progress.message || "")
+    };
+    this.emitJobs();
   }
 
   async runJob(job) {
@@ -908,17 +956,79 @@ class BackendService {
   }
 
   async runImageConvert(job) {
-    const tool = requireTool(this.tools, "ffmpeg");
     ensureOutputDir(job.outputDir);
     const extension = sanitizeExtension(job.options.extension || "jpg");
-    for (const inputPath of job.inputPaths) {
-      ensureJobNotCancelled(job);
-      const outputPath = nextAvailablePath(path.join(job.outputDir, `${path.parse(inputPath).name}.${extension}`));
-      const args = ["-y", "-i", inputPath, outputPath];
-      const result = await runProcess(tool.path, args, job);
-      job.log.push(result.output);
-      ensureOutputFile(outputPath, inputPath);
-      job.outputPaths.push(outputPath);
+    const operations = sanitizeImageOps(job.options.imageOps, job.inputPaths.length);
+    const renderOptions = {
+      quality: sanitizeImageQuality(job.options.quality),
+      maxWidth: sanitizeImageDimension(job.options.maxWidth, "maxWidth"),
+      maxHeight: sanitizeImageDimension(job.options.maxHeight, "maxHeight"),
+      keepRatio: String(job.options.keepRatio || "true") !== "false",
+      watermarkText: sanitizeImageWatermarkText(job.options.watermarkText),
+      watermarkPosition: sanitizeImageWatermarkPosition(job.options.watermarkPosition)
+    };
+    const tempDir = createOcrTempDir("image-convert");
+    let failed = 0;
+    try {
+      for (let index = 0; index < job.inputPaths.length; index += 1) {
+        const inputPath = job.inputPaths[index];
+        ensureJobNotCancelled(job);
+        this.updateJobProgress(job, {
+          current: index,
+          total: job.inputPaths.length,
+          phase: "image-convert",
+          message: `正在處理第 ${index + 1} / ${job.inputPaths.length} 張圖片`
+        });
+        try {
+          const canvas = await renderWorkspaceImageCanvas(inputPath, operations[index], renderOptions, false);
+          const outputPath = nextAvailablePath(
+            path.join(job.outputDir, `${path.parse(inputPath).name}.${extension}`)
+          );
+          await writeWorkspaceImageOutput(this, job, canvas, outputPath, extension, renderOptions.quality, tempDir);
+          ensureOutputFile(outputPath, inputPath);
+          job.outputPaths.push(outputPath);
+          job.itemResults.push({
+            index,
+            name: path.basename(inputPath),
+            status: "done",
+            outputName: path.basename(outputPath),
+            error: ""
+          });
+          job.log.push(`image: ${path.basename(inputPath)} -> ${path.basename(outputPath)}`);
+        } catch (error) {
+          if (isJobCancelledError(error) || job.cancelRequested) throw error;
+          failed += 1;
+          const friendly = createFriendlyImageError(error, path.basename(inputPath), "convert");
+          job.itemResults.push({
+            index,
+            name: path.basename(inputPath),
+            status: "failed",
+            outputName: "",
+            error: imageErrorSummary(friendly)
+          });
+          job.log.push(friendly.message);
+        }
+        this.updateJobProgress(job, {
+          current: index + 1,
+          total: job.inputPaths.length,
+          phase: "image-convert",
+          message: `已完成 ${index + 1} / ${job.inputPaths.length} 張圖片`
+        });
+      }
+    } finally {
+      cleanupOcrTempDir(tempDir);
+    }
+    if (!job.outputPaths.length) {
+      throw new Error(job.log[job.log.length - 1] || "所有圖片均無法處理");
+    }
+    if (failed) {
+      job.log.push(`圖片處理完成：${job.outputPaths.length} 成功，${failed} 失敗`);
+      this.updateJobProgress(job, {
+        current: job.inputPaths.length,
+        total: job.inputPaths.length,
+        phase: "image-convert",
+        message: `完成 ${job.outputPaths.length} / ${job.inputPaths.length}，${failed} 個未完成`
+      });
     }
   }
 
@@ -929,16 +1039,73 @@ class BackendService {
     if (note) {
       job.log.push(note);
     }
-    for (const inputPath of job.inputPaths) {
-      ensureJobNotCancelled(job);
-      const outputPath = nextAvailablePath(path.join(job.outputDir, `${path.parse(inputPath).name}_ocr.txt`));
-      const outputBase = outputPath.slice(0, -path.extname(outputPath).length);
-      const log = await runImageTextOcr(tool.path, inputPath, outputBase, language, tessdataDir, job);
-      if (log) {
-        job.log.push(log);
+    const operations = sanitizeImageOps(job.options.imageOps, job.inputPaths.length);
+    const tempDir = createOcrTempDir("image-ocr");
+    let failed = 0;
+    try {
+      for (let index = 0; index < job.inputPaths.length; index += 1) {
+        const inputPath = job.inputPaths[index];
+        ensureJobNotCancelled(job);
+        this.updateJobProgress(job, {
+          current: index,
+          total: job.inputPaths.length,
+          phase: "image-ocr",
+          message: `正在辨識第 ${index + 1} / ${job.inputPaths.length} 張圖片`
+        });
+        try {
+          const canvas = await renderWorkspaceImageCanvas(inputPath, operations[index], {}, true);
+          const preparedPath = path.join(tempDir, `image_${String(index + 1).padStart(3, "0")}.png`);
+          fs.writeFileSync(preparedPath, canvas.toBuffer("image/png"));
+          const suffix = operations[index].ocrRegion ? "_region_ocr.txt" : "_ocr.txt";
+          const outputPath = nextAvailablePath(path.join(job.outputDir, `${path.parse(inputPath).name}${suffix}`));
+          const outputBase = outputPath.slice(0, -path.extname(outputPath).length);
+          const log = await runImageTextOcr(tool.path, preparedPath, outputBase, language, tessdataDir, job);
+          if (log) job.log.push(log);
+          const text = fs.existsSync(outputPath) ? fs.readFileSync(outputPath, "utf8").trim() : "";
+          if (!text) throw new Error("OCR 結果為空（圖片可能沒有可讀取的文字）");
+          ensureOutputFile(outputPath, inputPath);
+          job.outputPaths.push(outputPath);
+          job.itemResults.push({
+            index,
+            name: path.basename(inputPath),
+            status: "done",
+            outputName: path.basename(outputPath),
+            error: ""
+          });
+        } catch (error) {
+          if (isJobCancelledError(error) || job.cancelRequested) throw error;
+          failed += 1;
+          const friendly = createFriendlyImageError(error, path.basename(inputPath), "ocr");
+          job.itemResults.push({
+            index,
+            name: path.basename(inputPath),
+            status: "failed",
+            outputName: "",
+            error: imageErrorSummary(friendly)
+          });
+          job.log.push(friendly.message);
+        }
+        this.updateJobProgress(job, {
+          current: index + 1,
+          total: job.inputPaths.length,
+          phase: "image-ocr",
+          message: `已辨識 ${index + 1} / ${job.inputPaths.length} 張圖片`
+        });
       }
-      ensureOutputFile(outputPath, inputPath);
-      job.outputPaths.push(outputPath);
+    } finally {
+      cleanupOcrTempDir(tempDir);
+    }
+    if (!job.outputPaths.length) {
+      throw new Error(job.log[job.log.length - 1] || "所有圖片均未辨識到文字");
+    }
+    if (failed) {
+      job.log.push(`圖片 OCR 完成：${job.outputPaths.length} 成功，${failed} 失敗`);
+      this.updateJobProgress(job, {
+        current: job.inputPaths.length,
+        total: job.inputPaths.length,
+        phase: "image-ocr",
+        message: `完成 ${job.outputPaths.length} / ${job.inputPaths.length}，${failed} 個未完成`
+      });
     }
   }
 
@@ -946,61 +1113,85 @@ class BackendService {
     const tool = requireTool(this.tools, "tesseract");
     ensureOutputDir(job.outputDir);
     const { language, tessdataDir, note } = resolveOcrLanguage(tool.path, job.options.language || "chi_tra+eng");
-    if (note) {
-      job.log.push(note);
-    }
+    if (note) job.log.push(note);
     const maxPages = sanitizeOcrPdfMaxPages(job.options.maxPages);
 
     for (const inputPath of job.inputPaths) {
       ensureJobNotCancelled(job);
-      const probe = fs.readFileSync(inputPath);
-      if (pdfBytesLookEncrypted(probe)) {
-        throw encryptedPdfError(path.basename(inputPath));
-      }
-
-      const pageDir = path.join(job.outputDir, `${path.parse(inputPath).name}_ocr_pages`);
-      fs.mkdirSync(pageDir, { recursive: true });
+      const pageDir = createOcrTempDir("pdf-text");
       try {
-        const pageImages = await renderPdfPagesToPng(inputPath, pageDir, maxPages, job);
+        const probe = fs.readFileSync(inputPath);
+        if (pdfBytesLookEncrypted(probe)) {
+          throw encryptedPdfError(path.basename(inputPath));
+        }
+        const pageImages = await renderPdfPagesToPng(inputPath, pageDir, maxPages, job, {
+          pages: job.options.pages,
+          onProgress: ({ current, total, pageNumber }) => this.updateJobProgress(job, {
+            current,
+            total,
+            phase: "render",
+            message: `正在準備第 ${pageNumber} 頁（${current} / ${total}）`
+          })
+        });
         if (!pageImages.length) {
           throw new Error(`PDF 沒有可 OCR 的頁面：${path.basename(inputPath)}`);
         }
         job.log.push(`render: ${path.basename(inputPath)} ${pageImages.length} page(s)`);
 
         const pageTexts = [];
+        let hasRecognizedText = false;
         for (let i = 0; i < pageImages.length; i += 1) {
           ensureJobNotCancelled(job);
-          const pageBase = path.join(pageDir, `page_${String(i + 1).padStart(3, "0")}_ocr`);
-          const args = buildTesseractOcrArgs(pageImages[i], pageBase, language, tessdataDir);
-          let result;
+          const { imagePath, pageNumber } = pageImages[i];
+          this.updateJobProgress(job, {
+            current: i,
+            total: pageImages.length,
+            phase: "ocr",
+            message: `正在辨識第 ${i + 1} / ${pageImages.length} 頁`
+          });
+          const pageBase = path.join(pageDir, `page_${String(pageNumber).padStart(3, "0")}_ocr`);
+          let log;
           try {
-            result = await runProcess(tool.path, args, job);
+            log = await runImageTextOcr(tool.path, imagePath, pageBase, language, tessdataDir, job);
           } catch (error) {
             throw annotatePdfOcrStageError(error, {
               stage: "tesseract_ocr",
-              pageNumber: i + 1,
+              pageNumber,
               inputPath
             });
           }
-          if (result.output) {
-            job.log.push(result.output);
-          }
+          if (log) job.log.push(log);
           const textPath = `${pageBase}.txt`;
-          const text = repairOcrText(fs.existsSync(textPath) ? fs.readFileSync(textPath, "utf8") : "");
-          pageTexts.push(`--- Page ${i + 1} ---\n${text.trim()}`);
+          const text = repairOcrText(fs.existsSync(textPath) ? fs.readFileSync(textPath, "utf8") : "").trim();
+          if (text) hasRecognizedText = true;
+          pageTexts.push(`--- Page ${pageNumber} ---\n${text}`.trimEnd());
+          this.updateJobProgress(job, {
+            current: i + 1,
+            total: pageImages.length,
+            phase: "ocr",
+            message: `已辨識第 ${i + 1} / ${pageImages.length} 頁`
+          });
+        }
+        if (!hasRecognizedText) {
+          throw new Error("OCR 結果為空（文件可能沒有可讀取的掃描文字）");
         }
 
-        const outputPath = nextAvailablePath(path.join(job.outputDir, `${path.parse(inputPath).name}_ocr.txt`));
+        const requestedPages = sanitizeOcrPageSelection(job.options.pages);
+        const pageSuffix = requestedPages.length === 1 ? `_p${requestedPages[0]}` : "";
+        const outputPath = nextAvailablePath(
+          path.join(job.outputDir, `${path.parse(inputPath).name}${pageSuffix}_ocr.txt`)
+        );
         fs.writeFileSync(outputPath, `${pageTexts.join("\n\n").trim()}\n`, "utf8");
         ensureOutputFile(outputPath, inputPath);
         job.outputPaths.push(outputPath);
-        job.log.push(`ocr-pdf: ${path.basename(inputPath)} -> ${path.basename(outputPath)} (${pageImages.length} page(s))`);
+        job.log.push(
+          `ocr-pdf: ${path.basename(inputPath)} -> ${path.basename(outputPath)} (${pageImages.length} page(s), language=${language})`
+        );
+      } catch (error) {
+        if (isJobCancelledError(error)) throw error;
+        throw createFriendlyOcrError(error, path.basename(inputPath));
       } finally {
-        try {
-          fs.rmSync(pageDir, { recursive: true, force: true });
-        } catch {
-          // ignore cleanup failures
-        }
+        cleanupOcrTempDir(pageDir);
       }
     }
   }
@@ -1086,6 +1277,8 @@ function normalizePersistedJob(item) {
     errorCode,
     errorHint,
     retriable,
+    progress: normalizeJobProgress(item.progress),
+    itemResults: normalizeImageItemResults(item.itemResults),
     cancelRequested: false,
     _child: null
   };
@@ -1112,7 +1305,9 @@ function saveJobsState(statePath, jobs) {
         error: redactJobText(job.error, job.options),
         errorCode: job.errorCode || "",
         errorHint: job.errorHint || "",
-        retriable: job.retriable !== false
+        retriable: job.retriable !== false,
+        progress: normalizeJobProgress(job.progress),
+        itemResults: normalizeImageItemResults(job.itemResults)
       }))
     };
     fs.writeFileSync(statePath, JSON.stringify(payload, null, 2), "utf8");
@@ -1479,6 +1674,37 @@ function buildTesseractOcrArgs(inputPath, outputBase, language, tessdataDir, out
   return args;
 }
 
+function listOcrLanguages(tessdataDir) {
+  if (!tessdataDir || !fs.existsSync(tessdataDir)) return [];
+  try {
+    return fs.readdirSync(tessdataDir)
+      .filter((name) => name.toLowerCase().endsWith(".traineddata"))
+      .filter((name) => {
+        try {
+          return fs.statSync(path.join(tessdataDir, name)).size > 50_000;
+        } catch {
+          return false;
+        }
+      })
+      .map((name) => name.replace(/\.traineddata$/i, ""))
+      .sort();
+  } catch {
+    return [];
+  }
+}
+
+function normalizeJobProgress(progress) {
+  if (!progress || typeof progress !== "object") return null;
+  const current = Math.max(0, Number.parseInt(String(progress.current || 0), 10) || 0);
+  const total = Math.max(current, Number.parseInt(String(progress.total || 0), 10) || 0);
+  return {
+    current,
+    total,
+    phase: String(progress.phase || ""),
+    message: String(progress.message || "")
+  };
+}
+
 function ensureOutputDir(outputDir) {
   if (!outputDir) {
     throw new Error("Output folder is required");
@@ -1546,7 +1772,7 @@ async function runLibreOfficeToUniqueOutput(toolPath, outputDir, inputPath, conv
   try {
     const before = snapshotOutputDir(tempDir);
     const args = libreOfficeArgs(tempDir, inputPath, convertTo, profileDir);
-    const result = await runProcess(toolPath, args, job);
+    const result = await runProcess(toolPath, args, job, "LibreOffice");
     const generated = resolveLibreOfficeOutput(tempDir, inputPath, extension, before);
     const outputPath = nextAvailablePath(path.join(outputDir, path.basename(generated)));
     fs.renameSync(generated, outputPath);
@@ -1835,14 +2061,458 @@ function sanitizeOcrPdfMaxPages(value) {
   return Math.min(parsed, OCR_PDF_MAX_PAGES_HARD_LIMIT);
 }
 
+function sanitizeOcrLanguage(value, fallback = DEFAULT_OCR_LANGUAGE) {
+  const requested = String(value || fallback).trim() || fallback;
+  const parts = requested.split("+").map((item) => item.trim()).filter(Boolean);
+  if (!parts.length || parts.some((item) => !/^[a-z0-9_]+$/i.test(item))) {
+    throw new Error("OCR 語言設定無效");
+  }
+  return Array.from(new Set(parts)).join("+");
+}
+
+function sanitizeDesktopJobOptions(type, options, inputCount) {
+  if (type !== "ocr-image" && type !== "image-convert") return options;
+  const imageOps = sanitizeImageOps(options.imageOps, inputCount);
+  if (type === "ocr-image") {
+    return {
+      language: sanitizeOcrLanguage(options.language),
+      imageOps: JSON.stringify(imageOps)
+    };
+  }
+  const extension = sanitizeExtension(options.extension || "jpg");
+  if (!["jpg", "jpeg", "png", "webp", "tiff", "tif", "bmp", "gif"].includes(extension)) {
+    throw new Error(`Unsupported image format: ${extension}`);
+  }
+  return {
+    extension,
+    imageOps: JSON.stringify(imageOps),
+    quality: String(sanitizeImageQuality(options.quality)),
+    maxWidth: String(sanitizeImageDimension(options.maxWidth, "maxWidth") || ""),
+    maxHeight: String(sanitizeImageDimension(options.maxHeight, "maxHeight") || ""),
+    keepRatio: String(sanitizeImageKeepRatio(options.keepRatio)),
+    watermarkText: sanitizeImageWatermarkText(options.watermarkText),
+    watermarkPosition: sanitizeImageWatermarkPosition(options.watermarkPosition)
+  };
+}
+
+function sanitizeImageOps(value, expectedCount = 0) {
+  let raw = value;
+  if (typeof raw === "string") {
+    if (Buffer.byteLength(raw, "utf8") > IMAGE_OPS_MAX_JSON_BYTES) {
+      throw new Error("圖片操作資料過大");
+    }
+    if (!raw.trim()) raw = [];
+    else {
+      try {
+        raw = JSON.parse(raw);
+      } catch {
+        throw new Error("圖片操作資料格式無效");
+      }
+    }
+  }
+  if (raw == null) raw = [];
+  if (!Array.isArray(raw)) throw new Error("圖片操作資料必須是陣列");
+  if (raw.length > 100 || expectedCount > 100) throw new Error("一次最多處理 100 張圖片");
+  if (expectedCount > 0 && raw.length > 0 && raw.length !== expectedCount) {
+    throw new Error("圖片操作數量與輸入檔案數量不一致");
+  }
+  const count = expectedCount > 0 ? expectedCount : raw.length;
+  return Array.from({ length: count }, (_item, index) => {
+    if (index < raw.length && (!raw[index] || typeof raw[index] !== "object" || Array.isArray(raw[index]))) {
+      throw new Error("每項圖片操作都必須是物件");
+    }
+    const operation = raw[index] || {};
+    if (typeof operation.rotation === "boolean") throw new Error("圖片旋轉角度無效");
+    const rotation = Number(operation.rotation == null || operation.rotation === "" ? 0 : operation.rotation);
+    if (![0, 90, 180, 270].includes(rotation)) throw new Error("圖片旋轉角度無效");
+    const flip = String(operation.flip || "none");
+    if (!["none", "horizontal", "vertical", "both"].includes(flip)) {
+      throw new Error("圖片翻轉設定無效");
+    }
+    return {
+      rotation,
+      flip,
+      crop: sanitizeImageRectangle(operation.crop, "crop"),
+      ocrRegion: sanitizeImageRectangle(operation.ocrRegion, "ocrRegion")
+    };
+  });
+}
+
+function sanitizeImageRectangle(value, label = "crop") {
+  if (value == null || value === "") return null;
+  if (typeof value !== "object" || Array.isArray(value)) throw new Error(`${label} 格式無效`);
+  if ([value.x, value.y, value.width, value.height].some((item) => typeof item === "boolean")) {
+    throw new Error(`${label} 座標無效`);
+  }
+  const rectangle = {
+    x: Number(value.x),
+    y: Number(value.y),
+    width: Number(value.width),
+    height: Number(value.height)
+  };
+  if (Object.values(rectangle).some((item) => !Number.isFinite(item))) {
+    throw new Error(`${label} 座標無效`);
+  }
+  if (
+    rectangle.x < 0 || rectangle.y < 0 || rectangle.width <= 0 || rectangle.height <= 0 ||
+    rectangle.x + rectangle.width > 1.000001 || rectangle.y + rectangle.height > 1.000001
+  ) {
+    throw new Error(`${label} 必須位於圖片範圍內`);
+  }
+  return Object.fromEntries(
+    Object.entries(rectangle).map(([key, item]) => [key, Number(item.toFixed(6))])
+  );
+}
+
+function sanitizeImageQuality(value) {
+  if (typeof value === "boolean") throw new Error("圖片品質必須介乎 30% 至 100%");
+  const quality = Number(value == null || value === "" ? 0.85 : value);
+  if (!Number.isFinite(quality) || quality < 0.3 || quality > 1) {
+    throw new Error("圖片品質必須介乎 30% 至 100%");
+  }
+  return Number(quality.toFixed(2));
+}
+
+function sanitizeImageDimension(value, label) {
+  if (value == null || String(value).trim() === "") return null;
+  if (typeof value === "boolean") throw new Error(`${label} 必須介乎 1 至 32768 pixels`);
+  const dimension = Number(String(value).trim());
+  if (!Number.isInteger(dimension) || dimension < 1 || dimension > 32768) {
+    throw new Error(`${label} 必須介乎 1 至 32768 pixels`);
+  }
+  return dimension;
+}
+
+function sanitizeImageKeepRatio(value) {
+  if (value == null || value === "") return true;
+  if (typeof value === "boolean") return value;
+  const normalized = String(value).trim().toLowerCase();
+  if (normalized === "true") return true;
+  if (normalized === "false") return false;
+  throw new Error("keepRatio 必須是 true 或 false");
+}
+
+function sanitizeImageWatermarkText(value) {
+  const text = String(value || "").replace(/[\u0000-\u001f\u007f]/g, " ").trim();
+  if (text.length > 200) throw new Error("浮水印文字最多 200 個字元");
+  return text;
+}
+
+function sanitizeImageWatermarkPosition(value) {
+  const position = String(value || "se");
+  if (!["se", "sw", "ne", "nw", "center"].includes(position)) {
+    throw new Error("浮水印位置無效");
+  }
+  return position;
+}
+
+function normalizeImageItemResults(value) {
+  if (!Array.isArray(value)) return [];
+  return value.slice(0, 100).map((item, index) => {
+    const parsedIndex = Number.parseInt(String(item && item.index != null ? item.index : index), 10);
+    return {
+      index: Number.isInteger(parsedIndex) ? Math.max(0, parsedIndex) : index,
+      name: path.basename(String(item && item.name ? item.name : `image-${index + 1}`)),
+      status: item && item.status === "done" ? "done" : "failed",
+      outputName: item && item.outputName ? path.basename(String(item.outputName)) : "",
+      error: item && item.error ? String(item.error).slice(0, 500) : ""
+    };
+  });
+}
+
+async function renderWorkspaceImageCanvas(inputPath, operation = {}, options = {}, forOcr = false) {
+  let createCanvas;
+  let loadImage;
+  try {
+    ({ createCanvas, loadImage } = require("@napi-rs/canvas"));
+  } catch (error) {
+    throw new Error(`圖片工作區需要 @napi-rs/canvas：${error.message}`);
+  }
+  let image;
+  try {
+    image = await loadImage(inputPath);
+  } catch (error) {
+    throw new Error(`無法解碼圖片：${error.message}`);
+  }
+  const sourceWidth = Number(image.width) || 0;
+  const sourceHeight = Number(image.height) || 0;
+  assertWorkspaceImageDimensions(sourceWidth, sourceHeight, "原始圖片");
+  const rotation = operation.rotation || 0;
+  const sideways = rotation === 90 || rotation === 270;
+  const transformed = createCanvas(sideways ? sourceHeight : sourceWidth, sideways ? sourceWidth : sourceHeight);
+  const context = transformed.getContext("2d");
+  context.translate(transformed.width / 2, transformed.height / 2);
+  const flipX = operation.flip === "horizontal" || operation.flip === "both";
+  const flipY = operation.flip === "vertical" || operation.flip === "both";
+  context.scale(flipX ? -1 : 1, flipY ? -1 : 1);
+  context.rotate(rotation * Math.PI / 180);
+  context.drawImage(image, -sourceWidth / 2, -sourceHeight / 2, sourceWidth, sourceHeight);
+
+  let working = cropWorkspaceImageCanvas(createCanvas, transformed, operation.crop, "裁切區域");
+  if (forOcr) {
+    working = cropWorkspaceImageCanvas(createCanvas, working, operation.ocrRegion, "OCR 框選區域");
+    return working;
+  }
+
+  const target = resolveWorkspaceImageSize(
+    working.width,
+    working.height,
+    options.maxWidth,
+    options.maxHeight,
+    options.keepRatio !== false
+  );
+  if (target.width !== working.width || target.height !== working.height) {
+    const resized = createCanvas(target.width, target.height);
+    resized.getContext("2d").drawImage(working, 0, 0, target.width, target.height);
+    working = resized;
+  }
+  if (options.watermarkText) {
+    drawWorkspaceImageWatermark(
+      working.getContext("2d"),
+      working,
+      options.watermarkText,
+      options.watermarkPosition
+    );
+  }
+  return working;
+}
+
+function cropWorkspaceImageCanvas(createCanvas, source, rectangle, label) {
+  if (!rectangle) return source;
+  const left = Math.max(0, Math.floor(rectangle.x * source.width));
+  const top = Math.max(0, Math.floor(rectangle.y * source.height));
+  const right = Math.min(source.width, Math.ceil((rectangle.x + rectangle.width) * source.width));
+  const bottom = Math.min(source.height, Math.ceil((rectangle.y + rectangle.height) * source.height));
+  const width = right - left;
+  const height = bottom - top;
+  if (width < IMAGE_REGION_MIN_PIXELS || height < IMAGE_REGION_MIN_PIXELS) {
+    throw new Error(`${label}至少需要 ${IMAGE_REGION_MIN_PIXELS} × ${IMAGE_REGION_MIN_PIXELS} pixels`);
+  }
+  assertWorkspaceImageDimensions(width, height, label);
+  const cropped = createCanvas(width, height);
+  cropped.getContext("2d").drawImage(source, left, top, width, height, 0, 0, width, height);
+  return cropped;
+}
+
+function resolveWorkspaceImageSize(width, height, maxWidth, maxHeight, keepRatio = true) {
+  let targetWidth = sanitizeImageDimension(maxWidth, "maxWidth") || width;
+  let targetHeight = sanitizeImageDimension(maxHeight, "maxHeight") || height;
+  if (keepRatio) {
+    const widthRatio = maxWidth ? targetWidth / width : Infinity;
+    const heightRatio = maxHeight ? targetHeight / height : Infinity;
+    const ratio = Math.min(widthRatio, heightRatio, 1);
+    targetWidth = Math.max(1, Math.round(width * ratio));
+    targetHeight = Math.max(1, Math.round(height * ratio));
+  }
+  assertWorkspaceImageDimensions(targetWidth, targetHeight, "輸出圖片");
+  return { width: targetWidth, height: targetHeight };
+}
+
+function assertWorkspaceImageDimensions(width, height, label) {
+  if (!Number.isInteger(width) || !Number.isInteger(height) || width < 1 || height < 1) {
+    throw new Error(`${label}尺寸無效`);
+  }
+  if (width * height > IMAGE_MAX_PIXELS) {
+    throw new Error(`${label}超過 50 MP 安全上限（${width} × ${height}）`);
+  }
+}
+
+function drawWorkspaceImageWatermark(context, canvas, text, position = "se") {
+  const margin = Math.max(18, Math.round(Math.min(canvas.width, canvas.height) * 0.035));
+  const fontSize = Math.max(18, Math.round(Math.min(canvas.width, canvas.height) * 0.055));
+  context.save();
+  context.font = `700 ${fontSize}px "Segoe UI", "Noto Sans TC", Arial, sans-serif`;
+  context.textBaseline = "middle";
+  const metrics = context.measureText(text);
+  const boxWidth = metrics.width + margin * 1.2;
+  const boxHeight = fontSize * 1.75;
+  let x = canvas.width - margin - boxWidth / 2;
+  let y = canvas.height - margin - boxHeight / 2;
+  if (position === "sw" || position === "nw") x = margin + boxWidth / 2;
+  if (position === "ne" || position === "nw") y = margin + boxHeight / 2;
+  if (position === "center") {
+    x = canvas.width / 2;
+    y = canvas.height / 2;
+  }
+  context.fillStyle = "rgba(0, 0, 0, 0.42)";
+  context.fillRect(x - boxWidth / 2, y - boxHeight / 2, boxWidth, boxHeight);
+  context.fillStyle = "rgba(255, 255, 255, 0.92)";
+  context.textAlign = "center";
+  context.fillText(text, x, y);
+  context.restore();
+}
+
+async function writeWorkspaceImageOutput(service, job, canvas, outputPath, extension, quality, tempDir) {
+  try {
+    if (extension === "jpg" || extension === "jpeg") {
+      const { createCanvas } = require("@napi-rs/canvas");
+      const flattened = createCanvas(canvas.width, canvas.height);
+      const context = flattened.getContext("2d");
+      context.fillStyle = "#ffffff";
+      context.fillRect(0, 0, flattened.width, flattened.height);
+      context.drawImage(canvas, 0, 0);
+      fs.writeFileSync(outputPath, flattened.toBuffer("image/jpeg", Math.round(quality * 100)));
+      return;
+    }
+    if (extension === "png") {
+      fs.writeFileSync(outputPath, canvas.toBuffer("image/png"));
+      return;
+    }
+    if (extension === "webp") {
+      fs.writeFileSync(outputPath, canvas.toBuffer("image/webp", Math.round(quality * 100)));
+      return;
+    }
+    if (extension === "gif") {
+      fs.writeFileSync(outputPath, canvas.toBuffer("image/gif", 10));
+      return;
+    }
+    const tool = requireTool(service.tools, "ffmpeg");
+    const preparedPath = path.join(
+      tempDir,
+      `convert_${Date.now()}_${Math.random().toString(16).slice(2)}.png`
+    );
+    fs.writeFileSync(preparedPath, canvas.toBuffer("image/png"));
+    const result = await runProcess(tool.path, ["-y", "-i", preparedPath, outputPath], job, "FFmpeg");
+    if (result.output) job.log.push(result.output);
+  } catch (error) {
+    try {
+      fs.rmSync(outputPath, { force: true });
+    } catch {
+      // Best effort; createFriendlyImageError reports the original failure.
+    }
+    throw error;
+  }
+}
+
+function createFriendlyImageError(error, fileName, action = "ocr") {
+  const raw = String(error && error.message ? error.message : error || "Image processing failed");
+  let summary = action === "ocr"
+    ? `無法辨識圖片「${fileName}」。`
+    : `無法處理圖片「${fileName}」。`;
+  let suggestion = "請確認圖片完整且格式受支援。";
+  if (/結果為空|未辨識|empty/i.test(raw)) {
+    summary = `圖片「${fileName}」未辨識到文字。`;
+    suggestion = "請框選較清晰的文字區域，或確認圖片方向正確。";
+  } else if (/traineddata|language|tessdata|failed loading/i.test(raw)) {
+    summary = "缺少 OCR 語言資料，無法使用「繁體中文 + English」辨識。";
+    suggestion = "請到「狀態」頁確認 chi_tra、eng 語言包已安裝。";
+  } else if (/解碼|unsupported|invalid image|format/i.test(raw)) {
+    summary = `無法讀取圖片「${fileName}」。`;
+    suggestion = "請確認檔案未損壞，或先轉成 PNG／JPEG。";
+  } else if (/50 MP|尺寸|pixels|裁切|框選/i.test(raw)) {
+    summary = `圖片「${fileName}」的尺寸或框選範圍無法處理。`;
+    suggestion = "請縮小圖片，或重新框選較大的區域。";
+  } else if (/ENOENT|EACCES|permission|temp|output folder/i.test(raw)) {
+    summary = "無法建立圖片處理的暫存或輸出檔案。";
+    suggestion = "請確認輸出資料夾可寫入，並檢查可用磁碟空間。";
+  }
+  const detail = raw.length > 4000 ? `${raw.slice(0, 4000)}\n…（已截斷）` : raw;
+  return new Error(`${summary}\n建議：${suggestion}\n【技術詳情】\n${detail}`);
+}
+
+function imageErrorSummary(error) {
+  return String(error && error.message ? error.message : error || "圖片處理失敗")
+    .split("【技術詳情】", 1)[0]
+    .trim()
+    .slice(0, 500);
+}
+
+function sanitizeOcrPageSelection(value) {
+  const text = String(value || "").trim();
+  if (!text) return [];
+  const pages = [];
+  for (const segment of text.split(",")) {
+    const match = segment.trim().match(/^(\d+)(?:-(\d+))?$/);
+    if (!match) throw new Error("OCR 頁碼範圍無效");
+    const start = Number.parseInt(match[1], 10);
+    const end = Number.parseInt(match[2] || match[1], 10);
+    if (start < 1 || end < start) throw new Error("OCR 頁碼範圍無效");
+    for (let page = start; page <= end; page += 1) {
+      if (!pages.includes(page)) pages.push(page);
+      if (pages.length > OCR_PDF_MAX_PAGES_HARD_LIMIT) {
+        throw new Error(`OCR 一次最多處理 ${OCR_PDF_MAX_PAGES_HARD_LIMIT} 頁`);
+      }
+    }
+  }
+  return pages;
+}
+
+function buildTesseractOcrArgs(inputPath, outputBase, language, tessdataDir = "", outputFormat = "", psm = "") {
+  const advancedLayout = Boolean(outputFormat || psm || arguments.length >= 6);
+  const args = [];
+  if (advancedLayout) {
+    if (tessdataDir) args.push("--tessdata-dir", tessdataDir);
+    args.push("--psm", psm || "6", inputPath, outputBase, "-l", sanitizeOcrLanguage(language));
+  } else {
+    args.push(inputPath, outputBase, "-l", sanitizeOcrLanguage(language));
+    if (tessdataDir) args.push("--tessdata-dir", tessdataDir);
+  }
+  if (outputFormat) args.push(outputFormat);
+  return args;
+}
+
+function assertOcrLanguagesAvailable(language, tessdataDir) {
+  if (!tessdataDir) return;
+  const available = new Set(listOcrLanguages(tessdataDir));
+  const missing = sanitizeOcrLanguage(language).split("+").filter((item) => !available.has(item));
+  if (missing.length) {
+    throw new Error(
+      "缺少 OCR 語言資料，無法使用「繁體中文 + English」辨識。\n" +
+      "建議：請到「狀態」頁重新檢查 Tesseract，並確認 chi_tra、eng 語言包已安裝。\n" +
+      `【技術詳情】\nOCR language model missing: ${missing.join(", ")}; ` +
+      `tessdata=${tessdataDir}; available=${Array.from(available).join(",") || "none"}`
+    );
+  }
+}
+
+function createOcrTempDir(label) {
+  return fs.mkdtempSync(path.join(os.tmpdir(), `swiftlocal-${label}-`));
+}
+
+function cleanupOcrTempDir(directory) {
+  if (!directory) return;
+  try {
+    fs.rmSync(directory, { recursive: true, force: true });
+  } catch {
+    // Best effort; the OS temp cleaner remains the final fallback.
+  }
+}
+
+function createFriendlyOcrError(error, fileName = "PDF") {
+  const raw = String(error && error.message ? error.message : error || "OCR failed");
+  if (raw.includes("【技術詳情】") && /language model missing/i.test(raw)) {
+    return new Error(
+      "缺少 OCR 語言資料，無法使用「繁體中文 + English」辨識。\n" +
+      "建議：請到「狀態」頁重新檢查 Tesseract，並確認 chi_tra、eng 語言包已安裝。\n" +
+      raw.slice(raw.indexOf("【技術詳情】"))
+    );
+  }
+  let summary = `無法辨識此 PDF（${fileName}），請確認文件包含可讀取的掃描頁面。`;
+  let suggestion = "請確認 PDF 未損壞，並在「狀態」頁重新檢查 OCR 工具。";
+  if (/加密|password|encrypted/i.test(raw)) {
+    summary = "此 PDF 已加密，暫時無法直接辨識。";
+    suggestion = "請先解除 PDF 密碼保護，再重新執行 OCR。";
+  } else if (/結果為空|沒有可讀取|empty/i.test(raw)) {
+    summary = "未辨識到文字，文件可能是空白頁或影像品質不足。";
+    suggestion = "請確認頁面包含清晰、方向正確的掃描文字。";
+  } else if (/canvas|render|渲染|無法讀取 PDF|invalid pdf|too large|megapixel/i.test(raw)) {
+    summary = "無法準備此 PDF 的頁面影像，因此未能開始文字辨識。";
+    suggestion = "請確認 PDF 完整且未加密；影像過大時可先降低解析度或拆分文件。";
+  } else if (/ENOENT|EACCES|permission|temp|output folder/i.test(raw)) {
+    summary = "無法建立 OCR 暫存或輸出檔案。";
+    suggestion = "請確認輸出資料夾可寫入，並檢查可用磁碟空間。";
+  } else if (/traineddata|language|tessdata|failed loading/i.test(raw)) {
+    summary = "缺少 OCR 語言資料，無法使用「繁體中文 + English」辨識。";
+    suggestion = "請確認 chi_tra、eng 語言包已安裝後再試。";
+  }
+  const detail = raw.length > 4000 ? `${raw.slice(0, 4000)}\n…（已截斷）` : raw;
+  return new Error(`${summary}\n建議：${suggestion}\n【技術詳情】\n${detail}`);
+}
+
 /**
  * Resolve @napi-rs/canvas from the same package graph entry that PDF.js
- * NodeCanvasFactory uses. Mixing top-level 1.x with pdfjs-dist's nested 0.1.x
- * causes native Path/Path2D cross-instance failures:
- *   "Value is none of these types `String`, `Path`"
- *
- * Prefer the require scope of pdfjs-dist/legacy/build/pdf.mjs so intermediate
- * NodeCanvasFactory surfaces and our page canvas share one native binding.
+ * NodeCanvasFactory uses. Mixing different native bindings can make PDF.js
+ * intermediate Path/Path2D objects incompatible.
  */
 function loadPdfJsCompatibleCanvas() {
   const { createRequire } = require("node:module");
@@ -1932,7 +2602,7 @@ function annotatePdfOcrStageError(error, meta = {}) {
   return wrapped;
 }
 
-async function renderPdfPagesToPng(inputPath, pageDir, maxPages, job) {
+async function renderPdfPagesToPng(inputPath, pageDir, maxPages, job, options = {}) {
   ensureJobNotCancelled(job);
 
   let createCanvas;
@@ -1982,14 +2652,24 @@ async function renderPdfPagesToPng(inputPath, pageDir, maxPages, job) {
     });
   }
 
-  const limit = Math.min(pdf.numPages, maxPages);
+  const requestedPages = sanitizeOcrPageSelection(options.pages);
+  const pageNumbers = requestedPages.length
+    ? requestedPages
+    : Array.from({ length: Math.min(pdf.numPages, maxPages) }, (_item, index) => index + 1);
+  const invalidPage = pageNumbers.find((pageNumber) => pageNumber > pdf.numPages);
+  if (invalidPage) {
+    await loadingTask.destroy();
+    throw new Error(`OCR 頁碼 ${invalidPage} 超出文件總頁數 ${pdf.numPages}`);
+  }
   const images = [];
   try {
-    for (let pageNumber = 1; pageNumber <= limit; pageNumber += 1) {
+    for (let index = 0; index < pageNumbers.length; index += 1) {
+      const pageNumber = pageNumbers[index];
       ensureJobNotCancelled(job);
       let canvas;
+      let page;
       try {
-        const page = await pdf.getPage(pageNumber);
+        page = await pdf.getPage(pageNumber);
         const viewport = page.getViewport({ scale: OCR_PDF_RENDER_SCALE });
         const width = Math.max(1, Math.ceil(viewport.width));
         const height = Math.max(1, Math.ceil(viewport.height));
@@ -2034,7 +2714,12 @@ async function renderPdfPagesToPng(inputPath, pageDir, maxPages, job) {
           canvasVersion
         });
       }
-      images.push(imagePath);
+      const includeMetadata = Boolean(options.returnMetadata || options.pages || options.onProgress);
+      images.push(includeMetadata ? { pageNumber, imagePath } : imagePath);
+      if (typeof options.onProgress === "function") {
+        options.onProgress({ current: index + 1, total: pageNumbers.length, pageNumber });
+      }
+      if (page && typeof page.cleanup === "function") page.cleanup();
     }
   } finally {
     try {
@@ -2302,14 +2987,11 @@ async function writeDocxWithScanStrategy(service, job, inputPath, scanOcr, ocrOu
 async function createSearchablePdfViaOcr(service, job, inputPath, outputPath) {
   const tool = requireTool(service.tools, "tesseract");
   const { language, tessdataDir, note } = resolveOcrLanguage(tool.path, job.options.language || "chi_tra+eng");
-  if (note) {
-    job.log.push(note);
-  }
+  if (note) job.log.push(note);
   const maxPages = sanitizeOcrPdfMaxPages(job.options.maxPages);
-  const pageDir = path.join(job.outputDir, `${path.parse(inputPath).name}_ocr_searchable_work`);
-  fs.mkdirSync(pageDir, { recursive: true });
+  const pageDir = createOcrTempDir("pdf-searchable");
   try {
-    const pageImages = await renderPdfPagesToPng(inputPath, pageDir, maxPages, job);
+    const pageImages = await renderPdfPagesToPng(inputPath, pageDir, maxPages, job, { returnMetadata: true });
     if (!pageImages.length) {
       throw new Error(`PDF 沒有可 OCR 的頁面：${path.basename(inputPath)}`);
     }
@@ -2317,8 +2999,9 @@ async function createSearchablePdfViaOcr(service, job, inputPath, outputPath) {
     const merged = await PDFDocument.create();
     for (let i = 0; i < pageImages.length; i += 1) {
       ensureJobNotCancelled(job);
-      const pageBase = path.join(pageDir, `page_${String(i + 1).padStart(3, "0")}_searchable`);
-      const args = buildTesseractOcrArgs(pageImages[i], pageBase, language, tessdataDir, "pdf");
+      const { imagePath, pageNumber } = pageImages[i];
+      const pageBase = path.join(pageDir, `page_${String(pageNumber).padStart(3, "0")}_searchable`);
+      const args = buildTesseractOcrArgs(imagePath, pageBase, language, tessdataDir, "pdf");
       await runProcess(tool.path, args, job, "Tesseract");
       const pagePdf = `${pageBase}.pdf`;
       if (!fs.existsSync(pagePdf) || fs.statSync(pagePdf).size < 64) {
@@ -2335,45 +3018,34 @@ async function createSearchablePdfViaOcr(service, job, inputPath, outputPath) {
     );
     return outputPath;
   } finally {
-    try {
-      fs.rmSync(pageDir, { recursive: true, force: true });
-    } catch {
-      // ignore
-    }
+    cleanupOcrTempDir(pageDir);
   }
 }
 
 async function ocrPdfToText(service, job, inputPath) {
   const tool = requireTool(service.tools, "tesseract");
   const { language, tessdataDir, note } = resolveOcrLanguage(tool.path, job.options.language || "chi_tra+eng");
-  if (note) {
-    job.log.push(note);
-  }
+  if (note) job.log.push(note);
   const maxPages = sanitizeOcrPdfMaxPages(job.options.maxPages);
-  const pageDir = path.join(job.outputDir, `${path.parse(inputPath).name}_ocr_docx_pages`);
-  fs.mkdirSync(pageDir, { recursive: true });
+  const pageDir = createOcrTempDir("pdf-docx");
   try {
-    const pageImages = await renderPdfPagesToPng(inputPath, pageDir, maxPages, job);
+    const pageImages = await renderPdfPagesToPng(inputPath, pageDir, maxPages, job, { returnMetadata: true });
     if (!pageImages.length) {
       throw new Error(`PDF 沒有可 OCR 的頁面：${path.basename(inputPath)}`);
     }
     const pageTexts = [];
     for (let i = 0; i < pageImages.length; i += 1) {
       ensureJobNotCancelled(job);
-      const pageBase = path.join(pageDir, `page_${String(i + 1).padStart(3, "0")}_ocr`);
-      const args = buildTesseractOcrArgs(pageImages[i], pageBase, language, tessdataDir);
-      await runProcess(tool.path, args, job, "Tesseract");
+      const { imagePath, pageNumber } = pageImages[i];
+      const pageBase = path.join(pageDir, `page_${String(pageNumber).padStart(3, "0")}_ocr`);
+      await runImageTextOcr(tool.path, imagePath, pageBase, language, tessdataDir, job);
       const textPath = `${pageBase}.txt`;
       const pageText = repairOcrText(fs.existsSync(textPath) ? fs.readFileSync(textPath, "utf8") : "");
-      pageTexts.push(`--- Page ${i + 1} ---\n${pageText.trim()}`);
+      pageTexts.push(`--- Page ${pageNumber} ---\n${pageText.trim()}`);
     }
     return `${pageTexts.join("\n\n").trim()}\n`;
   } finally {
-    try {
-      fs.rmSync(pageDir, { recursive: true, force: true });
-    } catch {
-      // ignore
-    }
+    cleanupOcrTempDir(pageDir);
   }
 }
 
@@ -2832,7 +3504,9 @@ function publicJob(job) {
     errorHint: job.errorHint || "",
     retriable: job.retriable !== false,
     // True while running after user asked to cancel (UI can show「取消中」).
-    cancelRequested: Boolean(job.cancelRequested && job.status === "running")
+    cancelRequested: Boolean(job.cancelRequested && job.status === "running"),
+    progress: normalizeJobProgress(job.progress),
+    itemResults: normalizeImageItemResults(job.itemResults)
   };
 }
 
@@ -2972,7 +3646,7 @@ function runProcess(file, args, job, toolLabel = "外部程序") {
         stderr: ""
       }));
     });
-    child.on("close", (code) => {
+    child.on("close", (code, signal) => {
       if (job) {
         job._child = null;
       }
@@ -3012,7 +3686,7 @@ function runProcess(file, args, job, toolLabel = "外部程序") {
         const errorCode = processErrorCode({ code, stdout, stderr, toolLabel: isQpdf ? "QPDF" : toolLabel });
         reject(createProcessError(formatProcessError({
           returncode: code,
-          stdout,
+          stdout: [stdout, signal ? `signal=${signal}` : ""].filter(Boolean).join("\n"),
           stderr,
           executable: file,
           args,
@@ -3079,5 +3753,22 @@ module.exports = {
   cleanupSwiftLocalTempDirs,
   pruneJobList,
   computeJobSpaceUsage,
+  DEFAULT_OCR_LANGUAGE,
+  sanitizeOcrLanguage,
+  sanitizeDesktopJobOptions,
+  sanitizeImageOps,
+  sanitizeImageRectangle,
+  sanitizeImageQuality,
+  sanitizeImageDimension,
+  sanitizeImageKeepRatio,
+  resolveWorkspaceImageSize,
+  renderWorkspaceImageCanvas,
+  createFriendlyImageError,
+  sanitizeOcrPageSelection,
+  assertOcrLanguagesAvailable,
+  createFriendlyOcrError,
+  bundledTessdataDir,
+  listOcrLanguages,
+  writeTextDocx,
   JobCancelledError
 };

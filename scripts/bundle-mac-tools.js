@@ -44,7 +44,9 @@ const GLOBAL_SEARCH_ROOTS = [
   path.join(homebrewPrefix, "Cellar")
 ];
 
-main();
+if (require.main === module) {
+  main();
+}
 
 function main() {
   ensureDir(toolsRoot);
@@ -58,6 +60,7 @@ function bundleTool(spec) {
     throw new Error(`Missing executable for ${spec.key}: ${spec.executable}`);
   }
 
+  const preservedTessdata = spec.key === "tesseract" ? snapshotValidTraineddata(spec.bundleDir) : new Map();
   fs.rmSync(spec.bundleDir, { recursive: true, force: true });
   const binDir = path.join(spec.bundleDir, "bin");
   const libDir = path.join(spec.bundleDir, "lib");
@@ -91,8 +94,44 @@ function bundleTool(spec) {
       copyDirectory(item.from, path.join(spec.bundleDir, item.to));
     }
   }
+  if (preservedTessdata.size) {
+    restoreMissingTraineddata(spec.bundleDir, preservedTessdata);
+  }
 
   writeWrapper(spec, path.join(binDir, spec.executableName));
+}
+
+function snapshotValidTraineddata(bundleDir) {
+  const tessdataDir = path.join(bundleDir, "share", "tessdata");
+  const snapshot = new Map();
+  if (!fs.existsSync(tessdataDir)) return snapshot;
+  for (const name of fs.readdirSync(tessdataDir)) {
+    if (!name.toLowerCase().endsWith(".traineddata")) continue;
+    const filePath = path.join(tessdataDir, name);
+    try {
+      const stat = fs.statSync(filePath);
+      if (!stat.isFile() || stat.size <= 50_000) continue;
+      snapshot.set(name, { data: fs.readFileSync(filePath), mode: stat.mode });
+    } catch {
+      // Ignore unreadable packs; ensure-tessdata will report anything still missing.
+    }
+  }
+  return snapshot;
+}
+
+function restoreMissingTraineddata(bundleDir, snapshot) {
+  const tessdataDir = path.join(bundleDir, "share", "tessdata");
+  ensureDir(tessdataDir);
+  for (const [name, entry] of snapshot) {
+    const target = path.join(tessdataDir, name);
+    try {
+      if (fs.existsSync(target) && fs.statSync(target).size > 50_000) continue;
+    } catch {
+      // Rewrite invalid or unreadable destination below.
+    }
+    fs.writeFileSync(target, entry.data);
+    fs.chmodSync(target, entry.mode);
+  }
 }
 
 function enqueueDependencies(spec, sourcePath, searchRoots, copiedLibraries, queue, libDir) {
@@ -242,3 +281,8 @@ function runInstallNameTool(args) {
 function signMachO(filePath) {
   execFileSync("codesign", ["--force", "--sign", "-", filePath], { stdio: "pipe" });
 }
+
+module.exports = {
+  snapshotValidTraineddata,
+  restoreMissingTraineddata
+};

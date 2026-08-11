@@ -1,4 +1,6 @@
 import asyncio
+import json
+import math
 import os
 import re
 import shutil
@@ -16,6 +18,9 @@ from .tools_service import tools_service
 WIN_STATUS_STACK_BUFFER_OVERRUN = 0xC0000409
 WIN_STATUS_STACK_BUFFER_OVERRUN_SIGNED = -1073740791
 WIN_STATUS_STACK_BUFFER_OVERRUN_UNSIGNED = 3221226505
+IMAGE_MAX_PIXELS = 50_000_000
+IMAGE_OPS_MAX_JSON_BYTES = 64 * 1024
+IMAGE_REGION_MIN_PIXELS = 8
 
 # Job cancellation: set by JobService, checked/killed inside run_process.
 _current_job_id: ContextVar[str | None] = ContextVar("swiftlocal_job_id", default=None)
@@ -1235,26 +1240,87 @@ def build_ffmpeg_media_args(input_path: Path, output_path: Path, options: dict[s
     return args
 
 
-async def ocr_images(input_paths: list[Path], output_dir: Path, language: str) -> tuple[list[Path], list[str]]:
+async def ocr_images(
+    input_paths: list[Path],
+    output_dir: Path,
+    language: str,
+    image_ops: str = "",
+    item_results: list[dict] | None = None,
+    on_progress=None,
+) -> tuple[list[Path], list[str]]:
     tool = await tools_service.require_tool("tesseract")
     tool_path = Path(str(tool["path"]))
     clean_language, lang_note = resolve_ocr_language(tool_path, language)
     logs: list[str] = []
     outputs: list[Path] = []
+    results = item_results if item_results is not None else []
+    operations = sanitize_image_ops(image_ops, len(input_paths))
     if lang_note:
         logs.append(lang_note)
     tessdata_dir = resolve_tessdata_dir(tool_path)
 
-    for input_path in input_paths:
-        ensure_not_cancelled()
-        output_path = next_available_path(output_dir / f"{input_path.stem}_ocr.txt")
-        output_base = output_path.with_suffix("")
-        log = await run_image_text_ocr(
-            str(tool["path"]), input_path, output_base, clean_language, tessdata_dir
-        )
-        if log:
-            logs.append(log)
-        outputs.append(output_path)
+    with tempfile.TemporaryDirectory(prefix="swiftlocal-image-ocr-") as temp_dir:
+        temp_root = Path(temp_dir)
+        failed = 0
+        for index, input_path in enumerate(input_paths):
+            ensure_not_cancelled()
+            if on_progress:
+                on_progress(index, len(input_paths), f"正在辨識第 {index + 1} / {len(input_paths)} 張圖片")
+            try:
+                prepared = temp_root / f"image_{index + 1:03d}.png"
+                await asyncio.to_thread(
+                    _prepare_workspace_image_sync,
+                    input_path,
+                    prepared,
+                    operations[index],
+                    {},
+                    True,
+                )
+                suffix = "_region_ocr.txt" if operations[index]["ocrRegion"] else "_ocr.txt"
+                output_path = next_available_path(output_dir / f"{input_path.stem}{suffix}")
+                output_base = output_path.with_suffix("")
+                log = await run_image_text_ocr(
+                    str(tool["path"]), prepared, output_base, clean_language, tessdata_dir
+                )
+                if log:
+                    logs.append(log)
+                text = output_path.read_text(encoding="utf-8", errors="replace").strip() if output_path.exists() else ""
+                if not text:
+                    output_path.unlink(missing_ok=True)
+                    raise RuntimeError("OCR 結果為空（圖片可能沒有可讀取的文字）")
+                outputs.append(output_path)
+                results.append({
+                    "index": index,
+                    "name": input_path.name,
+                    "status": "done",
+                    "outputName": output_path.name,
+                    "error": "",
+                })
+            except JobCancelled:
+                raise
+            except Exception as error:
+                failed += 1
+                friendly = create_friendly_image_error(error, input_path.name, "ocr")
+                logs.append(friendly)
+                results.append({
+                    "index": index,
+                    "name": input_path.name,
+                    "status": "failed",
+                    "outputName": "",
+                    "error": image_error_summary(friendly),
+                })
+            if on_progress:
+                on_progress(index + 1, len(input_paths), f"已辨識 {index + 1} / {len(input_paths)} 張圖片")
+        if not outputs:
+            raise RuntimeError(logs[-1] if logs else "所有圖片均未辨識到文字")
+        if failed:
+            logs.append(f"圖片 OCR 完成：{len(outputs)} 成功，{failed} 失敗")
+            if on_progress:
+                on_progress(
+                    len(input_paths),
+                    len(input_paths),
+                    f"完成 {len(outputs)} / {len(input_paths)}，{failed} 個未完成",
+                )
 
     return outputs, logs
 
@@ -1264,6 +1330,7 @@ async def ocr_pdf(
     output_dir: Path,
     language: str,
     max_pages: int = OCR_PDF_MAX_PAGES_DEFAULT,
+    pages: str = "",
 ) -> tuple[list[Path], list[str]]:
     """Rasterize PDF pages then OCR each page with Tesseract; one TXT per PDF."""
     tool = await tools_service.require_tool("tesseract")
@@ -1275,40 +1342,52 @@ async def ocr_pdf(
     if lang_note:
         logs.append(lang_note)
     tessdata_dir = resolve_tessdata_dir(tool_path)
+    selected_pages = sanitize_ocr_page_selection(pages)
 
     for input_path in input_paths:
         ensure_not_cancelled()
         require_unencrypted_pdf(input_path)
-        page_dir = output_dir / f"{input_path.stem}_ocr_pages"
-        page_dir.mkdir(parents=True, exist_ok=True)
-        try:
-            page_images, render_log = await asyncio.to_thread(
-                _render_pdf_pages_sync, input_path, page_dir, page_limit, OCR_PDF_RENDER_SCALE
-            )
-        except Exception as error:
-            raise RuntimeError(f"PDF OCR 渲染失敗（{input_path.name}）：{error}") from error
-        logs.append(render_log)
-        if not page_images:
-            raise RuntimeError(f"PDF 沒有可 OCR 的頁面：{input_path.name}")
+        with tempfile.TemporaryDirectory(prefix="swiftlocal-pdf-ocr-") as temp_dir:
+            page_dir = Path(temp_dir)
+            try:
+                page_images, render_log = await asyncio.to_thread(
+                    _render_pdf_pages_sync,
+                    input_path,
+                    page_dir,
+                    page_limit,
+                    OCR_PDF_RENDER_SCALE,
+                    selected_pages,
+                )
+            except Exception as error:
+                raise RuntimeError(f"PDF OCR 渲染失敗（{input_path.name}）：{error}") from error
+            logs.append(render_log)
+            if not page_images:
+                raise RuntimeError(f"PDF 沒有可 OCR 的頁面：{input_path.name}")
 
-        page_texts: list[str] = []
-        for index, image_path in enumerate(page_images, start=1):
-            ensure_not_cancelled()
-            page_base = page_dir / f"page_{index:03d}_ocr"
-            args = build_tesseract_ocr_args(image_path, page_base, clean_language, tessdata_dir)
-            log = await run_process(str(tool["path"]), args, timeout=300)
-            if log:
-                logs.append(log)
-            text_path = page_base.with_suffix(".txt")
-            text = text_path.read_text(encoding="utf-8", errors="replace") if text_path.exists() else ""
-            text = repair_ocr_text(text)
-            page_texts.append(f"--- Page {index} ---\n{text.strip()}")
+            page_texts: list[str] = []
+            has_text = False
+            for image_path in page_images:
+                ensure_not_cancelled()
+                page_number = int(image_path.stem.rsplit("_", 1)[-1])
+                page_base = page_dir / f"page_{page_number:03d}_ocr"
+                args = build_tesseract_ocr_args(image_path, page_base, clean_language, tessdata_dir)
+                log = await run_process(str(tool["path"]), args, timeout=300, tool_label="Tesseract")
+                if log:
+                    logs.append(log)
+                text_path = page_base.with_suffix(".txt")
+                text = text_path.read_text(encoding="utf-8", errors="replace") if text_path.exists() else ""
+                text = repair_ocr_text(text)
+                has_text = has_text or bool(text.strip())
+                page_texts.append(f"--- Page {page_number} ---\n{text.strip()}")
 
-        combined = "\n\n".join(page_texts).strip() + "\n"
-        output_path = next_available_path(output_dir / f"{input_path.stem}_ocr.txt")
-        output_path.write_text(combined, encoding="utf-8")
-        outputs.append(output_path)
-        logs.append(f"ocr-pdf: {input_path.name} -> {output_path.name} ({len(page_images)} page(s))")
+            if not has_text:
+                raise RuntimeError("OCR 結果為空（文件可能沒有可讀取的掃描文字）")
+            combined = "\n\n".join(page_texts).strip() + "\n"
+            page_suffix = f"_p{selected_pages[0]}" if len(selected_pages) == 1 else ""
+            output_path = next_available_path(output_dir / f"{input_path.stem}{page_suffix}_ocr.txt")
+            output_path.write_text(combined, encoding="utf-8")
+            outputs.append(output_path)
+            logs.append(f"ocr-pdf: {input_path.name} -> {output_path.name} ({len(page_images)} page(s))")
 
     return outputs, logs
 
@@ -1318,6 +1397,7 @@ def _render_pdf_pages_sync(
     page_dir: Path,
     max_pages: int,
     scale: float,
+    page_numbers: list[int] | None = None,
 ) -> tuple[list[Path], str]:
     try:
         import pypdfium2 as pdfium  # lazy import
@@ -1329,10 +1409,14 @@ def _render_pdf_pages_sync(
         total = len(doc)
         if total == 0:
             return [], f"render: {input_path.name} has 0 pages"
-        limit = min(total, max_pages)
+        selected = list(page_numbers or range(1, min(total, max_pages) + 1))
+        invalid = next((page for page in selected if page > total), None)
+        if invalid:
+            raise ValueError(f"OCR 頁碼 {invalid} 超出文件總頁數 {total}")
         images: list[Path] = []
-        for index in range(limit):
+        for page_number in selected:
             ensure_not_cancelled()
+            index = page_number - 1
             page = doc[index]
             page_width, page_height = page.get_size()
             pixel_width = max(1, int(page_width * scale + 0.999))
@@ -1344,15 +1428,36 @@ def _render_pdf_pages_sync(
                 )
             bitmap = page.render(scale=scale)
             pil_image = bitmap.to_pil()
-            image_path = page_dir / f"page_{index + 1:03d}.png"
+            image_path = page_dir / f"page_{page_number:03d}.png"
             pil_image.save(image_path, format="PNG")
             images.append(image_path)
-        note = f"render: {input_path.name} {limit}/{total} page(s) @ scale={scale}"
-        if total > max_pages:
+        note = f"render: {input_path.name} {len(selected)}/{total} page(s) @ scale={scale}"
+        if not page_numbers and total > max_pages:
             note += f" (truncated at {max_pages})"
         return images, note
     finally:
         doc.close()
+
+
+def sanitize_ocr_page_selection(value: str | None) -> list[int]:
+    text = (value or "").strip()
+    if not text:
+        return []
+    pages: list[int] = []
+    for raw_segment in text.split(","):
+        match = re.fullmatch(r"(\d+)(?:-(\d+))?", raw_segment.strip())
+        if not match:
+            raise ValueError("OCR 頁碼範圍無效")
+        start = int(match.group(1))
+        end = int(match.group(2) or match.group(1))
+        if start < 1 or end < start:
+            raise ValueError("OCR 頁碼範圍無效")
+        for page_number in range(start, end + 1):
+            if page_number not in pages:
+                pages.append(page_number)
+            if len(pages) > OCR_PDF_MAX_PAGES_HARD_LIMIT:
+                raise ValueError(f"OCR 一次最多處理 {OCR_PDF_MAX_PAGES_HARD_LIMIT} 頁")
+    return pages
 
 
 def resolve_tessdata_dir(tool_path: Path) -> Path | None:
@@ -1515,7 +1620,7 @@ def resolve_ocr_language(tool_path: Path | None, requested: str | None) -> tuple
     codes so OCR still works for end users (e.g. eng-only installs).
     Returns (language, optional_user_note).
     """
-    preferred = (requested or "chi_tra+eng").strip() or "chi_tra+eng"
+    preferred = sanitize_ocr_language(requested)
     parts = [p.strip() for p in preferred.replace(",", "+").split("+") if p.strip()]
     if not parts:
         parts = ["chi_tra", "eng"]
@@ -1539,7 +1644,14 @@ def resolve_ocr_language(tool_path: Path | None, requested: str | None) -> tuple
     return "+".join(kept), note
 
 
-async def convert_image(input_paths: list[Path], output_dir: Path, extension: str) -> tuple[list[Path], list[str]]:
+async def convert_image(
+    input_paths: list[Path],
+    output_dir: Path,
+    extension: str,
+    options: dict[str, str] | None = None,
+    item_results: list[dict] | None = None,
+    on_progress=None,
+) -> tuple[list[Path], list[str]]:
     fmt_map = {
         "jpg": "JPEG",
         "jpeg": "JPEG",
@@ -1555,33 +1667,397 @@ async def convert_image(input_paths: list[Path], output_dir: Path, extension: st
     if not pil_format:
         raise ValueError(f"Unsupported image format: {clean_ext}")
 
+    clean_options = dict(options or {})
+    operations = sanitize_image_ops(clean_options.get("imageOps") or "", len(input_paths))
+    render_options = {
+        "quality": sanitize_image_quality(clean_options.get("quality")),
+        "maxWidth": sanitize_image_dimension(clean_options.get("maxWidth"), "maxWidth"),
+        "maxHeight": sanitize_image_dimension(clean_options.get("maxHeight"), "maxHeight"),
+        "keepRatio": sanitize_image_keep_ratio(clean_options.get("keepRatio")),
+        "watermarkText": sanitize_image_watermark_text(clean_options.get("watermarkText")),
+        "watermarkPosition": sanitize_image_watermark_position(clean_options.get("watermarkPosition")),
+        "pilFormat": pil_format,
+    }
     outputs: list[Path] = []
     logs: list[str] = []
-    for input_path in input_paths:
+    results = item_results if item_results is not None else []
+    failed = 0
+    for index, input_path in enumerate(input_paths):
         ensure_not_cancelled()
+        if on_progress:
+            on_progress(index, len(input_paths), f"正在處理第 {index + 1} / {len(input_paths)} 張圖片")
         output_path = next_available_path(output_dir / f"{input_path.stem}.{clean_ext}")
         try:
-            await asyncio.to_thread(_convert_image_sync, input_path, output_path, pil_format)
+            await asyncio.to_thread(
+                _prepare_workspace_image_sync,
+                input_path,
+                output_path,
+                operations[index],
+                render_options,
+                False,
+            )
+            if not output_path.exists():
+                raise RuntimeError(f"Image convert finished but output was not created for {input_path.name}")
+            outputs.append(output_path)
+            logs.append(f"converted: {input_path.name} -> {output_path.name}")
+            results.append({
+                "index": index,
+                "name": input_path.name,
+                "status": "done",
+                "outputName": output_path.name,
+                "error": "",
+            })
         except JobCancelled:
             raise
         except Exception as error:
-            raise RuntimeError(f"Image convert failed for {input_path.name}: {error}") from error
-        if not output_path.exists():
-            raise RuntimeError(f"Image convert finished but output was not created for {input_path.name}")
-        outputs.append(output_path)
-        logs.append(f"converted: {input_path.name} -> {output_path.name}")
+            output_path.unlink(missing_ok=True)
+            failed += 1
+            friendly = create_friendly_image_error(error, input_path.name, "convert")
+            logs.append(friendly)
+            results.append({
+                "index": index,
+                "name": input_path.name,
+                "status": "failed",
+                "outputName": "",
+                "error": image_error_summary(friendly),
+            })
+        if on_progress:
+            on_progress(index + 1, len(input_paths), f"已完成 {index + 1} / {len(input_paths)} 張圖片")
+    if not outputs:
+        raise RuntimeError(logs[-1] if logs else "所有圖片均無法處理")
+    if failed:
+        logs.append(f"圖片處理完成：{len(outputs)} 成功，{failed} 失敗")
+        if on_progress:
+            on_progress(
+                len(input_paths),
+                len(input_paths),
+                f"完成 {len(outputs)} / {len(input_paths)}，{failed} 個未完成",
+            )
     return outputs, logs
 
 
 def _convert_image_sync(input_path: Path, output_path: Path, pil_format: str) -> None:
+    """Backward-compatible conversion helper used by older tests/callers."""
+    _prepare_workspace_image_sync(
+        input_path,
+        output_path,
+        {"rotation": 0, "flip": "none", "crop": None, "ocrRegion": None},
+        {
+            "quality": 0.85,
+            "maxWidth": None,
+            "maxHeight": None,
+            "keepRatio": True,
+            "watermarkText": "",
+            "watermarkPosition": "se",
+            "pilFormat": pil_format,
+        },
+        False,
+    )
+
+
+def _prepare_workspace_image_sync(
+    input_path: Path,
+    output_path: Path,
+    operation: dict,
+    options: dict,
+    for_ocr: bool,
+) -> None:
     try:
-        from PIL import Image  # lazy import
+        from PIL import Image, ImageDraw, ImageFont, ImageOps  # lazy import
     except ImportError as error:
         raise RuntimeError("Pillow is not installed") from error
-    with Image.open(input_path) as img:
-        if pil_format == "JPEG" and img.mode in ("RGBA", "LA", "P"):
-            img = img.convert("RGB")
-        img.save(output_path, format=pil_format)
+    with Image.open(input_path) as source:
+        assert_workspace_image_dimensions(source.width, source.height, "原始圖片")
+        image = ImageOps.exif_transpose(source)
+        rotation = int(operation.get("rotation") or 0)
+        if rotation:
+            image = image.rotate(-rotation, expand=True)
+        flip = operation.get("flip") or "none"
+        if flip in ("horizontal", "both"):
+            image = ImageOps.mirror(image)
+        if flip in ("vertical", "both"):
+            image = ImageOps.flip(image)
+        image = crop_workspace_pillow_image(image, operation.get("crop"), "裁切區域")
+        if for_ocr:
+            image = crop_workspace_pillow_image(image, operation.get("ocrRegion"), "OCR 框選區域")
+            image.save(output_path, format="PNG")
+            return
+
+        target = resolve_workspace_image_size(
+            image.width,
+            image.height,
+            options.get("maxWidth"),
+            options.get("maxHeight"),
+            bool(options.get("keepRatio", True)),
+        )
+        if target != (image.width, image.height):
+            image = image.resize(target, Image.Resampling.LANCZOS)
+        watermark = str(options.get("watermarkText") or "")
+        if watermark:
+            if image.mode not in ("RGB", "RGBA"):
+                image = image.convert("RGBA")
+            draw = ImageDraw.Draw(image, "RGBA")
+            font_size = max(18, round(min(image.width, image.height) * 0.055))
+            try:
+                font = ImageFont.load_default(size=font_size)
+            except TypeError:
+                font = ImageFont.load_default()
+            box = draw.textbbox((0, 0), watermark, font=font)
+            text_width = box[2] - box[0]
+            text_height = box[3] - box[1]
+            margin = max(18, round(min(image.width, image.height) * 0.035))
+            x, y = watermark_position_xy(
+                image.width,
+                image.height,
+                text_width,
+                text_height,
+                margin,
+                str(options.get("watermarkPosition") or "se"),
+            )
+            draw.rectangle(
+                (x - margin * 0.6, y - margin * 0.4, x + text_width + margin * 0.6, y + text_height + margin * 0.4),
+                fill=(0, 0, 0, 108),
+            )
+            draw.text((x, y), watermark, font=font, fill=(255, 255, 255, 235))
+
+        pil_format = str(options.get("pilFormat") or "PNG")
+        if pil_format == "JPEG" and image.mode in ("RGBA", "LA", "P"):
+            background = Image.new("RGB", image.size, "white")
+            if image.mode in ("RGBA", "LA"):
+                background.paste(image, mask=image.getchannel("A"))
+            else:
+                background.paste(image.convert("RGBA"), mask=image.convert("RGBA").getchannel("A"))
+            image = background
+        save_options = {}
+        if pil_format in ("JPEG", "WEBP"):
+            save_options["quality"] = round(float(options.get("quality") or 0.85) * 100)
+        image.save(output_path, format=pil_format, **save_options)
+
+
+def sanitize_image_ops(value: object, expected_count: int = 0) -> list[dict]:
+    raw = value
+    if isinstance(raw, str):
+        if len(raw.encode("utf-8")) > IMAGE_OPS_MAX_JSON_BYTES:
+            raise ValueError("圖片操作資料過大")
+        if not raw.strip():
+            raw = []
+        else:
+            try:
+                raw = json.loads(raw)
+            except json.JSONDecodeError as error:
+                raise ValueError("圖片操作資料格式無效") from error
+    if raw is None:
+        raw = []
+    if not isinstance(raw, list):
+        raise ValueError("圖片操作資料必須是陣列")
+    if len(raw) > 100 or expected_count > 100:
+        raise ValueError("一次最多處理 100 張圖片")
+    if expected_count > 0 and raw and len(raw) != expected_count:
+        raise ValueError("圖片操作數量與輸入檔案數量不一致")
+    count = expected_count if expected_count > 0 else len(raw)
+    operations: list[dict] = []
+    for index in range(count):
+        if index < len(raw) and not isinstance(raw[index], dict):
+            raise ValueError("每項圖片操作都必須是物件")
+        operation = raw[index] if index < len(raw) else {}
+        try:
+            rotation_value = operation.get("rotation") if operation.get("rotation") not in (None, "") else 0
+            if isinstance(rotation_value, bool):
+                raise ValueError
+            rotation_number = float(rotation_value)
+            if not math.isfinite(rotation_number) or not rotation_number.is_integer():
+                raise ValueError
+            rotation = int(rotation_number)
+        except (TypeError, ValueError) as error:
+            raise ValueError("圖片旋轉角度無效") from error
+        if rotation not in (0, 90, 180, 270):
+            raise ValueError("圖片旋轉角度無效")
+        flip = str(operation.get("flip") or "none")
+        if flip not in ("none", "horizontal", "vertical", "both"):
+            raise ValueError("圖片翻轉設定無效")
+        operations.append({
+            "rotation": rotation,
+            "flip": flip,
+            "crop": sanitize_image_rectangle(operation.get("crop"), "crop"),
+            "ocrRegion": sanitize_image_rectangle(operation.get("ocrRegion"), "ocrRegion"),
+        })
+    return operations
+
+
+def sanitize_image_rectangle(value: object, label: str = "crop") -> dict[str, float] | None:
+    if value in (None, ""):
+        return None
+    if not isinstance(value, dict):
+        raise ValueError(f"{label} 格式無效")
+    if any(isinstance(value.get(key), bool) for key in ("x", "y", "width", "height")):
+        raise ValueError(f"{label} 座標無效")
+    try:
+        rectangle = {
+            "x": float(value.get("x")),
+            "y": float(value.get("y")),
+            "width": float(value.get("width")),
+            "height": float(value.get("height")),
+        }
+    except (TypeError, ValueError) as error:
+        raise ValueError(f"{label} 座標無效") from error
+    if (
+        any(not math.isfinite(item) for item in rectangle.values())
+        or rectangle["x"] < 0
+        or rectangle["y"] < 0
+        or rectangle["width"] <= 0
+        or rectangle["height"] <= 0
+        or rectangle["x"] + rectangle["width"] > 1.000001
+        or rectangle["y"] + rectangle["height"] > 1.000001
+    ):
+        raise ValueError(f"{label} 必須位於圖片範圍內")
+    return {key: round(item, 6) for key, item in rectangle.items()}
+
+
+def sanitize_ocr_language(value: object, fallback: str = "chi_tra+eng") -> str:
+    requested = str(value or fallback).strip() or fallback
+    parts = [item.strip() for item in requested.split("+") if item.strip()]
+    if not parts or any(re.fullmatch(r"[A-Za-z0-9_]+", item) is None for item in parts):
+        raise ValueError("OCR 語言設定無效")
+    return "+".join(dict.fromkeys(parts))
+
+
+def sanitize_image_quality(value: object) -> float:
+    if isinstance(value, bool):
+        raise ValueError("圖片品質必須介乎 30% 至 100%")
+    try:
+        quality = float(0.85 if value in (None, "") else value)
+    except (TypeError, ValueError) as error:
+        raise ValueError("圖片品質必須介乎 30% 至 100%") from error
+    if quality < 0.3 or quality > 1:
+        raise ValueError("圖片品質必須介乎 30% 至 100%")
+    return round(quality, 2)
+
+
+def sanitize_image_dimension(value: object, label: str) -> int | None:
+    if value is None or not str(value).strip():
+        return None
+    try:
+        dimension = int(str(value))
+    except ValueError as error:
+        raise ValueError(f"{label} 必須介乎 1 至 32768 pixels") from error
+    if dimension < 1 or dimension > 32768:
+        raise ValueError(f"{label} 必須介乎 1 至 32768 pixels")
+    return dimension
+
+
+def sanitize_image_keep_ratio(value: object) -> bool:
+    if value in (None, ""):
+        return True
+    if isinstance(value, bool):
+        return value
+    normalized = str(value).strip().lower()
+    if normalized == "true":
+        return True
+    if normalized == "false":
+        return False
+    raise ValueError("keepRatio 必須是 true 或 false")
+
+
+def sanitize_image_watermark_text(value: object) -> str:
+    text = re.sub(r"[\x00-\x1f\x7f]", " ", str(value or "")).strip()
+    if len(text) > 200:
+        raise ValueError("浮水印文字最多 200 個字元")
+    return text
+
+
+def sanitize_image_watermark_position(value: object) -> str:
+    position = str(value or "se")
+    if position not in ("se", "sw", "ne", "nw", "center"):
+        raise ValueError("浮水印位置無效")
+    return position
+
+
+def crop_workspace_pillow_image(image, rectangle: dict | None, label: str):
+    if not rectangle:
+        return image
+    left = max(0, int(rectangle["x"] * image.width))
+    top = max(0, int(rectangle["y"] * image.height))
+    right = min(image.width, int((rectangle["x"] + rectangle["width"]) * image.width + 0.999999))
+    bottom = min(image.height, int((rectangle["y"] + rectangle["height"]) * image.height + 0.999999))
+    width = right - left
+    height = bottom - top
+    if width < IMAGE_REGION_MIN_PIXELS or height < IMAGE_REGION_MIN_PIXELS:
+        raise ValueError(f"{label}至少需要 {IMAGE_REGION_MIN_PIXELS} × {IMAGE_REGION_MIN_PIXELS} pixels")
+    assert_workspace_image_dimensions(width, height, label)
+    return image.crop((left, top, right, bottom))
+
+
+def resolve_workspace_image_size(
+    width: int,
+    height: int,
+    max_width: int | None,
+    max_height: int | None,
+    keep_ratio: bool = True,
+) -> tuple[int, int]:
+    target_width = max_width or width
+    target_height = max_height or height
+    if keep_ratio:
+        width_ratio = target_width / width if max_width else float("inf")
+        height_ratio = target_height / height if max_height else float("inf")
+        ratio = min(width_ratio, height_ratio, 1)
+        target_width = max(1, round(width * ratio))
+        target_height = max(1, round(height * ratio))
+    assert_workspace_image_dimensions(target_width, target_height, "輸出圖片")
+    return target_width, target_height
+
+
+def assert_workspace_image_dimensions(width: int, height: int, label: str) -> None:
+    if width < 1 or height < 1:
+        raise ValueError(f"{label}尺寸無效")
+    if width * height > IMAGE_MAX_PIXELS:
+        raise ValueError(f"{label}超過 50 MP 安全上限（{width} × {height}）")
+
+
+def watermark_position_xy(
+    width: int,
+    height: int,
+    text_width: int,
+    text_height: int,
+    margin: int,
+    position: str,
+) -> tuple[int, int]:
+    x = width - margin - text_width
+    y = height - margin - text_height
+    if position in ("sw", "nw"):
+        x = margin
+    if position in ("ne", "nw"):
+        y = margin
+    if position == "center":
+        x = (width - text_width) // 2
+        y = (height - text_height) // 2
+    return x, y
+
+
+def create_friendly_image_error(error: Exception, file_name: str, action: str = "ocr") -> str:
+    raw = str(error or "Image processing failed")
+    summary = f"無法辨識圖片「{file_name}」。" if action == "ocr" else f"無法處理圖片「{file_name}」。"
+    suggestion = "請確認圖片完整且格式受支援。"
+    if re.search(r"結果為空|未辨識|empty", raw, re.I):
+        summary = f"圖片「{file_name}」未辨識到文字。"
+        suggestion = "請框選較清晰的文字區域，或確認圖片方向正確。"
+    elif re.search(r"traineddata|language|tessdata|failed loading", raw, re.I):
+        summary = "缺少 OCR 語言資料，無法使用「繁體中文 + English」辨識。"
+        suggestion = "請到「狀態」頁確認 chi_tra、eng 語言包已安裝。"
+    elif re.search(r"decode|identify|unsupported|invalid image|cannot open|format", raw, re.I):
+        summary = f"無法讀取圖片「{file_name}」。"
+        suggestion = "請確認檔案未損壞，或先轉成 PNG／JPEG。"
+    elif re.search(r"50 MP|尺寸|pixels|裁切|框選", raw, re.I):
+        summary = f"圖片「{file_name}」的尺寸或框選範圍無法處理。"
+        suggestion = "請縮小圖片，或重新框選較大的區域。"
+    elif re.search(r"ENOENT|EACCES|permission|temp|output folder", raw, re.I):
+        summary = "無法建立圖片處理的暫存或輸出檔案。"
+        suggestion = "請確認輸出資料夾可寫入，並檢查可用磁碟空間。"
+    detail = raw[:4000] + ("\n…（已截斷）" if len(raw) > 4000 else "")
+    return f"{summary}\n建議：{suggestion}\n【技術詳情】\n{detail}"
+
+
+def image_error_summary(value: object) -> str:
+    return str(value or "圖片處理失敗").split("【技術詳情】", 1)[0].strip()[:500]
 
 
 async def merge_pdfs(input_paths: list[Path], output_dir: Path) -> tuple[list[Path], list[str]]:

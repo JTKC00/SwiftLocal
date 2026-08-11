@@ -115,6 +115,15 @@ class ToolsServiceTessdataTests(unittest.IsolatedAsyncioTestCase):
             self.assertNotIn("chi_tra", langs)
 
 
+def _bundled_tesseract() -> Path | None:
+    candidates = [
+        ROOT / "tools" / "tesseract" / "tesseract.exe",
+        ROOT / "tools" / "tesseract" / "bin" / "tesseract",
+        ROOT / "tools" / "tesseract" / "tesseract",
+    ]
+    return next((candidate for candidate in candidates if candidate.is_file()), None)
+
+
 class TessdataTests(unittest.TestCase):
     def test_resolve_ocr_language_fallback(self) -> None:
         # No tool path → pass through preferred
@@ -122,15 +131,8 @@ class TessdataTests(unittest.TestCase):
         self.assertEqual(lang, "chi_tra+eng")
         self.assertIsNone(note)
 
-        tess = ROOT / "tools" / "tesseract" / "tessdata"
-        # Simulate tool next to tessdata
-        fake_exe = ROOT / "tools" / "tesseract" / "tesseract.exe"
-        if not (tess / "eng.traineddata").is_file():
-            self.skipTest("no eng traineddata for fallback test")
-        # Even without real exe, resolve_tessdata_dir looks at parent/tessdata of parent...
-        # Use a path whose parent has tessdata sibling
-        tool = ROOT / "tools" / "tesseract" / "tesseract.exe"
-        if not tool.exists():
+        tool = _bundled_tesseract()
+        if tool is None:
             # resolve via tessdata parent: create temp structure
             with tempfile.TemporaryDirectory() as tmp:
                 base = Path(tmp)
@@ -222,13 +224,8 @@ class TessdataTests(unittest.TestCase):
         self.assertIn("關閉(C)", chosen)
 
     def test_resolve_bundled_tessdata(self) -> None:
-        tool = ROOT / "tools" / "tesseract" / "tesseract.exe"
-        if not tool.exists():
-            # Fall back to tessdata folder alone (ensure-tessdata may populate without exe)
-            tess = ROOT / "tools" / "tesseract" / "tessdata"
-            if tess.is_dir() and (tess / "chi_tra.traineddata").is_file():
-                self.assertGreater((tess / "chi_tra.traineddata").stat().st_size, 50_000)
-                return
+        tool = _bundled_tesseract()
+        if tool is None:
             self.skipTest("bundled tesseract not present")
         found = cs.resolve_tessdata_dir(tool)
         self.assertIsNotNone(found)
@@ -237,8 +234,14 @@ class TessdataTests(unittest.TestCase):
         self.assertTrue(found.is_dir())
 
     def test_chi_tra_pack_present_when_tools_tessdata_populated(self) -> None:
-        chi = ROOT / "tools" / "tesseract" / "tessdata" / "chi_tra.traineddata"
-        eng = ROOT / "tools" / "tesseract" / "tessdata" / "eng.traineddata"
+        tool = _bundled_tesseract()
+        if tool is None:
+            self.skipTest("bundled tesseract not present")
+        tessdata = cs.resolve_tessdata_dir(tool)
+        if tessdata is None:
+            self.skipTest("bundled tessdata not present")
+        chi = tessdata / "chi_tra.traineddata"
+        eng = tessdata / "eng.traineddata"
         if not chi.is_file() or not eng.is_file():
             self.skipTest("tools tessdata not populated (run npm run tools:tessdata)")
         self.assertGreater(chi.stat().st_size, 50_000)
@@ -340,6 +343,211 @@ class OutputCollisionTests(unittest.IsolatedAsyncioTestCase):
             {"pages": "1"},
         )
 
+
+class ImageWorkspaceTests(unittest.IsolatedAsyncioTestCase):
+    def test_image_ops_schema_and_normalized_coordinates(self) -> None:
+        operations = cs.sanitize_image_ops(
+            json.dumps([
+                {
+                    "rotation": 270,
+                    "flip": "both",
+                    "crop": {"x": 0.1, "y": 0.2, "width": 0.5, "height": 0.4},
+                    "ocrRegion": {"x": 0, "y": 0, "width": 1, "height": 1},
+                }
+            ]),
+            1,
+        )
+        self.assertEqual(operations[0]["rotation"], 270)
+        self.assertEqual(operations[0]["flip"], "both")
+        self.assertEqual(operations[0]["crop"]["x"], 0.1)
+        with self.assertRaisesRegex(ValueError, "數量"):
+            cs.sanitize_image_ops('[{"rotation":0}]', 2)
+        with self.assertRaisesRegex(ValueError, "必須是物件"):
+            cs.sanitize_image_ops("[null]", 1)
+        with self.assertRaisesRegex(ValueError, "旋轉角度"):
+            cs.sanitize_image_ops('[{"rotation":90.5}]', 1)
+        with self.assertRaisesRegex(ValueError, "最多處理 100"):
+            cs.sanitize_image_ops("[]", 101)
+        with self.assertRaisesRegex(ValueError, "圖片範圍"):
+            cs.sanitize_image_rectangle({"x": float("nan"), "y": 0, "width": 1, "height": 1})
+        with self.assertRaisesRegex(ValueError, "語言設定無效"):
+            cs.sanitize_ocr_language("eng;rm")
+        self.assertEqual(cs.sanitize_ocr_language("chi_tra+eng+chi_tra"), "chi_tra+eng")
+        self.assertFalse(cs.sanitize_image_keep_ratio("false"))
+        with self.assertRaisesRegex(ValueError, "true 或 false"):
+            cs.sanitize_image_keep_ratio("yes")
+
+    def test_exif_rotation_crop_resize_and_watermark_order(self) -> None:
+        try:
+            from PIL import Image
+        except ImportError:
+            self.skipTest("Pillow not installed")
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            source = base / "香港 文件.jpg"
+            output = base / "output.png"
+            image = Image.new("RGB", (40, 20), "red")
+            exif = image.getexif()
+            exif[274] = 6
+            image.save(source, format="JPEG", exif=exif)
+            cs._prepare_workspace_image_sync(
+                source,
+                output,
+                {
+                    "rotation": 90,
+                    "flip": "none",
+                    "crop": {"x": 0, "y": 0, "width": 1, "height": 0.5},
+                    "ocrRegion": None,
+                },
+                {
+                    "quality": 0.8,
+                    "maxWidth": 20,
+                    "maxHeight": 20,
+                    "keepRatio": True,
+                    "watermarkText": "香港 Office",
+                    "watermarkPosition": "center",
+                    "pilFormat": "PNG",
+                },
+                False,
+            )
+            with Image.open(output) as rendered:
+                self.assertEqual(rendered.size, (20, 5))
+
+    async def test_convert_keeps_successes_and_reports_each_failed_item(self) -> None:
+        try:
+            from PIL import Image
+        except ImportError:
+            self.skipTest("Pillow not installed")
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            output_dir = base / "out"
+            output_dir.mkdir()
+            valid = base / "中英 文件.png"
+            broken = base / "broken image.png"
+            Image.new("RGB", (40, 24), "white").save(valid)
+            broken.write_bytes(b"not an image")
+            results: list[dict] = []
+            progress: list[tuple[int, int, str]] = []
+            outputs, logs = await cs.convert_image(
+                [valid, broken],
+                output_dir,
+                "webp",
+                {
+                    "imageOps": json.dumps([
+                        {"rotation": 90, "flip": "horizontal", "crop": None, "ocrRegion": None},
+                        {"rotation": 0, "flip": "none", "crop": None, "ocrRegion": None},
+                    ]),
+                    "quality": "0.75",
+                    "maxWidth": "20",
+                    "maxHeight": "20",
+                    "keepRatio": "true",
+                },
+                results,
+                lambda current, total, message: progress.append((current, total, message)),
+            )
+            self.assertEqual(len(outputs), 1)
+            self.assertTrue(outputs[0].exists())
+            self.assertEqual([item["status"] for item in results], ["done", "failed"])
+            self.assertEqual(results[0]["name"], "中英 文件.png")
+            self.assertTrue(any("1 成功，1 失敗" in line for line in logs))
+            self.assertEqual(progress[-1][0:2], (2, 2))
+
+    async def test_region_ocr_uses_controlled_temp_png_and_cleans_it(self) -> None:
+        try:
+            from PIL import Image
+        except ImportError:
+            self.skipTest("Pillow not installed")
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            output_dir = base / "out"
+            output_dir.mkdir()
+            source = base / "中英 OCR.png"
+            Image.new("RGB", (80, 40), "white").save(source)
+            fake_tool = base / "tesseract"
+            fake_tool.write_text("fake", encoding="utf-8")
+            seen: dict[str, object] = {}
+
+            async def fake_require_tool(_name: str) -> dict:
+                return {"path": str(fake_tool)}
+
+            async def fake_run_process(_tool: str, args: list[str], **_kwargs) -> str:
+                language_index = args.index("-l")
+                prepared = Path(args[language_index - 2])
+                seen["prepared"] = prepared
+                with Image.open(prepared) as prepared_image:
+                    seen["size"] = prepared_image.size
+                seen["language"] = args[language_index + 1]
+                Path(args[language_index - 1]).with_suffix(".txt").write_text(
+                    "繁體中文 English\n", encoding="utf-8"
+                )
+                return "ocr mock"
+
+            original_require = cs.tools_service.require_tool
+            original_run = cs.run_process
+            cs.tools_service.require_tool = fake_require_tool  # type: ignore[assignment]
+            cs.run_process = fake_run_process  # type: ignore[assignment]
+            results: list[dict] = []
+            try:
+                outputs, _logs = await cs.ocr_images(
+                    [source],
+                    output_dir,
+                    "chi_tra+eng",
+                    json.dumps([
+                        {
+                            "rotation": 0,
+                            "flip": "none",
+                            "crop": {"x": 0, "y": 0, "width": 0.5, "height": 1},
+                            "ocrRegion": {"x": 0, "y": 0, "width": 0.5, "height": 0.5},
+                        }
+                    ]),
+                    results,
+                )
+            finally:
+                cs.tools_service.require_tool = original_require  # type: ignore[assignment]
+                cs.run_process = original_run  # type: ignore[assignment]
+            self.assertEqual(outputs[0].name, "中英 OCR_region_ocr.txt")
+            self.assertEqual(outputs[0].read_text(encoding="utf-8").strip(), "繁體中文 English")
+            self.assertEqual(seen["size"], (20, 20))
+            self.assertEqual(seen["language"], "chi_tra+eng")
+            self.assertFalse(Path(seen["prepared"]).exists())
+            self.assertEqual(results[0]["status"], "done")
+
+    async def test_cancelled_image_ocr_cleans_controlled_temp_directory(self) -> None:
+        try:
+            from PIL import Image
+        except ImportError:
+            self.skipTest("Pillow not installed")
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            output_dir = base / "out"
+            output_dir.mkdir()
+            source = base / "cancel.png"
+            Image.new("RGB", (16, 16), "white").save(source)
+            fake_tool = base / "tesseract"
+            fake_tool.write_text("fake", encoding="utf-8")
+
+            async def fake_require_tool(_name: str) -> dict:
+                return {"path": str(fake_tool)}
+
+            def cancel_now() -> None:
+                raise cs.JobCancelled("任務已取消")
+
+            temp_root = Path(tempfile.gettempdir())
+            before = {path.name for path in temp_root.glob("swiftlocal-image-ocr-*")}
+            original_require = cs.tools_service.require_tool
+            original_ensure = cs.ensure_not_cancelled
+            cs.tools_service.require_tool = fake_require_tool  # type: ignore[assignment]
+            cs.ensure_not_cancelled = cancel_now  # type: ignore[assignment]
+            try:
+                with self.assertRaises(cs.JobCancelled):
+                    await cs.ocr_images([source], output_dir, "chi_tra+eng")
+            finally:
+                cs.tools_service.require_tool = original_require  # type: ignore[assignment]
+                cs.ensure_not_cancelled = original_ensure  # type: ignore[assignment]
+            after = {path.name for path in temp_root.glob("swiftlocal-image-ocr-*")}
+            self.assertEqual(after, before)
+
+class JobRestoreContinuationTests(unittest.IsolatedAsyncioTestCase):
     async def test_restore_marks_running_failed_and_keeps_queued(self) -> None:
         from backend.services import job_service as js_mod
         from backend.services.job_service import Job, JobService
@@ -756,6 +964,34 @@ class MediaArgsTests(unittest.TestCase):
 
 
 class OcrPdfRenderTests(unittest.TestCase):
+    def test_sanitize_current_and_multi_page_selection(self) -> None:
+        self.assertEqual(cs.sanitize_ocr_page_selection("3"), [3])
+        self.assertEqual(cs.sanitize_ocr_page_selection("1-2,4,2"), [1, 2, 4])
+        self.assertEqual(cs.sanitize_ocr_page_selection(""), [])
+        with self.assertRaisesRegex(ValueError, "頁碼範圍無效"):
+            cs.sanitize_ocr_page_selection("4-2")
+
+    def test_render_selected_pdf_page_preserves_original_page_number(self) -> None:
+        try:
+            import pypdfium2  # noqa: F401
+        except ImportError:
+            self.skipTest("pypdfium2 not installed")
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            sample = base / "中文 掃描.pdf"
+            page_dir = base / "pages with spaces"
+            page_dir.mkdir()
+            _make_pdf(sample, 3)
+            images, log = cs._render_pdf_pages_sync(
+                sample,
+                page_dir,
+                max_pages=3,
+                scale=1.0,
+                page_numbers=[2],
+            )
+            self.assertEqual([item.name for item in images], ["page_002.png"])
+            self.assertIn("1/3 page(s)", log)
+
     def test_render_rejects_pages_above_pixel_limit(self) -> None:
         try:
             import pypdfium2  # noqa: F401
@@ -776,15 +1012,15 @@ class OcrPdfRenderTests(unittest.TestCase):
                 cs.OCR_PDF_MAX_PIXELS = old_limit
 
     def test_render_pdf_pages_creates_png(self) -> None:
-        sample = ROOT / "smoke-temp" / "release-check" / "input" / "a.pdf"
-        if not sample.exists():
-            self.skipTest("sample PDF not present")
         try:
             import pypdfium2  # noqa: F401
         except ImportError:
             self.skipTest("pypdfium2 not installed")
         with tempfile.TemporaryDirectory() as tmp:
-            page_dir = Path(tmp) / "pages"
+            base = Path(tmp)
+            sample = base / "render sample.pdf"
+            _make_pdf(sample, 1)
+            page_dir = base / "pages"
             page_dir.mkdir()
             images, log = cs._render_pdf_pages_sync(sample, page_dir, max_pages=2, scale=1.0)
             self.assertGreaterEqual(len(images), 1)
@@ -1130,7 +1366,7 @@ class PdfToOfficeFallbackTests(unittest.IsolatedAsyncioTestCase):
 
             async def fake_run(executable, args, timeout=300, tool_label="外部程序"):  # noqa: ANN001
                 # Simulate LO writing the expected docx.
-                target = out / "doc.docx"
+                target = Path(args[args.index("--outdir") + 1]) / "doc.docx"
                 target.write_bytes(b"PK" + b"\0" * 100)
                 return "ok"
 

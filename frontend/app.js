@@ -4,6 +4,17 @@
   const state = {
     activePanel: "home-panel",
     imageDownloads: [],
+    imageWorkspaceItems: [],
+    imageWorkspaceSelectedId: null,
+    imageWorkspaceSelectionMode: false,
+    imageWorkspaceExporting: false,
+    imageWorkspaceExportCancelRequested: false,
+    imageWorkspaceOcrJobId: null,
+    imageWorkspaceOcrLoadedJobId: null,
+    imageWorkspaceOcrStatus: "idle",
+    imageWorkspaceOcrScope: "",
+    imageWorkspaceOcrText: "",
+    imageWorkspaceOcrError: "",
     pdfDownloads: [],
     pdfFiles: [],
     pdfWorkspacePages: [],
@@ -11,13 +22,19 @@
     pdfWorkspaceRedo: [],
     pdfWorkspaceLoading: false,
     pdfWorkspaceSelectedId: null,
+    pdfWorkspaceOcrJobId: null,
+    pdfWorkspaceOcrLoadedJobId: null,
+    pdfWorkspaceOcrStatus: "idle",
+    pdfWorkspaceOcrScope: "",
+    pdfWorkspaceOcrFileName: "",
+    pdfWorkspaceOcrText: "",
+    pdfWorkspaceOcrError: "",
     dataMode: "json-format",
     textMode: "base64-encode",
     zipUrl: null,
     zipName: "",
     diffText: "",
     splitDownloads: [],
-    imgBackendFiles: [],
     mediaBackendFiles: [],
     backendConnected: false,
     backendSessionToken: "",
@@ -94,7 +111,7 @@
     "pdf-hub-panel": { nav: "PDF", hint: "閱讀填表、頁面整理、轉換與 OCR、保護與壓縮。", steps: ["選擇閱讀、整理、轉換或保護", "進入既有 PDF 工作區完成操作", "永久修改前另存或確認輸出"], keywords: "pdf 閱讀 填表 簽名 日期章 列印 工作台 合併 分割 旋轉 ocr word 圖片 壓縮 加密 解密" },
     "ocr-panel": { nav: "OCR", hint: "圖片或掃描 PDF 轉文字、Word 或可搜尋 PDF。", steps: ["選擇來源和輸出用途", "加入圖片或 PDF", "在任務中心追蹤、取消或重試"], keywords: "ocr tesseract 掃描 辨識 圖片 文字 searchable 可搜尋 word 批量 繁中 英文", platform: "local" },
     "office-panel": { nav: "Office", hint: "Office 轉 PDF、PDF 轉 Office 與文件歸檔流程。", steps: ["選擇轉換用途", "加入 Office 或 PDF", "確認相容性提示並在任務中心追蹤"], keywords: "office word excel powerpoint doc docx xls xlsx ppt pptx libreoffice 歸檔 批量", platform: "local" },
-    "image-panel": { nav: "圖片", hint: "格式、壓縮、尺寸、旋轉／翻轉、浮水印、批量及 OCR。", steps: ["選擇或拖放圖片", "保留預設或調整格式、品質、尺寸", "按「開始轉換」，在右邊下載結果"], keywords: "image 圖片 相片 jpg jpeg png webp 壓縮 縮小 浮水印 旋轉 翻轉 ocr" },
+    "image-panel": { nav: "圖片", hint: "在預覽中直接裁切、旋轉、辨識文字或匯出圖片。", steps: ["加入一張或多張圖片", "在預覽上旋轉、翻轉或框選區域", "匯出圖片，或直接執行目前／全部／框選 OCR"], keywords: "image 圖片 相片 jpg jpeg png webp tiff bmp gif 壓縮 縮小 浮水印 旋轉 翻轉 裁切 ocr 辨識" },
     "pdf-panel": { nav: "PDF 轉換與整理", hint: "PDF 入口內的頁面整理、轉換、OCR、壓縮及保護。", steps: ["選擇頁面工作台或其他處理方式", "在工作台拖放頁面，並旋轉、複製或刪除", "輸出新 PDF，或在任務區查看後端進度"], keywords: "pdf 工作台 縮圖 排序 合併 分割 抽頁 旋轉 頁碼 浮水印 壓縮 加密 解密 ocr office word docx" },
     "pdf-reader-panel": { nav: "PDF 工作區", hint: "本機 PDF 閱讀、AcroForm 填表、簽名圖與日期章；關閉不鎖檔。", steps: ["開啟 PDF", "填表或放置簽名／日期", "儲存或另存"], keywords: "pdf reader 工作區 閱讀 填表 簽名 日期章 acroform 本機", platform: "web" },
     "data-panel": { nav: "CSV／JSON／XML 轉換", hint: "在 CSV、JSON、XML 之間轉換與格式化。", steps: ["貼上資料內容", "選擇想轉成的格式", "按「執行」，再複製或下載輸出"], keywords: "json csv xml 資料 表格 格式化 壓縮 轉換" },
@@ -138,6 +155,8 @@
   let pdfjsPromise = null;
   let pdfWorkspacePageId = 0;
   let pdfWorkspacePreviewToken = 0;
+  let imageWorkspaceItemId = 0;
+  let imageWorkspaceRenderToken = 0;
   const pdfWorkspacePreviewCache = new Map();
   const PDF_WORKSPACE_MAX_PAGES = 250;
   const PDF_WORKSPACE_PREVIEW_CACHE_SIZE = 12;
@@ -1206,20 +1225,27 @@
   function clearPanel(panelId) {
     if (panelId === "image-panel") {
       revokeImageUrls();
-      $("#image-form").reset();
+      state.imageWorkspaceItems = [];
+      state.imageWorkspaceSelectedId = null;
+      state.imageWorkspaceSelectionMode = false;
+      state.imageWorkspaceExportCancelRequested = true;
+      state.imageWorkspaceExporting = false;
+      clearImageWorkspaceOcrResult();
+      $("#image-files").value = "";
+      $("#image-format").value = "image/jpeg";
       $("#image-keep-ratio").checked = true;
       $("#image-quality").value = "0.85";
       $("#quality-output").textContent = "85%";
+      $("#image-width").value = "";
+      $("#image-height").value = "";
+      $("#image-watermark").value = "";
+      $("#image-watermark-position").value = "se";
       setEmpty("#image-results", "尚未產生檔案");
+      $("#image-export-progress").textContent = "尚未匯出圖片。";
+      $("#image-export-cancel").hidden = true;
       $("#download-all-images").disabled = true;
-      // 後端子表單
-      state.imgBackendFiles = [];
-      $("#img-backend-form").reset();
-      const imgList = $("#img-backend-selected-files");
-      imgList.classList.add("empty");
-      imgList.textContent = "尚未選擇檔案";
       setEmpty("#img-backend-jobs", "尚未建立任務");
-      updateImgBackendJobControls();
+      renderImageWorkspace();
     }
     if (panelId === "pdf-panel") {
       revokePdfUrls();
@@ -1328,87 +1354,85 @@
     $("#image-quality").addEventListener("input", (event) => {
       const percent = Math.round(Number(event.target.value) * 100);
       $("#quality-output").textContent = `${percent}%`;
+      renderImageWorkspacePreview();
     });
-
-    $("#image-form").addEventListener("submit", async (event) => {
-      event.preventDefault();
-      const files = Array.from($("#image-files").files || []);
-      if (!files.length) {
-        setEmpty("#image-results", "請先選擇圖片");
-        return;
-      }
-
-      revokeImageUrls();
-      const container = $("#image-results");
-      container.classList.remove("empty");
-      container.textContent = "";
-
-      const format = $("#image-format").value;
-      const quality = Number($("#image-quality").value);
-      const maxWidth = Number($("#image-width").value) || null;
-      const maxHeight = Number($("#image-height").value) || null;
-      const keepRatio = $("#image-keep-ratio").checked;
-      const rotation = Number($("#image-rotate").value) || 0;
-      const flip = $("#image-flip").value;
-      const watermarkText = $("#image-watermark").value.trim();
-      const watermarkPosition = $("#image-watermark-position").value;
-      const outputExt = extensionFromMime(format);
-
-      for (const file of files) {
-        try {
-          const converted = await convertImage(file, {
-            format,
-            quality,
-            maxWidth,
-            maxHeight,
-            keepRatio,
-            rotation,
-            flip,
-            watermarkText,
-            watermarkPosition
-          });
-          const url = URL.createObjectURL(converted.blob);
-          const outputName = `${stripExtension(file.name)}.${outputExt}`;
-          state.imageDownloads.push({ url, name: outputName });
-          container.appendChild(renderImageResult(file, converted, url, outputName));
-        } catch (error) {
-          container.appendChild(renderErrorItem(file.name, readableError(error)));
-        }
-      }
-
-      $("#download-all-images").disabled = state.imageDownloads.length === 0;
+    $("#image-files").addEventListener("change", (event) => addImageWorkspaceFiles(event.target.files || []));
+    ["#image-format", "#image-width", "#image-height", "#image-keep-ratio", "#image-watermark", "#image-watermark-position"]
+      .forEach((selector) => $(selector).addEventListener("input", renderImageWorkspacePreview));
+    $("#image-rotate-left").addEventListener("click", () => rotateSelectedImageWorkspaceItem(-90));
+    $("#image-rotate-right").addEventListener("click", () => rotateSelectedImageWorkspaceItem(90));
+    $("#image-rotate").addEventListener("change", () => setSelectedImageWorkspaceRotation(Number($("#image-rotate").value) || 0));
+    $("#image-flip").addEventListener("change", () => setSelectedImageWorkspaceFlip($("#image-flip").value));
+    $("#image-select-region").addEventListener("click", toggleImageWorkspaceSelectionMode);
+    $("#image-apply-crop").addEventListener("click", applyImageWorkspaceCrop);
+    $("#image-clear-selection").addEventListener("click", clearImageWorkspaceSelection);
+    $("#image-reset-edits").addEventListener("click", resetSelectedImageWorkspaceItem);
+    $("#image-export-current").addEventListener("click", () => exportImageWorkspace("current"));
+    $("#download-all-images").addEventListener("click", () => exportImageWorkspace("all"));
+    $("#image-export-cancel").addEventListener("click", () => {
+      state.imageWorkspaceExportCancelRequested = true;
+      $("#image-export-progress").textContent = "正在取消；目前圖片完成後會停止。";
     });
-
-    $("#download-all-images").addEventListener("click", () => {
-      state.imageDownloads.forEach((item, index) => {
-        window.setTimeout(() => triggerDownload(item.url, item.name), index * 180);
-      });
+    $("#image-ocr-current").addEventListener("click", () => startImageWorkspaceOcr("current"));
+    $("#image-ocr-all").addEventListener("click", () => startImageWorkspaceOcr("all"));
+    $("#image-ocr-region").addEventListener("click", () => startImageWorkspaceOcr("region"));
+    $("#image-ocr-cancel").addEventListener("click", async () => {
+      if (state.imageWorkspaceOcrJobId) await cancelBackendJob(state.imageWorkspaceOcrJobId);
     });
+    $("#image-ocr-copy").addEventListener("click", async () => {
+      await copyText(state.imageWorkspaceOcrText);
+      showToast("已複製辨識文字", "success");
+    });
+    $("#image-ocr-export").addEventListener("click", () => {
+      if (state.imageWorkspaceOcrText) downloadText(state.imageWorkspaceOcrText, "swiftlocal-image-ocr.txt");
+    });
+    $("#image-ocr-clear").addEventListener("click", () => {
+      clearImageWorkspaceOcrResult();
+      renderImageWorkspaceOcrPanel();
+    });
+    bindImageWorkspacePointerSelection();
+    bindImageWorkspaceDropZone();
+    renderImageWorkspace();
   }
 
   async function convertImage(file, options) {
     const bitmap = await createImageBitmap(file);
-    const size = resolveImageSize(bitmap.width, bitmap.height, options.maxWidth, options.maxHeight, options.keepRatio);
-    const canvas = document.createElement("canvas");
+    const sourceWidth = bitmap.width;
+    const sourceHeight = bitmap.height;
+    if (bitmap.width * bitmap.height > 50_000_000) {
+      bitmap.close();
+      throw new Error(`圖片超過 50 MP 安全上限（${bitmap.width}×${bitmap.height}）`);
+    }
     const rotatedSideways = options.rotation === 90 || options.rotation === 270;
-    canvas.width = rotatedSideways ? size.height : size.width;
-    canvas.height = rotatedSideways ? size.width : size.height;
-    const context = canvas.getContext("2d", { alpha: options.format !== "image/jpeg" });
-
-    if (!context) {
+    const transformed = document.createElement("canvas");
+    transformed.width = rotatedSideways ? bitmap.height : bitmap.width;
+    transformed.height = rotatedSideways ? bitmap.width : bitmap.height;
+    const transformedContext = transformed.getContext("2d");
+    if (!transformedContext) {
+      bitmap.close();
       throw new Error("瀏覽器無法建立圖片畫布");
     }
+    drawTransformedImage(transformedContext, bitmap, transformed, options);
+    bitmap.close();
+
+    let working = cropBrowserImageCanvas(transformed, options.crop, "裁切區域");
+    if (options.includeRegion) working = cropBrowserImageCanvas(working, options.selection, "OCR 框選區域");
+    const size = resolveImageSize(working.width, working.height, options.maxWidth, options.maxHeight, options.keepRatio);
+    if (size.width * size.height > 50_000_000) throw new Error("輸出圖片超過 50 MP 安全上限");
+    const canvas = document.createElement("canvas");
+    canvas.width = size.width;
+    canvas.height = size.height;
+    const context = canvas.getContext("2d", { alpha: options.format !== "image/jpeg" });
+    if (!context) throw new Error("瀏覽器無法建立圖片畫布");
 
     if (options.format === "image/jpeg") {
       context.fillStyle = "#ffffff";
       context.fillRect(0, 0, canvas.width, canvas.height);
     }
-
-    drawTransformedImage(context, bitmap, size, canvas, options);
+    context.drawImage(working, 0, 0, canvas.width, canvas.height);
     if (options.watermarkText) {
       drawWatermark(context, canvas, options.watermarkText, options.watermarkPosition);
     }
-    bitmap.close();
 
     const blob = await new Promise((resolve, reject) => {
       canvas.toBlob((result) => {
@@ -1420,19 +1444,35 @@
       }, options.format, options.quality);
     });
 
-    return { blob, width: canvas.width, height: canvas.height };
+    return { blob, width: canvas.width, height: canvas.height, canvas, sourceWidth, sourceHeight };
   }
 
-  function drawTransformedImage(context, bitmap, size, canvas, options) {
+  function drawTransformedImage(context, bitmap, canvas, options) {
     const flipX = options.flip === "horizontal" || options.flip === "both";
     const flipY = options.flip === "vertical" || options.flip === "both";
 
     context.save();
     context.translate(canvas.width / 2, canvas.height / 2);
-    context.rotate((options.rotation * Math.PI) / 180);
     context.scale(flipX ? -1 : 1, flipY ? -1 : 1);
-    context.drawImage(bitmap, -size.width / 2, -size.height / 2, size.width, size.height);
+    context.rotate((options.rotation * Math.PI) / 180);
+    context.drawImage(bitmap, -bitmap.width / 2, -bitmap.height / 2, bitmap.width, bitmap.height);
     context.restore();
+  }
+
+  function cropBrowserImageCanvas(source, rectangle, label) {
+    if (!rectangle) return source;
+    const left = Math.max(0, Math.floor(rectangle.x * source.width));
+    const top = Math.max(0, Math.floor(rectangle.y * source.height));
+    const right = Math.min(source.width, Math.ceil((rectangle.x + rectangle.width) * source.width));
+    const bottom = Math.min(source.height, Math.ceil((rectangle.y + rectangle.height) * source.height));
+    const width = right - left;
+    const height = bottom - top;
+    if (width < 8 || height < 8) throw new Error(`${label}至少需要 8×8 pixels`);
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    canvas.getContext("2d").drawImage(source, left, top, width, height, 0, 0, width, height);
+    return canvas;
   }
 
   function drawWatermark(context, canvas, text, position) {
@@ -1535,6 +1575,597 @@
   function revokeImageUrls() {
     state.imageDownloads.forEach((item) => URL.revokeObjectURL(item.url));
     state.imageDownloads = [];
+    state.imageWorkspaceItems.forEach((item) => {
+      if (item.previewUrl) URL.revokeObjectURL(item.previewUrl);
+    });
+  }
+
+  function revokeImageDownloadUrls() {
+    state.imageDownloads.forEach((item) => URL.revokeObjectURL(item.url));
+    state.imageDownloads = [];
+  }
+
+  function currentImageWorkspaceItem() {
+    return state.imageWorkspaceItems.find((item) => item.id === state.imageWorkspaceSelectedId) || null;
+  }
+
+  function addImageWorkspaceFiles(fileList) {
+    const files = Array.from(fileList || []).filter((file) => {
+      return file.type.startsWith("image/") || /\.(png|jpe?g|webp|gif|bmp|tiff?)$/i.test(file.name);
+    });
+    if (!files.length) {
+      showToast("請選擇支援的圖片檔案", "error");
+      return;
+    }
+    const available = Math.max(0, 100 - state.imageWorkspaceItems.length);
+    if (!available) {
+      showToast("圖片工作區一次最多 100 張圖片", "error");
+      return;
+    }
+    for (const file of files.slice(0, available)) {
+      imageWorkspaceItemId += 1;
+      const item = {
+        id: `image-${imageWorkspaceItemId}`,
+        file,
+        previewUrl: URL.createObjectURL(file),
+        rotation: 0,
+        flip: "none",
+        crop: null,
+        selection: null,
+        sourceWidth: 0,
+        sourceHeight: 0
+      };
+      state.imageWorkspaceItems.push(item);
+      if (!state.imageWorkspaceSelectedId) state.imageWorkspaceSelectedId = item.id;
+    }
+    if (files.length > available) showToast(`只加入前 ${available} 張圖片`, "info");
+    clearImageWorkspaceOcrResult();
+    $("#image-files").value = "";
+    renderImageWorkspace();
+  }
+
+  function renderImageWorkspace() {
+    const items = state.imageWorkspaceItems;
+    const selected = currentImageWorkspaceItem();
+    $("#image-workspace-count").textContent = `${items.length} 張圖片`;
+    $("#image-workspace-file").textContent = selected ? selected.file.name : "尚未選擇圖片";
+    const disabled = !selected;
+    ["#image-rotate-left", "#image-rotate-right", "#image-flip", "#image-select-region", "#image-reset-edits"]
+      .forEach((selector) => { $(selector).disabled = disabled; });
+    $("#image-export-current").disabled = disabled || state.imageWorkspaceExporting;
+    $("#download-all-images").disabled = !items.length || state.imageWorkspaceExporting;
+    $("#image-apply-crop").disabled = !selected || !selected.selection;
+    $("#image-clear-selection").disabled = !selected || !selected.selection;
+    if (selected) {
+      $("#image-rotate").value = String(selected.rotation);
+      $("#image-flip").value = selected.flip;
+    } else {
+      $("#image-rotate").value = "0";
+      $("#image-flip").value = "none";
+    }
+    renderImageWorkspaceThumbnails();
+    renderImageWorkspacePreview();
+    updateImageWorkspaceAvailability();
+    renderImageWorkspaceOcrPanel();
+  }
+
+  function renderImageWorkspaceThumbnails() {
+    const container = $("#image-workspace-thumbnails");
+    const items = state.imageWorkspaceItems;
+    if (!items.length) {
+      container.classList.add("empty");
+      container.textContent = "圖片縮圖會顯示在這裡";
+      return;
+    }
+    container.classList.remove("empty");
+    container.textContent = "";
+    items.forEach((item, index) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = `image-thumbnail${item.id === state.imageWorkspaceSelectedId ? " is-selected" : ""}`;
+      button.setAttribute("aria-label", `選擇第 ${index + 1} 張圖片：${item.file.name}`);
+      const image = document.createElement("img");
+      image.src = item.previewUrl;
+      image.alt = "";
+      const name = document.createElement("span");
+      name.textContent = item.file.name;
+      const meta = document.createElement("small");
+      const edits = [item.rotation ? `${item.rotation}°` : "", item.flip !== "none" ? "已翻轉" : "", item.crop ? "已裁切" : ""]
+        .filter(Boolean).join(" · ");
+      meta.textContent = edits || formatBytes(item.file.size);
+      button.append(image, name, meta);
+      button.addEventListener("click", () => {
+        state.imageWorkspaceSelectedId = item.id;
+        state.imageWorkspaceSelectionMode = false;
+        renderImageWorkspace();
+      });
+      container.appendChild(button);
+    });
+  }
+
+  async function renderImageWorkspacePreview() {
+    const token = ++imageWorkspaceRenderToken;
+    const item = currentImageWorkspaceItem();
+    const stage = $("#image-preview-stage");
+    const media = $("#image-preview-media");
+    const canvas = $("#image-preview-canvas");
+    const empty = $("#image-preview-empty");
+    if (!item) {
+      stage.classList.add("empty");
+      stage.classList.remove("selecting");
+      media.hidden = true;
+      canvas.hidden = true;
+      empty.hidden = false;
+      empty.innerHTML = "<strong>加入圖片開始處理</strong><span>支援多張圖片；所有處理都在這部裝置完成。</span>";
+      $("#image-preview-dimensions").textContent = "—";
+      $("#image-preview-crop").textContent = "尚未裁切";
+      $("#image-preview-selection").textContent = "尚未框選";
+      positionImageWorkspaceSelectionBox();
+      return;
+    }
+    stage.classList.remove("empty");
+    stage.classList.toggle("selecting", state.imageWorkspaceSelectionMode);
+    try {
+      const settings = imageWorkspaceExportSettings();
+      const converted = await convertImage(item.file, {
+        ...settings,
+        format: "image/png",
+        maxWidth: Math.min(settings.maxWidth || 1400, 1400),
+        maxHeight: Math.min(settings.maxHeight || 900, 900),
+        keepRatio: settings.keepRatio,
+        rotation: item.rotation,
+        flip: item.flip,
+        crop: item.crop,
+        selection: null,
+        includeRegion: false
+      });
+      if (token !== imageWorkspaceRenderToken) return;
+      item.sourceWidth = converted.sourceWidth;
+      item.sourceHeight = converted.sourceHeight;
+      canvas.width = converted.width;
+      canvas.height = converted.height;
+      canvas.getContext("2d").drawImage(converted.canvas, 0, 0);
+      media.hidden = false;
+      canvas.hidden = false;
+      empty.hidden = true;
+      $("#image-preview-dimensions").textContent = `${converted.sourceWidth}×${converted.sourceHeight} → 預覽 ${converted.width}×${converted.height}`;
+      $("#image-preview-crop").textContent = item.crop ? "已套用非破壞式裁切" : "尚未裁切";
+      $("#image-preview-selection").textContent = item.selection ? "已有框選區域" : "尚未框選";
+      window.requestAnimationFrame(positionImageWorkspaceSelectionBox);
+    } catch (error) {
+      if (token !== imageWorkspaceRenderToken) return;
+      canvas.hidden = true;
+      media.hidden = true;
+      empty.hidden = false;
+      empty.innerHTML = `<strong>無法預覽圖片</strong><span>${escapeHtml(readableError(error))}</span>`;
+    }
+  }
+
+  function imageWorkspaceExportSettings() {
+    return {
+      format: $("#image-format").value,
+      quality: Number($("#image-quality").value) || 0.85,
+      maxWidth: Number($("#image-width").value) || null,
+      maxHeight: Number($("#image-height").value) || null,
+      keepRatio: $("#image-keep-ratio").checked,
+      watermarkText: $("#image-watermark").value.trim(),
+      watermarkPosition: $("#image-watermark-position").value
+    };
+  }
+
+  function imageWorkspaceOperation(item, includeRegion = false) {
+    return {
+      rotation: item.rotation,
+      flip: item.flip,
+      crop: item.crop,
+      ocrRegion: includeRegion ? item.selection : null
+    };
+  }
+
+  function rotateSelectedImageWorkspaceItem(delta) {
+    const item = currentImageWorkspaceItem();
+    if (!item) return;
+    setSelectedImageWorkspaceRotation((item.rotation + delta + 360) % 360);
+  }
+
+  function setSelectedImageWorkspaceRotation(rotation) {
+    const item = currentImageWorkspaceItem();
+    if (!item || item.rotation === rotation) return;
+    const cleared = Boolean(item.crop || item.selection);
+    item.rotation = rotation;
+    item.crop = null;
+    item.selection = null;
+    if (cleared) showToast("旋轉後已清除舊裁切與框選，避免座標錯置", "info");
+    renderImageWorkspace();
+  }
+
+  function setSelectedImageWorkspaceFlip(flip) {
+    const item = currentImageWorkspaceItem();
+    if (!item || item.flip === flip) return;
+    const cleared = Boolean(item.crop || item.selection);
+    item.flip = flip;
+    item.crop = null;
+    item.selection = null;
+    if (cleared) showToast("翻轉後已清除舊裁切與框選，避免座標錯置", "info");
+    renderImageWorkspace();
+  }
+
+  function toggleImageWorkspaceSelectionMode() {
+    if (!currentImageWorkspaceItem()) return;
+    state.imageWorkspaceSelectionMode = !state.imageWorkspaceSelectionMode;
+    $("#image-select-region").classList.toggle("is-active", state.imageWorkspaceSelectionMode);
+    renderImageWorkspacePreview();
+  }
+
+  function clearImageWorkspaceSelection() {
+    const item = currentImageWorkspaceItem();
+    if (!item) return;
+    item.selection = null;
+    positionImageWorkspaceSelectionBox();
+    renderImageWorkspace();
+  }
+
+  function applyImageWorkspaceCrop() {
+    const item = currentImageWorkspaceItem();
+    if (!item || !item.selection) return;
+    if (!imageWorkspaceSelectionMeetsMinimum(item)) {
+      showToast("裁切區域至少需要 8×8 pixels，請重新框選較大區域", "error", 6000);
+      return;
+    }
+    const selection = item.selection;
+    if (item.crop) {
+      item.crop = {
+        x: item.crop.x + selection.x * item.crop.width,
+        y: item.crop.y + selection.y * item.crop.height,
+        width: selection.width * item.crop.width,
+        height: selection.height * item.crop.height
+      };
+    } else {
+      item.crop = { ...selection };
+    }
+    item.selection = null;
+    state.imageWorkspaceSelectionMode = false;
+    $("#image-select-region").classList.remove("is-active");
+    renderImageWorkspace();
+    showToast("已套用非破壞式裁切；原始圖片沒有被修改", "success");
+  }
+
+  function resetSelectedImageWorkspaceItem() {
+    const item = currentImageWorkspaceItem();
+    if (!item) return;
+    item.rotation = 0;
+    item.flip = "none";
+    item.crop = null;
+    item.selection = null;
+    state.imageWorkspaceSelectionMode = false;
+    $("#image-select-region").classList.remove("is-active");
+    renderImageWorkspace();
+  }
+
+  function bindImageWorkspacePointerSelection() {
+    const stage = $("#image-preview-stage");
+    let dragStart = null;
+    const point = (event) => {
+      const canvas = $("#image-preview-canvas");
+      const rect = canvas.getBoundingClientRect();
+      return {
+        x: Math.max(0, Math.min(1, (event.clientX - rect.left) / Math.max(1, rect.width))),
+        y: Math.max(0, Math.min(1, (event.clientY - rect.top) / Math.max(1, rect.height)))
+      };
+    };
+    stage.addEventListener("pointerdown", (event) => {
+      const item = currentImageWorkspaceItem();
+      if (!item || !state.imageWorkspaceSelectionMode || $("#image-preview-canvas").hidden) return;
+      event.preventDefault();
+      dragStart = point(event);
+      item.selection = { x: dragStart.x, y: dragStart.y, width: 0, height: 0 };
+      stage.setPointerCapture(event.pointerId);
+      positionImageWorkspaceSelectionBox();
+    });
+    stage.addEventListener("pointermove", (event) => {
+      const item = currentImageWorkspaceItem();
+      if (!dragStart || !item) return;
+      const current = point(event);
+      item.selection = {
+        x: Math.min(dragStart.x, current.x),
+        y: Math.min(dragStart.y, current.y),
+        width: Math.abs(current.x - dragStart.x),
+        height: Math.abs(current.y - dragStart.y)
+      };
+      positionImageWorkspaceSelectionBox();
+    });
+    const end = (event) => {
+      const item = currentImageWorkspaceItem();
+      if (!dragStart || !item) return;
+      dragStart = null;
+      if (stage.hasPointerCapture(event.pointerId)) stage.releasePointerCapture(event.pointerId);
+      if (!item.selection || item.selection.width < 0.005 || item.selection.height < 0.005) item.selection = null;
+      renderImageWorkspace();
+    };
+    stage.addEventListener("pointerup", end);
+    stage.addEventListener("pointercancel", end);
+    window.addEventListener("resize", positionImageWorkspaceSelectionBox);
+  }
+
+  function positionImageWorkspaceSelectionBox() {
+    const item = currentImageWorkspaceItem();
+    const box = $("#image-selection-box");
+    const rectangle = $("#image-selection-rect");
+    const canvas = $("#image-preview-canvas");
+    if (!item || !item.selection || canvas.hidden) {
+      box.hidden = true;
+      return;
+    }
+    box.hidden = false;
+    rectangle.setAttribute("x", String(item.selection.x * 1000));
+    rectangle.setAttribute("y", String(item.selection.y * 1000));
+    rectangle.setAttribute("width", String(item.selection.width * 1000));
+    rectangle.setAttribute("height", String(item.selection.height * 1000));
+  }
+
+  function bindImageWorkspaceDropZone() {
+    const stage = $("#image-preview-stage");
+    stage.addEventListener("dragover", (event) => {
+      event.preventDefault();
+      stage.classList.add("drag-over");
+    });
+    stage.addEventListener("dragleave", () => stage.classList.remove("drag-over"));
+    stage.addEventListener("drop", (event) => {
+      event.preventDefault();
+      stage.classList.remove("drag-over");
+      addImageWorkspaceFiles(event.dataTransfer.files || []);
+    });
+  }
+
+  async function exportImageWorkspace(scope) {
+    if (state.imageWorkspaceExporting) return;
+    const selected = currentImageWorkspaceItem();
+    const items = scope === "current" ? (selected ? [selected] : []) : state.imageWorkspaceItems.slice();
+    if (!items.length) {
+      showToast("請先加入圖片", "error");
+      return;
+    }
+    const settings = imageWorkspaceExportSettings();
+    const extension = extensionFromMime(settings.format);
+    if (["tiff", "bmp", "gif"].includes(extension)) {
+      await enqueueImageWorkspaceConvert(items, extension, settings);
+      return;
+    }
+    state.imageWorkspaceExporting = true;
+    state.imageWorkspaceExportCancelRequested = false;
+    $("#image-export-cancel").hidden = false;
+    $("#image-export-progress").textContent = `準備匯出 0 / ${items.length} 張圖片…`;
+    renderImageWorkspace();
+    revokeImageDownloadUrls();
+    const container = $("#image-results");
+    container.classList.remove("empty");
+    container.textContent = "";
+    const usedNames = new Map();
+    let processed = 0;
+    try {
+      for (const item of items) {
+        if (state.imageWorkspaceExportCancelRequested) break;
+        $("#image-export-progress").textContent = `正在匯出第 ${processed + 1} / ${items.length} 張圖片…`;
+        try {
+          const converted = await convertImage(item.file, {
+            ...settings,
+            rotation: item.rotation,
+            flip: item.flip,
+            crop: item.crop,
+            selection: null,
+            includeRegion: false
+          });
+          const stem = stripExtension(item.file.name);
+          const count = (usedNames.get(stem) || 0) + 1;
+          usedNames.set(stem, count);
+          const outputName = `${stem}${count > 1 ? ` (${count})` : ""}.${extension}`;
+          const url = URL.createObjectURL(converted.blob);
+          state.imageDownloads.push({ url, name: outputName });
+          container.appendChild(renderImageResult(item.file, converted, url, outputName));
+        } catch (error) {
+          container.appendChild(renderErrorItem(item.file.name, readableError(error)));
+        }
+        processed += 1;
+        $("#image-export-progress").textContent = `已完成 ${processed} / ${items.length} 張圖片。`;
+      }
+    } finally {
+      const cancelled = state.imageWorkspaceExportCancelRequested;
+      state.imageWorkspaceExporting = false;
+      state.imageWorkspaceExportCancelRequested = false;
+      $("#image-export-cancel").hidden = true;
+      $("#image-export-progress").textContent = cancelled
+        ? `已取消；保留 ${state.imageDownloads.length} 張成功結果。`
+        : `已處理 ${processed} / ${items.length} 張圖片。`;
+      renderImageWorkspace();
+    }
+    state.imageDownloads.forEach((download, index) => {
+      window.setTimeout(() => triggerDownload(download.url, download.name), index * 180);
+    });
+    showToast(`已產生 ${state.imageDownloads.length} 張圖片`, state.imageDownloads.length ? "success" : "error");
+  }
+
+  async function enqueueImageWorkspaceConvert(items, extension, settings) {
+    if (!backendApiAvailable()) await checkBackendHealth();
+    if (!backendApiAvailable()) {
+      showToast("TIFF、BMP、GIF 需要 SwiftLocal 桌面本機服務", "error");
+      return;
+    }
+    const payload = new FormData();
+    payload.append("type", "image-convert");
+    items.forEach((item) => payload.append("files", item.file, item.file.name));
+    payload.append("extension", extension);
+    payload.append("imageOps", JSON.stringify(items.map((item) => imageWorkspaceOperation(item))));
+    payload.append("quality", String(settings.quality));
+    payload.append("maxWidth", settings.maxWidth ? String(settings.maxWidth) : "");
+    payload.append("maxHeight", settings.maxHeight ? String(settings.maxHeight) : "");
+    payload.append("keepRatio", String(settings.keepRatio));
+    payload.append("watermarkText", settings.watermarkText);
+    payload.append("watermarkPosition", settings.watermarkPosition);
+    try {
+      await backendFetch("/jobs", { method: "POST", body: payload });
+      await refreshBackendJobs();
+      showToast("已加入本機圖片匯出佇列", "success");
+    } catch (error) {
+      showToast(readableError(error), "error");
+    }
+  }
+
+  function clearImageWorkspaceOcrResult() {
+    state.imageWorkspaceOcrJobId = null;
+    state.imageWorkspaceOcrLoadedJobId = null;
+    state.imageWorkspaceOcrStatus = "idle";
+    state.imageWorkspaceOcrScope = "";
+    state.imageWorkspaceOcrText = "";
+    state.imageWorkspaceOcrError = "";
+  }
+
+  async function startImageWorkspaceOcr(scope) {
+    const selected = currentImageWorkspaceItem();
+    const items = scope === "all" ? state.imageWorkspaceItems.slice() : selected ? [selected] : [];
+    if (!items.length) {
+      showToast("請先加入圖片", "error");
+      return;
+    }
+    if (scope === "region" && !selected.selection) {
+      showToast("請先按「框選區域」並在預覽上拖曳選取文字", "error", 6000);
+      return;
+    }
+    if (scope === "region" && !imageWorkspaceSelectionMeetsMinimum(selected)) {
+      showToast("OCR 框選區域至少需要 8×8 pixels，請重新框選較大區域", "error", 6000);
+      return;
+    }
+    if (!backendApiAvailable()) await checkBackendHealth();
+    if (!backendApiAvailable() || !isToolAvailable("tesseract")) {
+      state.imageWorkspaceOcrStatus = "failed";
+      state.imageWorkspaceOcrError = "這部電腦尚未準備好圖片 OCR。請到「狀態」頁重新檢查 Tesseract。";
+      renderImageWorkspaceOcrPanel();
+      return;
+    }
+    const payload = new FormData();
+    payload.append("type", "ocr-image");
+    items.forEach((item) => payload.append("files", item.file, item.file.name));
+    payload.append("language", $("#img-backend-ocr-language").value.trim() || "chi_tra+eng");
+    payload.append("imageOps", JSON.stringify(items.map((item) => imageWorkspaceOperation(item, scope === "region"))));
+    state.imageWorkspaceOcrStatus = "queued";
+    state.imageWorkspaceOcrScope = scope;
+    state.imageWorkspaceOcrText = "";
+    state.imageWorkspaceOcrError = "";
+    state.imageWorkspaceOcrLoadedJobId = null;
+    renderImageWorkspaceOcrPanel();
+    try {
+      const job = await backendFetch("/jobs", { method: "POST", body: payload });
+      state.imageWorkspaceOcrJobId = job.id;
+      state.imageWorkspaceOcrStatus = job.status || "queued";
+      await refreshBackendJobs();
+      showToast(scope === "all" ? "已開始辨識全部圖片" : scope === "region" ? "已開始辨識框選區域" : "已開始辨識目前圖片", "success");
+    } catch (error) {
+      state.imageWorkspaceOcrStatus = "failed";
+      state.imageWorkspaceOcrError = workspaceOcrFriendlyError(readableError(error));
+      renderImageWorkspaceOcrPanel();
+    }
+  }
+
+  async function syncImageWorkspaceOcrJob(jobs) {
+    if (!state.imageWorkspaceOcrJobId) return;
+    const job = jobs.find((item) => item.id === state.imageWorkspaceOcrJobId);
+    if (!job) return;
+    state.imageWorkspaceOcrStatus = job.status;
+    if (job.status === "failed") {
+      state.imageWorkspaceOcrError = workspaceOcrFriendlyError(job.error || "");
+    } else if (job.status === "cancelled") {
+      state.imageWorkspaceOcrError = "辨識已取消，原始圖片沒有被修改。";
+    } else if (job.status === "done" && state.imageWorkspaceOcrLoadedJobId !== job.id) {
+      state.imageWorkspaceOcrLoadedJobId = job.id;
+      try {
+        const outputs = await readPdfWorkspaceOcrOutputs(job);
+        const namesByOutput = new Map((job.itemResults || []).map((item) => [item.outputName, item.name]));
+        const text = outputs.map((output) => {
+          const value = String(output.text || "").trim();
+          const sourceName = namesByOutput.get(output.name) || output.name;
+          return outputs.length > 1 ? `=== ${sourceName} ===\n${value}` : value;
+        }).filter(Boolean).join("\n\n");
+        if (!text) throw new Error("OCR 結果為空");
+        state.imageWorkspaceOcrText = `${text}\n`;
+        const failed = (job.itemResults || []).filter((item) => item.status === "failed");
+        state.imageWorkspaceOcrError = failed.length
+          ? `${failed.length} 張圖片未完成：${failed.map((item) => item.name).join("、")}`
+          : "";
+      } catch (error) {
+        state.imageWorkspaceOcrStatus = "failed";
+        state.imageWorkspaceOcrError = workspaceOcrFriendlyError(readableError(error));
+      }
+    }
+    renderImageWorkspaceOcrPanel(job);
+  }
+
+  function renderImageWorkspaceOcrPanel(job = null) {
+    const active = state.imageWorkspaceOcrStatus === "queued" || state.imageWorkspaceOcrStatus === "running";
+    const hasText = Boolean(state.imageWorkspaceOcrText);
+    const hasError = Boolean(state.imageWorkspaceOcrError);
+    const labels = { idle: "尚未辨識", queued: "排隊中", running: "辨識中", done: "已完成", failed: "未能辨識", cancelled: "已取消" };
+    $("#image-ocr-panel").classList.toggle("processing", active);
+    $("#image-ocr-status").textContent = labels[state.imageWorkspaceOcrStatus] || "尚未辨識";
+    let progress = "選擇圖片後，可辨識目前圖片、全部圖片或框選區域。";
+    if (state.imageWorkspaceOcrStatus === "queued") progress = "OCR 已加入本機佇列，等待開始。";
+    if (state.imageWorkspaceOcrStatus === "running") progress = job && job.progress && job.progress.message ? job.progress.message : "正在本機辨識圖片文字。";
+    if (state.imageWorkspaceOcrStatus === "done") progress = job && job.progress && job.progress.message ? job.progress.message : "辨識完成。";
+    if (state.imageWorkspaceOcrStatus === "failed") progress = "辨識未完成；技術詳情已保留在任務紀錄。";
+    if (state.imageWorkspaceOcrStatus === "cancelled") progress = "辨識已取消。";
+    $("#image-ocr-progress").textContent = progress;
+    $("#image-ocr-error").hidden = !hasError;
+    $("#image-ocr-error").textContent = state.imageWorkspaceOcrError;
+    $("#image-ocr-text").hidden = !hasText;
+    $("#image-ocr-text").value = state.imageWorkspaceOcrText;
+    $("#image-ocr-empty").hidden = hasText || hasError;
+    $("#image-ocr-empty").textContent = active ? "正在本機辨識文字…" : "辨識結果會直接顯示在這裡。";
+    $("#image-ocr-copy").disabled = !hasText;
+    $("#image-ocr-export").disabled = !hasText;
+    $("#image-ocr-clear").disabled = !hasText && !hasError && !state.imageWorkspaceOcrJobId;
+    $("#image-ocr-cancel").hidden = !active;
+    updateImageWorkspaceAvailability();
+  }
+
+  function updateImageWorkspaceAvailability() {
+    const selected = currentImageWorkspaceItem();
+    const active = state.imageWorkspaceOcrStatus === "queued" || state.imageWorkspaceOcrStatus === "running";
+    const ocrReady = backendApiAvailable() && isToolAvailable("tesseract");
+    const advancedFormatReady = backendApiAvailable();
+    const ffmpegImageReady = advancedFormatReady && (!electronBridgeAvailable() || isToolAvailable("ffmpeg"));
+    $("#image-ocr-current").disabled = !selected || active || !ocrReady;
+    $("#image-ocr-all").disabled = !state.imageWorkspaceItems.length || active || !ocrReady;
+    $("#image-ocr-region").disabled = !selected || !selected.selection || active || !ocrReady;
+    $$('[data-requires-image-backend]').forEach((option) => { option.disabled = !advancedFormatReady; });
+    $$('[data-requires-image-ffmpeg]').forEach((option) => { option.disabled = !ffmpegImageReady; });
+    const extension = extensionFromMime($("#image-format").value);
+    if ((!advancedFormatReady && ["tiff", "bmp", "gif"].includes(extension)) || (!ffmpegImageReady && ["tiff", "bmp"].includes(extension))) {
+      $("#image-format").value = "image/jpeg";
+    }
+    $("#image-advanced-format-note").textContent = !advancedFormatReady
+      ? "靜態模式可匯出 JPEG、PNG、WebP；TIFF、BMP、GIF 需要 SwiftLocal 本機服務。"
+      : !ffmpegImageReady
+        ? "JPEG、PNG、WebP、GIF 可用；TIFF、BMP 需先在「狀態」頁準備 FFmpeg。"
+        : "所有圖片輸出格式已就緒；原檔永不覆寫。";
+    if (state.imageWorkspaceOcrStatus === "idle") {
+      if (ocrReady) {
+        $("#image-ocr-progress").textContent = "選擇圖片後，可辨識目前圖片、全部圖片或框選區域。";
+      } else if (!backendApiAvailable()) {
+        $("#image-ocr-progress").textContent = "靜態模式可編輯及匯出 JPEG／PNG／WebP；OCR 需要 SwiftLocal 桌面本機服務。";
+      } else if (!isToolAvailable("tesseract")) {
+        $("#image-ocr-progress").textContent = "OCR 暫停使用：本機尚未偵測到 Tesseract，請到「狀態」頁重新檢查。";
+      }
+    }
+  }
+
+  function imageWorkspaceSelectionMeetsMinimum(item) {
+    if (!item || !item.selection || !item.sourceWidth || !item.sourceHeight) return false;
+    const sideways = item.rotation === 90 || item.rotation === 270;
+    let width = sideways ? item.sourceHeight : item.sourceWidth;
+    let height = sideways ? item.sourceWidth : item.sourceHeight;
+    if (item.crop) {
+      width *= item.crop.width;
+      height *= item.crop.height;
+    }
+    return item.selection.width * width >= 8 && item.selection.height * height >= 8;
   }
 
   function bindPdfTool() {
@@ -1835,6 +2466,7 @@
     state.pdfWorkspaceSelectedId = null;
     pdfWorkspacePreviewCache.clear();
     pdfWorkspacePreviewToken += 1;
+    clearPdfWorkspaceOcrResult();
     renderPdfWorkspace();
   }
 
@@ -1862,6 +2494,7 @@
       state.pdfWorkspaceRedo = [];
       state.pdfWorkspaceSelectedId = null;
       pdfWorkspacePreviewCache.clear();
+      clearPdfWorkspaceOcrResult();
     }
     renderPdfWorkspace();
     setStatus("#pdf-workspace-status", "正在讀取 PDF…");
@@ -1986,6 +2619,25 @@
       if (index < 0) return;
       mutatePdfWorkspace((pages) => { pages[index].rotation = (pages[index].rotation + 90) % 360; });
     });
+    $("#pdf-workspace-ocr-page").addEventListener("click", () => startPdfWorkspaceOcr("page"));
+    $("#pdf-workspace-ocr-document").addEventListener("click", () => startPdfWorkspaceOcr("document"));
+    $("#pdf-workspace-ocr-copy").addEventListener("click", async () => {
+      await copyText(state.pdfWorkspaceOcrText);
+      showToast("已複製辨識文字", "success");
+    });
+    $("#pdf-workspace-ocr-export").addEventListener("click", () => {
+      if (!state.pdfWorkspaceOcrText) return;
+      const stem = (state.pdfWorkspaceOcrFileName || "pdf").replace(/\.pdf$/i, "");
+      const suffix = state.pdfWorkspaceOcrScope === "page" ? "_current-page" : "";
+      downloadText(state.pdfWorkspaceOcrText, `${stem}${suffix}_ocr.txt`);
+    });
+    $("#pdf-workspace-ocr-clear").addEventListener("click", () => {
+      clearPdfWorkspaceOcrResult();
+      renderPdfWorkspaceOcrPanel();
+    });
+    $("#pdf-workspace-ocr-cancel").addEventListener("click", async () => {
+      if (state.pdfWorkspaceOcrJobId) await cancelBackendJob(state.pdfWorkspaceOcrJobId);
+    });
 
     const grid = $("#pdf-workspace-grid");
     let draggedIndex = -1;
@@ -2070,6 +2722,184 @@
     renderPdfWorkspace();
   }
 
+  function clearPdfWorkspaceOcrResult() {
+    state.pdfWorkspaceOcrJobId = null;
+    state.pdfWorkspaceOcrLoadedJobId = null;
+    state.pdfWorkspaceOcrStatus = "idle";
+    state.pdfWorkspaceOcrScope = "";
+    state.pdfWorkspaceOcrFileName = "";
+    state.pdfWorkspaceOcrText = "";
+    state.pdfWorkspaceOcrError = "";
+  }
+
+  function selectedPdfWorkspaceSource() {
+    const page = state.pdfWorkspacePages.find((item) => item.id === state.pdfWorkspaceSelectedId);
+    if (!page || page.blank || !page.sourceFile) return null;
+    const sourcePages = state.pdfWorkspacePages.filter((item) => item.sourceId === page.sourceId && !item.blank);
+    return { page, sourcePages };
+  }
+
+  async function startPdfWorkspaceOcr(scope) {
+    const selection = selectedPdfWorkspaceSource();
+    if (!selection) {
+      showToast("請先選擇一個 PDF 頁面", "error");
+      return;
+    }
+    if (!backendApiAvailable()) await checkBackendHealth();
+    if (!backendApiAvailable()) {
+      showToast("OCR 需要 SwiftLocal 桌面本機服務", "error");
+      return;
+    }
+    if (!isToolAvailable("tesseract")) {
+      state.pdfWorkspaceOcrError = "這部電腦尚未準備好 OCR。請到「狀態」頁重新檢查本機工具。";
+      state.pdfWorkspaceOcrStatus = "failed";
+      renderPdfWorkspaceOcrPanel();
+      return;
+    }
+    const tesseract = state.detectedTools && state.detectedTools.tesseract;
+    if (tesseract && tesseract.languages && tesseract.hasChiTra === false) {
+      state.pdfWorkspaceOcrError = "缺少繁體中文辨識資料（chi_tra）。請先在 Full／Portable 資源中補齊語言包。";
+      state.pdfWorkspaceOcrStatus = "failed";
+      renderPdfWorkspaceOcrPanel();
+      return;
+    }
+    const sourcePageCount = new Set(selection.sourcePages.map((item) => item.pageIndex)).size;
+    if (scope === "document" && sourcePageCount > 100) {
+      showToast("整份 PDF OCR 一次最多 100 頁；請先拆分文件。", "error", 6000);
+      return;
+    }
+
+    const payload = new FormData();
+    payload.append("type", "ocr-pdf");
+    payload.append("files", selection.page.sourceFile, selection.page.sourceFile.name);
+    payload.append("language", "chi_tra+eng");
+    payload.append("maxPages", String(Math.max(1, sourcePageCount)));
+    if (scope === "page") payload.append("pages", String(selection.page.pageIndex + 1));
+
+    state.pdfWorkspaceOcrStatus = "queued";
+    state.pdfWorkspaceOcrScope = scope;
+    state.pdfWorkspaceOcrFileName = selection.page.fileName;
+    state.pdfWorkspaceOcrText = "";
+    state.pdfWorkspaceOcrError = "";
+    state.pdfWorkspaceOcrLoadedJobId = null;
+    renderPdfWorkspaceOcrPanel();
+    try {
+      const job = await backendFetch("/jobs", { method: "POST", body: payload });
+      state.pdfWorkspaceOcrJobId = job.id;
+      state.pdfWorkspaceOcrStatus = job.status || "queued";
+      renderPdfWorkspaceOcrPanel();
+      await refreshBackendJobs();
+      showToast(scope === "page" ? "已開始辨識目前頁面" : "已開始辨識整份 PDF", "success");
+    } catch (error) {
+      state.pdfWorkspaceOcrStatus = "failed";
+      state.pdfWorkspaceOcrError = workspaceOcrFriendlyError(readableError(error));
+      renderPdfWorkspaceOcrPanel();
+    }
+  }
+
+  function workspaceOcrFriendlyError(errorText) {
+    const parts = splitJobErrorParts(errorText);
+    const summary = parts.summary || "無法辨識此 PDF，請確認文件包含可讀取的掃描頁面。";
+    return parts.suggestion ? `${summary}\n建議：${parts.suggestion}` : summary;
+  }
+
+  async function readPdfWorkspaceOcrOutputs(job) {
+    if (electronBridgeAvailable() && typeof window.swiftLocalBackend.readJobTextOutputs === "function") {
+      return window.swiftLocalBackend.readJobTextOutputs(job.id);
+    }
+    const outputs = (job.outputPaths || []).filter((item) => item.url && /\.txt$/i.test(item.name || ""));
+    const token = await getBackendSessionToken();
+    const results = [];
+    for (const output of outputs) {
+      const response = await fetch(`${BACKEND_ORIGIN}${output.url}`, {
+        headers: { "X-SwiftLocal-Token": token }
+      });
+      if (!response.ok) throw new Error("無法讀取 OCR 文字結果");
+      results.push({ name: output.name, text: await response.text() });
+    }
+    return results;
+  }
+
+  async function syncPdfWorkspaceOcrJob(jobs) {
+    if (!state.pdfWorkspaceOcrJobId) return;
+    const job = jobs.find((item) => item.id === state.pdfWorkspaceOcrJobId);
+    if (!job) return;
+    state.pdfWorkspaceOcrStatus = job.status;
+    if (job.status === "failed") {
+      state.pdfWorkspaceOcrError = workspaceOcrFriendlyError(job.error || "");
+    } else if (job.status === "cancelled") {
+      state.pdfWorkspaceOcrError = "辨識已取消，原始 PDF 沒有被修改。";
+    } else if (job.status === "done" && state.pdfWorkspaceOcrLoadedJobId !== job.id) {
+      state.pdfWorkspaceOcrLoadedJobId = job.id;
+      try {
+        const outputs = await readPdfWorkspaceOcrOutputs(job);
+        const text = outputs.map((item) => {
+          const value = String(item.text || "").trim();
+          return outputs.length > 1 ? `=== ${item.name} ===\n${value}` : value;
+        }).filter(Boolean).join("\n\n");
+        if (!text) throw new Error("OCR 結果為空");
+        state.pdfWorkspaceOcrText = `${text}\n`;
+        state.pdfWorkspaceOcrError = "";
+      } catch (error) {
+        state.pdfWorkspaceOcrStatus = "failed";
+        state.pdfWorkspaceOcrError = workspaceOcrFriendlyError(readableError(error));
+      }
+    }
+    renderPdfWorkspaceOcrPanel(job);
+  }
+
+  function renderPdfWorkspaceOcrPanel(job = null) {
+    const panel = $("#pdf-workspace-ocr-panel");
+    if (!panel) return;
+    const selection = selectedPdfWorkspaceSource();
+    const active = state.pdfWorkspaceOcrStatus === "queued" || state.pdfWorkspaceOcrStatus === "running";
+    const hasText = Boolean(state.pdfWorkspaceOcrText);
+    const hasError = Boolean(state.pdfWorkspaceOcrError);
+    const statusLabels = {
+      idle: "尚未辨識",
+      queued: "排隊中",
+      running: "辨識中",
+      done: "已完成",
+      failed: "未能辨識",
+      cancelled: "已取消"
+    };
+    panel.classList.toggle("processing", active);
+    panel.classList.toggle("empty", !hasText && !hasError);
+    $("#pdf-workspace-ocr-status").textContent = statusLabels[state.pdfWorkspaceOcrStatus] || "尚未辨識";
+    $("#pdf-workspace-ocr-scope").textContent = state.pdfWorkspaceOcrScope === "page"
+      ? `${state.pdfWorkspaceOcrFileName} · 目前頁面 · 繁體中文 + English`
+      : state.pdfWorkspaceOcrScope === "document"
+        ? `${state.pdfWorkspaceOcrFileName} · 整份 PDF · 繁體中文 + English`
+        : "繁體中文 + English";
+
+    let progressText = "選擇頁面後，可直接辨識目前頁面或整份 PDF。";
+    if (state.pdfWorkspaceOcrStatus === "queued") progressText = "OCR 已加入本機佇列，等待開始。";
+    if (state.pdfWorkspaceOcrStatus === "running") {
+      const progress = job && job.progress;
+      progressText = progress && progress.message ? progress.message : "正在辨識，PDF 工作區仍可繼續瀏覽。";
+    }
+    if (state.pdfWorkspaceOcrStatus === "done") progressText = "辨識完成，文字可直接選取、複製或匯出。";
+    if (state.pdfWorkspaceOcrStatus === "failed") progressText = "辨識未完成；技術詳情已保留在任務紀錄。";
+    if (state.pdfWorkspaceOcrStatus === "cancelled") progressText = "辨識已取消。";
+    $("#pdf-workspace-ocr-progress").textContent = progressText;
+
+    const error = $("#pdf-workspace-ocr-error");
+    error.hidden = !hasError;
+    error.textContent = state.pdfWorkspaceOcrError;
+    const textArea = $("#pdf-workspace-ocr-text");
+    textArea.hidden = !hasText;
+    textArea.value = state.pdfWorkspaceOcrText;
+    const empty = $("#pdf-workspace-ocr-empty");
+    empty.hidden = hasText || hasError;
+    empty.textContent = active ? "正在本機辨識文字…" : "OCR 完成後，文字會直接顯示在這裡。";
+    $("#pdf-workspace-ocr-copy").disabled = !hasText;
+    $("#pdf-workspace-ocr-export").disabled = !hasText;
+    $("#pdf-workspace-ocr-clear").disabled = !hasText && !hasError && !state.pdfWorkspaceOcrJobId;
+    $("#pdf-workspace-ocr-cancel").hidden = !active;
+    $("#pdf-workspace-ocr-page").disabled = state.pdfWorkspaceLoading || active || !selection;
+    $("#pdf-workspace-ocr-document").disabled = state.pdfWorkspaceLoading || active || !selection;
+  }
+
   function pdfRotationClass(rotation) {
     const normalized = ((Number(rotation) % 360) + 360) % 360;
     return `pdf-rotation-${[0, 90, 180, 270].includes(normalized) ? normalized : 0}`;
@@ -2095,6 +2925,7 @@
     $("#pdf-workspace-clear").disabled = state.pdfWorkspaceLoading || !pages.length;
     $("#pdf-workspace-add-files").disabled = state.pdfWorkspaceLoading;
     $("#pdf-workspace-add-blank").disabled = state.pdfWorkspaceLoading;
+    renderPdfWorkspaceOcrPanel();
     const grid = $("#pdf-workspace-grid");
     if (!pages.length) {
       grid.classList.add("empty");
@@ -3649,11 +4480,6 @@
       updateMediaAdvancedControls();
     }
 
-    // 圖片面板
-    $("#img-backend-job-type").addEventListener("change", updateImgBackendJobControls);
-    bindFileDropZone("img-backend-drop", "img-backend-files", "img-backend-selected-files", "imgBackendFiles");
-    $("#img-backend-form").addEventListener("submit", enqueueImgBackendJob);
-
     $$("[data-tool-pick]").forEach((button) => {
       button.addEventListener("click", () => pickBackendToolPath(button.dataset.toolPick));
     });
@@ -3667,7 +4493,7 @@
 
     updateDesktopOutputDirVisibility();
     checkBackendHealth();
-    updateImgBackendJobControls();
+    updateImageWorkspaceAvailability();
   }
 
   function updateDesktopOutputDirVisibility() {
@@ -3882,6 +4708,7 @@
     });
     renderSystemStatusDashboard();
     updatePdfControls();
+    updateImageWorkspaceAvailability();
   }
 
   function renderSystemStatusDashboard(mode = "ready") {
@@ -4084,18 +4911,6 @@
     return "";
   }
 
-  function updateImgBackendJobControls() {
-    const type = $("#img-backend-job-type").value;
-    $(".img-backend-image-format-row").style.display = type === "image-convert" ? "" : "none";
-    $(".img-backend-language-row").style.display = type === "ocr-image" ? "" : "none";
-    const filesInput = $("#img-backend-files");
-    if (filesInput) {
-      filesInput.accept = type === "ocr-image"
-        ? ".png,.jpg,.jpeg,.tif,.tiff,.bmp,.webp"
-        : ".jpg,.jpeg,.png,.webp,.tiff,.tif,.bmp,.gif";
-    }
-  }
-
   async function pickBackendToolPath(key) {
     const toolName = backendToolLabel(key);
     if (!electronBridgeAvailable()) {
@@ -4204,27 +5019,6 @@
     }
   }
 
-  async function enqueueImgBackendJob(event) {
-    event.preventDefault();
-    if (!backendApiAvailable()) await checkBackendHealth();
-    if (!backendApiAvailable()) { showToast("請先啟動 FastAPI 後端", "error"); return; }
-    if (!state.imgBackendFiles.length) { showToast("請先選擇輸入檔案", "error"); return; }
-    const type = $("#img-backend-job-type").value;
-    const payload = new FormData();
-    payload.append("type", type);
-    state.imgBackendFiles.forEach((file) => payload.append("files", file, file.name));
-    if (type === "image-convert") payload.append("extension", $("#img-backend-image-format").value);
-    if (type === "ocr-image") payload.append("language", $("#img-backend-ocr-language").value.trim() || "chi_tra+eng");
-    try {
-      await backendFetch("/jobs", { method: "POST", body: payload });
-      await refreshBackendJobs();
-      setStatus("#img-backend-status", "已加入佇列");
-      showToast("已加入後端佇列", "success");
-    } catch (error) {
-      showToast(readableError(error), "error");
-    }
-  }
-
   function updateMediaAdvancedControls() {
     const ext = ($("#media-output-extension") && $("#media-output-extension").value) || "";
     const gifRow = $(".media-gif-fps-row");
@@ -4280,6 +5074,8 @@
     try {
       const jobs = await backendFetch("/jobs");
       state.backendJobs = jobs;
+      await syncPdfWorkspaceOcrJob(jobs);
+      await syncImageWorkspaceOcrJob(jobs);
       await processWorkflowRuns(jobs);
       renderGlobalTaskCenter();
       renderBackendJobs(jobs);
@@ -4695,7 +5491,10 @@
     if (job.status === "running" || job.status === "queued") {
       const progress = document.createElement("div");
       progress.className = `task-progress ${job.status}`;
-      progress.innerHTML = `<span></span><small>${job.status === "running" ? "正在由本機工具處理" : "等待前方任務完成"}</small>`;
+      const progressMessage = job.progress && job.progress.message
+        ? job.progress.message
+        : job.status === "running" ? "正在由本機工具處理" : "等待前方任務完成";
+      progress.innerHTML = `<span></span><small>${escapeHtml(progressMessage)}</small>`;
       meta.insertAdjacentElement("afterend", progress);
     }
     return card;
@@ -4845,6 +5644,22 @@
     spaceLine.textContent = formatJobSpaceSummary(job);
     div.appendChild(spaceLine);
 
+    if ((job.status === "queued" || job.status === "running") && job.progress) {
+      const current = Math.max(0, Number(job.progress.current) || 0);
+      const total = Math.max(current, Number(job.progress.total) || 0);
+      const percent = total ? Math.min(100, Math.round((current / total) * 100)) : 0;
+      const progress = document.createElement("div");
+      progress.className = "job-inline-progress";
+      const meter = document.createElement("progress");
+      meter.max = 100;
+      meter.value = percent;
+      meter.setAttribute("aria-label", `任務進度 ${percent}%`);
+      const message = document.createElement("small");
+      message.textContent = job.progress.message || `${current} / ${total}`;
+      progress.append(meter, message);
+      div.appendChild(progress);
+    }
+
     if (job.outputDir) {
       const outDir = document.createElement("small");
       outDir.className = "job-output-dir";
@@ -4873,6 +5688,24 @@
       outputsDiv.appendChild(placeholder);
     }
     div.appendChild(outputsDiv);
+
+    if (Array.isArray(job.itemResults) && job.itemResults.length) {
+      const itemResults = document.createElement("div");
+      itemResults.className = "job-item-results";
+      job.itemResults.forEach((item) => {
+        const row = document.createElement("div");
+        row.className = `job-item-result ${item.status === "done" ? "done" : "failed"}`;
+        const label = document.createElement("strong");
+        label.textContent = item.name || `圖片 ${Number(item.index || 0) + 1}`;
+        const detail = document.createElement("span");
+        detail.textContent = item.status === "done"
+          ? `完成${item.outputName ? ` · ${item.outputName}` : ""}`
+          : `未完成${item.error ? ` · ${item.error}` : ""}`;
+        row.append(label, detail);
+        itemResults.appendChild(row);
+      });
+      div.appendChild(itemResults);
+    }
 
     if (job.status === "failed" || job.status === "cancelled") {
       div.appendChild(buildJobFailureDetails(job));
@@ -5179,7 +6012,14 @@
         crop: String(formData.get("crop") || ""),
         start: String(formData.get("start") || ""),
         duration: String(formData.get("duration") || ""),
-        gifFps: String(formData.get("gifFps") || "")
+        gifFps: String(formData.get("gifFps") || ""),
+        imageOps: String(formData.get("imageOps") || ""),
+        quality: String(formData.get("quality") || ""),
+        maxWidth: String(formData.get("maxWidth") || ""),
+        maxHeight: String(formData.get("maxHeight") || ""),
+        keepRatio: String(formData.get("keepRatio") || ""),
+        watermarkText: String(formData.get("watermarkText") || ""),
+        watermarkPosition: String(formData.get("watermarkPosition") || "")
       }
     };
   }
@@ -5430,13 +6270,15 @@
   }
 
   function extensionFromMime(mime) {
-    if (mime === "image/png") {
-      return "png";
-    }
-    if (mime === "image/webp") {
-      return "webp";
-    }
-    return "jpg";
+    const formats = {
+      "image/jpeg": "jpg",
+      "image/png": "png",
+      "image/webp": "webp",
+      "image/tiff": "tiff",
+      "image/bmp": "bmp",
+      "image/gif": "gif"
+    };
+    return formats[mime] || "jpg";
   }
 
   function stripExtension(filename) {

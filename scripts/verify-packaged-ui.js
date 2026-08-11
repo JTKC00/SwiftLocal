@@ -1,6 +1,12 @@
 "use strict";
 
+const fs = require("node:fs");
+const path = require("node:path");
+
 const endpoint = process.argv[2] || "http://127.0.0.1:9222/json";
+const ocrFixturePath = process.argv[3] || "";
+const ocrOutputDir = process.argv[4] || "";
+const imageFixturePath = process.argv[5] || "";
 
 function contrastRatio(rgbA, rgbB) {
   const parse = (value) => {
@@ -87,6 +93,16 @@ async function evaluateWhenReady(send, expression) {
   throw lastError || new Error("renderer execution context 未就緒");
 }
 
+async function waitForValue(send, expression, predicate, timeoutMs = 45000) {
+  const started = Date.now();
+  while (Date.now() - started < timeoutMs) {
+    const value = await evaluate(send, expression);
+    if (predicate(value)) return value;
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  throw new Error(`等待 UI 狀態逾時：${expression}`);
+}
+
 async function main(debuggerEndpoint = endpoint) {
   const debuggerClient = await connectDebugger(debuggerEndpoint);
   try {
@@ -149,11 +165,232 @@ async function main(debuggerEndpoint = endpoint) {
       throw new Error(`PDF 主入口導航失敗：${JSON.stringify(pdf)}`);
     }
 
+    const workspaceOcr = await evaluate(debuggerClient.send, `(async () => {
+      const mode = document.querySelector('#pdf-mode');
+      mode.value = 'workspace';
+      mode.dispatchEvent(new Event('change', { bubbles: true }));
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      const workspace = document.querySelector('#pdf-workspace');
+      const preview = document.querySelector('#pdf-live-preview');
+      const resultPanel = document.querySelector('#pdf-workspace-ocr-panel');
+      const grid = document.querySelector('#pdf-workspace-grid');
+      const pageAction = document.querySelector('#pdf-workspace-ocr-page');
+      const documentAction = document.querySelector('#pdf-workspace-ocr-document');
+      const resultText = document.querySelector('#pdf-workspace-ocr-text');
+      const previewRect = preview?.getBoundingClientRect();
+      const resultRect = resultPanel?.getBoundingClientRect();
+      const gridRect = grid?.getBoundingClientRect();
+      return {
+        visible: Boolean(workspace && !workspace.hidden),
+        pageAction: pageAction?.textContent?.trim(),
+        documentAction: documentAction?.textContent?.trim(),
+        languageVisible: workspace?.textContent?.includes('繁體中文 + English'),
+        resultReadonly: Boolean(resultText?.readOnly),
+        resultPanelVisible: Boolean(resultPanel && getComputedStyle(resultPanel).display !== 'none'),
+        resultBesidePreview: Boolean(previewRect && resultRect && resultRect.left > previewRect.left),
+        thumbnailsBelow: Boolean(previewRect && gridRect && gridRect.top >= previewRect.bottom)
+      };
+    })()`);
+    if (!workspaceOcr.visible) throw new Error("PDF 工作區未顯示");
+    if (workspaceOcr.pageAction !== "目前頁面" || workspaceOcr.documentAction !== "整份 PDF") {
+      throw new Error(`OCR actions 異常：${JSON.stringify(workspaceOcr)}`);
+    }
+    if (!workspaceOcr.languageVisible || !workspaceOcr.resultReadonly || !workspaceOcr.resultPanelVisible) {
+      throw new Error(`OCR result panel 異常：${JSON.stringify(workspaceOcr)}`);
+    }
+    if (!workspaceOcr.resultBesidePreview || !workspaceOcr.thumbnailsBelow) {
+      throw new Error(`OCR workspace layout 異常：${JSON.stringify(workspaceOcr)}`);
+    }
+
+    const imageWorkspace = await evaluate(debuggerClient.send, `(async () => {
+      document.querySelector('[data-panel="image-panel"]').click();
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      const panel = document.querySelector('#image-panel');
+      const preview = document.querySelector('#image-preview-stage');
+      const inspector = document.querySelector('.image-workspace-inspector');
+      const thumbnails = document.querySelector('#image-workspace-thumbnails');
+      const previewRect = preview?.getBoundingClientRect();
+      const inspectorRect = inspector?.getBoundingClientRect();
+      const thumbnailRect = thumbnails?.getBoundingClientRect();
+      return {
+        active: panel?.classList.contains('is-active'),
+        ariaHidden: panel?.getAttribute('aria-hidden'),
+        heading: document.querySelector('#panel-title')?.textContent?.trim(),
+        selectAction: document.querySelector('#image-select-region')?.textContent?.trim(),
+        cropAction: document.querySelector('#image-apply-crop')?.textContent?.trim(),
+        ocrActions: [
+          document.querySelector('#image-ocr-current')?.textContent?.trim(),
+          document.querySelector('#image-ocr-all')?.textContent?.trim(),
+          document.querySelector('#image-ocr-region')?.textContent?.trim()
+        ],
+        resultReadonly: Boolean(document.querySelector('#image-ocr-text')?.readOnly),
+        inspectorBesidePreview: Boolean(previewRect && inspectorRect && (innerWidth <= 940 || inspectorRect.left > previewRect.left)),
+        thumbnailsBelow: Boolean(previewRect && thumbnailRect && thumbnailRect.top >= previewRect.bottom)
+      };
+    })()`);
+    if (!imageWorkspace.active || imageWorkspace.ariaHidden !== "false" || imageWorkspace.heading !== "圖片轉換") {
+      throw new Error(`圖片工作區導航失敗：${JSON.stringify(imageWorkspace)}`);
+    }
+    if (imageWorkspace.selectAction !== "▣ 框選區域" || imageWorkspace.cropAction !== "套用裁切") {
+      throw new Error(`圖片編輯 actions 異常：${JSON.stringify(imageWorkspace)}`);
+    }
+    if (imageWorkspace.ocrActions.join("|") !== "目前圖片|全部圖片|辨識框選" || !imageWorkspace.resultReadonly) {
+      throw new Error(`圖片 OCR actions 異常：${JSON.stringify(imageWorkspace)}`);
+    }
+    if (!imageWorkspace.inspectorBesidePreview || !imageWorkspace.thumbnailsBelow) {
+      throw new Error(`圖片工作區 layout 異常：${JSON.stringify(imageWorkspace)}`);
+    }
+
+    if (imageFixturePath) {
+      await evaluate(debuggerClient.send, `document.querySelector('[data-clear-panel="image-panel"]').click()`);
+      if (ocrOutputDir) {
+        await evaluate(
+          debuggerClient.send,
+          `window.swiftLocalBackend.setDefaultOutputDir(${JSON.stringify(ocrOutputDir)})`
+        );
+      }
+      const documentNode = await debuggerClient.send("DOM.getDocument", { depth: 1 });
+      const inputNode = await debuggerClient.send("DOM.querySelector", {
+        nodeId: documentNode.root.nodeId,
+        selector: "#image-files"
+      });
+      if (!inputNode.nodeId) throw new Error("找不到圖片 file input");
+      await debuggerClient.send("DOM.setFileInputFiles", {
+        nodeId: inputNode.nodeId,
+        files: [imageFixturePath]
+      });
+      const preview = await waitForValue(
+        debuggerClient.send,
+        `({count: document.querySelector('#image-workspace-count')?.textContent || '', hidden: document.querySelector('#image-preview-canvas')?.hidden, dimensions: document.querySelector('#image-preview-dimensions')?.textContent || ''})`,
+        (value) => value.count === "1 張圖片" && value.hidden === false && /\d+×\d+/.test(value.dimensions)
+      );
+
+      await evaluate(debuggerClient.send, `document.querySelector('#image-select-region').click()`);
+      const rect = await evaluate(debuggerClient.send, `(() => {
+        const value = document.querySelector('#image-preview-canvas').getBoundingClientRect();
+        return {left: value.left, top: value.top, width: value.width, height: value.height};
+      })()`);
+      const startX = rect.left + rect.width * 0.05;
+      const startY = rect.top + rect.height * 0.08;
+      const endX = rect.left + rect.width * 0.95;
+      const endY = rect.top + rect.height * 0.72;
+      await debuggerClient.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: startX, y: startY });
+      await debuggerClient.send("Input.dispatchMouseEvent", { type: "mousePressed", x: startX, y: startY, button: "left", clickCount: 1 });
+      await debuggerClient.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: endX, y: endY, button: "left" });
+      await debuggerClient.send("Input.dispatchMouseEvent", { type: "mouseReleased", x: endX, y: endY, button: "left", clickCount: 1 });
+      await waitForValue(
+        debuggerClient.send,
+        `({cropDisabled: document.querySelector('#image-apply-crop')?.disabled, regionDisabled: document.querySelector('#image-ocr-region')?.disabled, selection: document.querySelector('#image-preview-selection')?.textContent || ''})`,
+        (value) => value.cropDisabled === false && value.regionDisabled === false && /已有框選/.test(value.selection)
+      );
+
+      await evaluate(debuggerClient.send, `document.querySelector('#image-apply-crop').click()`);
+      await waitForValue(
+        debuggerClient.send,
+        `document.querySelector('#image-preview-crop')?.textContent || ''`,
+        (value) => /已套用非破壞式裁切/.test(value)
+      );
+      await evaluate(debuggerClient.send, `document.querySelector('#image-rotate-right').click()`);
+      const cleared = await waitForValue(
+        debuggerClient.send,
+        `({crop: document.querySelector('#image-preview-crop')?.textContent || '', selection: document.querySelector('#image-preview-selection')?.textContent || ''})`,
+        (value) => value.crop === "尚未裁切" && value.selection === "尚未框選"
+      );
+      await evaluate(debuggerClient.send, `document.querySelector('#image-reset-edits').click()`);
+
+      await evaluate(debuggerClient.send, `document.querySelector('#image-select-region').click()`);
+      const currentRect = await evaluate(debuggerClient.send, `(() => {
+        const value = document.querySelector('#image-preview-canvas').getBoundingClientRect();
+        return {left: value.left, top: value.top, width: value.width, height: value.height};
+      })()`);
+      const ocrStartX = currentRect.left + currentRect.width * 0.03;
+      const ocrStartY = currentRect.top + currentRect.height * 0.05;
+      const ocrEndX = currentRect.left + currentRect.width * 0.97;
+      const ocrEndY = currentRect.top + currentRect.height * 0.72;
+      await debuggerClient.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: ocrStartX, y: ocrStartY });
+      await debuggerClient.send("Input.dispatchMouseEvent", { type: "mousePressed", x: ocrStartX, y: ocrStartY, button: "left", clickCount: 1 });
+      await debuggerClient.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: ocrEndX, y: ocrEndY, button: "left" });
+      await debuggerClient.send("Input.dispatchMouseEvent", { type: "mouseReleased", x: ocrEndX, y: ocrEndY, button: "left", clickCount: 1 });
+      await waitForValue(
+        debuggerClient.send,
+        `document.querySelector('#image-ocr-region')?.disabled`,
+        (value) => value === false
+      );
+      await evaluate(debuggerClient.send, `document.querySelector('#image-ocr-region').click()`);
+      const result = await waitForValue(
+        debuggerClient.send,
+        `({status: document.querySelector('#image-ocr-status')?.textContent || '', text: document.querySelector('#image-ocr-text')?.value || '', error: document.querySelector('#image-ocr-error')?.textContent || ''})`,
+        (value) => value.status === "已完成" || value.status === "未能辨識",
+        60000
+      );
+      if (result.status !== "已完成") {
+        throw new Error(`packaged 圖片框選 OCR 失敗：${result.error || JSON.stringify(result)}`);
+      }
+      if (!/香港特別行政區/.test(result.text) || !/HONG KONG/i.test(result.text)) {
+        throw new Error(`packaged 圖片框選 OCR 中英結果不完整：${result.text.slice(0, 500)}`);
+      }
+      if (ocrOutputDir) {
+        await evaluate(debuggerClient.send, `document.querySelector('#image-ocr-panel').scrollIntoView({block: 'center'})`);
+        const screenshot = await debuggerClient.send("Page.captureScreenshot", {
+          format: "png",
+          captureBeyondViewport: false
+        });
+        fs.mkdirSync(ocrOutputDir, { recursive: true });
+        const screenshotPath = path.join(ocrOutputDir, "packaged-image-workspace.png");
+        fs.writeFileSync(screenshotPath, Buffer.from(screenshot.data, "base64"));
+        console.log(`OK packaged image workspace screenshot (${screenshotPath})`);
+      }
+      console.log(`OK packaged image immediate preview (${preview.dimensions})`);
+      console.log(`OK packaged non-destructive crop and rotate-clears-selection (${JSON.stringify(cleared)})`);
+      console.log("OK packaged selected-region chi_tra+eng OCR in same workspace");
+    }
+
+    if (ocrFixturePath) {
+      if (ocrOutputDir) {
+        await evaluate(
+          debuggerClient.send,
+          `window.swiftLocalBackend.setDefaultOutputDir(${JSON.stringify(ocrOutputDir)})`
+        );
+      }
+      const documentNode = await debuggerClient.send("DOM.getDocument", { depth: 1 });
+      const inputNode = await debuggerClient.send("DOM.querySelector", {
+        nodeId: documentNode.root.nodeId,
+        selector: "#pdf-files"
+      });
+      if (!inputNode.nodeId) throw new Error("找不到 PDF file input");
+      await debuggerClient.send("DOM.setFileInputFiles", {
+        nodeId: inputNode.nodeId,
+        files: [ocrFixturePath]
+      });
+      const loaded = await waitForValue(
+        debuggerClient.send,
+        `({count: document.querySelector('#pdf-workspace-count')?.textContent || '', disabled: document.querySelector('#pdf-workspace-ocr-page')?.disabled})`,
+        (value) => /\d+ 頁/.test(value.count) && value.disabled === false
+      );
+      await evaluate(debuggerClient.send, `document.querySelector('#pdf-workspace-ocr-page').click()`);
+      const result = await waitForValue(
+        debuggerClient.send,
+        `({status: document.querySelector('#pdf-workspace-ocr-status')?.textContent || '', text: document.querySelector('#pdf-workspace-ocr-text')?.value || '', error: document.querySelector('#pdf-workspace-ocr-error')?.textContent || ''})`,
+        (value) => value.status === "已完成" || value.status === "未能辨識",
+        60000
+      );
+      if (result.status !== "已完成") {
+        throw new Error(`packaged OCR 失敗：${result.error || JSON.stringify(result)}`);
+      }
+      if (!/香港特別行政區/.test(result.text) || !/HONG KONG/i.test(result.text)) {
+        throw new Error(`packaged OCR 中英結果不完整：${result.text.slice(0, 500)}`);
+      }
+      console.log(`OK packaged current-page chi_tra+eng OCR (${loaded.count})`);
+    }
+
     console.log(`OK packaged IPC backend connected`);
     console.log("OK five core workspace navigation");
     console.log(`OK home secondary action contrast ${contrast.toFixed(2)}:1`);
     console.log("OK strict CSP has no inline transform styles");
     console.log("OK PDF product hub navigation");
+    console.log("OK PDF workspace navigation");
+    console.log("OK PDF workspace OCR actions and result panel layout");
+    console.log("OK image workspace navigation, actions, and responsive layout");
   } finally {
     debuggerClient.close();
   }

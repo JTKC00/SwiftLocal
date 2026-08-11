@@ -277,6 +277,7 @@ function installBackendIpc() {
   handleTrusted("backend:set-default-output-dir", (_event, outputDir) => backend.setDefaultOutputDir(outputDir));
   handleTrusted("backend:set-tool-path", (_event, key, toolPath) => backend.setToolPath(key, toolPath));
   handleTrusted("backend:get-jobs", () => backend.getJobs());
+  handleTrusted("backend:read-job-text-outputs", (_event, jobId) => backend.readJobTextOutputs(jobId));
   handleTrusted("backend:enqueue-job", (_event, payload) => backend.enqueue(payload));
   handleTrusted("backend:delete-job", (_event, jobId) => backend.deleteJob(jobId));
   handleTrusted("backend:cancel-job", (_event, jobId) => backend.cancelJob(jobId));

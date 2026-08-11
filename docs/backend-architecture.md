@@ -127,7 +127,7 @@ ocr-pdf
 - 所有輸出統一使用自動編號避讓（`檔名 (2).ext`…）；LibreOffice 先寫入臨時目錄，再安全移到最終路徑。
 - 預設資源上限為單檔 1 GB、單任務 2 GB、50 個 queued 任務、2 倍磁碟需求與 OCR 單頁 50 MP。
 
-`ocr-pdf` 選填：`language`（預設 `eng`）、`maxPages`（預設 50、上限 100）。
+`ocr-pdf` 選填：`language`（預設 `chi_tra+eng`）、`maxPages`（預設 50、上限 100）、`pages`（例如 `3` 或 `1-3,5`）。桌面工作區以 `pages` 執行目前頁 OCR，整份 PDF 則沿用相同逐頁渲染與 Tesseract pipeline。
 
 ### 任務狀態
 
@@ -175,6 +175,8 @@ Windows 上 LibreOffice 會優先改用 `soffice.com`（若存在），避免 GU
 ### Tesseract tessdata
 
 內建布局為 `tools/tesseract/tessdata`。轉換時會自動加 `--tessdata-dir`（Python 與桌面皆會解析多個候選路徑）。
+
+PDF Workspace 的 OCR 仍建立標準 `ocr-pdf` 背景任務；renderer 只提交已開啟檔案的受控路徑與頁碼。Electron main process 負責執行、逐頁進度、取消、OS temp 清理，並只允許 renderer 依完成的 job id 讀回該任務產生的 TXT，不開放任意檔案讀取 IPC。
 
 ### LibreOffice 輸出檔名
 

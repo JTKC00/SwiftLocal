@@ -10,7 +10,7 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const { spawnSync } = require("node:child_process");
-const { BackendService } = require("../desktop/backend");
+const { BackendService, writeTextDocx } = require("../desktop/backend");
 
 const root = path.resolve(__dirname, "..");
 const fixtureDir = path.join(root, "smoke-temp", "release-queue-check", "input");
@@ -106,7 +106,7 @@ function syntaxChecks() {
   return true;
 }
 
-const zlib = require("node:zlib");
+const { createCanvas } = require("@napi-rs/canvas");
 const { PDFDocument } = require("pdf-lib");
 
 /** One-page PDF via pdf-lib (already a project dependency). */
@@ -117,44 +117,30 @@ async function writeMinimalPdf(filePath) {
   fs.writeFileSync(filePath, bytes);
 }
 
-/** Valid 1×1 RGB PNG built with zlib so Tesseract/libpng accept it. */
-function writeMinimalPng(filePath) {
-  function crc32(buf) {
-    let c = 0xffffffff;
-    for (let i = 0; i < buf.length; i += 1) {
-      c ^= buf[i];
-      for (let k = 0; k < 8; k += 1) {
-        c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
-      }
-    }
-    return (c ^ 0xffffffff) >>> 0;
-  }
-  function chunk(type, data) {
-    const typeBuf = Buffer.from(type, "ascii");
-    const len = Buffer.alloc(4);
-    len.writeUInt32BE(data.length, 0);
-    const crcBuf = Buffer.alloc(4);
-    crcBuf.writeUInt32BE(crc32(Buffer.concat([typeBuf, data])), 0);
-    return Buffer.concat([len, typeBuf, data, crcBuf]);
-  }
-  const ihdr = Buffer.alloc(13);
-  ihdr.writeUInt32BE(1, 0); // width
-  ihdr.writeUInt32BE(1, 4); // height
-  ihdr[8] = 8; // bit depth
-  ihdr[9] = 2; // RGB
-  ihdr[10] = 0;
-  ihdr[11] = 0;
-  ihdr[12] = 0;
-  // filter byte 0 + 3 RGB samples
-  const raw = Buffer.from([0, 0, 0, 0]);
-  const idat = zlib.deflateSync(raw);
-  const png = Buffer.concat([
-    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
-    chunk("IHDR", ihdr),
-    chunk("IDAT", idat),
-    chunk("IEND", Buffer.alloc(0))
-  ]);
-  fs.writeFileSync(filePath, png);
+function writeOcrTextPng(filePath) {
+  const canvas = createCanvas(1400, 900);
+  const context = canvas.getContext("2d");
+  context.fillStyle = "#ffffff";
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.fillStyle = "#111111";
+  context.font = "bold 76px Arial, sans-serif";
+  context.fillText("SWIFTLOCAL OCR SMOKE", 90, 220);
+  context.font = 'bold 88px "Heiti TC", "Microsoft JhengHei", "Noto Sans CJK TC", sans-serif';
+  context.fillText("香港特別行政區", 90, 410);
+  context.font = "68px Arial, sans-serif";
+  context.fillText("HONG KONG", 90, 570);
+  context.fillText("HK$1,280.00", 90, 720);
+  fs.writeFileSync(filePath, canvas.toBuffer("image/png"));
+}
+
+async function writeOcrScanPdf(filePath) {
+  const pngPath = path.join(path.dirname(filePath), "ocr-text.png");
+  if (!fs.existsSync(pngPath)) writeOcrTextPng(pngPath);
+  const doc = await PDFDocument.create();
+  const image = await doc.embedPng(fs.readFileSync(pngPath));
+  const page = doc.addPage([700, 450]);
+  page.drawImage(image, { x: 0, y: 0, width: 700, height: 450 });
+  fs.writeFileSync(filePath, await doc.save());
 }
 
 /** Short silent WAV (PCM 8kHz mono). */
@@ -183,7 +169,9 @@ async function ensureSmokeFixtures() {
   fs.mkdirSync(fixtureDir, { recursive: true });
   const aPdf = path.join(fixtureDir, "a.pdf");
   const bPdf = path.join(fixtureDir, "b.pdf");
-  const ocrPng = path.join(fixtureDir, "ocr.png");
+  const ocrPng = path.join(fixtureDir, "ocr-text.png");
+  const ocrPdf = path.join(fixtureDir, "ocr-scan.pdf");
+  const officeDocx = path.join(fixtureDir, "office-smoke.docx");
   const tone = path.join(fixtureDir, "tone.wav");
 
   const force = process.argv.includes("--refresh-fixtures");
@@ -200,14 +188,22 @@ async function ensureSmokeFixtures() {
     ok("generated fixture b.pdf");
   }
   if (needs(ocrPng, 50)) {
-    writeMinimalPng(ocrPng);
-    ok("generated fixture ocr.png");
+    writeOcrTextPng(ocrPng);
+    ok("generated fixture ocr-text.png");
+  }
+  if (needs(ocrPdf, 300)) {
+    await writeOcrScanPdf(ocrPdf);
+    ok("generated fixture ocr-scan.pdf");
+  }
+  if (needs(officeDocx, 300)) {
+    writeTextDocx(officeDocx, "SwiftLocal Word to PDF smoke\nInvoice No. 12345");
+    ok("generated fixture office-smoke.docx");
   }
   if (needs(tone, 44)) {
     writeMinimalWav(tone);
     ok("generated fixture tone.wav");
   }
-  return { aPdf, bPdf, ocrPng, tone };
+  return { aPdf, bPdf, ocrPng, ocrPdf, officeDocx, tone };
 }
 
 async function conversionSmoke() {
@@ -215,8 +211,8 @@ async function conversionSmoke() {
   fs.rmSync(outRoot, { recursive: true, force: true });
   fs.mkdirSync(outRoot, { recursive: true });
 
-  const { aPdf, bPdf, ocrPng, tone } = await ensureSmokeFixtures();
-  if (![aPdf, bPdf, ocrPng, tone].every((file) => requireFile(file, "fixture"))) {
+  const { aPdf, bPdf, ocrPng, ocrPdf, officeDocx, tone } = await ensureSmokeFixtures();
+  if (![aPdf, bPdf, ocrPng, ocrPdf, officeDocx, tone].every((file) => requireFile(file, "fixture"))) {
     return;
   }
 
@@ -245,6 +241,7 @@ async function conversionSmoke() {
   fs.mkdirSync(out("ocr"), { recursive: true });
   fs.mkdirSync(out("media"), { recursive: true });
   fs.mkdirSync(out("ocr-pdf"), { recursive: true });
+  fs.mkdirSync(out("office"), { recursive: true });
 
   await runJob(
     backend,
@@ -265,6 +262,31 @@ async function conversionSmoke() {
     backend,
     { type: "pdf-compress", inputPaths: [aPdf], outputDir: out("compress"), options: {} },
     "pdf-compress"
+  );
+
+  await runJob(
+    backend,
+    {
+      type: "image-convert",
+      inputPaths: [ocrPng],
+      outputDir: out("image-convert"),
+      options: {
+        extension: "webp",
+        imageOps: JSON.stringify([{
+          rotation: 0,
+          flip: "horizontal",
+          crop: { x: 0.05, y: 0.05, width: 0.9, height: 0.9 },
+          ocrRegion: null
+        }]),
+        quality: "0.8",
+        maxWidth: "700",
+        maxHeight: "700",
+        keepRatio: "true",
+        watermarkText: "SwiftLocal",
+        watermarkPosition: "se"
+      }
+    },
+    "image-convert visual workspace ops"
   );
 
   if (tools.qpdf && tools.qpdf.available) {
@@ -302,17 +324,25 @@ async function conversionSmoke() {
         type: "ocr-image",
         inputPaths: [ocrPng],
         outputDir: out("ocr"),
-        options: { language: "eng" }
+        options: {
+          language: "chi_tra+eng",
+          imageOps: JSON.stringify([{
+            rotation: 0,
+            flip: "none",
+            crop: null,
+            ocrRegion: { x: 0, y: 0.05, width: 1, height: 0.82 }
+          }])
+        }
       },
-      "ocr-image"
+      "ocr-image selected region chi_tra+eng"
     );
     await runJob(
       backend,
       {
         type: "ocr-pdf",
-        inputPaths: [aPdf],
+        inputPaths: [ocrPdf],
         outputDir: out("ocr-pdf"),
-        options: { language: "eng", maxPages: "2" }
+        options: { language: "chi_tra+eng", maxPages: "2" }
       },
       "ocr-pdf"
     );
@@ -320,17 +350,44 @@ async function conversionSmoke() {
     console.log("SKIP ocr (tesseract not available)");
   }
 
-  if (tools.ffmpeg && tools.ffmpeg.available) {
+  if (tools.libreOffice && tools.libreOffice.available) {
     await runJob(
+      backend,
+      {
+        type: "office-to-pdf",
+        inputPaths: [officeDocx],
+        outputDir: out("office"),
+        options: {}
+      },
+      "office-to-pdf (DOCX)"
+    );
+  } else {
+    console.log("SKIP office-to-pdf (LibreOffice not available)");
+  }
+
+  if (tools.ffmpeg && tools.ffmpeg.available) {
+    const mp4Job = await runJob(
       backend,
       {
         type: "media-convert",
         inputPaths: [tone],
         outputDir: out("media"),
-        options: { extension: "mp3", audioBitrate: "128k" }
+        options: { extension: "mp4", audioBitrate: "128k" }
       },
-      "media-convert mp3"
+      "media-convert MP4 fixture"
     );
+    if (mp4Job && mp4Job.outputPaths[0]) {
+      await runJob(
+        backend,
+        {
+          type: "media-convert",
+          inputPaths: [mp4Job.outputPaths[0]],
+          outputDir: out("media"),
+          options: { extension: "mp3", audioBitrate: "128k" }
+        },
+        "media-convert MP4 to MP3"
+      );
+    }
   } else {
     console.log("SKIP media-convert (ffmpeg not available)");
   }

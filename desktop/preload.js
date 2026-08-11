@@ -26,6 +26,7 @@ contextBridge.exposeInMainWorld("swiftLocalBackend", {
   jobDiagnostic: (jobId) => ipcRenderer.invoke("backend:job-diagnostic", jobId),
   cleanupJobs: (options) => ipcRenderer.invoke("backend:cleanup-jobs", options || {}),
   getJobs: () => ipcRenderer.invoke("backend:get-jobs"),
+  readJobTextOutputs: (jobId) => ipcRenderer.invoke("backend:read-job-text-outputs", jobId),
   getFilePath: (file) => webUtils.getPathForFile(file),
   onJobsUpdated: (callback) => {
     const handler = (_event, jobs) => callback(jobs);

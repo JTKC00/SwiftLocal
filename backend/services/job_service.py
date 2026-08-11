@@ -93,6 +93,43 @@ def redact_job_text(value: object, options: dict[str, str] | None) -> str:
     return safe
 
 
+def normalize_job_progress(value: object) -> dict | None:
+    if not isinstance(value, dict):
+        return None
+    try:
+        current = max(0, int(value.get("current") or 0))
+        total = max(current, int(value.get("total") or 0))
+    except (TypeError, ValueError):
+        return None
+    return {
+        "current": current,
+        "total": total,
+        "phase": str(value.get("phase") or ""),
+        "message": str(value.get("message") or ""),
+    }
+
+
+def normalize_image_item_results(value: object) -> list[dict]:
+    if not isinstance(value, list):
+        return []
+    results: list[dict] = []
+    for index, item in enumerate(value[:100]):
+        if not isinstance(item, dict):
+            continue
+        try:
+            result_index = max(0, int(item.get("index") if item.get("index") is not None else index))
+        except (TypeError, ValueError):
+            result_index = index
+        results.append({
+            "index": result_index,
+            "name": Path(str(item.get("name") or f"image-{index + 1}")).name,
+            "status": "done" if item.get("status") == "done" else "failed",
+            "outputName": Path(str(item.get("outputName") or "")).name if item.get("outputName") else "",
+            "error": str(item.get("error") or "")[:500],
+        })
+    return results
+
+
 @dataclass
 class Job:
     id: str
@@ -110,6 +147,8 @@ class Job:
     error_code: str = ""
     error_hint: str = ""
     retriable: bool = True
+    progress: dict | None = None
+    item_results: list[dict] = field(default_factory=list)
     cancel_requested: bool = False
 
 
@@ -296,6 +335,8 @@ class JobService:
             error_code=error_code,
             error_hint=error_hint,
             retriable=retriable,
+            progress=normalize_job_progress(item.get("progress")),
+            item_results=normalize_image_item_results(item.get("itemResults")),
             cancel_requested=False,
         )
 
@@ -316,6 +357,8 @@ class JobService:
             "errorCode": job.error_code or "",
             "errorHint": job.error_hint or "",
             "retriable": job.retriable is not False,
+            "progress": normalize_job_progress(job.progress),
+            "itemResults": normalize_image_item_results(job.item_results),
         }
 
     def _save_jobs_state(self) -> None:
@@ -338,7 +381,7 @@ class JobService:
         if sum(job.status == "queued" for job in self.jobs) >= MAX_QUEUED_JOBS:
             raise ValueError(f"Too many queued jobs (limit: {MAX_QUEUED_JOBS})")
 
-        clean_options = self._validate_options(job_type, options)
+        clean_options = self._validate_options(job_type, options, len(files))
         job_id = uuid.uuid4().hex
         job_dir = JOBS_DIR / job_id
         input_dir = job_dir / "input"
@@ -483,8 +526,19 @@ class JobService:
 
         job.status = "running"
         job.started_at = now_iso()
+        job.progress = None
+        job.item_results = []
         self._save_jobs_state()
         begin_job(job.id)
+        def image_progress(current: int, total: int, message: str) -> None:
+            job.progress = {
+                "current": max(0, int(current)),
+                "total": max(int(current), int(total)),
+                "phase": "image-ocr" if job.type == "ocr-image" else "image-convert",
+                "message": str(message),
+            }
+            self._save_jobs_state()
+
         try:
             ensure_not_cancelled()
             if job.type == "office-to-pdf":
@@ -497,13 +551,21 @@ class JobService:
                     job.options,
                 )
             elif job.type == "ocr-image":
-                outputs, logs = await ocr_images(job.input_paths, job.output_dir, job.options["language"])
+                outputs, logs = await ocr_images(
+                    job.input_paths,
+                    job.output_dir,
+                    job.options["language"],
+                    job.options.get("imageOps") or "",
+                    job.item_results,
+                    image_progress,
+                )
             elif job.type == "ocr-pdf":
                 outputs, logs = await ocr_pdf(
                     job.input_paths,
                     job.output_dir,
                     job.options["language"],
                     int(job.options.get("maxPages") or OCR_PDF_MAX_PAGES_DEFAULT),
+                    job.options.get("pages") or "",
                 )
             elif job.type == "pdf-to-docx":
                 outputs, logs = await convert_pdf_to_docx(job.input_paths, job.output_dir)
@@ -540,7 +602,14 @@ class JobService:
                     outputs.append(path)
                     logs.extend(item_logs)
             elif job.type == "image-convert":
-                outputs, logs = await convert_image(job.input_paths, job.output_dir, job.options["extension"])
+                outputs, logs = await convert_image(
+                    job.input_paths,
+                    job.output_dir,
+                    job.options["extension"],
+                    job.options,
+                    job.item_results,
+                    image_progress,
+                )
             elif job.type == "pdf-encrypt":
                 outputs, logs = await encrypt_pdf(job.input_paths, job.output_dir, job.options["password"])
             elif job.type == "pdf-decrypt":
@@ -719,6 +788,8 @@ class JobService:
             "retriable": job.retriable is not False,
             # True while running after user asked to cancel (UI can show「取消中」).
             "cancelRequested": bool(job.cancel_requested and job.status == "running"),
+            "progress": normalize_job_progress(job.progress),
+            "itemResults": normalize_image_item_results(job.item_results),
         }
 
     def _public_output(self, job: Job, output_path: Path) -> dict[str, str | int]:
@@ -731,7 +802,7 @@ class JobService:
     def _find_job(self, job_id: str) -> Job | None:
         return next((job for job in self.jobs if job.id == job_id), None)
 
-    def _validate_options(self, job_type: str, options: dict[str, str]) -> dict[str, str]:
+    def _validate_options(self, job_type: str, options: dict[str, str], input_count: int = 0) -> dict[str, str]:
         if job_type == "media-convert":
             from .conversion_service import (
                 sanitize_gif_fps,
@@ -752,11 +823,41 @@ class JobService:
                 "gifFps": sanitize_gif_fps(options.get("gifFps") or ""),
             }
         if job_type == "image-convert":
-            return {"extension": sanitize_extension(options.get("extension") or "jpg")}
+            from .conversion_service import (
+                sanitize_image_dimension,
+                sanitize_image_keep_ratio,
+                sanitize_image_ops,
+                sanitize_image_quality,
+                sanitize_image_watermark_position,
+                sanitize_image_watermark_text,
+            )
+
+            extension = sanitize_extension(options.get("extension") or "jpg")
+            if extension not in {"jpg", "jpeg", "png", "webp", "tiff", "tif", "bmp", "gif"}:
+                raise ValueError(f"Unsupported image format: {extension}")
+            image_ops = sanitize_image_ops(options.get("imageOps") or "", input_count)
+            return {
+                "extension": extension,
+                "imageOps": json.dumps(image_ops, ensure_ascii=False, separators=(",", ":")),
+                "quality": str(sanitize_image_quality(options.get("quality"))),
+                "maxWidth": str(sanitize_image_dimension(options.get("maxWidth"), "maxWidth") or ""),
+                "maxHeight": str(sanitize_image_dimension(options.get("maxHeight"), "maxHeight") or ""),
+                "keepRatio": str(sanitize_image_keep_ratio(options.get("keepRatio"))).lower(),
+                "watermarkText": sanitize_image_watermark_text(options.get("watermarkText")),
+                "watermarkPosition": sanitize_image_watermark_position(options.get("watermarkPosition")),
+            }
         if job_type == "ocr-image":
-            language = (options.get("language") or "chi_tra+eng").strip()
-            return {"language": language or "chi_tra+eng"}
+            from .conversion_service import sanitize_image_ops, sanitize_ocr_language
+
+            language = sanitize_ocr_language(options.get("language"))
+            image_ops = sanitize_image_ops(options.get("imageOps") or "", input_count)
+            return {
+                "language": language,
+                "imageOps": json.dumps(image_ops, ensure_ascii=False, separators=(",", ":")),
+            }
         if job_type == "ocr-pdf":
+            from .conversion_service import sanitize_ocr_page_selection
+
             language = (options.get("language") or "chi_tra+eng").strip() or "chi_tra+eng"
             raw_pages = (options.get("maxPages") or str(OCR_PDF_MAX_PAGES_DEFAULT)).strip()
             try:
@@ -766,7 +867,9 @@ class JobService:
             if max_pages < 1:
                 raise ValueError("maxPages must be at least 1")
             max_pages = min(max_pages, OCR_PDF_MAX_PAGES_HARD_LIMIT)
-            return {"language": language, "maxPages": str(max_pages)}
+            pages = (options.get("pages") or "").strip()
+            sanitize_ocr_page_selection(pages)
+            return {"language": language, "maxPages": str(max_pages), "pages": pages}
         if job_type == "pdf-to-searchable-pdf":
             language = (options.get("language") or "chi_tra+eng").strip() or "chi_tra+eng"
             raw_pages = (options.get("maxPages") or str(OCR_PDF_MAX_PAGES_DEFAULT)).strip()
