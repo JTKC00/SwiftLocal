@@ -80,9 +80,9 @@ function validTraineddata(filePath) {
   }
 }
 
-function validWindowsExecutable(filePath) {
+function validWindowsExecutable(filePath, minimumBytes = 50_000) {
   try {
-    if (!filePath || !fs.statSync(filePath).isFile() || fs.statSync(filePath).size < 50_000) return false;
+    if (!filePath || !fs.statSync(filePath).isFile() || fs.statSync(filePath).size < minimumBytes) return false;
     const handle = fs.openSync(filePath, "r");
     const header = Buffer.alloc(2);
     fs.readSync(handle, header, 0, 2, 0);
@@ -150,7 +150,8 @@ if (validWindowsExecutable(ffmpeg)) {
 
 // --- QPDF ---
 const qpdf = findExecutable(toolsRoot, new Set(["qpdf.exe"]), 6);
-if (validWindowsExecutable(qpdf)) {
+// QPDF 12.x ships a small PE launcher next to qpdf30.dll (about 20 KB).
+if (validWindowsExecutable(qpdf, 10_000)) {
   ok(`QPDF: ${path.relative(projectRoot, qpdf)}`);
 } else {
   bad("缺少 QPDF", "請放入 tools/qpdf/…/qpdf.exe");

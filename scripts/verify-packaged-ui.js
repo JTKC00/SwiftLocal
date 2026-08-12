@@ -187,7 +187,10 @@ async function main(debuggerEndpoint = endpoint) {
         languageVisible: workspace?.textContent?.includes('繁體中文 + English'),
         resultReadonly: Boolean(resultText?.readOnly),
         resultPanelVisible: Boolean(resultPanel && getComputedStyle(resultPanel).display !== 'none'),
-        resultBesidePreview: Boolean(previewRect && resultRect && resultRect.left > previewRect.left),
+        resultBesidePreview: Boolean(
+          previewRect && resultRect &&
+          (resultRect.left > previewRect.left || resultRect.top >= previewRect.bottom)
+        ),
         thumbnailsBelow: Boolean(previewRect && gridRect && gridRect.top >= previewRect.bottom)
       };
     })()`);

@@ -135,7 +135,14 @@ function extractArchive(archivePath, outputDir) {
   fs.mkdirSync(outputDir, { recursive: true });
   const command = process.platform === "win32" ? "powershell.exe" : "unzip";
   const args = process.platform === "win32"
-    ? ["-NoProfile", "-NonInteractive", "-Command", "Expand-Archive -LiteralPath $args[0] -DestinationPath $args[1] -Force", archivePath, outputDir]
+    ? [
+        "-NoProfile",
+        "-NonInteractive",
+        "-Command",
+        "& { param([string]$archivePath, [string]$outputDir) Expand-Archive -LiteralPath $archivePath -DestinationPath $outputDir -Force }",
+        archivePath,
+        outputDir
+      ]
     : ["-o", archivePath, "-d", outputDir];
   const result = spawnSync(command, args, { encoding: "utf8", windowsHide: true });
   if (result.status !== 0) throw new Error(`Archive extraction failed: ${result.stderr || result.stdout || result.error || command}`);
