@@ -7,6 +7,7 @@ const path = require("node:path");
 const { execFileSync } = require("node:child_process");
 const { afterEach, describe, test } = require("node:test");
 const {
+  ensureExecutableTool,
   expectedWindowsArtifactNames,
   parseArgs,
   requireArtifactNotOlderThan,
@@ -136,7 +137,8 @@ describe("release artifact verification", () => {
       fs.writeFileSync(filePath, `${label}-payload`);
     }
     const artifact = path.join(directory, "release.7z");
-    execFileSync(require("7zip-bin").path7za, ["a", "-t7z", artifact, "."], { cwd: payload, stdio: "ignore" });
+    const sevenZip = ensureExecutableTool(require("7zip-bin").path7za);
+    execFileSync(sevenZip, ["a", "-t7z", artifact, "."], { cwd: payload, stdio: "ignore" });
     assert.doesNotThrow(() => verifyArtifactPayloadMatches(artifact, paths));
     fs.writeFileSync(paths.mediaTools.deno, "changed-after-packaging");
     assert.throws(() => verifyArtifactPayloadMatches(artifact, paths), /不一致/);

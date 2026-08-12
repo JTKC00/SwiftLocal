@@ -87,7 +87,7 @@ function verifyArtifactPayloadMatches(artifactPath, packaged) {
 }
 
 function extractReleasePayload(artifactPath, tempDir) {
-  const sevenZip = require("7zip-bin").path7za;
+  const sevenZip = ensureExecutableTool(require("7zip-bin").path7za);
   const outerDir = path.join(tempDir, "outer");
   fs.mkdirSync(outerDir, { recursive: true });
   extractWith7Zip(sevenZip, artifactPath, outerDir);
@@ -105,6 +105,11 @@ function extractReleasePayload(artifactPath, tempDir) {
     if (findFileBySuffix(nestedDir, path.join("resources", "app.asar"))) return nestedDir;
   }
   throw new Error(`無法從發行產物抽出 app.asar 進行內容比對：${artifactPath}`);
+}
+
+function ensureExecutableTool(filePath) {
+  if (process.platform !== "win32") fs.chmodSync(filePath, 0o755);
+  return filePath;
 }
 
 function extractWith7Zip(sevenZip, archivePath, outputDir) {
@@ -401,6 +406,7 @@ if (require.main === module) {
 }
 
 module.exports = {
+  ensureExecutableTool,
   expectedWindowsArtifactNames,
   findMainWindowsExecutable,
   parseArgs,
