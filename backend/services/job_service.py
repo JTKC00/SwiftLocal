@@ -4,6 +4,7 @@ import asyncio
 import json
 import os
 import shutil
+import unicodedata
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -157,6 +158,9 @@ class JobService:
         self.jobs: list[Job] = []
         self.running = False
         self.lock = asyncio.Lock()
+        self._admission_lock = asyncio.Lock()
+        self._inflight_job_ids: set[str] = set()
+        self._jobs_state_trusted = True
 
     async def cleanup_all(self) -> None:
         """Legacy wipe — prefer restore_state() for persistence-aware startup."""
@@ -221,7 +225,9 @@ class JobService:
 
     def _prune_orphan_job_dirs(self) -> int:
         JOBS_DIR.mkdir(parents=True, exist_ok=True)
-        known = {job.id for job in self.jobs}
+        if not self._jobs_state_trusted:
+            return 0
+        known = {job.id for job in self.jobs} | self._inflight_job_ids
         removed = 0
         for child in list(JOBS_DIR.iterdir()):
             if child.is_dir() and child.name not in known:
@@ -233,22 +239,43 @@ class JobService:
         """Load persisted jobs, repair interrupted ones, prune orphan job dirs, resume queue."""
         JOBS_DIR.mkdir(parents=True, exist_ok=True)
         TEMP_DIR.mkdir(parents=True, exist_ok=True)
-        self.jobs = self._load_jobs_state()
+        loaded_jobs = self._load_jobs_state()
+        if loaded_jobs is None:
+            # A missing state file is a valid empty state, but an unreadable or
+            # malformed one cannot safely identify any work directory as orphaned.
+            self.jobs = []
+            return
+        self.jobs = loaded_jobs
         self.prune_jobs()
         if any(job.status == "queued" for job in self.jobs):
             asyncio.create_task(self._run_next())
 
-    def _load_jobs_state(self) -> list[Job]:
+    def _load_jobs_state(self) -> list[Job] | None:
         try:
             raw = json.loads(JOBS_STATE_PATH.read_text(encoding="utf-8"))
-        except Exception:
+        except FileNotFoundError:
             return []
+        except (OSError, UnicodeError, json.JSONDecodeError):
+            self._jobs_state_trusted = False
+            return None
         items = raw if isinstance(raw, list) else raw.get("jobs") if isinstance(raw, dict) else None
         if not isinstance(items, list):
-            return []
+            self._jobs_state_trusted = False
+            return None
         jobs: list[Job] = []
         for item in items[:MAX_PERSISTED_JOBS]:
-            job = self._job_from_dict(item)
+            if (
+                not isinstance(item, dict)
+                or not str(item.get("id") or "").strip()
+                or not str(item.get("type") or "").strip()
+            ):
+                self._jobs_state_trusted = False
+                return None
+            try:
+                job = self._job_from_dict(item)
+            except (OSError, TypeError, ValueError):
+                self._jobs_state_trusted = False
+                return None
             if job:
                 jobs.append(job)
         return jobs
@@ -362,6 +389,9 @@ class JobService:
         }
 
     def _save_jobs_state(self) -> None:
+        if not self._jobs_state_trusted:
+            return
+        temp_path: Path | None = None
         try:
             TEMP_DIR.mkdir(parents=True, exist_ok=True)
             payload = {
@@ -369,30 +399,48 @@ class JobService:
                 "savedAt": now_iso(),
                 "jobs": [self._serialize_job(job) for job in self.jobs[:MAX_PERSISTED_JOBS]],
             }
-            JOBS_STATE_PATH.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+            serialized = json.dumps(payload, ensure_ascii=False, indent=2)
+            temp_path = JOBS_STATE_PATH.with_name(
+                f".{JOBS_STATE_PATH.name}.{uuid.uuid4().hex}.tmp"
+            )
+            with temp_path.open("w", encoding="utf-8") as handle:
+                handle.write(serialized)
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(temp_path, JOBS_STATE_PATH)
         except OSError:
             pass
+        finally:
+            if temp_path is not None:
+                try:
+                    temp_path.unlink(missing_ok=True)
+                except OSError:
+                    pass
 
     async def create_job(self, job_type: str, files: list[UploadFile], options: dict[str, str]) -> dict:
         if job_type not in SUPPORTED_JOB_TYPES:
             raise ValueError(f"Unsupported job type: {job_type}")
         if not files:
             raise ValueError("At least one file is required")
-        if sum(job.status == "queued" for job in self.jobs) >= MAX_QUEUED_JOBS:
-            raise ValueError(f"Too many queued jobs (limit: {MAX_QUEUED_JOBS})")
 
         clean_options = self._validate_options(job_type, options, len(files))
-        job_id = uuid.uuid4().hex
+        async with self._admission_lock:
+            pending_count = sum(job.status == "queued" for job in self.jobs)
+            if pending_count + len(self._inflight_job_ids) >= MAX_QUEUED_JOBS:
+                raise ValueError(f"Too many queued jobs (limit: {MAX_QUEUED_JOBS})")
+            job_id = uuid.uuid4().hex
+            self._inflight_job_ids.add(job_id)
+
         job_dir = JOBS_DIR / job_id
         input_dir = job_dir / "input"
         output_dir = job_dir / "output"
-        input_dir.mkdir(parents=True, exist_ok=True)
-        output_dir.mkdir(parents=True, exist_ok=True)
-
-        input_paths = []
-        used_names: set[str] = set()
-        total_bytes = 0
         try:
+            input_dir.mkdir(parents=True, exist_ok=True)
+            output_dir.mkdir(parents=True, exist_ok=True)
+
+            input_paths = []
+            used_names: set[str] = set()
+            total_bytes = 0
             for upload in files:
                 declared_size = int(getattr(upload, "size", 0) or 0)
                 if declared_size > MAX_INPUT_FILE_BYTES:
@@ -422,18 +470,21 @@ class JobService:
                     f"Not enough free disk space: {format_bytes(required_bytes)} required, "
                     f"{format_bytes(available_bytes)} available"
                 )
-        except Exception:
+
+            job = Job(
+                id=job_id,
+                type=job_type,
+                input_paths=input_paths,
+                output_dir=output_dir,
+                options=clean_options,
+            )
+            async with self._admission_lock:
+                self.jobs.insert(0, job)
+                self._inflight_job_ids.discard(job_id)
+        except BaseException:
+            self._inflight_job_ids.discard(job_id)
             shutil.rmtree(job_dir, ignore_errors=True)
             raise
-
-        job = Job(
-            id=job_id,
-            type=job_type,
-            input_paths=input_paths,
-            output_dir=output_dir,
-            options=clean_options,
-        )
-        self.jobs.insert(0, job)
         self._save_jobs_state()
         asyncio.create_task(self._run_next())
         return self.public_job(job)
@@ -674,16 +725,20 @@ class JobService:
             raise ValueError(f"找不到輸入檔：{missing[0].name}")
         if job.type in PASSWORD_JOB_TYPES and not (job.options.get("password") or job.options.get("passphrase")):
             raise ValueError("此任務需要密碼，請從工具面板重新提交")
-        job.status = "queued"
-        job.started_at = None
-        job.finished_at = None
-        job.output_paths = []
-        job.error = ""
-        job.error_code = ""
-        job.error_hint = ""
-        job.retriable = True
-        job.cancel_requested = False
-        job.log = [*job.log[-8:], "使用者重新執行任務"]
+        async with self._admission_lock:
+            pending_count = sum(item.status == "queued" for item in self.jobs)
+            if pending_count + len(self._inflight_job_ids) >= MAX_QUEUED_JOBS:
+                raise ValueError(f"Too many queued jobs (limit: {MAX_QUEUED_JOBS})")
+            job.status = "queued"
+            job.started_at = None
+            job.finished_at = None
+            job.output_paths = []
+            job.error = ""
+            job.error_code = ""
+            job.error_hint = ""
+            job.retriable = True
+            job.cancel_requested = False
+            job.log = [*job.log[-8:], "使用者重新執行任務"]
         self._save_jobs_state()
         asyncio.create_task(self._run_next())
         return self.public_job(job)
@@ -692,30 +747,39 @@ class JobService:
         job = self._find_job(job_id)
         if not job:
             return None
-        # Re-create via create_job path is multipart-only; clone in-memory instead.
-        if sum(item.status == "queued" for item in self.jobs) >= MAX_QUEUED_JOBS:
-            raise ValueError(f"Too many queued jobs (limit: {MAX_QUEUED_JOBS})")
         missing = [path for path in job.input_paths if not path.exists()]
         if missing:
             raise ValueError(f"找不到輸入檔：{missing[0].name}")
-        new_id = uuid.uuid4().hex
+        async with self._admission_lock:
+            pending_count = sum(item.status == "queued" for item in self.jobs)
+            if pending_count + len(self._inflight_job_ids) >= MAX_QUEUED_JOBS:
+                raise ValueError(f"Too many queued jobs (limit: {MAX_QUEUED_JOBS})")
+            new_id = uuid.uuid4().hex
+            self._inflight_job_ids.add(new_id)
         input_dir = JOBS_DIR / new_id / "input"
         output_dir = JOBS_DIR / new_id / "output"
-        input_dir.mkdir(parents=True, exist_ok=True)
-        output_dir.mkdir(parents=True, exist_ok=True)
-        copied_inputs: list[Path] = []
-        for source in job.input_paths:
-            target = input_dir / source.name
-            shutil.copy2(source, target)
-            copied_inputs.append(target)
-        clone = Job(
-            id=new_id,
-            type=job.type,
-            input_paths=copied_inputs,
-            output_dir=output_dir,
-            options=dict(job.options),
-        )
-        self.jobs.insert(0, clone)
+        try:
+            input_dir.mkdir(parents=True, exist_ok=True)
+            output_dir.mkdir(parents=True, exist_ok=True)
+            copied_inputs: list[Path] = []
+            for source in job.input_paths:
+                target = input_dir / source.name
+                shutil.copy2(source, target)
+                copied_inputs.append(target)
+            clone = Job(
+                id=new_id,
+                type=job.type,
+                input_paths=copied_inputs,
+                output_dir=output_dir,
+                options=dict(job.options),
+            )
+            async with self._admission_lock:
+                self.jobs.insert(0, clone)
+                self._inflight_job_ids.discard(new_id)
+        except BaseException:
+            self._inflight_job_ids.discard(new_id)
+            shutil.rmtree(JOBS_DIR / new_id, ignore_errors=True)
+            raise
         self._save_jobs_state()
         asyncio.create_task(self._run_next())
         return self.public_job(clone)
@@ -1027,21 +1091,44 @@ def format_bytes(value: int) -> str:
 
 
 def sanitize_filename(filename: str) -> str:
-    cleaned = "".join("_" if char in '\\/:*?"<>|' else char for char in filename).strip()
-    cleaned = cleaned.strip(".")
-    return cleaned or "file"
+    normalized = unicodedata.normalize("NFC", filename)
+    cleaned = "".join(
+        "_" if char in '\\/:*?"<>|' or ord(char) < 32 else char
+        for char in normalized
+    ).strip(" .")
+    cleaned = cleaned or "file"
+    path = Path(cleaned)
+    suffix = path.suffix if len(path.suffix.encode("utf-8")) <= 20 else ""
+    stem = (cleaned[: -len(suffix)] if suffix else cleaned).rstrip(" .") or "file"
+    if stem.casefold() in {
+        "con", "prn", "aux", "nul",
+        *(f"com{index}" for index in range(1, 10)),
+        *(f"lpt{index}" for index in range(1, 10)),
+    }:
+        stem = f"_{stem}"
+    return fit_filename_component(f"{stem}{suffix}")
+
+
+def fit_filename_component(filename: str, collision_suffix: str = "", max_bytes: int = 200) -> str:
+    path = Path(unicodedata.normalize("NFC", filename or "file"))
+    suffix = path.suffix if len(path.suffix.encode("utf-8")) <= 20 else ""
+    stem = (path.name[: -len(suffix)] if suffix else path.name).rstrip(" .") or "file"
+    budget = max(1, max_bytes - len(suffix.encode("utf-8")) - len(collision_suffix.encode("utf-8")))
+    fitted = ""
+    for character in stem:
+        if len((fitted + character).encode("utf-8")) > budget:
+            break
+        fitted += character
+    return f"{fitted.rstrip(' .') or 'file'}{collision_suffix}{suffix}"
 
 
 def unique_name(filename: str, used_names: set[str]) -> str:
-    path = Path(filename)
-    stem = path.stem or "file"
-    suffix = path.suffix
-    candidate = filename
+    candidate = fit_filename_component(filename)
     index = 2
-    while candidate.lower() in used_names:
-        candidate = f"{stem}_{index}{suffix}"
+    while unicodedata.normalize("NFC", candidate).casefold() in used_names:
+        candidate = fit_filename_component(filename, f"_{index}")
         index += 1
-    used_names.add(candidate.lower())
+    used_names.add(unicodedata.normalize("NFC", candidate).casefold())
     return candidate
 
 

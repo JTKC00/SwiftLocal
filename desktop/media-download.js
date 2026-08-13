@@ -775,8 +775,12 @@ function sanitizeWindowsFilename(value, maxLength = 160) {
     .trim();
   if (!safe) safe = "media";
   if (/^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(safe)) safe = `_${safe}`;
-  const characters = Array.from(safe);
-  if (characters.length > maxLength) safe = characters.slice(0, maxLength).join("").replace(/[ .]+$/g, "");
+  let fitted = "";
+  for (const character of Array.from(safe)) {
+    if (Buffer.byteLength(fitted + character) > maxLength) break;
+    fitted += character;
+  }
+  safe = fitted.replace(/[ .]+$/g, "");
   return safe || "media";
 }
 

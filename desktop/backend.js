@@ -19,6 +19,7 @@ const {
   pruneJobList,
   cleanupSwiftLocalTempDirs
 } = require("./job-cleanup");
+const { terminateProcessTree } = require("./process-tree");
 
 const TOOL_DEFINITIONS = {
   libreOffice: {
@@ -137,6 +138,8 @@ class BackendService {
   constructor(options = {}) {
     this.jobs = [];
     this.running = false;
+    this.disposing = false;
+    this.pendingAdmissions = 0;
     this.onJobsUpdated = options.onJobsUpdated;
     this.configPath = options.configPath || path.join(process.cwd(), ".swiftlocal-tools.json");
     this.jobsStatePath = options.jobsStatePath || path.join(path.dirname(this.configPath), "jobs-state.json");
@@ -146,7 +149,12 @@ class BackendService {
       this.defaultOutputDir = this.config.defaultOutputDir;
     }
     this.tools = null;
-    this.jobs = loadJobsState(this.jobsStatePath);
+    const persisted = loadJobsState(this.jobsStatePath, { withMetadata: true });
+    this.jobs = persisted.jobs;
+    this.jobsStateTrusted = persisted.trusted;
+    if (!this.jobsStateTrusted) {
+      console.warn(`SwiftLocal preserved an unreadable jobs-state file: ${this.jobsStatePath}`);
+    }
     // Age/cap prune + persist repairs (e.g. running → failed after crash).
     this.pruneJobs();
     // Resume any work left queued from a previous session (FIFO: oldest first).
@@ -171,7 +179,9 @@ class BackendService {
     });
     this.jobs = pruned.jobs;
     const tempDirs = cleanupSwiftLocalTempDirs(this.defaultOutputDir, nowMs);
-    saveJobsState(this.jobsStatePath, this.jobs);
+    if (this.jobsStateTrusted) {
+      saveJobsState(this.jobsStatePath, this.jobs);
+    }
     return {
       before,
       after: this.jobs.length,
@@ -275,46 +285,57 @@ class BackendService {
   }
 
   async enqueue(payload) {
-    if (this.jobs.filter((item) => item.status === "queued").length >= MAX_QUEUED_JOBS) {
+    if (this.disposing) {
+      throw new Error("SwiftLocal 正在結束，無法加入新任務");
+    }
+    if (this.jobs.filter((item) => item.status === "queued").length + this.pendingAdmissions >= MAX_QUEUED_JOBS) {
       throw new Error(`Too many queued jobs (limit: ${MAX_QUEUED_JOBS})`);
     }
-    const outputDir = payload.outputDir || this.defaultOutputDir;
-    const inputPaths = payload.inputPaths || [];
-    const type = payload.type;
-    const options = sanitizeDesktopJobOptions(type, payload.options || {}, inputPaths.length);
-    const preflight = await this.preflightJob({ type, inputPaths, outputDir, options });
-    if (!preflight.ok) {
-      const first = preflight.issues[0];
-      const err = new Error(first.message);
-      err.code = first.code;
-      throw err;
+    this.pendingAdmissions += 1;
+    try {
+      const outputDir = payload.outputDir || this.defaultOutputDir;
+      const inputPaths = payload.inputPaths || [];
+      const type = payload.type;
+      const options = sanitizeDesktopJobOptions(type, payload.options || {}, inputPaths.length);
+      const preflight = await this.preflightJob({ type, inputPaths, outputDir, options });
+      if (this.disposing) {
+        throw new Error("SwiftLocal 正在結束，無法加入新任務");
+      }
+      if (!preflight.ok) {
+        const first = preflight.issues[0];
+        const err = new Error(first.message);
+        err.code = first.code;
+        throw err;
+      }
+      validateJobInputLimits(inputPaths, outputDir);
+      const job = {
+        id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        type,
+        inputPaths,
+        outputDir,
+        options,
+        status: "queued",
+        createdAt: new Date().toISOString(),
+        startedAt: null,
+        finishedAt: null,
+        outputPaths: [],
+        log: [],
+        error: "",
+        errorCode: "",
+        errorHint: "",
+        retriable: true,
+        progress: null,
+        itemResults: [],
+        cancelRequested: false,
+        _child: null
+      };
+      this.jobs.unshift(job);
+      this.emitJobs();
+      this.runNext();
+      return publicJob(job);
+    } finally {
+      this.pendingAdmissions -= 1;
     }
-    validateJobInputLimits(inputPaths, outputDir);
-    const job = {
-      id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-      type,
-      inputPaths,
-      outputDir,
-      options,
-      status: "queued",
-      createdAt: new Date().toISOString(),
-      startedAt: null,
-      finishedAt: null,
-      outputPaths: [],
-      log: [],
-      error: "",
-      errorCode: "",
-      errorHint: "",
-      retriable: true,
-      progress: null,
-      itemResults: [],
-      cancelRequested: false,
-      _child: null
-    };
-    this.jobs.unshift(job);
-    this.emitJobs();
-    this.runNext();
-    return publicJob(job);
   }
 
   async preflightJob({ type, inputPaths = [], outputDir = "", options = {} } = {}) {
@@ -336,7 +357,17 @@ class BackendService {
         });
       }
     }
-    const requiredTools = JOB_TOOL_REQUIREMENTS[type] || [];
+    let requiredTools = JOB_TOOL_REQUIREMENTS[type] || [];
+    if (type === "pdf-to-office") {
+      const extension = String(options.extension || "docx").trim().toLowerCase();
+      const engine = String(options.docxEngine || "auto").trim().toLowerCase();
+      const scanOcr = String(options.scanOcr || "auto").trim().toLowerCase();
+      const ocrOutput = String(options.ocrOutput || "both").trim().toLowerCase();
+      const searchableOnly = extension === "docx" && ["searchable", "pdf", "searchable-pdf"].includes(ocrOutput);
+      const compatDocx = extension === "docx" && ["compat", "compatible", "pdf2docx"].includes(engine);
+      const forcedOcr = extension === "docx" && ["force", "on", "true", "1"].includes(scanOcr);
+      requiredTools = searchableOnly || forcedOcr ? ["tesseract"] : compatDocx ? [] : ["libreOffice"];
+    }
     const tools = this.tools || {};
     for (const key of requiredTools) {
       const tool = tools[key];
@@ -367,6 +398,9 @@ class BackendService {
   }
 
   async retryJob(jobId) {
+    if (this.disposing) {
+      throw new Error("SwiftLocal 正在結束，無法重新執行任務");
+    }
     const job = this.jobs.find((item) => item.id === jobId);
     if (!job) {
       return false;
@@ -377,29 +411,40 @@ class BackendService {
     if (job.retriable === false) {
       throw new Error(job.errorHint || "此任務無法自動重試，請從工具面板重新提交");
     }
-    const preflight = await this.preflightJob({
-      type: job.type,
-      inputPaths: job.inputPaths,
-      outputDir: job.outputDir || this.defaultOutputDir,
-      options: job.options
-    });
-    if (!preflight.ok) {
-      throw new Error(preflight.issues[0].message);
+    if (this.jobs.filter((item) => item.status === "queued").length + this.pendingAdmissions >= MAX_QUEUED_JOBS) {
+      throw new Error(`Too many queued jobs (limit: ${MAX_QUEUED_JOBS})`);
     }
-    job.status = "queued";
-    job.startedAt = null;
-    job.finishedAt = null;
-    job.outputPaths = [];
-    job.error = "";
-    job.errorCode = "";
-    job.errorHint = "";
-    job.retriable = true;
-    job.cancelRequested = false;
-    job._child = null;
-    job.log = [...(job.log || []).slice(-8), "使用者重新執行任務"];
-    this.emitJobs();
-    this.runNext();
-    return publicJob(job);
+    this.pendingAdmissions += 1;
+    try {
+      const preflight = await this.preflightJob({
+        type: job.type,
+        inputPaths: job.inputPaths,
+        outputDir: job.outputDir || this.defaultOutputDir,
+        options: job.options
+      });
+      if (!preflight.ok) {
+        throw new Error(preflight.issues[0].message);
+      }
+      if (this.disposing) {
+        throw new Error("SwiftLocal 正在結束，無法重新執行任務");
+      }
+      job.status = "queued";
+      job.startedAt = null;
+      job.finishedAt = null;
+      job.outputPaths = [];
+      job.error = "";
+      job.errorCode = "";
+      job.errorHint = "";
+      job.retriable = true;
+      job.cancelRequested = false;
+      job._child = null;
+      job.log = [...(job.log || []).slice(-8), "使用者重新執行任務"];
+      this.emitJobs();
+      this.runNext();
+      return publicJob(job);
+    } finally {
+      this.pendingAdmissions -= 1;
+    }
   }
 
   async copyJob(jobId) {
@@ -511,7 +556,7 @@ class BackendService {
       let killed = false;
       if (job._child && !job._child.killed) {
         try {
-          job._child.kill();
+          void terminateProcessTree(job._child);
           killed = true;
         } catch {
           // ignore kill races
@@ -528,8 +573,61 @@ class BackendService {
     throw new Error("只能取消排隊中或執行中的任務");
   }
 
+  hasActiveWork() {
+    return this.pendingAdmissions > 0 || this.jobs.some((job) => job.status === "queued" || job.status === "running");
+  }
+
+  async dispose() {
+    this.disposing = true;
+    const terminated = [];
+    const now = new Date().toISOString();
+    for (const job of this.jobs) {
+      if (job.status === "queued") {
+        job.status = "cancelled";
+        job.error = "SwiftLocal 結束時已取消排隊任務";
+        job.errorCode = ERROR_CODES.CANCELLED;
+        job.errorHint = "可在下次啟動後重新執行此任務。";
+        job.retriable = true;
+        job.finishedAt = now;
+        job.options = redactJobOptions(job.options);
+        job.log.push(job.error);
+      } else if (job.status === "running") {
+        job.cancelRequested = true;
+        job.log.push("SwiftLocal 正在結束：已要求中止外部工具程序。");
+        if (job._child) terminated.push(terminateProcessTree(job._child));
+      }
+    }
+    this.emitJobs();
+    await Promise.allSettled(terminated);
+    if (!this.jobs.some((job) => job.status === "running")) {
+      this.running = false;
+    }
+    const deadline = Date.now() + 5000;
+    while (this.running && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 25));
+    }
+    if (this.running) {
+      const finishedAt = new Date().toISOString();
+      for (const job of this.jobs) {
+        if (job.status !== "running") continue;
+        job.status = "cancelled";
+        job.error = "SwiftLocal 結束時中止任務";
+        job.errorCode = ERROR_CODES.CANCELLED;
+        job.errorHint = "可在下次啟動後重新執行此任務。";
+        job.retriable = true;
+        job.finishedAt = finishedAt;
+        job.options = redactJobOptions(job.options);
+        job.log.push(job.error);
+      }
+      this.emitJobs();
+    }
+  }
+
   async runNext() {
     if (this.running) {
+      return;
+    }
+    if (this.disposing) {
       return;
     }
     // FIFO: jobs are unshifted (newest first), so take the last queued entry.
@@ -706,10 +804,10 @@ class BackendService {
       if (pdfBytesLookEncrypted(probe)) {
         throw encryptedPdfError(path.basename(inputPath));
       }
-      const outputPath = path.join(
+      const outputPath = nextAvailablePath(path.join(
         job.outputDir,
         `${path.parse(inputPath).name}_ocr_searchable.pdf`
-      );
+      ));
       await createSearchablePdfViaOcr(this, job, inputPath, outputPath);
       ensureOutputFile(outputPath, inputPath);
       job.outputPaths.push(outputPath);
@@ -728,6 +826,7 @@ class BackendService {
     const useCompatDirect =
       extension === "docx" &&
       (searchableOnly ||
+        ["force", "on", "true", "1"].includes(scanOcr) ||
         engineRaw === "compat" ||
         engineRaw === "compatible" ||
         engineRaw === "pdf2docx");
@@ -948,10 +1047,22 @@ class BackendService {
       ensureJobNotCancelled(job);
       const outputPath = nextAvailablePath(path.join(job.outputDir, `${path.parse(inputPath).name}.${extension}`));
       const args = buildFfmpegMediaArgs(inputPath, outputPath, { ...job.options, extension });
-      const result = await runProcess(tool.path, args, job);
-      job.log.push(result.output || `media: ${path.basename(inputPath)} -> ${path.basename(outputPath)}`);
-      ensureOutputFile(outputPath, inputPath);
-      job.outputPaths.push(outputPath);
+      try {
+        const result = await runProcess(tool.path, args, job, "FFmpeg");
+        job.log.push(result.output || `media: ${path.basename(inputPath)} -> ${path.basename(outputPath)}`);
+        ensureOutputFile(outputPath, inputPath);
+        if (fs.statSync(outputPath).size < 1) {
+          throw new Error(`FFmpeg 未產生有效輸出檔：${path.basename(outputPath)}`);
+        }
+        job.outputPaths.push(outputPath);
+      } catch (error) {
+        try {
+          fs.rmSync(outputPath, { force: true });
+        } catch {
+          // Preserve the process error; cleanup is best effort.
+        }
+        throw error;
+      }
     }
   }
 
@@ -1205,16 +1316,23 @@ class BackendService {
   }
 }
 
-function loadJobsState(statePath) {
+function loadJobsState(statePath, options = {}) {
+  const metadata = (jobs, trusted) => options.withMetadata ? { jobs, trusted } : jobs;
   try {
     const raw = JSON.parse(fs.readFileSync(statePath, "utf8"));
-    const list = Array.isArray(raw) ? raw : Array.isArray(raw && raw.jobs) ? raw.jobs : [];
-    return list
+    const list = Array.isArray(raw) ? raw : Array.isArray(raw && raw.jobs) ? raw.jobs : null;
+    if (!list) return metadata([], false);
+    if (list.some((item) => !item || typeof item !== "object" || !item.id || !item.type)) {
+      return metadata([], false);
+    }
+    const jobs = list
       .map((item) => normalizePersistedJob(item))
       .filter(Boolean)
       .slice(0, MAX_PERSISTED_JOBS);
-  } catch {
-    return [];
+    return metadata(jobs, true);
+  } catch (error) {
+    const missing = error && error.code === "ENOENT";
+    return metadata([], missing);
   }
 }
 
@@ -1284,9 +1402,36 @@ function normalizePersistedJob(item) {
   };
 }
 
+function atomicWriteFileSync(filePath, contents, fsImpl = fs) {
+  let tempPath = "";
+  try {
+    fsImpl.mkdirSync(path.dirname(filePath), { recursive: true });
+    tempPath = path.join(
+      path.dirname(filePath),
+      `.${path.basename(filePath)}.${process.pid}.${Date.now()}.${Math.random().toString(16).slice(2)}.tmp`
+    );
+    const descriptor = fsImpl.openSync(tempPath, "wx");
+    try {
+      fsImpl.writeFileSync(descriptor, contents, "utf8");
+      fsImpl.fsyncSync(descriptor);
+    } finally {
+      fsImpl.closeSync(descriptor);
+    }
+    fsImpl.renameSync(tempPath, filePath);
+    tempPath = "";
+  } finally {
+    if (tempPath) {
+      try {
+        fsImpl.rmSync(tempPath, { force: true });
+      } catch {
+        // Best-effort cleanup of an interrupted state write.
+      }
+    }
+  }
+}
+
 function saveJobsState(statePath, jobs) {
   try {
-    fs.mkdirSync(path.dirname(statePath), { recursive: true });
     const payload = {
       version: JOBS_STATE_SCHEMA_VERSION,
       savedAt: new Date().toISOString(),
@@ -1310,7 +1455,7 @@ function saveJobsState(statePath, jobs) {
         itemResults: normalizeImageItemResults(job.itemResults)
       }))
     };
-    fs.writeFileSync(statePath, JSON.stringify(payload, null, 2), "utf8");
+    atomicWriteFileSync(statePath, JSON.stringify(payload, null, 2));
   } catch {
     // Persistence is best-effort; conversion should still work offline.
   }
@@ -1753,17 +1898,31 @@ function formatBytes(value) {
 }
 
 function nextAvailablePath(filePath) {
-  if (!fs.existsSync(filePath)) {
-    return filePath;
-  }
   const parsed = path.parse(filePath);
+  const first = path.join(parsed.dir, fitOutputFilename(parsed.name, parsed.ext));
+  if (!fs.existsSync(first)) {
+    return first;
+  }
   for (let index = 2; index < 10000; index += 1) {
-    const candidate = path.join(parsed.dir, `${parsed.name} (${index})${parsed.ext}`);
+    const candidate = path.join(parsed.dir, fitOutputFilename(parsed.name, parsed.ext, ` (${index})`));
     if (!fs.existsSync(candidate)) {
       return candidate;
     }
   }
   throw new Error(`Unable to find an available output name for ${parsed.base}`);
+}
+
+function fitOutputFilename(stem, extension = "", collisionSuffix = "", maxBytes = 240) {
+  const ext = String(extension || "");
+  const marker = String(collisionSuffix || "");
+  const budget = Math.max(1, maxBytes - Buffer.byteLength(ext) - Buffer.byteLength(marker));
+  let fitted = "";
+  for (const character of Array.from(String(stem || "output").normalize("NFC"))) {
+    if (Buffer.byteLength(fitted + character) > budget) break;
+    fitted += character;
+  }
+  fitted = fitted.replace(/[ .]+$/g, "") || "output";
+  return `${fitted}${marker}${ext}`;
 }
 
 async function runLibreOfficeToUniqueOutput(toolPath, outputDir, inputPath, convertTo, extension, job) {
@@ -2907,8 +3066,10 @@ async function writeDocxWithScanStrategy(service, job, inputPath, scanOcr, ocrOu
   const force = mode === "force" || mode === "on" || mode === "true" || mode === "1" || outMode === "searchable";
   const off = mode === "off" || mode === "false" || mode === "0" || mode === "never";
   const wantOcr = !off && (force || ((mode === "auto" || !mode) && lowText) || outMode === "searchable");
-  const docxPath = path.join(job.outputDir, `${path.parse(inputPath).name}.docx`);
-  const searchablePath = path.join(job.outputDir, `${path.parse(inputPath).name}_ocr_searchable.pdf`);
+  const docxPath = nextAvailablePath(path.join(job.outputDir, `${path.parse(inputPath).name}.docx`));
+  const searchablePath = nextAvailablePath(
+    path.join(job.outputDir, `${path.parse(inputPath).name}_ocr_searchable.pdf`)
+  );
 
   if (wantOcr) {
     try {
@@ -3586,7 +3747,13 @@ function filterSuccessfulToolOutput(output, toolLabel = "") {
     .trim();
 }
 
-function runProcess(file, args, job, toolLabel = "外部程序") {
+function defaultProcessTimeoutMs(toolLabel) {
+  if (/LibreOffice/i.test(toolLabel)) return 180_000;
+  if (/FFmpeg/i.test(toolLabel)) return 600_000;
+  return 300_000;
+}
+
+function runProcess(file, args, job, toolLabel = "外部程序", options = {}) {
   return new Promise((resolve, reject) => {
     if (job && job.cancelRequested) {
       reject(new JobCancelledError());
@@ -3594,7 +3761,10 @@ function runProcess(file, args, job, toolLabel = "外部程序") {
     }
     let child;
     try {
-      child = spawn(file, args, { windowsHide: true });
+      child = spawn(file, args, {
+        windowsHide: true,
+        detached: process.platform !== "win32"
+      });
     } catch (error) {
       const notFound = error && (error.code === "ENOENT" || /ENOENT/i.test(String(error)));
       const permissionDenied = error && (error.code === "EACCES" || /EACCES|permission/i.test(String(error)));
@@ -3621,6 +3791,20 @@ function runProcess(file, args, job, toolLabel = "外部程序") {
     }
     const stdoutChunks = [];
     const stderrChunks = [];
+    const timeoutMs = Math.max(1, Number(options.timeoutMs) || defaultProcessTimeoutMs(toolLabel));
+    let timedOut = false;
+    let settled = false;
+    const settle = (callback, value) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      callback(value);
+    };
+    const timer = setTimeout(() => {
+      timedOut = true;
+      void terminateProcessTree(child);
+    }, timeoutMs);
+    if (typeof timer.unref === "function") timer.unref();
     child.stdout.on("data", (chunk) => stdoutChunks.push(chunk.toString()));
     child.stderr.on("data", (chunk) => stderrChunks.push(chunk.toString()));
     child.on("error", (error) => {
@@ -3629,7 +3813,7 @@ function runProcess(file, args, job, toolLabel = "外部程序") {
       }
       const notFound = error && (error.code === "ENOENT" || /ENOENT/i.test(String(error)));
       const permissionDenied = error && (error.code === "EACCES" || /EACCES|permission/i.test(String(error)));
-      reject(createProcessError(formatProcessError({
+      settle(reject, createProcessError(formatProcessError({
         notFound,
         permissionDenied,
         executable: file,
@@ -3653,8 +3837,29 @@ function runProcess(file, args, job, toolLabel = "外部程序") {
       const stdout = stdoutChunks.join("");
       const stderr = stderrChunks.join("");
       const output = `${stdout}${stderr}`.trim();
+      if (timedOut) {
+        settle(reject, createProcessError(formatProcessError({
+          timeout: true,
+          timeoutSeconds: Math.ceil(timeoutMs / 1000),
+          stdout,
+          stderr,
+          executable: file,
+          args,
+          cwd: process.cwd(),
+          toolLabel
+        }), {
+          errorCode: ERROR_CODES.TOOL_TIMEOUT,
+          exitCode: code,
+          executable: file,
+          args,
+          cwd: process.cwd(),
+          stdout,
+          stderr
+        }));
+        return;
+      }
       if (job && job.cancelRequested) {
-        reject(new JobCancelledError());
+        settle(reject, new JobCancelledError());
         return;
       }
       // qpdf uses exit 3 for "succeeded with warnings" (still produced output).
@@ -3662,7 +3867,7 @@ function runProcess(file, args, job, toolLabel = "外部程序") {
       const qpdfWarningOk = isQpdf && code === 3 && /succeeded with warnings/i.test(output);
       if (code === 0 || qpdfWarningOk) {
         if (/impl_store|error area:io|class:write/i.test(output)) {
-          reject(createProcessError(formatProcessError({
+          settle(reject, createProcessError(formatProcessError({
             returncode: code,
             stdout,
             stderr,
@@ -3681,10 +3886,10 @@ function runProcess(file, args, job, toolLabel = "外部程序") {
           }));
           return;
         }
-        resolve({ output: filterSuccessfulToolOutput(output, toolLabel), stdout, stderr, exitCode: code });
+        settle(resolve, { output: filterSuccessfulToolOutput(output, toolLabel), stdout, stderr, exitCode: code });
       } else {
         const errorCode = processErrorCode({ code, stdout, stderr, toolLabel: isQpdf ? "QPDF" : toolLabel });
-        reject(createProcessError(formatProcessError({
+        settle(reject, createProcessError(formatProcessError({
           returncode: code,
           stdout: [stdout, signal ? `signal=${signal}` : ""].filter(Boolean).join("\n"),
           stderr,
@@ -3743,9 +3948,11 @@ module.exports = {
   MAX_PERSISTED_JOBS,
   loadJobsState,
   saveJobsState,
+  atomicWriteFileSync,
   normalizePersistedJob,
   redactJobOptions,
   nextAvailablePath,
+  fitOutputFilename,
   validateJobInputLimits,
   classifyJobError,
   errorCodeLabel,
@@ -3770,5 +3977,7 @@ module.exports = {
   bundledTessdataDir,
   listOcrLanguages,
   writeTextDocx,
-  JobCancelledError
+  JobCancelledError,
+  runProcess,
+  defaultProcessTimeoutMs
 };

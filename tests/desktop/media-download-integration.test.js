@@ -38,14 +38,16 @@ test("renderer can only request typed IPC operations and never spawns a process"
   assert.ok(imageSources.includes("blob:"));
 });
 
-test("main process safely owns thumbnail networking and waits for active media work during quit", () => {
+test("main process safely owns thumbnail networking and waits for all active work during quit", () => {
   const service = fs.readFileSync(path.join(root, "desktop", "media-download.js"), "utf8");
   assert.match(service, /if \(thumbnailUrl\) \{/);
   assert.doesNotMatch(service, /thumbnailUrl\s*&&\s*this\.fetchImpl/);
   assert.match(service, /lookup:\s*\(_hostname, lookupOptions, callback\)/);
   assert.match(main, /event\.preventDefault\(\)/);
-  assert.match(main, /mediaDisposeFinished = true/);
-  assert.match(main, /mediaDownload\.dispose\(\).*\.finally\(\(\) => \{/);
+  assert.match(main, /shutdownFinished = true/);
+  assert.match(main, /backend\.dispose\(\)/);
+  assert.match(main, /mediaDownload\.dispose\(\)/);
+  assert.match(main, /Promise\.allSettled\(shutdownTasks\)\.finally\(\(\) => \{/);
   assert.match(service, /finishedPromise/);
 });
 

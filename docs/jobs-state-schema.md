@@ -140,6 +140,13 @@
 
 清理時 **不會** 刪除 queued／running。FastAPI 會刪除對應 `temp/jobs/{id}` 工作目錄；桌面版僅更新 jobs-state（使用者下載目錄中的輸出檔保留）。
 
+### 寫入與損壞處理
+
+- Electron 與 FastAPI 都先在狀態檔同目錄建立暫存檔、flush／fsync，最後以原子 replace 更新正式檔；replace 失敗時保留上一版並移除暫存檔。
+- 狀態檔不存在時視為全新安裝，可以建立空狀態。
+- 狀態檔存在但 JSON 損壞或根結構不合法時採 fail-closed：保留原檔，不以空佇列覆寫。FastAPI 同時停用 orphan 工作目錄清理，避免把仍屬於未知任務的結果刪除。
+- FastAPI 上傳中的 job id 會先登記為 in-flight；orphan 清理不得刪除仍在串流寫入的工作目錄。
+
 ---
 
 ## 升級／遷移約定

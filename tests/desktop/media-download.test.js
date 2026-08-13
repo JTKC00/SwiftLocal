@@ -156,6 +156,7 @@ describe("online media downloader", () => {
     assert.equal(sanitizeWindowsFilename("CON."), "_CON");
     assert.equal(sanitizeWindowsFilename("bad:name*"), "bad_name_");
     assert.ok(Array.from(sanitizeWindowsFilename("字".repeat(500))).length <= 160);
+    assert.ok(Buffer.byteLength(sanitizeWindowsFilename("繁體中文".repeat(100))) <= 160);
   });
 
   test("avoids overwriting completed files and cleans only operation-owned files after cancel", () => {

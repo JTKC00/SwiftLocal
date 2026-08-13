@@ -14,7 +14,9 @@ import json
 import os
 import sys
 import tempfile
+import time
 import unittest
+import unicodedata
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -314,6 +316,318 @@ class JobPersistenceTests(unittest.IsolatedAsyncioTestCase):
                 js_mod.TEMP_DIR = old_temp
 
 
+class MemoryUpload:
+    def __init__(self, filename: str, data: bytes):
+        self.filename = filename
+        self.size = len(data)
+        self._data = data
+        self._offset = 0
+
+    async def read(self, size: int = -1) -> bytes:
+        if self._offset >= len(self._data):
+            return b""
+        end = len(self._data) if size < 0 else self._offset + size
+        chunk = self._data[self._offset:end]
+        self._offset += len(chunk)
+        return chunk
+
+
+class GatedUpload(MemoryUpload):
+    def __init__(
+        self,
+        filename: str,
+        data: bytes,
+        started: asyncio.Event,
+        release: asyncio.Event,
+    ):
+        super().__init__(filename, data)
+        self._started = started
+        self._release = release
+        self._waited = False
+
+    async def read(self, size: int = -1) -> bytes:
+        if not self._waited:
+            self._waited = True
+            self._started.set()
+            await self._release.wait()
+        return await super().read(size)
+
+
+class FailingUpload(MemoryUpload):
+    async def read(self, size: int = -1) -> bytes:
+        raise OSError("simulated upload failure")
+
+
+class JobUploadReliabilityTests(unittest.IsolatedAsyncioTestCase):
+    async def test_retry_respects_queue_limit_without_leaking_reservation(self) -> None:
+        from backend.services import job_service as js_mod
+
+        old_max_queued = js_mod.MAX_QUEUED_JOBS
+        js_mod.MAX_QUEUED_JOBS = 1
+        try:
+            service = JobService()
+            queued = Job(id="queued", type="pdf-merge", input_paths=[], output_dir=Path("."), options={})
+            failed = Job(
+                id="failed",
+                type="pdf-merge",
+                input_paths=[],
+                output_dir=Path("."),
+                options={},
+                status="failed",
+            )
+            service.jobs = [failed, queued]
+            with self.assertRaisesRegex(ValueError, "Too many queued jobs"):
+                await service.retry_job("failed")
+            self.assertEqual(failed.status, "failed")
+            self.assertEqual(service._inflight_job_ids, set())
+        finally:
+            js_mod.MAX_QUEUED_JOBS = old_max_queued
+
+    async def test_long_unicode_and_windows_reserved_upload_names_are_safe(self) -> None:
+        from backend.services import job_service as js_mod
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            jobs_dir = tmp_path / "jobs"
+            state_path = tmp_path / "jobs-state.json"
+            old_jobs_dir = js_mod.JOBS_DIR
+            old_state = js_mod.JOBS_STATE_PATH
+            old_temp = js_mod.TEMP_DIR
+            js_mod.JOBS_DIR = jobs_dir
+            js_mod.JOBS_STATE_PATH = state_path
+            js_mod.TEMP_DIR = tmp_path
+            try:
+                service = JobService()
+                service.running = True
+                long_name = f"{'繁體中文' * 80}.pdf"
+                await service.create_job(
+                    "pdf-merge",
+                    [
+                        MemoryUpload(long_name, b"first"),
+                        MemoryUpload(long_name, b"second"),
+                        MemoryUpload("CON.pdf", b"third"),
+                    ],
+                    {},
+                )
+                names = [path.name for path in service.jobs[0].input_paths]
+                self.assertEqual(len(set(names)), 3)
+                self.assertTrue(all(len(name.encode("utf-8")) <= 200 for name in names))
+                self.assertTrue(names[0].endswith(".pdf"))
+                self.assertTrue(names[1].endswith("_2.pdf"))
+                self.assertEqual(names[2], "_CON.pdf")
+                self.assertEqual(
+                    [path.read_bytes() for path in service.jobs[0].input_paths],
+                    [b"first", b"second", b"third"],
+                )
+            finally:
+                js_mod.JOBS_DIR = old_jobs_dir
+                js_mod.JOBS_STATE_PATH = old_state
+                js_mod.TEMP_DIR = old_temp
+
+    async def test_unicode_and_case_equivalent_upload_names_keep_both_contents(self) -> None:
+        from backend.services import job_service as js_mod
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            jobs_dir = tmp_path / "jobs"
+            state_path = tmp_path / "jobs-state.json"
+            old_jobs_dir = js_mod.JOBS_DIR
+            old_state = js_mod.JOBS_STATE_PATH
+            old_temp = js_mod.TEMP_DIR
+            js_mod.JOBS_DIR = jobs_dir
+            js_mod.JOBS_STATE_PATH = state_path
+            js_mod.TEMP_DIR = tmp_path
+            try:
+                service = JobService()
+                # Keep the regression focused on upload persistence, not conversion.
+                service.running = True
+                nfd_name = unicodedata.normalize("NFD", "RÉSUMÉ.pdf")
+                await service.create_job(
+                    "pdf-merge",
+                    [
+                        MemoryUpload("Résumé.PDF", b"first payload"),
+                        MemoryUpload(nfd_name, b"second payload"),
+                    ],
+                    {},
+                )
+                await asyncio.sleep(0)
+
+                self.assertEqual(len(service.jobs), 1)
+                input_paths = service.jobs[0].input_paths
+                self.assertEqual(len(input_paths), 2)
+                self.assertEqual(
+                    [path.read_bytes() for path in input_paths],
+                    [b"first payload", b"second payload"],
+                )
+                self.assertEqual(
+                    [unicodedata.normalize("NFC", path.name) for path in input_paths],
+                    ["Résumé.PDF", "RÉSUMÉ_2.pdf"],
+                )
+                self.assertNotEqual(input_paths[0], input_paths[1])
+            finally:
+                js_mod.JOBS_DIR = old_jobs_dir
+                js_mod.JOBS_STATE_PATH = old_state
+                js_mod.TEMP_DIR = old_temp
+
+    async def test_concurrent_upload_reservations_enforce_queue_limit(self) -> None:
+        from backend.services import job_service as js_mod
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            jobs_dir = tmp_path / "jobs"
+            state_path = tmp_path / "jobs-state.json"
+            old_jobs_dir = js_mod.JOBS_DIR
+            old_state = js_mod.JOBS_STATE_PATH
+            old_temp = js_mod.TEMP_DIR
+            old_max_queued = js_mod.MAX_QUEUED_JOBS
+            js_mod.JOBS_DIR = jobs_dir
+            js_mod.JOBS_STATE_PATH = state_path
+            js_mod.TEMP_DIR = tmp_path
+            js_mod.MAX_QUEUED_JOBS = 1
+            try:
+                first_started = asyncio.Event()
+                release_first = asyncio.Event()
+                service = JobService()
+                service.running = True
+                first = asyncio.create_task(
+                    service.create_job(
+                        "pdf-merge",
+                        [
+                            GatedUpload(
+                                "first.pdf",
+                                b"first",
+                                first_started,
+                                release_first,
+                            )
+                        ],
+                        {},
+                    )
+                )
+                await asyncio.wait_for(first_started.wait(), timeout=1)
+                second = asyncio.create_task(
+                    service.create_job(
+                        "pdf-merge",
+                        [MemoryUpload("second.pdf", b"second")],
+                        {},
+                    )
+                )
+                await asyncio.sleep(0)
+                second_was_rejected_while_first_blocked = second.done()
+                release_first.set()
+
+                first_result, second_result = await asyncio.gather(
+                    first,
+                    second,
+                    return_exceptions=True,
+                )
+
+                self.assertTrue(second_was_rejected_while_first_blocked)
+                self.assertIsInstance(first_result, dict)
+                self.assertIsInstance(second_result, ValueError)
+                self.assertIn("Too many queued jobs", str(second_result))
+                self.assertEqual(len(service.jobs), 1)
+                self.assertEqual(len(service._inflight_job_ids), 0)
+                self.assertEqual(
+                    [child.name for child in jobs_dir.iterdir() if child.is_dir()],
+                    [service.jobs[0].id],
+                )
+            finally:
+                js_mod.MAX_QUEUED_JOBS = old_max_queued
+                js_mod.JOBS_DIR = old_jobs_dir
+                js_mod.JOBS_STATE_PATH = old_state
+                js_mod.TEMP_DIR = old_temp
+
+    async def test_failed_upload_releases_queue_reservation(self) -> None:
+        from backend.services import job_service as js_mod
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            jobs_dir = tmp_path / "jobs"
+            state_path = tmp_path / "jobs-state.json"
+            old_jobs_dir = js_mod.JOBS_DIR
+            old_state = js_mod.JOBS_STATE_PATH
+            old_temp = js_mod.TEMP_DIR
+            old_max_queued = js_mod.MAX_QUEUED_JOBS
+            js_mod.JOBS_DIR = jobs_dir
+            js_mod.JOBS_STATE_PATH = state_path
+            js_mod.TEMP_DIR = tmp_path
+            js_mod.MAX_QUEUED_JOBS = 1
+            try:
+                service = JobService()
+                service.running = True
+                with self.assertRaisesRegex(OSError, "simulated upload failure"):
+                    await service.create_job(
+                        "pdf-merge",
+                        [FailingUpload("broken.pdf", b"broken")],
+                        {},
+                    )
+
+                self.assertEqual(service.jobs, [])
+                self.assertEqual(service._inflight_job_ids, set())
+                if jobs_dir.exists():
+                    self.assertEqual(list(jobs_dir.iterdir()), [])
+
+                result = await service.create_job(
+                    "pdf-merge",
+                    [MemoryUpload("retry.pdf", b"retry")],
+                    {},
+                )
+                await asyncio.sleep(0)
+                self.assertEqual(result["status"], "queued")
+                self.assertEqual(len(service.jobs), 1)
+                self.assertEqual(service._inflight_job_ids, set())
+            finally:
+                js_mod.MAX_QUEUED_JOBS = old_max_queued
+                js_mod.JOBS_DIR = old_jobs_dir
+                js_mod.JOBS_STATE_PATH = old_state
+                js_mod.TEMP_DIR = old_temp
+
+    async def test_prune_does_not_delete_upload_workdir_before_job_registration(self) -> None:
+        from backend.services import job_service as js_mod
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            jobs_dir = tmp_path / "jobs"
+            state_path = tmp_path / "jobs-state.json"
+            old_jobs_dir = js_mod.JOBS_DIR
+            old_state = js_mod.JOBS_STATE_PATH
+            old_temp = js_mod.TEMP_DIR
+            js_mod.JOBS_DIR = jobs_dir
+            js_mod.JOBS_STATE_PATH = state_path
+            js_mod.TEMP_DIR = tmp_path
+            try:
+                started = asyncio.Event()
+                release = asyncio.Event()
+                service = JobService()
+                service.running = True
+                creation = asyncio.create_task(
+                    service.create_job(
+                        "pdf-merge",
+                        [GatedUpload("held.pdf", b"payload", started, release)],
+                        {},
+                    )
+                )
+                await asyncio.wait_for(started.wait(), timeout=1)
+                self.assertEqual(len(service._inflight_job_ids), 1)
+                job_id = next(iter(service._inflight_job_ids))
+                workdir = jobs_dir / job_id
+
+                prune_result = service.prune_jobs()
+                workdir_was_protected = workdir.is_dir()
+                release.set()
+                outcome = (await asyncio.gather(creation, return_exceptions=True))[0]
+
+                self.assertEqual(prune_result["orphanDirs"], 0)
+                self.assertTrue(workdir_was_protected)
+                self.assertNotIsInstance(outcome, BaseException)
+                self.assertEqual(service.jobs[0].id, job_id)
+                self.assertEqual(service.jobs[0].input_paths[0].read_bytes(), b"payload")
+            finally:
+                js_mod.JOBS_DIR = old_jobs_dir
+                js_mod.JOBS_STATE_PATH = old_state
+                js_mod.TEMP_DIR = old_temp
+
+
 class OutputCollisionTests(unittest.IsolatedAsyncioTestCase):
     async def test_numbered_names_preserve_existing_file(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -324,6 +638,12 @@ class OutputCollisionTests(unittest.IsolatedAsyncioTestCase):
             (tmp_path / "report (2).pdf").write_text("second", encoding="utf-8")
             self.assertEqual(next_available_path(original), tmp_path / "report (3).pdf")
             self.assertEqual(original.read_text(encoding="utf-8"), "original")
+
+    async def test_long_ascii_and_traditional_chinese_names_fit_component_budget(self) -> None:
+        for stem in ("a" * 250, "香港文件" * 80):
+            candidate = next_available_path(Path("/tmp") / f"{stem}_compressed.pdf")
+            self.assertLessEqual(len(candidate.name.encode("utf-8")), 240)
+            self.assertTrue(candidate.name.endswith(".pdf"))
 
     async def test_merge_does_not_overwrite_existing_output(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -654,6 +974,156 @@ class JobsStateSchemaTests(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(payload["jobs"][0]["id"], "j1")
                 self.assertEqual(payload["jobs"][0]["type"], "pdf-compress")
                 self.assertEqual(payload["jobs"][0]["options"], {"extension": "pdf"})
+            finally:
+                js_mod.JOBS_DIR = old_jobs_dir
+                js_mod.JOBS_STATE_PATH = old_state
+                js_mod.TEMP_DIR = old_temp
+
+    async def test_failed_atomic_replace_preserves_previous_state(self) -> None:
+        from backend.services import job_service as js_mod
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            jobs_dir = tmp_path / "jobs"
+            jobs_dir.mkdir()
+            state_path = tmp_path / "jobs-state.json"
+            previous_state = b'{"version": 1, "jobs": []}\n'
+            state_path.write_bytes(previous_state)
+            old_jobs_dir = js_mod.JOBS_DIR
+            old_state = js_mod.JOBS_STATE_PATH
+            old_temp = js_mod.TEMP_DIR
+            old_replace = js_mod.os.replace
+            old_fsync = js_mod.os.fsync
+            js_mod.JOBS_DIR = jobs_dir
+            js_mod.JOBS_STATE_PATH = state_path
+            js_mod.TEMP_DIR = tmp_path
+            fsync_calls: list[int] = []
+
+            def record_fsync(fd: int) -> None:
+                fsync_calls.append(fd)
+                old_fsync(fd)
+
+            def fail_replace(_source: Path, _target: Path) -> None:
+                raise OSError("simulated replace failure")
+
+            js_mod.os.fsync = record_fsync
+            js_mod.os.replace = fail_replace
+            try:
+                service = JobService()
+                service.jobs = [
+                    Job(
+                        id="new",
+                        type="pdf-compress",
+                        input_paths=[],
+                        output_dir=jobs_dir / "new" / "output",
+                        options={},
+                        status="done",
+                    )
+                ]
+                service._save_jobs_state()
+
+                self.assertEqual(state_path.read_bytes(), previous_state)
+                self.assertEqual(len(fsync_calls), 1)
+                self.assertEqual(list(tmp_path.glob(".jobs-state.json.*.tmp")), [])
+            finally:
+                js_mod.os.replace = old_replace
+                js_mod.os.fsync = old_fsync
+                js_mod.JOBS_DIR = old_jobs_dir
+                js_mod.JOBS_STATE_PATH = old_state
+                js_mod.TEMP_DIR = old_temp
+
+    async def test_truncated_state_preserves_job_dirs_and_original_state(self) -> None:
+        from backend.services import job_service as js_mod
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            jobs_dir = tmp_path / "jobs"
+            preserved_dir = jobs_dir / "unrecoverable-job" / "input"
+            preserved_dir.mkdir(parents=True)
+            (preserved_dir / "source.pdf").write_bytes(b"%PDF")
+            state_path = tmp_path / "jobs-state.json"
+            truncated = '{"version": 2, "jobs": [{"id": "unrecoverable-job"'
+            state_path.write_text(truncated, encoding="utf-8")
+            old_jobs_dir = js_mod.JOBS_DIR
+            old_state = js_mod.JOBS_STATE_PATH
+            old_temp = js_mod.TEMP_DIR
+            js_mod.JOBS_DIR = jobs_dir
+            js_mod.JOBS_STATE_PATH = state_path
+            js_mod.TEMP_DIR = tmp_path
+            try:
+                service = JobService()
+                await service.restore_state()
+
+                self.assertEqual(service.jobs, [])
+                self.assertFalse(service._jobs_state_trusted)
+                self.assertTrue(preserved_dir.is_dir())
+                self.assertEqual(state_path.read_text(encoding="utf-8"), truncated)
+
+                # Subsequent maintenance on this fail-closed service must not
+                # reinterpret the still-unknown work directory as an orphan.
+                result = service.prune_jobs()
+                self.assertEqual(result["orphanDirs"], 0)
+                self.assertTrue(preserved_dir.is_dir())
+                self.assertEqual(state_path.read_text(encoding="utf-8"), truncated)
+            finally:
+                js_mod.JOBS_DIR = old_jobs_dir
+                js_mod.JOBS_STATE_PATH = old_state
+                js_mod.TEMP_DIR = old_temp
+
+    async def test_malformed_state_shape_preserves_job_dirs(self) -> None:
+        from backend.services import job_service as js_mod
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            jobs_dir = tmp_path / "jobs"
+            preserved_dir = jobs_dir / "unknown-job"
+            preserved_dir.mkdir(parents=True)
+            state_path = tmp_path / "jobs-state.json"
+            malformed = '{"version": 2, "jobs": {"unknown-job": {}}}'
+            state_path.write_text(malformed, encoding="utf-8")
+            old_jobs_dir = js_mod.JOBS_DIR
+            old_state = js_mod.JOBS_STATE_PATH
+            old_temp = js_mod.TEMP_DIR
+            js_mod.JOBS_DIR = jobs_dir
+            js_mod.JOBS_STATE_PATH = state_path
+            js_mod.TEMP_DIR = tmp_path
+            try:
+                service = JobService()
+                await service.restore_state()
+
+                self.assertFalse(service._jobs_state_trusted)
+                self.assertTrue(preserved_dir.is_dir())
+                self.assertEqual(state_path.read_text(encoding="utf-8"), malformed)
+            finally:
+                js_mod.JOBS_DIR = old_jobs_dir
+                js_mod.JOBS_STATE_PATH = old_state
+                js_mod.TEMP_DIR = old_temp
+
+    async def test_malformed_job_entry_preserves_state_instead_of_crashing_restore(self) -> None:
+        from backend.services import job_service as js_mod
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            jobs_dir = tmp_path / "jobs"
+            orphan = jobs_dir / "unknown-job"
+            orphan.mkdir(parents=True)
+            marker = orphan / "result.pdf"
+            marker.write_bytes(b"result")
+            state_path = tmp_path / "jobs-state.json"
+            malformed = '{"version": 2, "jobs": [{"id": "j1", "type": "pdf-compress", "log": 7}]}'
+            state_path.write_text(malformed, encoding="utf-8")
+            old_jobs_dir = js_mod.JOBS_DIR
+            old_state = js_mod.JOBS_STATE_PATH
+            old_temp = js_mod.TEMP_DIR
+            js_mod.JOBS_DIR = jobs_dir
+            js_mod.JOBS_STATE_PATH = state_path
+            js_mod.TEMP_DIR = tmp_path
+            try:
+                service = JobService()
+                await service.restore_state()
+                self.assertFalse(service._jobs_state_trusted)
+                self.assertTrue(marker.exists())
+                self.assertEqual(state_path.read_text(encoding="utf-8"), malformed)
             finally:
                 js_mod.JOBS_DIR = old_jobs_dir
                 js_mod.JOBS_STATE_PATH = old_state
@@ -1261,6 +1731,34 @@ class JobCancelledProcessTests(unittest.TestCase):
 
 
 class ProcessErrorFormatterTests(unittest.TestCase):
+    def test_run_process_timeout_terminates_descendant_process(self) -> None:
+        if os.name == "nt":
+            self.skipTest("Real Windows process-tree runtime is covered by CI/follow-up validation")
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            grandchild_pid = base / "grandchild.pid"
+            parent_script = base / "parent.py"
+            parent_script.write_text(
+                "import pathlib, subprocess, sys, time\n"
+                "child = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(30)'])\n"
+                "pathlib.Path(sys.argv[1]).write_text(str(child.pid), encoding='utf-8')\n"
+                "time.sleep(30)\n",
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(RuntimeError, "逾時"):
+                cs._run_process_sync(sys.executable, [str(parent_script), str(grandchild_pid)], 1, None)
+            self.assertTrue(grandchild_pid.exists())
+            pid = int(grandchild_pid.read_text(encoding="utf-8"))
+            alive = True
+            for _ in range(40):
+                try:
+                    os.kill(pid, 0)
+                except OSError:
+                    alive = False
+                    break
+                time.sleep(0.05)
+            self.assertFalse(alive, f"descendant process {pid} survived timeout")
+
     def test_unsigned_crash_code_3221226505(self) -> None:
         msg = cs.format_process_error(returncode=3221226505)
         self.assertIn("0xC0000409", msg)
@@ -1664,6 +2162,40 @@ class PdfToOfficeFallbackTests(unittest.IsolatedAsyncioTestCase):
                 cs.tesseract_available = original_tess  # type: ignore[assignment]
                 cs.pdf2docx_available = original_available  # type: ignore[assignment]
 
+    async def test_forced_ocr_skips_libreoffice_even_with_auto_engine(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            src = base / "scan.pdf"
+            out = base / "out"
+            out.mkdir()
+            _make_pdf(src, pages=1)
+            lo_calls = {"n": 0}
+
+            async def boom_require(_key: str):
+                lo_calls["n"] += 1
+                raise RuntimeError("LibreOffice should not be requested")
+
+            async def fake_compat(input_path: Path, output_dir: Path, **kwargs):  # noqa: ANN001
+                self.assertEqual(kwargs["scan_ocr"], "force")
+                target = output_dir / f"{input_path.stem}.docx"
+                target.write_bytes(b"PK" + b"ocr" * 30)
+                return target, [cs.DOCX_OCR_PIPELINE_LOG]
+
+            original_require = cs.tools_service.require_tool
+            original_compat = cs._convert_pdf_to_docx_compat
+            cs.tools_service.require_tool = boom_require  # type: ignore[assignment]
+            cs._convert_pdf_to_docx_compat = fake_compat  # type: ignore[assignment]
+            try:
+                outputs, logs = await cs.convert_pdf_to_office(
+                    [src], out, "docx", docx_engine="auto", scan_ocr="force"
+                )
+                self.assertEqual(lo_calls["n"], 0)
+                self.assertEqual(outputs[0].name, "scan.docx")
+                self.assertIn(cs.DOCX_OCR_PIPELINE_LOG, logs)
+            finally:
+                cs.tools_service.require_tool = original_require  # type: ignore[assignment]
+                cs._convert_pdf_to_docx_compat = original_compat  # type: ignore[assignment]
+
     def test_scan_hint_on_blank_pdf(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             src = Path(tmp) / "blank.pdf"
@@ -1732,6 +2264,163 @@ class PdfToOfficeFallbackTests(unittest.IsolatedAsyncioTestCase):
             finally:
                 cs.ocr_pdf = original  # type: ignore[assignment]
 
+    async def test_ocr_docx_preserves_existing_output(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            src = base / "香港 掃描.pdf"
+            out = base / "out"
+            out.mkdir()
+            _make_pdf(src, pages=1)
+            existing = out / "香港 掃描.docx"
+            existing.write_bytes(b"KEEP-USER-DOCX")
+
+            async def fake_ocr(paths, odir, language, max_pages=50):  # noqa: ANN001
+                target = odir / f"{paths[0].stem}_ocr.txt"
+                target.write_text("--- Page 1 ---\nOCR HELLO\n", encoding="utf-8")
+                return [target], ["ocr-mock"]
+
+            original = cs.ocr_pdf
+            cs.ocr_pdf = fake_ocr  # type: ignore[assignment]
+            try:
+                result, _logs = await cs.convert_pdf_to_docx_via_ocr(src, out, language="eng", max_pages=2)
+                self.assertEqual(existing.read_bytes(), b"KEEP-USER-DOCX")
+                self.assertEqual(result.name, "香港 掃描 (2).docx")
+                self.assertTrue(result.is_file())
+            finally:
+                cs.ocr_pdf = original  # type: ignore[assignment]
+
+    async def test_failed_staged_docx_does_not_delete_a_concurrently_created_final(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            src = base / "scan.pdf"
+            out = base / "out"
+            out.mkdir()
+            _make_pdf(src, pages=1)
+            concurrent = out / "scan.docx"
+
+            def fake_pdf2docx(_input_path: Path, _temp_path: Path) -> None:
+                concurrent.write_bytes(b"USER-DATA")
+                raise RuntimeError("conversion failed")
+
+            original_sync = cs._pdf_to_docx_sync
+            original_available = cs.pdf2docx_available
+            original_tess = cs.tesseract_available
+            cs._pdf_to_docx_sync = fake_pdf2docx  # type: ignore[assignment]
+            cs.pdf2docx_available = lambda: True  # type: ignore[assignment]
+
+            async def no_tess() -> bool:
+                return False
+
+            cs.tesseract_available = no_tess  # type: ignore[assignment]
+            try:
+                with self.assertRaises(RuntimeError):
+                    await cs._convert_pdf_to_docx_compat(
+                        src,
+                        out,
+                        reason_log="test",
+                        scan_ocr="off",
+                    )
+                self.assertEqual(concurrent.read_bytes(), b"USER-DATA")
+            finally:
+                cs._pdf_to_docx_sync = original_sync  # type: ignore[assignment]
+                cs.pdf2docx_available = original_available  # type: ignore[assignment]
+                cs.tesseract_available = original_tess  # type: ignore[assignment]
+
+    async def test_searchable_pdf_uses_random_workdir_and_preserves_existing_output(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            src = base / "scan.pdf"
+            out = base / "out"
+            out.mkdir()
+            _make_pdf(src, pages=1)
+            existing = out / "scan_ocr_searchable.pdf"
+            existing.write_bytes(b"KEEP-USER-PDF")
+            legacy_work = out / "scan_ocr_searchable_work"
+            legacy_work.mkdir()
+            marker = legacy_work / "USER-DATA.txt"
+            marker.write_text("keep", encoding="utf-8")
+            generated_page = base / "generated-page.pdf"
+            _make_pdf(generated_page, pages=1)
+            fake_tesseract = write_fake_tesseract(
+                base,
+                (
+                    "set out=%4\r\n"
+                    "if not %6==eng exit /b 8\r\n"
+                    f'copy /y "{generated_page}" "%out%.pdf" >nul\r\nexit /b 0'
+                    if os.name == "nt"
+                    else f'out="$4"\ncp {generated_page!s} "$out.pdf"\nexit 0'
+                ),
+            )
+            original_require = cs.tools_service.require_tool
+            original_language = cs.resolve_ocr_language
+
+            async def fake_require(_key: str) -> dict:
+                return {"path": str(fake_tesseract)}
+
+            cs.tools_service.require_tool = fake_require  # type: ignore[assignment]
+            cs.resolve_ocr_language = lambda _path, _language: ("eng", "")  # type: ignore[assignment]
+            try:
+                result, _logs = await cs.create_searchable_pdf_via_ocr(src, out, language="eng", max_pages=2)
+                self.assertEqual(existing.read_bytes(), b"KEEP-USER-PDF")
+                self.assertEqual(result.name, "scan_ocr_searchable (2).pdf")
+                self.assertTrue(result.is_file())
+                self.assertEqual(marker.read_text(encoding="utf-8"), "keep")
+                self.assertEqual(list(out.glob(".swiftlocal-searchable-*")), [])
+            finally:
+                cs.tools_service.require_tool = original_require  # type: ignore[assignment]
+                cs.resolve_ocr_language = original_language  # type: ignore[assignment]
+
+    async def test_media_failure_removes_partial_output(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            src = base / "input.wav"
+            src.write_bytes(b"audio")
+            fake_tool = write_fake_tesseract(
+                base,
+                (
+                    "echo partial>%2\r\nexit /b 9"
+                    if os.name == "nt"
+                    else 'eval "out=\\${$#}"\nprintf partial > "$out"\nexit 9'
+                ),
+            )
+            original_require = cs.tools_service.require_tool
+
+            async def fake_require(_key: str) -> dict:
+                return {"path": str(fake_tool)}
+
+            cs.tools_service.require_tool = fake_require  # type: ignore[assignment]
+            try:
+                with self.assertRaises(RuntimeError):
+                    await cs.convert_media([src], base, "mp3", {})
+                self.assertFalse((base / "input.mp3").exists())
+            finally:
+                cs.tools_service.require_tool = original_require  # type: ignore[assignment]
+
+    async def test_media_zero_byte_success_is_rejected_and_removed(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            src = base / "input.wav"
+            src.write_bytes(b"audio")
+            original_require = cs.tools_service.require_tool
+            original_run = cs.run_process
+
+            async def fake_require(_key: str) -> dict:
+                return {"path": "fake-ffmpeg"}
+
+            async def fake_run(_executable, args, **_kwargs):  # noqa: ANN001
+                Path(args[-1]).write_bytes(b"")
+                return ""
+
+            cs.tools_service.require_tool = fake_require  # type: ignore[assignment]
+            cs.run_process = fake_run  # type: ignore[assignment]
+            try:
+                with self.assertRaisesRegex(RuntimeError, "未產生輸出檔"):
+                    await cs.convert_media([src], base, "mp3", {})
+                self.assertFalse((base / "input.mp3").exists())
+            finally:
+                cs.tools_service.require_tool = original_require  # type: ignore[assignment]
+                cs.run_process = original_run  # type: ignore[assignment]
+
     async def test_searchable_ocr_then_docx_mocked(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             base = Path(tmp)
@@ -1741,7 +2430,7 @@ class PdfToOfficeFallbackTests(unittest.IsolatedAsyncioTestCase):
             _make_pdf(src, pages=1)
 
             async def fake_searchable(input_path, output_dir, language="eng", max_pages=50):  # noqa: ANN001
-                pdf = output_dir / f"{input_path.stem}_ocr_searchable.pdf"
+                pdf = cs.next_available_path(output_dir / f"{input_path.stem}_ocr_searchable.pdf")
                 # Minimal valid-enough PDF bytes for existence checks
                 pdf.write_bytes(b"%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n" + b"\0" * 80)
                 return pdf, ["ocr-searchable-mock"]
@@ -1760,20 +2449,21 @@ class PdfToOfficeFallbackTests(unittest.IsolatedAsyncioTestCase):
                     src, out, language="eng", max_pages=2, ocr_output="both"
                 )
                 self.assertTrue(path.exists())
-                self.assertTrue((out / "scan_ocr_searchable.pdf").exists())
+                self.assertTrue(path.exists())
                 self.assertTrue(any(cs.DOCX_SEARCHABLE_OCR_LOG in x for x in logs))
 
                 path_only, logs_only = await cs.convert_pdf_to_docx_via_searchable_ocr(
                     src, out, language="eng", max_pages=2, ocr_output="searchable"
                 )
-                self.assertTrue(str(path_only).endswith("_ocr_searchable.pdf"))
+                self.assertIn("_ocr_searchable", path_only.stem)
                 self.assertTrue(any("僅輸出可搜尋 PDF" in x for x in logs_only))
 
+                searchable_before_docx_only = set(out.glob("scan_ocr_searchable*.pdf"))
                 path_docx, logs_docx = await cs.convert_pdf_to_docx_via_searchable_ocr(
                     src, out, language="eng", max_pages=2, ocr_output="docx"
                 )
                 self.assertTrue(str(path_docx).endswith(".docx"))
-                self.assertFalse((out / "scan_ocr_searchable.pdf").exists())
+                self.assertEqual(set(out.glob("scan_ocr_searchable*.pdf")), searchable_before_docx_only)
                 self.assertTrue(any("移除可搜尋 PDF" in x for x in logs_docx))
             finally:
                 cs.create_searchable_pdf_via_ocr = original_s  # type: ignore[assignment]

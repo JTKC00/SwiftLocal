@@ -10,6 +10,7 @@ const { spawn } = require("node:child_process");
 function terminateProcessTree(child, options = {}) {
   if (!child || !child.pid) return Promise.resolve(false);
   const graceMs = Math.max(100, Number(options.graceMs) || 1500);
+  const hardDeadlineMs = Math.max(graceMs + 100, Number(options.hardDeadlineMs) || graceMs + 1000);
 
   if (process.platform === "win32") {
     return new Promise((resolve) => {
@@ -45,26 +46,40 @@ function terminateProcessTree(child, options = {}) {
     });
   }
 
-  try {
-    process.kill(-child.pid, "SIGTERM");
-  } catch {
-    tryKillDirect(child, "SIGTERM");
-  }
-  const timer = setTimeout(() => {
-    if (child.exitCode != null || child.signalCode != null) return;
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(forceTimer);
+      clearTimeout(deadlineTimer);
+      child.removeListener("close", finish);
+      resolve(true);
+    };
+    child.once("close", finish);
     try {
-      process.kill(-child.pid, "SIGKILL");
+      process.kill(-child.pid, "SIGTERM");
     } catch {
-      tryKillDirect(child, "SIGKILL");
+      tryKillDirect(child, "SIGTERM");
     }
-  }, graceMs);
-  if (typeof timer.unref === "function") timer.unref();
-  return Promise.resolve(true);
+    const forceTimer = setTimeout(() => {
+      if (child.exitCode != null || child.signalCode != null) {
+        finish();
+        return;
+      }
+      try {
+        process.kill(-child.pid, "SIGKILL");
+      } catch {
+        tryKillDirect(child, "SIGKILL");
+      }
+    }, graceMs);
+    const deadlineTimer = setTimeout(finish, hardDeadlineMs);
+  });
 }
 
 function tryKillDirect(child, signal) {
   try {
-    if (!child.killed) child.kill(signal);
+    if (child.exitCode == null && child.signalCode == null) child.kill(signal);
   } catch {
     // The process may have exited between the status check and kill.
   }

@@ -130,7 +130,7 @@ describe("jobs-state schema v1 (desktop)", () => {
     }
   });
 
-  test("loadJobsState drops entries missing id or type", () => {
+  test("loadJobsState fails closed when any entry is missing id or type", () => {
     const dir = tempDir("sl-schema-drop-");
     try {
       const statePath = path.join(dir, "jobs-state.json");
@@ -159,9 +159,9 @@ describe("jobs-state schema v1 (desktop)", () => {
         }),
         "utf8"
       );
-      const restored = loadJobsState(statePath);
-      assert.equal(restored.length, 1);
-      assert.equal(restored[0].id, "ok");
+      const restored = loadJobsState(statePath, { withMetadata: true });
+      assert.equal(restored.trusted, false);
+      assert.deepEqual(restored.jobs, []);
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }

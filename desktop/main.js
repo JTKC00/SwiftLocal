@@ -23,8 +23,8 @@ const APP_USER_MODEL_ID = "com.swiftlocal.converter";
 const isDev = !app.isPackaged;
 let backend = null;
 let mediaDownload = null;
-let mediaDisposeStarted = false;
-let mediaDisposeFinished = false;
+let shutdownStarted = false;
+let shutdownFinished = false;
 let mainWindow = null;
 let pdfWorkspaceWindow = null;
 /** PDF paths received before app ready (macOS open-file). */
@@ -533,17 +533,23 @@ if (gotSingleInstanceLock) {
     }
   });
   app.on("before-quit", (event) => {
-    if (!mediaDownload) return;
-    if (mediaDisposeFinished) return;
-    if (mediaDisposeStarted) {
+    if (shutdownFinished) return;
+    if (shutdownStarted) {
       event.preventDefault();
       return;
     }
-    if (!mediaDownload.analysisActive && !mediaDownload.analysisChild && !mediaDownload.activeOperation) return;
+    const backendActive = Boolean(backend && backend.hasActiveWork());
+    const mediaActive = Boolean(
+      mediaDownload && (mediaDownload.analysisActive || mediaDownload.analysisChild || mediaDownload.activeOperation)
+    );
+    if (!backendActive && !mediaActive) return;
     event.preventDefault();
-    mediaDisposeStarted = true;
-    void mediaDownload.dispose().catch(() => {}).finally(() => {
-      mediaDisposeFinished = true;
+    shutdownStarted = true;
+    const shutdownTasks = [];
+    if (backendActive) shutdownTasks.push(backend.dispose());
+    if (mediaActive) shutdownTasks.push(mediaDownload.dispose());
+    void Promise.allSettled(shutdownTasks).finally(() => {
+      shutdownFinished = true;
       app.quit();
     });
   });

@@ -41,9 +41,11 @@ const {
   sanitizeGifFps,
   loadJobsState,
   saveJobsState,
+  atomicWriteFileSync,
   normalizePersistedJob,
   redactJobOptions,
   nextAvailablePath,
+  fitOutputFilename,
   validateJobInputLimits,
   DEFAULT_OCR_LANGUAGE,
   sanitizeOcrLanguage,
@@ -60,7 +62,8 @@ const {
   createFriendlyOcrError,
   bundledTessdataDir,
   listOcrLanguages,
-  JobCancelledError
+  JobCancelledError,
+  runProcess
 } = require("../../desktop/backend.js");
 
 const { createCanvas } = require("@napi-rs/canvas");
@@ -79,6 +82,20 @@ function writeFakeTesseract(dir, body) {
   fs.writeFileSync(file, `#!/bin/sh\n${body}\n`, "utf8");
   fs.chmodSync(file, 0o755);
   return file;
+}
+
+function writeFakeNodeTool(dir, name, source) {
+  const script = path.join(dir, `${name}.js`);
+  fs.writeFileSync(script, source, "utf8");
+  if (process.platform === "win32") {
+    const wrapper = path.join(dir, `${name}.cmd`);
+    fs.writeFileSync(wrapper, `@echo off\r\n"${process.execPath}" "${script}" %*\r\n`, "utf8");
+    return wrapper;
+  }
+  const wrapper = path.join(dir, name);
+  fs.writeFileSync(wrapper, `#!/bin/sh\nexec "${process.execPath}" "${script}" "$@"\n`, "utf8");
+  fs.chmodSync(wrapper, 0o755);
+  return wrapper;
 }
 
 async function writeBlankPdf(filePath, pages = 2) {
@@ -694,6 +711,53 @@ describe("job queue order", () => {
 });
 
 describe("job persistence", () => {
+  test("atomic state write preserves the previous file and removes temp data when replace fails", () => {
+    const dir = tempDir("sl-persist-atomic-");
+    try {
+      const statePath = path.join(dir, "jobs-state.json");
+      fs.writeFileSync(statePath, "previous-state", "utf8");
+      const failingFs = new Proxy(fs, {
+        get(target, property) {
+          if (property === "renameSync") return () => { throw new Error("simulated replace failure"); };
+          return target[property];
+        }
+      });
+      assert.throws(() => atomicWriteFileSync(statePath, "new-state", failingFs), /simulated replace failure/);
+      assert.equal(fs.readFileSync(statePath, "utf8"), "previous-state");
+      assert.deepEqual(fs.readdirSync(dir), ["jobs-state.json"]);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("BackendService preserves a corrupt state file instead of replacing it with an empty queue", () => {
+    const dir = tempDir("sl-persist-corrupt-");
+    try {
+      const statePath = path.join(dir, "jobs-state.json");
+      const corrupt = "{not-json";
+      fs.writeFileSync(statePath, corrupt, "utf8");
+      const originalWarn = console.warn;
+      console.warn = () => {};
+      let backend;
+      try {
+        backend = new BackendService({
+          configPath: path.join(dir, "tools.json"),
+          jobsStatePath: statePath,
+          defaultOutputDir: dir
+        });
+      } finally {
+        console.warn = originalWarn;
+      }
+      assert.equal(backend.jobsStateTrusted, false);
+      assert.deepEqual(backend.getJobs(), []);
+      assert.equal(fs.readFileSync(statePath, "utf8"), corrupt);
+      backend.pruneJobs();
+      assert.equal(fs.readFileSync(statePath, "utf8"), corrupt);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   test("passwords are redacted from public and persisted job data", async () => {
     const dir = tempDir("sl-secret-");
     try {
@@ -833,6 +897,17 @@ describe("output collision handling", () => {
       fs.rmSync(dir, { recursive: true, force: true });
     }
   });
+
+  test("fits long ASCII and Traditional Chinese output names within component limits", () => {
+    for (const stem of ["a".repeat(250), "香港文件".repeat(80)]) {
+      const first = fitOutputFilename(`${stem}_compressed`, ".pdf");
+      const collision = fitOutputFilename(`${stem}_compressed`, ".pdf", " (9999)");
+      assert.ok(Buffer.byteLength(first) <= 240);
+      assert.ok(Buffer.byteLength(collision) <= 240);
+      assert.ok(first.endsWith(".pdf"));
+      assert.ok(collision.endsWith(" (9999).pdf"));
+    }
+  });
 });
 
 describe("input resource limits", () => {
@@ -868,6 +943,123 @@ describe("input resource limits", () => {
 });
 
 describe("BackendService jobs", () => {
+  test("retry respects the queued-job admission limit", async () => {
+    const dir = tempDir("sl-retry-limit-");
+    try {
+      const inputPath = path.join(dir, "input.pdf");
+      fs.writeFileSync(inputPath, "%PDF-1.4");
+      const backend = new BackendService({
+        configPath: path.join(dir, "tools.json"),
+        jobsStatePath: path.join(dir, "jobs-state.json"),
+        defaultOutputDir: dir
+      });
+      backend.jobs = Array.from({ length: 50 }, (_item, index) => ({
+        id: `queued-${index}`,
+        type: "pdf-merge",
+        inputPaths: [inputPath],
+        outputDir: dir,
+        options: {},
+        status: "queued",
+        createdAt: new Date().toISOString(),
+        outputPaths: [],
+        log: [],
+        error: ""
+      }));
+      backend.jobs.push({
+        id: "retry-me",
+        type: "pdf-merge",
+        inputPaths: [inputPath],
+        outputDir: dir,
+        options: {},
+        status: "failed",
+        createdAt: new Date().toISOString(),
+        outputPaths: [],
+        log: [],
+        error: "failed",
+        retriable: true
+      });
+      await assert.rejects(backend.retryJob("retry-me"), /Too many queued jobs/);
+      assert.equal(backend.pendingAdmissions, 0);
+      assert.equal(backend.jobs.at(-1).status, "failed");
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("dispose cancels queued work and rejects later admission", async () => {
+    const dir = tempDir("sl-dispose-");
+    try {
+      const inputPath = path.join(dir, "input.pdf");
+      fs.writeFileSync(inputPath, "%PDF-1.4");
+      const backend = new BackendService({
+        configPath: path.join(dir, "tools.json"),
+        jobsStatePath: path.join(dir, "jobs-state.json"),
+        defaultOutputDir: dir
+      });
+      backend.tools = {};
+      backend.runNext = async () => {};
+      const queued = await backend.enqueue({
+        type: "pdf-merge",
+        inputPaths: [inputPath],
+        outputDir: dir,
+        options: {}
+      });
+      assert.equal(backend.hasActiveWork(), true);
+      await backend.dispose();
+      assert.equal(backend.getJobs().find((job) => job.id === queued.id).status, "cancelled");
+      assert.equal(backend.hasActiveWork(), false);
+      await assert.rejects(
+        backend.enqueue({ type: "pdf-merge", inputPaths: [inputPath], outputDir: dir, options: {} }),
+        /正在結束/
+      );
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("dispose waits for running in-process work to observe cancellation", async () => {
+    const dir = tempDir("sl-dispose-running-");
+    try {
+      const backend = new BackendService({
+        configPath: path.join(dir, "tools.json"),
+        jobsStatePath: path.join(dir, "jobs-state.json"),
+        defaultOutputDir: dir
+      });
+      const job = {
+        id: "running-dispose",
+        type: "pdf-merge",
+        inputPaths: [],
+        outputDir: dir,
+        options: {},
+        status: "running",
+        createdAt: new Date().toISOString(),
+        startedAt: new Date().toISOString(),
+        finishedAt: null,
+        outputPaths: [],
+        log: [],
+        error: "",
+        cancelRequested: false,
+        _child: null
+      };
+      backend.jobs = [job];
+      backend.running = true;
+      setTimeout(() => {
+        if (job.cancelRequested) {
+          job.status = "cancelled";
+          backend.running = false;
+        }
+      }, 75);
+      const started = Date.now();
+      await backend.dispose();
+      assert.ok(Date.now() - started >= 50);
+      assert.equal(job.cancelRequested, true);
+      assert.equal(job.status, "cancelled");
+      assert.equal(backend.running, false);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   let outDir;
   let backendSequence = 0;
 
@@ -890,6 +1082,287 @@ describe("BackendService jobs", () => {
 
   after(() => {
     fs.rmSync(outDir, { recursive: true, force: true });
+  });
+
+  test("PDF to DOCX compat preflight does not require LibreOffice", async () => {
+    const backend = createTestBackend();
+    const inputPath = path.join(outDir, "compat-preflight.pdf");
+    await writeBlankPdf(inputPath, 1);
+    backend.tools = {
+      libreOffice: { available: false },
+      tesseract: { available: false },
+      pdf2docx: { available: true }
+    };
+    const result = await backend.preflightJob({
+      type: "pdf-to-office",
+      inputPaths: [inputPath],
+      outputDir: outDir,
+      options: { extension: "docx", docxEngine: "compat", scanOcr: "off", ocrOutput: "docx" }
+    });
+    assert.equal(result.ok, true, JSON.stringify(result.issues));
+  });
+
+  test("forced OCR preflight requires Tesseract instead of LibreOffice", async () => {
+    const dir = tempDir("sl-preflight-forced-ocr-");
+    try {
+      const inputPath = path.join(dir, "scan.pdf");
+      await writeBlankPdf(inputPath, 1);
+      const backend = new BackendService({
+        configPath: path.join(dir, "tools.json"),
+        jobsStatePath: path.join(dir, "jobs-state.json"),
+        defaultOutputDir: dir
+      });
+      backend.tools = { libreOffice: { available: true, path: "soffice" } };
+      const result = await backend.preflightJob({
+        type: "pdf-to-office",
+        inputPaths: [inputPath],
+        outputDir: dir,
+        options: { extension: "docx", docxEngine: "auto", scanOcr: "force", ocrOutput: "both" }
+      });
+      assert.equal(result.ok, false);
+      assert.equal(result.issues[0].tool, "tesseract");
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("forced OCR with auto engine bypasses LibreOffice", {
+    skip: process.platform === "win32" ? "test shim is a .cmd, which shell:false intentionally does not execute" : false
+  }, async () => {
+    const dir = tempDir("sl-forced-ocr-direct-");
+    try {
+      const inputPath = path.join(dir, "scan.pdf");
+      const generatedPage = path.join(dir, "generated.pdf");
+      await writeBlankPdf(inputPath, 1);
+      await writeBlankPdf(generatedPage, 1);
+      const fakeTesseract = writeFakeNodeTool(dir, "fake-tesseract-forced", [
+        '"use strict";',
+        'const fs = require("node:fs");',
+        'const args = process.argv.slice(2);',
+        'if (args.includes("--list-langs")) { console.log("List of available languages (1):\\neng"); process.exit(0); }',
+        'const outputBase = args[args.indexOf("-l") - 1];',
+        'if (args.at(-1) === "pdf") fs.copyFileSync(' + JSON.stringify(generatedPage) + ', outputBase + ".pdf");',
+        'else fs.writeFileSync(outputBase + ".txt", "OCR TEXT");'
+      ].join("\n"));
+      const backend = new BackendService({
+        configPath: path.join(dir, "tools.json"),
+        jobsStatePath: path.join(dir, "jobs-state.json"),
+        defaultOutputDir: dir
+      });
+      backend.tools = {
+        tesseract: { available: true, path: fakeTesseract },
+        libreOffice: { available: true, path: path.join(dir, "must-not-run-soffice") }
+      };
+      const job = {
+        id: "forced-ocr",
+        type: "pdf-to-office",
+        inputPaths: [inputPath],
+        outputDir: dir,
+        options: { extension: "docx", docxEngine: "auto", scanOcr: "force", ocrOutput: "both", language: "eng" },
+        outputPaths: [],
+        log: [],
+        cancelRequested: false
+      };
+      await backend.runPdfToOffice(job);
+      assert.ok(job.outputPaths.some((item) => item.endsWith(".docx")));
+      assert.ok(job.outputPaths.some((item) => item.endsWith(".pdf")));
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("concurrent admission cannot exceed the queued-job limit", async () => {
+    const dir = tempDir("sl-admission-limit-");
+    try {
+      const inputPath = path.join(dir, "input.pdf");
+      await writeBlankPdf(inputPath, 1);
+      const backend = new BackendService({
+        defaultOutputDir: dir,
+        configPath: path.join(dir, "tools.json"),
+        jobsStatePath: path.join(dir, "jobs.json")
+      });
+      backend.tools = {};
+      backend.running = true;
+      const attempts = Array.from({ length: 51 }, () => backend.enqueue({
+        type: "pdf-compress",
+        inputPaths: [inputPath],
+        outputDir: dir,
+        options: {}
+      }));
+      const settled = await Promise.allSettled(attempts);
+      assert.equal(settled.filter((item) => item.status === "fulfilled").length, 50);
+      assert.equal(settled.filter((item) => item.status === "rejected").length, 1);
+      assert.equal(backend.jobs.filter((item) => item.status === "queued").length, 50);
+      assert.equal(backend.pendingAdmissions, 0);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("PDF to DOCX compat preserves an existing output", async () => {
+    const backend = createTestBackend();
+    const inputPath = path.join(outDir, "相容 文件.pdf");
+    await writeBlankPdf(inputPath, 1);
+    const existing = path.join(outDir, "相容 文件.docx");
+    fs.writeFileSync(existing, "keep-user-docx", "utf8");
+    const job = {
+      id: "compat-collision",
+      type: "pdf-to-office",
+      inputPaths: [inputPath],
+      outputDir: outDir,
+      options: { extension: "docx", docxEngine: "compat", scanOcr: "off", ocrOutput: "docx" },
+      outputPaths: [],
+      itemResults: [],
+      log: [],
+      error: "",
+      cancelRequested: false
+    };
+    await backend.runPdfToOffice(job);
+    assert.equal(fs.readFileSync(existing, "utf8"), "keep-user-docx");
+    assert.deepEqual(job.outputPaths.map((item) => path.basename(item)), ["相容 文件 (2).docx"]);
+  });
+
+  test("searchable PDF OCR preserves an existing output", {
+    skip: process.platform === "win32" ? "test shim is a .cmd, which shell:false intentionally does not execute" : false
+  }, async () => {
+    const dir = tempDir("sl-searchable-collision-");
+    try {
+      const inputPath = path.join(dir, "掃描 文件.pdf");
+      const generatedPage = path.join(dir, "generated-page.pdf");
+      await writeBlankPdf(inputPath, 1);
+      await writeBlankPdf(generatedPage, 1);
+      const fakeTesseract = writeFakeNodeTool(dir, "fake-tesseract", [
+        '"use strict";',
+        'const fs = require("node:fs");',
+        'const args = process.argv.slice(2);',
+        'if (args.includes("--list-langs")) { console.log("List of available languages (1):\\neng"); process.exit(0); }',
+        'const languageIndex = args.indexOf("-l");',
+        'const outputBase = args[languageIndex - 1];',
+        `fs.copyFileSync(${JSON.stringify(generatedPage)}, outputBase + ".pdf");`
+      ].join("\n"));
+      const existing = path.join(dir, "掃描 文件_ocr_searchable.pdf");
+      fs.writeFileSync(existing, "keep-user-pdf", "utf8");
+      const backend = new BackendService({
+        defaultOutputDir: dir,
+        configPath: path.join(dir, "tools.json"),
+        jobsStatePath: path.join(dir, "jobs.json")
+      });
+      backend.tools = { tesseract: { available: true, path: fakeTesseract } };
+      const job = {
+        id: "searchable-collision",
+        type: "pdf-to-searchable-pdf",
+        inputPaths: [inputPath],
+        outputDir: dir,
+        options: { language: "eng", maxPages: "2" },
+        outputPaths: [],
+        itemResults: [],
+        log: [],
+        error: "",
+        cancelRequested: false
+      };
+      await backend.runPdfToSearchablePdf(job);
+      assert.equal(fs.readFileSync(existing, "utf8"), "keep-user-pdf");
+      assert.deepEqual(job.outputPaths.map((item) => path.basename(item)), ["掃描 文件_ocr_searchable (2).pdf"]);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("failed FFmpeg conversion removes its partial output", {
+    skip: process.platform === "win32" ? "test shim is a .cmd, which shell:false intentionally does not execute" : false
+  }, async () => {
+    const dir = tempDir("sl-media-partial-");
+    try {
+      const inputPath = path.join(dir, "media input.wav");
+      fs.writeFileSync(inputPath, "input", "utf8");
+      const fakeFfmpeg = writeFakeNodeTool(dir, "fake-ffmpeg", [
+        '"use strict";',
+        'const fs = require("node:fs");',
+        'fs.writeFileSync(process.argv.at(-1), "partial");',
+        'process.exit(9);'
+      ].join("\n"));
+      const backend = new BackendService({
+        defaultOutputDir: dir,
+        configPath: path.join(dir, "tools.json"),
+        jobsStatePath: path.join(dir, "jobs.json")
+      });
+      backend.tools = { ffmpeg: { available: true, path: fakeFfmpeg } };
+      const job = {
+        id: "media-partial",
+        type: "media-convert",
+        inputPaths: [inputPath],
+        outputDir: dir,
+        options: { extension: "mp3" },
+        outputPaths: [],
+        log: [],
+        cancelRequested: false
+      };
+      await assert.rejects(backend.runMediaConvert(job), /FFmpeg|exit code|failed/i);
+      assert.equal(fs.existsSync(path.join(dir, "media input.mp3")), false);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("zero-byte FFmpeg output is rejected and removed", {
+    skip: process.platform === "win32" ? "test shim is a .cmd, which shell:false intentionally does not execute" : false
+  }, async () => {
+    const dir = tempDir("sl-media-empty-");
+    try {
+      const inputPath = path.join(dir, "media.wav");
+      fs.writeFileSync(inputPath, "input", "utf8");
+      const fakeFfmpeg = writeFakeNodeTool(dir, "fake-ffmpeg-empty", [
+        '"use strict";',
+        'require("node:fs").writeFileSync(process.argv.at(-1), "");'
+      ].join("\n"));
+      const backend = new BackendService({
+        defaultOutputDir: dir,
+        configPath: path.join(dir, "tools.json"),
+        jobsStatePath: path.join(dir, "jobs.json")
+      });
+      backend.tools = { ffmpeg: { available: true, path: fakeFfmpeg } };
+      const job = {
+        id: "media-empty",
+        type: "media-convert",
+        inputPaths: [inputPath],
+        outputDir: dir,
+        options: { extension: "mp3" },
+        outputPaths: [],
+        log: [],
+        cancelRequested: false
+      };
+      await assert.rejects(backend.runMediaConvert(job), /有效輸出檔/);
+      assert.equal(fs.existsSync(path.join(dir, "media.mp3")), false);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("external process timeout terminates its process tree", async () => {
+    const dir = tempDir("sl-process-timeout-");
+    let grandchildPid = 0;
+    try {
+      const pidPath = path.join(dir, "grandchild.pid");
+      const runner = path.join(dir, "runner.js");
+      fs.writeFileSync(runner, [
+        '"use strict";',
+        'const fs = require("node:fs");',
+        'const { spawn } = require("node:child_process");',
+        'const child = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { stdio: "ignore" });',
+        `fs.writeFileSync(${JSON.stringify(pidPath)}, String(child.pid));`,
+        'setInterval(() => {}, 1000);'
+      ].join("\n"));
+      const promise = runProcess(process.execPath, [runner], null, "test tool", { timeoutMs: 150 });
+      await assert.rejects(promise, (error) => error && error.errorCode === "tool_timeout");
+      grandchildPid = Number(fs.readFileSync(pidPath, "utf8"));
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      assert.throws(() => process.kill(grandchildPid, 0));
+    } finally {
+      if (grandchildPid) {
+        try { process.kill(grandchildPid, "SIGKILL"); } catch { /* already gone */ }
+      }
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   test("returns only completed TXT outputs for workspace OCR", () => {

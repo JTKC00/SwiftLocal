@@ -3,9 +3,11 @@ import json
 import math
 import os
 import re
+import signal
 import shutil
 import subprocess
 import tempfile
+import unicodedata
 import zipfile
 from contextvars import ContextVar
 from pathlib import Path
@@ -50,11 +52,40 @@ def request_cancel(job_id: str) -> bool:
     proc = _active_processes.get(job_id)
     if not proc or proc.poll() is not None:
         return False
+    return terminate_process_tree(proc)
+
+
+def terminate_process_tree(proc: subprocess.Popen) -> bool:
+    """Terminate an external tool and its descendants without invoking a shell."""
+    poll = getattr(proc, "poll", None)
+    if callable(poll) and poll() is not None:
+        return False
+    pid = getattr(proc, "pid", None)
+    if os.name == "nt" and pid:
+        try:
+            completed = subprocess.run(
+                ["taskkill.exe", "/PID", str(pid), "/T", "/F"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=5,
+                check=False,
+                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+            )
+            if completed.returncode == 0:
+                return True
+        except (OSError, subprocess.SubprocessError):
+            pass
+    elif pid:
+        try:
+            os.killpg(pid, signal.SIGKILL)
+            return True
+        except OSError:
+            pass
     try:
         proc.kill()
+        return True
     except OSError:
         return False
-    return True
 
 
 def is_cancel_requested() -> bool:
@@ -494,10 +525,8 @@ async def create_searchable_pdf_via_ocr(
     clean_language, lang_note = resolve_ocr_language(tool_path, language)
     page_limit = max(1, min(int(max_pages or OCR_PDF_MAX_PAGES_DEFAULT), OCR_PDF_MAX_PAGES_HARD_LIMIT))
     tessdata_dir = resolve_tessdata_dir(tool_path)
-    work = output_dir / f"{input_path.stem}_ocr_searchable_work"
-    if work.exists():
-        shutil.rmtree(work, ignore_errors=True)
-    work.mkdir(parents=True, exist_ok=True)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    work = Path(tempfile.mkdtemp(prefix=".swiftlocal-searchable-", dir=output_dir))
     logs: list[str] = []
     if lang_note:
         logs.append(lang_note)
@@ -522,12 +551,12 @@ async def create_searchable_pdf_via_ocr(
                 raise RuntimeError(f"Tesseract 未產生第 {index} 頁可搜尋 PDF")
             page_pdfs.append(page_pdf)
 
-        final_path = output_dir / f"{input_path.stem}_ocr_searchable.pdf"
-        if final_path.exists():
-            remove_incomplete_office_output(final_path, force=True)
-        await asyncio.to_thread(_merge_pdf_files_sync, page_pdfs, final_path)
-        if not final_path.is_file() or final_path.stat().st_size < 64:
+        final_path = next_available_path(output_dir / f"{input_path.stem}_ocr_searchable.pdf")
+        merged_path = work / "merged-searchable.pdf"
+        await asyncio.to_thread(_merge_pdf_files_sync, page_pdfs, merged_path)
+        if not merged_path.is_file() or merged_path.stat().st_size < 64:
             raise RuntimeError("合併可搜尋 PDF 失敗")
+        merged_path.replace(final_path)
         logs.append(
             f"ocr-searchable-pdf: {input_path.name} -> {final_path.name} ({len(page_pdfs)} page(s))"
         )
@@ -572,20 +601,15 @@ async def convert_pdf_to_docx_via_searchable_ocr(
             "已建立可搜尋 PDF，但 pdf2docx 未安裝，無法繼續匯出 DOCX。"
             "請安裝 backend/requirements.txt；可搜尋 PDF 已保留於輸出目錄。"
         )
-    final_path = output_dir / f"{input_path.stem}.docx"
-    temp_path = output_dir / f"{input_path.stem}.searchable.pdf2docx.tmp.docx"
+    final_path = next_available_path(output_dir / f"{input_path.stem}.docx")
     try:
-        if temp_path.exists():
-            temp_path.unlink(missing_ok=True)
-        await asyncio.to_thread(_pdf_to_docx_sync, searchable, temp_path)
-        if not temp_path.is_file() or temp_path.stat().st_size < 64:
-            remove_incomplete_office_output(temp_path)
-            raise RuntimeError("可搜尋 PDF → DOCX 未產生有效輸出")
-        if final_path.exists():
-            remove_incomplete_office_output(final_path, force=True)
-        temp_path.replace(final_path)
+        with tempfile.TemporaryDirectory(prefix=".swiftlocal-pdf2docx-", dir=output_dir) as temp_name:
+            temp_path = Path(temp_name) / "converted.docx"
+            await asyncio.to_thread(_pdf_to_docx_sync, searchable, temp_path)
+            if not temp_path.is_file() or temp_path.stat().st_size < 64:
+                raise RuntimeError("可搜尋 PDF → DOCX 未產生有效輸出")
+            temp_path.replace(final_path)
     except Exception:
-        remove_incomplete_office_output(temp_path)
         raise
     logs.append(DOCX_SEARCHABLE_OCR_LOG)
     logs.append(f"converted (ocr-searchable): {input_path.name} -> {final_path.name}")
@@ -612,10 +636,8 @@ async def convert_pdf_to_docx_via_ocr(
     """Rasterize + Tesseract OCR, then write a plain-text DOCX (fallback of searchable path)."""
     ensure_not_cancelled()
     require_unencrypted_pdf(input_path)
-    ocr_work = output_dir / f"{input_path.stem}_ocr_docx_work"
-    if ocr_work.exists():
-        shutil.rmtree(ocr_work, ignore_errors=True)
-    ocr_work.mkdir(parents=True, exist_ok=True)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    ocr_work = Path(tempfile.mkdtemp(prefix=".swiftlocal-ocr-docx-", dir=output_dir))
     logs: list[str] = []
     if prior_error is not None:
         logs.append(str(prior_error))
@@ -627,14 +649,14 @@ async def convert_pdf_to_docx_via_ocr(
         text = repair_ocr_text(txt_paths[0].read_text(encoding="utf-8", errors="replace"))
         if not text.strip():
             raise RuntimeError("OCR 結果為空（請確認語言代碼或影像品質）")
-        final_path = output_dir / f"{input_path.stem}.docx"
-        if final_path.exists():
-            remove_incomplete_office_output(final_path, force=True)
+        final_path = next_available_path(output_dir / f"{input_path.stem}.docx")
+        staged_path = ocr_work / "converted.docx"
         await asyncio.to_thread(
-            write_text_docx_sync, final_path, text, title=f"{input_path.stem} (OCR)"
+            write_text_docx_sync, staged_path, text, title=f"{input_path.stem} (OCR)"
         )
-        if not final_path.is_file() or final_path.stat().st_size < 64:
+        if not staged_path.is_file() or staged_path.stat().st_size < 64:
             raise RuntimeError("OCR→DOCX 未產生有效輸出檔")
+        staged_path.replace(final_path)
         logs.append(DOCX_OCR_PIPELINE_LOG)
         logs.append(f"converted (ocr): {input_path.name} -> {final_path.name}")
         return final_path, logs
@@ -729,25 +751,19 @@ async def _convert_pdf_to_docx_compat(
 
     ensure_not_cancelled()
     expected_name = f"{input_path.stem}.docx"
-    final_path = output_dir / expected_name
-    temp_path = output_dir / f"{input_path.stem}.pdf2docx.tmp.docx"
+    final_path = next_available_path(output_dir / expected_name)
     logs: list[str] = []
     if prior_error is not None:
         logs.append(str(prior_error))
     logs.append(reason_log)
     try:
-        if temp_path.exists():
-            temp_path.unlink(missing_ok=True)
-        await asyncio.to_thread(_pdf_to_docx_sync, input_path, temp_path)
-        if not temp_path.is_file() or temp_path.stat().st_size < 64:
-            remove_incomplete_office_output(temp_path)
-            raise RuntimeError("相容模式未產生有效的 DOCX 輸出檔")
-        if final_path.exists():
-            remove_incomplete_office_output(final_path, force=True)
-        temp_path.replace(final_path)
+        with tempfile.TemporaryDirectory(prefix=".swiftlocal-pdf2docx-", dir=output_dir) as temp_name:
+            temp_path = Path(temp_name) / "converted.docx"
+            await asyncio.to_thread(_pdf_to_docx_sync, input_path, temp_path)
+            if not temp_path.is_file() or temp_path.stat().st_size < 64:
+                raise RuntimeError("相容模式未產生有效的 DOCX 輸出檔")
+            temp_path.replace(final_path)
     except Exception as fallback_error:
-        remove_incomplete_office_output(temp_path)
-        remove_incomplete_office_output(final_path)
         # Last resort: OCR if allowed and not yet forced-only failure path
         if mode != "off" and can_ocr:
             try:
@@ -805,17 +821,21 @@ async def convert_pdf_to_office(
     lo_timeout = 180
     page_limit = max(1, min(int(max_pages or OCR_PDF_MAX_PAGES_DEFAULT), OCR_PDF_MAX_PAGES_HARD_LIMIT))
 
-    def append_primary_and_side_products(input_path: Path, primary: Path) -> None:
+    def append_primary_and_side_products(input_path: Path, primary: Path, item_logs: list[str]) -> None:
         outputs.append(primary)
         if out_mode == "docx":
             return
-        side = output_dir / f"{input_path.stem}_ocr_searchable.pdf"
-        if side.is_file() and side.resolve() != primary.resolve():
-            outputs.append(side)
+        for line in reversed(item_logs):
+            if not line.startswith("intermediate: "):
+                continue
+            side = output_dir / Path(line.removeprefix("intermediate: ")).name
+            if side.is_file() and side.resolve() != primary.resolve():
+                outputs.append(side)
+            break
 
     # Direct compat / OCR path (skip LibreOffice) — useful when LO crashes on certain PDFs.
     # Also used when user only wants searchable PDF (ocrOutput=searchable).
-    if clean_extension == "docx" and (engine == "compat" or out_mode == "searchable"):
+    if clean_extension == "docx" and (engine == "compat" or out_mode == "searchable" or ocr_mode == "force"):
         for input_path in input_paths:
             ensure_not_cancelled()
             require_unencrypted_pdf(input_path)
@@ -829,7 +849,7 @@ async def convert_pdf_to_office(
                 ocr_output=out_mode,
             )
             logs.extend(item_logs)
-            append_primary_and_side_products(input_path, path)
+            append_primary_and_side_products(input_path, path, item_logs)
         return outputs, logs
 
     tool = await tools_service.require_tool("libreOffice")
@@ -950,7 +970,7 @@ async def convert_pdf_to_office(
                     ocr_output=out_mode,
                 )
                 logs.extend(item_logs)
-                append_primary_and_side_products(input_path, path)
+                append_primary_and_side_products(input_path, path, item_logs)
                 continue
 
             # Non-DOCX or fallback not applicable: surface a clear error.
@@ -1007,13 +1027,33 @@ async def _run_libreoffice_to_unique_output(
 
 
 def next_available_path(file_path: Path) -> Path:
-    if not file_path.exists():
-        return file_path
+    first = file_path.with_name(fit_output_filename(file_path.stem, file_path.suffix))
+    if not first.exists():
+        return first
     for index in range(2, 10000):
-        candidate = file_path.with_name(f"{file_path.stem} ({index}){file_path.suffix}")
+        candidate = file_path.with_name(
+            fit_output_filename(file_path.stem, file_path.suffix, f" ({index})")
+        )
         if not candidate.exists():
             return candidate
     raise RuntimeError(f"Unable to find an available output name for {file_path.name}")
+
+
+def fit_output_filename(
+    stem: str,
+    extension: str = "",
+    collision_suffix: str = "",
+    max_bytes: int = 240,
+) -> str:
+    suffix_bytes = len(extension.encode("utf-8")) + len(collision_suffix.encode("utf-8"))
+    budget = max(1, max_bytes - suffix_bytes)
+    fitted = ""
+    for character in unicodedata.normalize("NFC", stem or "output"):
+        if len((fitted + character).encode("utf-8")) > budget:
+            break
+        fitted += character
+    fitted = fitted.rstrip(" .") or "output"
+    return f"{fitted}{collision_suffix}{extension}"
 
 
 def snapshot_output_dir(output_dir: Path) -> dict[str, tuple[int, int]]:
@@ -1120,9 +1160,15 @@ async def convert_media(
         ensure_not_cancelled()
         output_path = next_available_path(output_dir / f"{input_path.stem}.{clean_extension}")
         args = build_ffmpeg_media_args(input_path, output_path, options)
-        log = await run_process(str(tool["path"]), args, timeout=600)
-        logs.append(log or f"media: {input_path.name} -> {output_path.name}")
-        outputs.append(output_path)
+        try:
+            log = await run_process(str(tool["path"]), args, timeout=600, tool_label="FFmpeg")
+            if not output_path.is_file() or output_path.stat().st_size < 1:
+                raise RuntimeError(f"FFmpeg 未產生輸出檔：{output_path.name}")
+            logs.append(log or f"media: {input_path.name} -> {output_path.name}")
+            outputs.append(output_path)
+        except Exception:
+            output_path.unlink(missing_ok=True)
+            raise
 
     return outputs, logs
 
@@ -2271,12 +2317,19 @@ def _run_process_sync(
     if job_id and _cancel_requested.get(job_id):
         raise JobCancelled("任務已取消")
     try:
-        proc = subprocess.Popen(
-            [executable, *args],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-        )
+        process_options: dict[str, object] = {
+            "stdout": subprocess.PIPE,
+            "stderr": subprocess.PIPE,
+            "text": True,
+        }
+        if os.name == "nt":
+            process_options["creationflags"] = (
+                getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+                | getattr(subprocess, "CREATE_NO_WINDOW", 0)
+            )
+        else:
+            process_options["start_new_session"] = True
+        proc = subprocess.Popen([executable, *args], **process_options)
     except FileNotFoundError as error:
         raise RuntimeError(
             format_process_error(
@@ -2304,7 +2357,7 @@ def _run_process_sync(
         try:
             stdout, stderr = proc.communicate(timeout=timeout)
         except subprocess.TimeoutExpired:
-            proc.kill()
+            terminate_process_tree(proc)
             stdout, stderr = proc.communicate()
             raise RuntimeError(
                 format_process_error(
