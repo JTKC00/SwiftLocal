@@ -12,7 +12,6 @@ const windowsToolFilters = [
   "!**/*.dylib",
   "!**/*.so",
   "!**/*.jnilib",
-  "!**/*.bin",
   "!LibreOffice.app/**/*",
   "!ffmpeg/bin/ffmpeg",
   "!qpdf/bin/qpdf",

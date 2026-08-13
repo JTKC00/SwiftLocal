@@ -394,7 +394,7 @@ http://127.0.0.1:8787
 
 ### Windows
 
-目前建議對外只發佈 `dist/` 內的單一 Windows installer，預設打包 FFmpeg、Tesseract、QPDF、LibreOffice。
+目前建議對外只發佈 `dist/` 內的單一 Windows installer。一般版預設打包 FFmpeg、Tesseract、QPDF、yt-dlp、Deno 與鎖定版 OCR 語言包；LibreOffice 只在 Full 版內建（一般版可使用系統安裝的 LibreOffice）。
 
 產生 portable EXE 與 installer：
 

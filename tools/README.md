@@ -66,8 +66,9 @@ npm run tools:tessdata
 
 1. 在 `tools/**/tessdata` 檢查 `eng`、`chi_tra`、`osd`
 2. 若缺少，優先從本機系統 Tesseract 複製（Windows：`C:\Program Files\Tesseract-OCR\tessdata`）
-3. 仍缺少則從 GitHub `tesseract-ocr/tessdata_fast` 下載
-4. Full build **缺少則中止**，避免出貨後用家無法用繁中 OCR
+3. 仍缺少則從 GitHub `tesseract-ocr/tessdata_fast` 的 4.1.0 固定 commit 下載
+4. 依 `tools/tessdata.lock.json` 驗證檔案大小與 SHA-256
+5. Full build **缺少或校驗不符則中止**，避免出貨後用家無法用繁中 OCR
 
 手動只檢查（不下載）：
 
@@ -100,7 +101,7 @@ npm run pack:win
 npm run pack:win:full
 ```
 
-`pack:win` / `pack:win:full` 也會自動跑此檢查；electron-builder 成功後還會立即抽出成品，核對 `app.asar`、yt-dlp、Deno 與 FFmpeg 的 SHA-256，不一致就以失敗結束。
+`pack:win` / `pack:win:full` 會先補齊並校驗 tessdata，再執行一次 fail-closed readiness 檢查。electron-builder 成功後會立即抽出成品，將整個 `win-unpacked` 檔案樹（包括 Electron runtime、`app.asar.unpacked` native modules、所有工具支援檔）逐檔與 Installer／Portable 內 payload 比對 SHA-256。另會明確要求 `app.asar`、yt-dlp、Deno、FFmpeg、Tesseract、QPDF、`eng`／`chi_tra`／`osd`，Full 版也要求 LibreOffice 主程式與啟動支援檔。缺檔、PE 結構／架構錯誤、SHA-256 不一致或不安全 NSIS 產品名稱提示都會以失敗結束。
 
 Optional LibreOffice layout:
 
@@ -109,6 +110,8 @@ tools/
   libreoffice/
     program/
       soffice.exe
+      soffice.bin
+      fundamental.ini
 ```
 
 LibreOffice is intentionally optional because it is much larger than the other

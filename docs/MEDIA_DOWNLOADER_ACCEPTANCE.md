@@ -30,8 +30,11 @@ npm run pack:win:full
 - `dist-full/win-unpacked/resources/tools/yt-dlp/bin/yt-dlp.exe`
 - `dist-full/win-unpacked/resources/tools/deno/bin/deno.exe`
 - `dist-full/win-unpacked/resources/tools/ffmpeg/bin/ffmpeg.exe`
+- `dist-full/win-unpacked/resources/tools/tesseract/.../tesseract.exe` 與 `eng`／`chi_tra`／`osd`
+- `dist-full/win-unpacked/resources/tools/qpdf/.../qpdf.exe`
+- `dist-full/win-unpacked/resources/tools/libreoffice/program/soffice.exe`
 
-驗證腳本會檢查 Installer／Portable 檔名與最小大小、主程式版本、`app.asar` 版本、PDF 關聯、tools 資源，以及三個媒體工具的 Windows `MZ` PE header。它還會以內建 7-Zip 抽出兩個 `.exe` 的 payload，逐一比對 `app.asar`、yt-dlp、Deno、FFmpeg 與 `win-unpacked` 的 SHA-256；單純改檔案時間不能讓舊產物通過。
+驗證腳本會檢查 Installer／Portable 檔名與最小大小、主程式版本、`app.asar` 版本、PDF 關聯及完整 tools 資源。Windows 執行檔必須有有效 DOS／COFF／optional／section header 及檔內 raw section；主程式與 bundled tools 必須為 x64（NSIS 啟動器可為 PE32）。腳本會以內建 7-Zip 抽出兩個 `.exe` 的 payload，把整個 `win-unpacked` 檔案樹（Electron runtime、`resources`、native modules、完整工具支援樹）逐檔比對大小與 SHA-256；單純改檔案時間或只保留主 EXE 不能讓不完整產物通過。
 
 所有 yt-dlp HTTP／HTTPS 連線都經由每次操作專屬、帶隨機認證的 `127.0.0.1` 代理。代理會對每個請求及 HTTPS CONNECT 重新解析主機、拒絕私有／本機地址，並把實際上游連線鎖定到已驗證的公開 IP，因此後續 redirect 或 DNS rebinding 不能繞過公開媒體限制。
 

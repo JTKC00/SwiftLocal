@@ -6,6 +6,8 @@ const os = require("node:os");
 const crypto = require("node:crypto");
 const { execFileSync } = require("node:child_process");
 const asar = require("@electron/asar");
+const { readWindowsPe, readWindowsX64Pe } = require("./windows-pe");
+const { loadTessdataLock, requireLockedTessdata } = require("./tessdata-lock");
 
 const projectRoot = path.resolve(__dirname, "..");
 const MAIN_EXE_CANDIDATES = ["SwiftLocal.exe", "快轉通 SwiftLocal.exe"];
@@ -33,12 +35,21 @@ function requireReleaseFile(filePath, minimumBytes = 1024 * 1024) {
 
 function requireWindowsExecutable(filePath, minimumBytes = 50_000) {
   const stat = requireReleaseFile(filePath, minimumBytes);
-  const handle = fs.openSync(filePath, "r");
-  const header = Buffer.alloc(2);
-  fs.readSync(handle, header, 0, 2, 0);
-  fs.closeSync(handle);
-  if (header.toString("ascii") !== "MZ") {
-    throw new Error(`封裝工具不是有效的 Windows PE 執行檔：${filePath}`);
+  try {
+    readWindowsX64Pe(filePath, minimumBytes);
+  } catch (error) {
+    throw new Error(`封裝工具不是有效的 x64 Windows PE 執行檔：${filePath}（${error.message}）`);
+  }
+  return stat;
+}
+
+function requireWindowsArtifact(filePath, minimumBytes = 1024 * 1024) {
+  const stat = requireReleaseFile(filePath, minimumBytes);
+  try {
+    // NSIS installer stubs can be PE32 even when the bundled application is x64.
+    readWindowsPe(filePath, minimumBytes);
+  } catch (error) {
+    throw new Error(`發行產物不是有效的 Windows PE 執行檔：${filePath}（${error.message}）`);
   }
   return stat;
 }
@@ -57,33 +68,115 @@ function verifyArtifactPayloadMatches(artifactPath, packaged) {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "swiftlocal-artifact-verify-"));
   try {
     const payloadRoot = extractReleasePayload(artifactPath, tempDir);
-    const expected = {
-      appAsar: packaged.archivePath,
-      ytDlp: packaged.mediaTools.ytDlp,
-      deno: packaged.mediaTools.deno,
-      ffmpeg: packaged.mediaTools.ffmpeg
-    };
-    const suffixes = {
-      appAsar: path.join("resources", "app.asar"),
-      ytDlp: path.join("resources", "tools", "yt-dlp", "bin", "yt-dlp.exe"),
-      deno: path.join("resources", "tools", "deno", "bin", "deno.exe"),
-      ffmpeg: path.join("resources", "tools", "ffmpeg", "bin", "ffmpeg.exe")
-    };
+    const expected = packaged.payloadManifest || {};
+    if (!Object.keys(expected).length) {
+      throw new Error("win-unpacked 驗證結果沒有必備 payload 清單");
+    }
+    const applicationRoot = locateExtractedApplicationRoot(payloadRoot);
+    const actual = buildPayloadManifest(applicationRoot);
+    const expectedByPath = manifestByNormalizedPath(expected, "win-unpacked");
+    const actualByPath = manifestByNormalizedPath(actual, "發行產物");
+    const missing = Array.from(expectedByPath.keys()).filter((key) => !actualByPath.has(key));
+    const unexpected = Array.from(actualByPath.keys()).filter((key) => !expectedByPath.has(key));
+    if (missing.length || unexpected.length) {
+      const details = [
+        missing.length ? `缺少：${missing.slice(0, 5).join(", ")}` : "",
+        unexpected.length ? `多餘：${unexpected.slice(0, 5).join(", ")}` : ""
+      ].filter(Boolean).join("；");
+      throw new Error(`發行產物檔案清單與 win-unpacked 不一致（${details}）：${artifactPath}`);
+    }
+
     const hashes = {};
-    for (const [key, expectedPath] of Object.entries(expected)) {
-      const extractedPath = findFileBySuffix(payloadRoot, suffixes[key]);
-      if (!extractedPath) throw new Error(`發行產物內缺少 ${suffixes[key]}：${artifactPath}`);
-      const expectedHash = sha256File(expectedPath);
-      const extractedHash = sha256File(extractedPath);
-      if (expectedHash !== extractedHash) {
+    for (const [key, expectedFile] of Object.entries(expected)) {
+      const normalizedPath = normalizeManifestPath(expectedFile.relativePath);
+      const actualFile = actualByPath.get(normalizedPath);
+      const currentExpectedHash = sha256File(expectedFile.filePath);
+      if (expectedFile.sha256 && currentExpectedHash !== expectedFile.sha256) {
+        throw new Error(`win-unpacked 建立清單後內容已改變（${expectedFile.relativePath}）`);
+      }
+      if (expectedFile.bytes != null && fs.statSync(expectedFile.filePath).size !== expectedFile.bytes) {
+        throw new Error(`win-unpacked 建立清單後大小已改變（${expectedFile.relativePath}）`);
+      }
+      if (currentExpectedHash !== actualFile.sha256 || fs.statSync(expectedFile.filePath).size !== actualFile.bytes) {
         throw new Error(`發行產物內容與 win-unpacked 不一致（${key}）：${artifactPath}`);
       }
-      hashes[key] = extractedHash;
+      hashes[key] = actualFile.sha256;
     }
     return hashes;
   } finally {
     fs.rmSync(tempDir, { recursive: true, force: true });
   }
+}
+
+function buildPayloadManifest(rootDir) {
+  const manifest = {};
+  for (const filePath of findFiles(rootDir)) {
+    const relativePath = path.relative(rootDir, filePath);
+    if (!relativePath || relativePath.startsWith("..") || path.isAbsolute(relativePath)) continue;
+    const portablePath = relativePath.replace(/\\/g, "/");
+    const stat = fs.statSync(filePath);
+    manifest[portablePath] = {
+      filePath,
+      relativePath: portablePath,
+      bytes: stat.size,
+      sha256: sha256File(filePath)
+    };
+  }
+  if (!Object.keys(manifest).length) {
+    throw new Error(`win-unpacked 沒有可驗證檔案：${rootDir}`);
+  }
+  return manifest;
+}
+
+function normalizeManifestPath(relativePath) {
+  const portablePath = String(relativePath || "").replace(/\\/g, "/");
+  if (
+    !portablePath ||
+    portablePath.startsWith("/") ||
+    /^[a-z]:\//i.test(portablePath) ||
+    portablePath.split("/").some((part) => part === "..")
+  ) {
+    throw new Error(`無效的 payload 相對路徑：${relativePath}`);
+  }
+  return portablePath.toLowerCase();
+}
+
+function manifestByNormalizedPath(manifest, label) {
+  const indexed = new Map();
+  for (const entry of Object.values(manifest)) {
+    const key = normalizeManifestPath(entry.relativePath);
+    if (indexed.has(key)) {
+      throw new Error(`${label} 有重複的 Windows payload 路徑：${entry.relativePath}`);
+    }
+    indexed.set(key, entry);
+  }
+  return indexed;
+}
+
+function locateExtractedApplicationRoot(payloadRoot) {
+  const roots = findFiles(payloadRoot)
+    .filter((filePath) => path.basename(filePath).toLowerCase() === "app.asar")
+    .filter((filePath) => path.basename(path.dirname(filePath)).toLowerCase() === "resources")
+    .map((filePath) => path.dirname(path.dirname(filePath)))
+    .filter((rootDir) => MAIN_EXE_CANDIDATES.some((name) => fs.existsSync(path.join(rootDir, name))));
+  const uniqueRoots = Array.from(new Set(roots.map((rootDir) => path.resolve(rootDir))));
+  if (uniqueRoots.length !== 1) {
+    throw new Error(
+      `無法唯一定位發行產物的應用程式根目錄（找到 ${uniqueRoots.length} 個）：${payloadRoot}`
+    );
+  }
+  return uniqueRoots[0];
+}
+
+function payloadFile(resourcesDir, filePath) {
+  const relativeFromResources = path.relative(resourcesDir, filePath);
+  if (!relativeFromResources || relativeFromResources.startsWith("..") || path.isAbsolute(relativeFromResources)) {
+    throw new Error(`必備 payload 路徑不在 resources 內：${filePath}`);
+  }
+  return {
+    filePath,
+    relativePath: path.join("resources", relativeFromResources)
+  };
 }
 
 function extractReleasePayload(artifactPath, tempDir) {
@@ -150,6 +243,11 @@ function findFiles(root) {
   return output;
 }
 
+function findFileByName(root, names) {
+  const normalizedNames = new Set(Array.from(names, (name) => String(name).toLowerCase()));
+  return findFiles(root).find((filePath) => normalizedNames.has(path.basename(filePath).toLowerCase())) || "";
+}
+
 function sha256File(filePath) {
   return crypto.createHash("sha256").update(fs.readFileSync(filePath)).digest("hex");
 }
@@ -159,14 +257,6 @@ function findMainWindowsExecutable(unpackedDir) {
     const candidate = path.join(unpackedDir, name);
     if (fs.existsSync(candidate)) {
       return candidate;
-    }
-  }
-  // Fallback: any .exe in the unpacked root that is not a helper binary.
-  if (fs.existsSync(unpackedDir)) {
-    const names = fs.readdirSync(unpackedDir).filter((name) => /\.exe$/i.test(name));
-    const preferred = names.find((name) => /swiftlocal/i.test(name)) || names[0];
-    if (preferred) {
-      return path.join(unpackedDir, preferred);
     }
   }
   throw new Error(`缺少主程式 EXE：${unpackedDir}（預期 ${MAIN_EXE_CANDIDATES.join(" 或 ")}）`);
@@ -234,16 +324,22 @@ function readNsisFriendlyAppNameHints(installerPath) {
   const bytes = fs.readFileSync(installerPath);
   const text = Buffer.from(bytes).toString("utf16le");
   const hits = [];
-  if (/FriendlyAppName/i.test(text) || /Applications\\/i.test(text)) {
-    if (/Electron/i.test(text) && !new RegExp(DISPLAY_PRODUCT_NAME.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).test(text)) {
-      hits.push("installer_strings_electron_without_product");
-    }
+  if (/FriendlyAppName[\s:=\0]{0,32}Electron/i.test(text)) {
+    hits.push("installer_strings_electron_without_product");
   }
   // Stronger check: product display name should appear in installer payload.
   if (!text.includes("SwiftLocal") && !text.includes("快轉通")) {
     hits.push("installer_missing_swiftlocal_string");
   }
   return hits;
+}
+
+function requireSafeInstallerHints(installerPath) {
+  const hints = readNsisFriendlyAppNameHints(installerPath);
+  if (hints.length) {
+    throw new Error(`安裝檔含不安全的產品名稱提示（${hints.join(", ")}）：${installerPath}`);
+  }
+  return hints;
 }
 
 function verifyPdfAssociationConfig(config) {
@@ -268,14 +364,109 @@ function verifyPdfAssociationConfig(config) {
   return pdf;
 }
 
-function verifyPackagedApplication(outputDir, version) {
+function packagedTessdataDir(tesseractPath) {
+  const executableDir = path.dirname(path.resolve(tesseractPath));
+  const candidates = [
+    path.join(executableDir, "tessdata"),
+    path.join(executableDir, "share", "tessdata"),
+    path.join(executableDir, "..", "tessdata"),
+    path.join(executableDir, "..", "share", "tessdata")
+  ];
+  return candidates.find((candidate) => {
+    try {
+      return fs.statSync(candidate).isDirectory();
+    } catch {
+      return false;
+    }
+  }) || "";
+}
+
+function requireNamedWindowsExecutable(toolsDir, names, label, minimumBytes = 50_000) {
+  const filePath = findFileByName(toolsDir, names);
+  if (!filePath) {
+    throw new Error(`封裝程式缺少 ${label}：${Array.from(names).join(" / ")}`);
+  }
+  requireWindowsExecutable(filePath, minimumBytes);
+  return filePath;
+}
+
+function verifyRequiredToolPayload(resourcesDir, options = {}) {
+  const toolsDir = path.join(resourcesDir, "tools");
+  if (!fs.existsSync(toolsDir) || fs.readdirSync(toolsDir).length === 0) {
+    throw new Error(`封裝程式缺少 tools 資源：${toolsDir}`);
+  }
+
+  const requiredTools = {
+    ytDlp: requireNamedWindowsExecutable(toolsDir, new Set(["yt-dlp.exe"]), "yt-dlp", 1_000_000),
+    deno: requireNamedWindowsExecutable(toolsDir, new Set(["deno.exe"]), "Deno", 1_000_000),
+    ffmpeg: requireNamedWindowsExecutable(toolsDir, new Set(["ffmpeg.exe"]), "FFmpeg", 100_000),
+    tesseract: requireNamedWindowsExecutable(toolsDir, new Set(["tesseract.exe"]), "Tesseract"),
+    qpdf: requireNamedWindowsExecutable(toolsDir, new Set(["qpdf.exe"]), "QPDF")
+  };
+  if (options.full) {
+    requiredTools.libreOffice = requireNamedWindowsExecutable(
+      toolsDir,
+      new Set(["soffice.exe", "soffice.com"]),
+      "LibreOffice"
+    );
+    const libreOfficeProgram = path.dirname(requiredTools.libreOffice);
+    for (const supportName of ["soffice.bin", "fundamental.ini"]) {
+      requireReleaseFile(path.join(libreOfficeProgram, supportName), 1);
+    }
+  }
+
+  for (const [key, executable] of Object.entries({
+    Tesseract: requiredTools.tesseract,
+    QPDF: requiredTools.qpdf
+  })) {
+    const subtree = key === "QPDF" ? path.dirname(path.dirname(executable)) : path.dirname(executable);
+    if (!findFiles(subtree).some((filePath) => /\.dll$/i.test(filePath))) {
+      throw new Error(`封裝程式的 ${key} 缺少必要 DLL 支援檔：${subtree}`);
+    }
+  }
+
+  const tessdataDir = packagedTessdataDir(requiredTools.tesseract);
+  if (!tessdataDir) {
+    throw new Error(`封裝程式的 Tesseract 旁缺少 tessdata：${requiredTools.tesseract}`);
+  }
+  const tessdata = {};
+  const tessdataLock = options.tessdataLock || loadTessdataLock();
+  for (const language of ["eng", "chi_tra", "osd"]) {
+    const filePath = path.join(tessdataDir, `${language}.traineddata`);
+    try {
+      requireLockedTessdata(filePath, language, tessdataLock);
+    } catch (error) {
+      throw new Error(`封裝程式的 OCR 語言包未通過鎖定校驗：${filePath}（${error.message}）`);
+    }
+    tessdata[language] = filePath;
+  }
+
+  const payloadFiles = {};
+  for (const [key, filePath] of Object.entries({ ...requiredTools, ...tessdata })) {
+    payloadFiles[key] = payloadFile(resourcesDir, filePath);
+  }
+  return {
+    toolsDir,
+    requiredTools,
+    mediaTools: {
+      ytDlp: requiredTools.ytDlp,
+      deno: requiredTools.deno,
+      ffmpeg: requiredTools.ffmpeg
+    },
+    tessdata,
+    payloadFiles
+  };
+}
+
+function verifyPackagedApplication(outputDir, version, options = {}) {
   const unpackedDir = path.join(outputDir, "win-unpacked");
   const mainExe = findMainWindowsExecutable(unpackedDir);
-  requireReleaseFile(mainExe);
+  requireWindowsExecutable(mainExe, 1024 * 1024);
 
   const versionCheck = assertMainExeVersionInfo(mainExe);
 
-  const archivePath = path.join(unpackedDir, "resources", "app.asar");
+  const resourcesDir = path.join(unpackedDir, "resources");
+  const archivePath = path.join(resourcesDir, "app.asar");
   requireReleaseFile(archivePath);
   const packagedManifest = JSON.parse(asar.extractFile(archivePath, "package.json").toString("utf8"));
   if (packagedManifest.version !== version) {
@@ -311,19 +502,20 @@ function verifyPackagedApplication(outputDir, version) {
     );
   }
 
-  const toolsDir = path.join(unpackedDir, "resources", "tools");
-  if (!fs.existsSync(toolsDir) || fs.readdirSync(toolsDir).length === 0) {
-    throw new Error(`封裝程式缺少 tools 資源：${toolsDir}`);
-  }
-  const mediaTools = {
-    ytDlp: path.join(toolsDir, "yt-dlp", "bin", "yt-dlp.exe"),
-    deno: path.join(toolsDir, "deno", "bin", "deno.exe"),
-    ffmpeg: path.join(toolsDir, "ffmpeg", "bin", "ffmpeg.exe")
+  const tools = verifyRequiredToolPayload(resourcesDir, options);
+  const payloadManifest = buildPayloadManifest(unpackedDir);
+  return {
+    archivePath,
+    resourcesDir,
+    ...tools,
+    payloadFiles: {
+      appAsar: payloadFile(resourcesDir, archivePath),
+      ...tools.payloadFiles
+    },
+    payloadManifest,
+    mainExe,
+    versionCheck
   };
-  requireWindowsExecutable(mediaTools.ytDlp, 1_000_000);
-  requireWindowsExecutable(mediaTools.deno, 1_000_000);
-  requireWindowsExecutable(mediaTools.ffmpeg, 100_000);
-  return { archivePath, toolsDir, mediaTools, mainExe, versionCheck };
 }
 
 function verifyWindowsRelease(options = {}) {
@@ -338,24 +530,19 @@ function verifyWindowsRelease(options = {}) {
     .filter((name) => requestedKinds.has(/installer/i.test(name) ? "installer" : "portable"));
   const artifacts = (options.unpackedOnly ? [] : artifactNames).map((name) => {
     const filePath = path.join(outputDir, name);
-    const stat = requireReleaseFile(filePath);
+    const stat = requireWindowsArtifact(filePath, 1024 * 1024);
     return { filePath, size: stat.size };
   });
 
   for (const artifact of artifacts) {
     if (/installer/i.test(path.basename(artifact.filePath))) {
-      const hints = readNsisFriendlyAppNameHints(artifact.filePath);
-      if (hints.includes("installer_missing_swiftlocal_string")) {
-        throw new Error(`安裝檔未內嵌 SwiftLocal 字串（FriendlyAppName 可能錯誤）：${artifact.filePath}`);
-      }
+      requireSafeInstallerHints(artifact.filePath);
     }
   }
 
-  const packaged = verifyPackagedApplication(outputDir, version);
+  const packaged = verifyPackagedApplication(outputDir, version, { full });
   const packagedReferences = [
-    packaged.mainExe,
-    packaged.archivePath,
-    ...Object.values(packaged.mediaTools)
+    ...Object.values(packaged.payloadManifest).map((file) => file.filePath)
   ];
   for (const artifact of artifacts) {
     requireArtifactNotOlderThan(artifact.filePath, packagedReferences);
@@ -398,7 +585,9 @@ if (require.main === module) {
       );
     }
     console.log("OK PDF fileAssociations / productName");
-    console.log("OK win-unpacked、app.asar 版本、無巢狀 canvas、yt-dlp / Deno / FFmpeg 資源");
+    console.log(
+      `OK win-unpacked、app.asar 版本、無巢狀 canvas、${Object.keys(result.packaged.payloadFiles).join(" / ")} 資源`
+    );
   } catch (error) {
     console.error(`FAIL ${error.message}`);
     process.exit(1);
@@ -407,16 +596,21 @@ if (require.main === module) {
 
 module.exports = {
   ensureExecutableTool,
+  buildPayloadManifest,
   expectedWindowsArtifactNames,
   findMainWindowsExecutable,
   parseArgs,
   readWindowsVersionInfo,
+  readNsisFriendlyAppNameHints,
   requireArtifactNotOlderThan,
   requireReleaseFile,
+  requireSafeInstallerHints,
+  requireWindowsArtifact,
   requireWindowsExecutable,
   verifyPackagedApplication,
   verifyArtifactPayloadMatches,
   verifyPdfAssociationConfig,
+  verifyRequiredToolPayload,
   verifyWindowsRelease,
   MAIN_EXE_CANDIDATES
 };

@@ -13,10 +13,13 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const { verifyInstalled } = require("./ensure-media-download-tools");
+const { isWindowsX64Pe } = require("./windows-pe");
+const { loadTessdataLock, verifyLockedTessdata } = require("./tessdata-lock");
 
 const projectRoot = path.resolve(__dirname, "..");
 const toolsRoot = path.join(projectRoot, "tools");
 const wantFull = process.argv.includes("--full");
+const tessdataLock = loadTessdataLock();
 
 const checks = [];
 let failed = 0;
@@ -72,25 +75,8 @@ function resolveTessdataDir(tesseractExe) {
   return path.join(exeDir, "tessdata");
 }
 
-function validTraineddata(filePath) {
-  try {
-    return fs.existsSync(filePath) && fs.statSync(filePath).size > 50_000;
-  } catch {
-    return false;
-  }
-}
-
 function validWindowsExecutable(filePath, minimumBytes = 50_000) {
-  try {
-    if (!filePath || !fs.statSync(filePath).isFile() || fs.statSync(filePath).size < minimumBytes) return false;
-    const handle = fs.openSync(filePath, "r");
-    const header = Buffer.alloc(2);
-    fs.readSync(handle, header, 0, 2, 0);
-    fs.closeSync(handle);
-    return header.toString("ascii") === "MZ";
-  } catch {
-    return false;
-  }
+  return Boolean(filePath) && isWindowsX64Pe(filePath, minimumBytes);
 }
 
 console.log("");
@@ -109,6 +95,11 @@ if (!fs.existsSync(toolsRoot)) {
 const tesseract = findExecutable(toolsRoot, new Set(["tesseract.exe"]), 6);
 if (validWindowsExecutable(tesseract)) {
   ok(`Tesseract 執行檔: ${path.relative(projectRoot, tesseract)}`);
+  if (findExecutable(path.dirname(tesseract), new Set(["libtesseract-5.dll", "libtesseract.dll"]), 3)) {
+    ok("Tesseract DLL 支援檔");
+  } else {
+    bad("Tesseract 缺少 DLL 支援檔", "請使用完整 portable Tesseract 目錄，不要只複製 tesseract.exe");
+  }
 } else {
   bad(
     "缺少 Tesseract 執行檔（tesseract.exe）",
@@ -128,13 +119,14 @@ if (!fs.existsSync(tessdataDir)) {
   ok(`tessdata: ${path.relative(projectRoot, tessdataDir)}`);
   for (const lang of requiredLangs) {
     const f = path.join(tessdataDir, `${lang}.traineddata`);
-    if (validTraineddata(f)) {
+    const verification = verifyLockedTessdata(f, lang, tessdataLock);
+    if (verification.ok) {
       const mb = (fs.statSync(f).size / (1024 * 1024)).toFixed(2);
       ok(`語言包 ${lang}.traineddata (${mb} MB)`);
     } else {
       bad(
-        `缺少或損壞語言包: ${lang}.traineddata`,
-        "執行: npm run tools:tessdata   （會複製本機或從網路下載 chi_tra/eng/osd）"
+        `缺少、損壞或未鎖定的語言包: ${lang}.traineddata`,
+        `執行: npm run tools:tessdata   （${verification.reason}）`
       );
     }
   }
@@ -153,6 +145,12 @@ const qpdf = findExecutable(toolsRoot, new Set(["qpdf.exe"]), 6);
 // QPDF 12.x ships a small PE launcher next to qpdf30.dll (about 20 KB).
 if (validWindowsExecutable(qpdf, 10_000)) {
   ok(`QPDF: ${path.relative(projectRoot, qpdf)}`);
+  const qpdfRoot = path.dirname(path.dirname(qpdf));
+  if (findExecutable(qpdfRoot, new Set(["qpdf.dll", "qpdf29.dll", "qpdf30.dll"]), 4)) {
+    ok("QPDF DLL 支援檔");
+  } else {
+    bad("QPDF 缺少 DLL 支援檔", "請使用完整 QPDF Windows distribution，不要只複製 qpdf.exe");
+  }
 } else {
   bad("缺少 QPDF", "請放入 tools/qpdf/…/qpdf.exe");
 }
@@ -172,7 +170,14 @@ try {
 const soffice = findExecutable(toolsRoot, new Set(["soffice.exe", "soffice.com"]), 8);
 if (wantFull) {
   if (validWindowsExecutable(soffice)) {
-    ok(`LibreOffice: ${path.relative(projectRoot, soffice)}`);
+    const programDir = path.dirname(soffice);
+    const supportFiles = ["soffice.bin", "fundamental.ini"];
+    const missingSupport = supportFiles.filter((name) => !fs.existsSync(path.join(programDir, name)));
+    if (missingSupport.length) {
+      bad(`LibreOffice 缺少啟動支援檔：${missingSupport.join(", ")}`, "請複製完整 LibreOffice/program 目錄");
+    } else {
+      ok(`LibreOffice: ${path.relative(projectRoot, soffice)}`);
+    }
   } else {
     bad(
       "Full 版缺少 LibreOffice（soffice）",

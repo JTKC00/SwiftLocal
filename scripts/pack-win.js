@@ -1,8 +1,8 @@
 "use strict";
 
 /**
- * Windows package entry: provision pinned media tools, verify Windows resources,
- * refresh tessdata when possible, then run electron-builder.
+ * Windows package entry: provision pinned media tools and required tessdata,
+ * verify the complete Windows resource set once, then run electron-builder.
  */
 const path = require("node:path");
 const { spawnSync, spawn } = require("node:child_process");
@@ -22,6 +22,17 @@ if (mediaTools.status !== 0) {
   process.exit(mediaTools.status || 1);
 }
 
+console.log("=== ensure required tessdata (eng, chi_tra, osd) ===");
+const tessdata = spawnSync(
+  process.execPath,
+  [path.join(__dirname, "ensure-tessdata.js"), "--download"],
+  { cwd: projectRoot, stdio: "inherit" }
+);
+if (tessdata.status !== 0) {
+  console.error("Pack aborted: required Tesseract language packs could not be provisioned.");
+  process.exit(tessdata.status || 1);
+}
+
 console.log("=== pack readiness check ===");
 const ready = spawnSync(
   process.execPath,
@@ -31,19 +42,6 @@ const ready = spawnSync(
 if (ready.status !== 0) {
   console.error("Pack aborted: fix items above, then re-run npm run pack:win");
   process.exit(ready.status || 1);
-}
-
-console.log("=== ensure tessdata (best-effort refresh) ===");
-const tess = spawnSync(
-  process.execPath,
-  [path.join(__dirname, "ensure-tessdata.js"), "--download"],
-  { cwd: projectRoot, stdio: "inherit" }
-);
-if (tess.status && tess.status !== 0) {
-  console.warn(
-    "WARN: tessdata ensure did not fully succeed; packaging continues.\n" +
-      "  For a complete Full build with chi_tra guaranteed, use: npm run pack:win:full"
-  );
 }
 
 const child = spawn(

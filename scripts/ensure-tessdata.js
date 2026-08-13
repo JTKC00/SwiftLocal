@@ -16,8 +16,15 @@
 
 const fs = require("node:fs");
 const path = require("node:path");
+const {
+  loadTessdataLock,
+  lockedTessdataUrl,
+  requireLockedTessdata,
+  verifyLockedTessdata
+} = require("./tessdata-lock");
 const projectRoot = path.resolve(__dirname, "..");
 const toolsRoot = path.join(projectRoot, "tools");
+const tessdataLock = loadTessdataLock();
 
 /** Languages required in Full / recommended for default chi_tra+eng OCR. */
 const REQUIRED_LANGS = ["eng", "chi_tra", "osd"];
@@ -31,11 +38,8 @@ const forceDownload =
   process.env.SWIFTLOCAL_TESSDATA_DOWNLOAD === "1" ||
   requireFull; // full build always tries to obtain missing packs
 
-// Prefer tessdata_fast for smaller installers; override with SWIFTLOCAL_TESSDATA_REPO=tessdata|tessdata_best
-const tessdataRepo = process.env.SWIFTLOCAL_TESSDATA_REPO || "tessdata_fast";
-const TESSDATA_BASE =
-  process.env.SWIFTLOCAL_TESSDATA_URL ||
-  `https://github.com/tesseract-ocr/${tessdataRepo}/raw/main`;
+// A custom URL may mirror the same pinned bytes; SHA-256 verification remains mandatory.
+const TESSDATA_BASE = process.env.SWIFTLOCAL_TESSDATA_URL || "";
 
 function main() {
   const tesseractExe = findExecutable(
@@ -71,7 +75,7 @@ function ensureLanguages(tessdataDir) {
   const missing = [];
   for (const lang of REQUIRED_LANGS) {
     const dest = path.join(tessdataDir, `${lang}.traineddata`);
-    if (isValidTraineddata(dest)) {
+    if (verifyLockedTessdata(dest, lang, tessdataLock).ok) {
       console.log(`OK   ${lang}.traineddata (${fs.statSync(dest).size} bytes)`);
       continue;
     }
@@ -86,7 +90,7 @@ function ensureLanguages(tessdataDir) {
       if (!ok && forceDownload) {
         ok = downloadTraineddata(lang, dest);
       }
-      if (ok && isValidTraineddata(dest)) {
+      if (ok && verifyLockedTessdata(dest, lang, tessdataLock).ok) {
         console.log(`OK   obtained ${lang}.traineddata (${fs.statSync(dest).size} bytes)`);
       } else {
         console.error(`FAIL: could not obtain ${lang}.traineddata`);
@@ -97,22 +101,22 @@ function ensureLanguages(tessdataDir) {
   // Optional packs: best-effort
   for (const lang of OPTIONAL_LANGS) {
     const dest = path.join(tessdataDir, `${lang}.traineddata`);
-    if (isValidTraineddata(dest)) {
+    if (verifyLockedTessdata(dest, lang, tessdataLock).ok) {
       console.log(`OK   optional ${lang}.traineddata`);
       continue;
     }
     if (forceDownload || tryCopyFromSystem(lang, dest)) {
-      if (!isValidTraineddata(dest) && forceDownload) {
+      if (!verifyLockedTessdata(dest, lang, tessdataLock).ok && forceDownload) {
         downloadTraineddata(lang, dest);
       }
-      if (isValidTraineddata(dest)) {
+      if (verifyLockedTessdata(dest, lang, tessdataLock).ok) {
         console.log(`OK   optional ${lang}.traineddata obtained`);
       }
     }
   }
 
   const stillMissing = REQUIRED_LANGS.filter(
-    (lang) => !isValidTraineddata(path.join(tessdataDir, `${lang}.traineddata`))
+    (lang) => !verifyLockedTessdata(path.join(tessdataDir, `${lang}.traineddata`), lang, tessdataLock).ok
   );
   if (stillMissing.length) {
     console.error(
@@ -135,6 +139,11 @@ function ensureLanguages(tessdataDir) {
     present,
     hasChiTra: present.includes("chi_tra"),
     hasEng: present.includes("eng"),
+    source: {
+      repository: tessdataLock.repository,
+      tag: tessdataLock.tag,
+      revision: tessdataLock.revision
+    },
     updatedAt: new Date().toISOString()
   };
   const manifestPath = path.join(tessdataDir, "swiftlocal-tessdata.json");
@@ -213,6 +222,12 @@ function tryCopyFromSystem(lang, dest) {
     try {
       fs.mkdirSync(path.dirname(dest), { recursive: true });
       fs.copyFileSync(src, dest);
+      const verification = verifyLockedTessdata(dest, lang, tessdataLock);
+      if (!verification.ok) {
+        fs.rmSync(dest, { force: true });
+        console.warn(`SKIP ${lang} from ${src}: ${verification.reason}`);
+        continue;
+      }
       console.log(`COPY ${lang} <- ${src}`);
       return true;
     } catch (error) {
@@ -223,17 +238,13 @@ function tryCopyFromSystem(lang, dest) {
 }
 
 function downloadTraineddata(lang, dest) {
-  const url = `${TESSDATA_BASE}/${lang}.traineddata`;
+  const url = lockedTessdataUrl(lang, tessdataLock, TESSDATA_BASE);
   const tmp = `${dest}.download`;
   console.log(`GET  ${url}`);
   try {
     fs.mkdirSync(path.dirname(dest), { recursive: true });
     downloadToFileSync(url, tmp);
-    if (!isValidTraineddata(tmp)) {
-      fs.unlinkSync(tmp);
-      console.error(`FAIL downloaded ${lang} is too small / invalid`);
-      return false;
-    }
+    requireLockedTessdata(tmp, lang, tessdataLock);
     fs.renameSync(tmp, dest);
     return true;
   } catch (error) {

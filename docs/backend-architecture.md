@@ -225,11 +225,11 @@ CI：GitHub Actions 工作流程 `.github/workflows/ci.yml` 在 `main` / `master
 3. `npm run check:ci`（版本、CHANGELOG、electron-builder 產物命名、requirements pin）
 4. `npm test`（Node + Python 單元測試）
 
-本機可用 `npm run typecheck` 與 `npm run check:ci` 重現上述檢查。完整 `check:pack` 仍需本機 `tools/`，不在 CI 強制執行。
+本機可用 `npm run typecheck` 與 `npm run check:ci` 重現上述檢查。CI 的跨平台單元測試會覆蓋 PE header／section 邊界、完整 `win-unpacked` payload manifest、tessdata 鎖定校驗與成品逐檔 hash 比對；完整 `check:pack` 仍需本機 Windows `tools/`，只在真實 Windows 發佈環境執行。
 
 ## 依賴（Python）
 
-見 `backend/requirements.txt`（**已固定版本**，供 CI 與本機可重現安裝）：
+見 `backend/requirements.txt`（直接依賴已固定版本；平台相關的遞移依賴仍由 pip 解析，尚未建立含 hash 的跨平台 lock）：
 
 | 套件 | 用途 |
 | --- | --- |
@@ -263,8 +263,8 @@ CI：GitHub Actions 工作流程 `.github/workflows/ci.yml` 在 `main` / `master
 
 | 模式 | 狀態檔 | 行為 |
 | --- | --- | --- |
-| Electron | `userData/jobs-state.json`（與 `tools.json` 同目錄） | 啟動時載入；`queued` 會繼續跑；輸出目錄可在「狀態」面板設定（寫入 `tools.json` 的 `defaultOutputDir`） |
-| FastAPI | `backend/temp/jobs-state.json` | 啟動 `restore_state()`；保留 job 目錄與輸出 |
+| Electron | `userData/jobs-state.json`（與 `tools.json` 同目錄） | 啟動時載入；`queued` 會繼續跑；原子寫入，損壞時保留原檔；輸出目錄可在「狀態」面板設定（寫入 `tools.json` 的 `defaultOutputDir`） |
+| FastAPI | `backend/temp/jobs-state.json` | 啟動 `restore_state()`；原子寫入；損壞時保留原檔並停用 orphan 清理；保留 job 目錄與輸出 |
 
 - **結構契約（schema version 2）**：見 [jobs-state-schema.md](./jobs-state-schema.md)。寫入根物件含 `version`、`savedAt`、`jobs`；job 可含 `errorCode` / `errorHint` / `retriable`；常數 `JOBS_STATE_SCHEMA_VERSION`。
 - 重啟時仍為 **`running`** 的任務會改為 **`failed`**（訊息：重啟／中斷），避免半成品當成功。
