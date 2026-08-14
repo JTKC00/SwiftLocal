@@ -401,8 +401,13 @@ function verifyRequiredToolPayload(resourcesDir, options = {}) {
     deno: requireNamedWindowsExecutable(toolsDir, new Set(["deno.exe"]), "Deno", 1_000_000),
     ffmpeg: requireNamedWindowsExecutable(toolsDir, new Set(["ffmpeg.exe"]), "FFmpeg", 100_000),
     tesseract: requireNamedWindowsExecutable(toolsDir, new Set(["tesseract.exe"]), "Tesseract"),
-    qpdf: requireNamedWindowsExecutable(toolsDir, new Set(["qpdf.exe"]), "QPDF")
+    qpdf: requireNamedWindowsExecutable(toolsDir, new Set(["qpdf.exe"]), "QPDF", 10_000)
   };
+  const bundledLibreOffice = fs.readdirSync(toolsDir, { withFileTypes: true })
+    .find((entry) => entry.isDirectory() && entry.name.toLowerCase() === "libreoffice");
+  if (!options.full && bundledLibreOffice) {
+    throw new Error(`Standard 封裝不應包含 LibreOffice：${path.join(toolsDir, bundledLibreOffice.name)}`);
+  }
   if (options.full) {
     requiredTools.libreOffice = requireNamedWindowsExecutable(
       toolsDir,
@@ -415,14 +420,13 @@ function verifyRequiredToolPayload(resourcesDir, options = {}) {
     }
   }
 
-  for (const [key, executable] of Object.entries({
-    Tesseract: requiredTools.tesseract,
-    QPDF: requiredTools.qpdf
-  })) {
-    const subtree = key === "QPDF" ? path.dirname(path.dirname(executable)) : path.dirname(executable);
-    if (!findFiles(subtree).some((filePath) => /\.dll$/i.test(filePath))) {
-      throw new Error(`封裝程式的 ${key} 缺少必要 DLL 支援檔：${subtree}`);
-    }
+  const tesseractRoot = path.dirname(requiredTools.tesseract);
+  if (!findFiles(tesseractRoot).some((filePath) => /\.dll$/i.test(filePath))) {
+    throw new Error(`封裝程式的 Tesseract 缺少必要 DLL 支援檔：${tesseractRoot}`);
+  }
+  const qpdfRoot = path.dirname(path.dirname(requiredTools.qpdf));
+  if (!findFileByName(qpdfRoot, new Set(["qpdf.dll", "qpdf29.dll", "qpdf30.dll"]))) {
+    throw new Error(`封裝程式的 QPDF 缺少必要 DLL 支援檔：${qpdfRoot}`);
   }
 
   const tessdataDir = packagedTessdataDir(requiredTools.tesseract);

@@ -61,7 +61,8 @@ const builderArgs = [
 
 const child = spawn(process.execPath, builderArgs, {
   cwd: projectRoot,
-  stdio: "inherit"
+  stdio: "inherit",
+  env: { ...process.env, SWIFTLOCAL_FULL_BUILD: "1" }
 });
 
 child.on("exit", (code) => {

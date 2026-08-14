@@ -1,6 +1,7 @@
 "use strict";
 
 const shouldSignMac = process.env.SWIFTLOCAL_MAC_SIGN === "1";
+const isFullWindowsBuild = process.env.SWIFTLOCAL_FULL_BUILD === "1";
 const hasNotarizationCredentials = Boolean(
   (process.env.APPLE_API_KEY && process.env.APPLE_API_KEY_ID && process.env.APPLE_API_ISSUER) ||
   (process.env.APPLE_ID && process.env.APPLE_APP_SPECIFIC_PASSWORD && process.env.APPLE_TEAM_ID) ||
@@ -19,6 +20,14 @@ const windowsToolFilters = [
   "!yt-dlp/bin/yt-dlp",
   "!deno/bin/deno"
 ];
+
+if (!isFullWindowsBuild) {
+  windowsToolFilters.push(
+    "!libreoffice/**/*",
+    "!libreOffice/**/*",
+    "!LibreOffice/**/*"
+  );
+}
 
 const macToolFilters = [
   "**/*",

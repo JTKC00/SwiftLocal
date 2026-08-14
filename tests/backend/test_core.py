@@ -2378,7 +2378,7 @@ class PdfToOfficeFallbackTests(unittest.IsolatedAsyncioTestCase):
             fake_tool = write_fake_tesseract(
                 base,
                 (
-                    "echo partial>%2\r\nexit /b 9"
+                    "for %%A in (%*) do set \"out=%%~A\"\r\necho partial>\"%out%\"\r\nexit /b 9"
                     if os.name == "nt"
                     else 'eval "out=\\${$#}"\nprintf partial > "$out"\nexit 9'
                 ),

@@ -47,7 +47,11 @@ if (ready.status !== 0) {
 const child = spawn(
   process.execPath,
   [electronBuilderCli, "--config", "electron-builder.config.js", ...builderArgs],
-  { cwd: projectRoot, stdio: "inherit" }
+  {
+    cwd: projectRoot,
+    stdio: "inherit",
+    env: { ...process.env, SWIFTLOCAL_FULL_BUILD: "0" }
+  }
 );
 child.on("exit", (code) => {
   if (code !== 0) process.exit(Number.isInteger(code) ? code : 1);

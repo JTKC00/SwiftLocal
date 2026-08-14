@@ -62,7 +62,7 @@ function createRequiredResources(directory, options = {}) {
     deno: writeSyntheticPe(path.join(toolsDir, "deno", "bin", "deno.exe"), { size: 1_000_000 }),
     ffmpeg: writeSyntheticPe(path.join(toolsDir, "ffmpeg", "bin", "ffmpeg.exe"), { size: 100_000 }),
     tesseract: writeSyntheticPe(path.join(toolsDir, "tesseract", "tesseract.exe"), { size: 50_000 }),
-    qpdf: writeSyntheticPe(path.join(toolsDir, "qpdf", "bin", "qpdf.exe"), { size: 50_000 })
+    qpdf: writeSyntheticPe(path.join(toolsDir, "qpdf", "bin", "qpdf.exe"), { size: 19_968 })
   };
   fs.writeFileSync(path.join(toolsDir, "tesseract", "libtesseract.dll"), "tesseract-support");
   fs.writeFileSync(path.join(toolsDir, "qpdf", "bin", "qpdf.dll"), "qpdf-support");
@@ -85,6 +85,20 @@ function createRequiredResources(directory, options = {}) {
     };
   }
   return { resourcesDir, executablePaths, tessdataLock };
+}
+
+function loadWindowsBuilderConfig(full) {
+  const configPath = require.resolve("../../electron-builder.config.js");
+  const previousEdition = process.env.SWIFTLOCAL_FULL_BUILD;
+  try {
+    process.env.SWIFTLOCAL_FULL_BUILD = full ? "1" : "0";
+    delete require.cache[configPath];
+    return require(configPath);
+  } finally {
+    if (previousEdition === undefined) delete process.env.SWIFTLOCAL_FULL_BUILD;
+    else process.env.SWIFTLOCAL_FULL_BUILD = previousEdition;
+    delete require.cache[configPath];
+  }
 }
 
 afterEach(() => {
@@ -150,6 +164,8 @@ describe("release artifact verification", () => {
     assert.doesNotMatch(regularPack, /best-effort|packaging continues|console\.warn/);
     assert.match(regularPack, /--artifact/);
     assert.match(fullPack, /--unpacked/);
+    assert.match(regularPack, /SWIFTLOCAL_FULL_BUILD:\s*"0"/);
+    assert.match(fullPack, /SWIFTLOCAL_FULL_BUILD:\s*"1"/);
   });
 
   test("rejects missing and suspiciously small release files", () => {
@@ -216,6 +232,34 @@ describe("release artifact verification", () => {
       "tesseract",
       "ytDlp"
     ]);
+
+    writeSyntheticPe(fixture.executablePaths.qpdf, { size: 9_999 });
+    assert.throws(
+      () => verifyRequiredToolPayload(fixture.resourcesDir, { tessdataLock: fixture.tessdataLock }),
+      /大小異常/
+    );
+    writeSyntheticPe(fixture.executablePaths.qpdf, { size: 19_968 });
+
+    writeSyntheticPe(fixture.executablePaths.qpdf, { size: 19_968, machine: 0x014c });
+    assert.throws(
+      () => verifyRequiredToolPayload(fixture.resourcesDir, { tessdataLock: fixture.tessdataLock }),
+      /x64 Windows PE|expected 0x8664/
+    );
+    fs.writeFileSync(fixture.executablePaths.qpdf, Buffer.alloc(19_968));
+    assert.throws(
+      () => verifyRequiredToolPayload(fixture.resourcesDir, { tessdataLock: fixture.tessdataLock }),
+      /Windows PE/
+    );
+    writeSyntheticPe(fixture.executablePaths.qpdf, { size: 19_968 });
+
+    const qpdfDll = path.join(fixture.resourcesDir, "tools", "qpdf", "bin", "qpdf.dll");
+    fs.unlinkSync(qpdfDll);
+    assert.throws(
+      () => verifyRequiredToolPayload(fixture.resourcesDir, { tessdataLock: fixture.tessdataLock }),
+      /QPDF 缺少必要 DLL/
+    );
+    fs.writeFileSync(qpdfDll, "qpdf-support");
+
     assert.throws(
       () => verifyRequiredToolPayload(fixture.resourcesDir, { full: true, tessdataLock: fixture.tessdataLock }),
       /LibreOffice/
@@ -233,11 +277,16 @@ describe("release artifact verification", () => {
       path.join(fixture.resourcesDir, "tools", "libreoffice", "program", "fundamental.ini"),
       "[Bootstrap]"
     );
+    assert.throws(
+      () => verifyRequiredToolPayload(fixture.resourcesDir, { tessdataLock: fixture.tessdataLock }),
+      /Standard 封裝不應包含 LibreOffice/
+    );
     const full = verifyRequiredToolPayload(fixture.resourcesDir, {
       full: true,
       tessdataLock: fixture.tessdataLock
     });
     assert.ok(full.payloadFiles.libreOffice);
+    fs.rmSync(path.join(fixture.resourcesDir, "tools", "libreoffice"), { recursive: true, force: true });
 
     fs.unlinkSync(fixture.executablePaths.qpdf);
     assert.throws(
@@ -245,7 +294,7 @@ describe("release artifact verification", () => {
       /QPDF/
     );
 
-    writeSyntheticPe(fixture.executablePaths.qpdf, { size: 50_000 });
+    writeSyntheticPe(fixture.executablePaths.qpdf, { size: 19_968 });
     const osdPath = path.join(fixture.resourcesDir, "tools", "tesseract", "tessdata", "osd.traineddata");
     fs.unlinkSync(osdPath);
     assert.throws(
@@ -355,13 +404,21 @@ describe("release artifact verification", () => {
   });
 
   test("builder config rejects Electron product/PDF association names", () => {
-    const config = require("../../electron-builder.config.js");
+    const config = loadWindowsBuilderConfig(false);
     const pdf = verifyPdfAssociationConfig(config);
     assert.match(String(config.productName || ""), /SwiftLocal/);
     assert.notEqual(String(config.productName || "").toLowerCase(), "electron");
     assert.match(String(pdf.description || pdf.name || ""), /SwiftLocal|PDF/i);
     assert.equal(String(config.win && config.win.executableName || ""), "SwiftLocal");
     assert.ok(MAIN_EXE_CANDIDATES.includes("SwiftLocal.exe"));
+  });
+
+  test("builder config excludes LibreOffice from Standard and retains it for Full", () => {
+    const standardFilters = loadWindowsBuilderConfig(false).win.extraResources[0].filter;
+    assert.ok(standardFilters.includes("!libreoffice/**/*"));
+
+    const fullFilters = loadWindowsBuilderConfig(true).win.extraResources[0].filter;
+    assert.ok(!fullFilters.includes("!libreoffice/**/*"));
   });
 
   test("verify script fails when FileDescription would be Electron", () => {
