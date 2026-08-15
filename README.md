@@ -541,7 +541,7 @@ npm run check:ci         # 版本／依賴 pin／產物命名一致性（CI 會�
 npm run tools:media-download:check # 校驗 Windows yt-dlp / Deno 版本與 SHA-256
 npm run smoke            # 發佈 smoke：語法 + 單元測試 + 本機轉換
 npm run verify:win:dir   # 打包目錄版後驗證 app.asar 版本與 tools 資源
-npm run smoke:packaged-ui # 隔離啟動 Windows 目錄版並驗證 UI、IPC 與 CSP
+npm run smoke:packaged-ui # 隔離啟動 Windows 目錄版／Portable 並驗證 UI、IPC 與 CSP
 ```
 
 Python 後端依賴（`backend/requirements.txt` 已固定版本，與 CI 的 Python 3.12 對齊）：
@@ -610,7 +610,7 @@ npm run pack:win:full
 
 ### Windows 打包版自動驗證
 
-執行 `npm run pack:win:dir` 後，可依序執行 `npm run verify:win:dir` 與 `npm run smoke:packaged-ui`。後者會使用臨時 profile 及可用的本機偵錯連接埠，在隱藏視窗中啟動打包版，驗證 IPC、五大核心導航、PDF 主入口、搜尋 live region、CSP 及首頁按鈕對比，完成後停止自己的程序樹並清理暫存。
+執行 `npm run pack:win:dir` 後，可依序執行 `npm run verify:win:dir` 與 `npm run smoke:packaged-ui`。後者會使用專屬臨時目錄、隔離 profile 及可用的本機偵錯連接埠，在隱藏視窗中啟動打包版，驗證 IPC、五大核心導航、PDF 主入口、搜尋 live region、CSP 及首頁按鈕對比。亦可把 Standard／Full Portable EXE 作為第一個參數；Portable 會自動使用 300 秒冷啟動期限，完成後先正常關閉內層 Electron，等待 launcher 清理解壓內容，逾時才強制清理自己的程序樹。可用 `--startup-timeout-ms=<毫秒>` 或 `SWIFTLOCAL_PACKAGED_STARTUP_TIMEOUT_MS` 明確覆寫期限。
 
 ### 已知限制（PDF → Office）
 

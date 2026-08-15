@@ -4,9 +4,13 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const endpoint = process.argv[2] || "http://127.0.0.1:9222/json";
-const ocrFixturePath = process.argv[3] || "";
-const ocrOutputDir = process.argv[4] || "";
-const imageFixturePath = process.argv[5] || "";
+const ocrFixturePath = resolveOptionalPath(process.argv[3]);
+const ocrOutputDir = resolveOptionalPath(process.argv[4]);
+const imageFixturePath = resolveOptionalPath(process.argv[5]);
+
+function resolveOptionalPath(value, cwd = process.cwd()) {
+  return value ? path.resolve(cwd, value) : "";
+}
 
 function contrastRatio(rgbA, rgbB) {
   const parse = (value) => {
@@ -26,10 +30,20 @@ function contrastRatio(rgbA, rgbB) {
   return (Math.max(first, second) + 0.05) / (Math.min(first, second) + 0.05);
 }
 
-async function connectDebugger(url) {
+async function connectDebugger(url, options = {}) {
+  const timeoutMs = options.timeoutMs == null ? 10000 : Number(options.timeoutMs);
+  if (!Number.isInteger(timeoutMs) || timeoutMs <= 0) throw new Error("packaged debugger timeout 必須是正整數");
+  const retryDelayMs = options.retryDelayMs == null ? 250 : Number(options.retryDelayMs);
+  const progressIntervalMs = options.progressIntervalMs == null ? 15000 : Number(options.progressIntervalMs);
+  const startedAt = Date.now();
+  let nextProgressAt = progressIntervalMs;
   let response = null;
   let lastError = null;
-  for (let attempt = 0; attempt < 40; attempt += 1) {
+  let attempt = 0;
+  while (Date.now() - startedAt < timeoutMs) {
+    attempt += 1;
+    const launchFailure = options.getLaunchFailure ? options.getLaunchFailure() : "";
+    if (launchFailure) throw new Error(launchFailure);
     try {
       response = await fetch(url);
       if (response.ok) break;
@@ -37,9 +51,18 @@ async function connectDebugger(url) {
     } catch (error) {
       lastError = error;
     }
-    await new Promise((resolve) => setTimeout(resolve, 250));
+    const elapsedMs = Date.now() - startedAt;
+    if (options.onProgress && elapsedMs >= nextProgressAt) {
+      options.onProgress({ attempt, elapsedMs, lastError });
+      nextProgressAt += progressIntervalMs;
+    }
+    await new Promise((resolve) => setTimeout(resolve, Math.min(retryDelayMs, Math.max(1, timeoutMs - elapsedMs))));
   }
-  if (!response || !response.ok) throw new Error(`無法連接 packaged app：${lastError?.message || "DevTools endpoint 未就緒"}`);
+  if (!response || !response.ok) {
+    throw new Error(
+      `無法連接 packaged app（等待 ${(timeoutMs / 1000).toFixed(1)} 秒）：${lastError?.message || "DevTools endpoint 未就緒"}`
+    );
+  }
   const pages = await response.json();
   const page = pages.find((item) => item.type === "page" && /frontend\/index\.html$/.test(item.url));
   if (!page || !page.webSocketDebuggerUrl) throw new Error("找不到 SwiftLocal renderer page");
@@ -64,7 +87,7 @@ async function connectDebugger(url) {
     pending.set(id, { resolve, reject });
     socket.send(JSON.stringify({ id, method, params }));
   });
-  return { page, send, close: () => socket.close() };
+  return { page, send, close: () => socket.close(), startupElapsedMs: Date.now() - startedAt };
 }
 
 async function evaluate(send, expression) {
@@ -103,8 +126,15 @@ async function waitForValue(send, expression, predicate, timeoutMs = 45000) {
   throw new Error(`等待 UI 狀態逾時：${expression}`);
 }
 
-async function main(debuggerEndpoint = endpoint) {
-  const debuggerClient = await connectDebugger(debuggerEndpoint);
+async function main(debuggerEndpoint = endpoint, options = {}) {
+  const effectiveOcrFixturePath = resolveOptionalPath(options.ocrFixturePath || ocrFixturePath);
+  const effectiveOcrOutputDir = resolveOptionalPath(options.ocrOutputDir || ocrOutputDir);
+  const effectiveImageFixturePath = resolveOptionalPath(options.imageFixturePath || imageFixturePath);
+  const debuggerClient = await connectDebugger(debuggerEndpoint, {
+    timeoutMs: options.startupTimeoutMs,
+    getLaunchFailure: options.getLaunchFailure,
+    onProgress: options.onStartupProgress
+  });
   try {
     const home = await evaluateWhenReady(debuggerClient.send, `(async () => {
       const deadline = Date.now() + 5000;
@@ -244,12 +274,12 @@ async function main(debuggerEndpoint = endpoint) {
       throw new Error(`圖片工作區 layout 異常：${JSON.stringify(imageWorkspace)}`);
     }
 
-    if (imageFixturePath) {
+    if (effectiveImageFixturePath) {
       await evaluate(debuggerClient.send, `document.querySelector('[data-clear-panel="image-panel"]').click()`);
-      if (ocrOutputDir) {
+      if (effectiveOcrOutputDir) {
         await evaluate(
           debuggerClient.send,
-          `window.swiftLocalBackend.setDefaultOutputDir(${JSON.stringify(ocrOutputDir)})`
+          `window.swiftLocalBackend.setDefaultOutputDir(${JSON.stringify(effectiveOcrOutputDir)})`
         );
       }
       const documentNode = await debuggerClient.send("DOM.getDocument", { depth: 1 });
@@ -260,7 +290,7 @@ async function main(debuggerEndpoint = endpoint) {
       if (!inputNode.nodeId) throw new Error("找不到圖片 file input");
       await debuggerClient.send("DOM.setFileInputFiles", {
         nodeId: inputNode.nodeId,
-        files: [imageFixturePath]
+        files: [effectiveImageFixturePath]
       });
       const preview = await waitForValue(
         debuggerClient.send,
@@ -332,14 +362,14 @@ async function main(debuggerEndpoint = endpoint) {
       if (!/香港特別行政區/.test(result.text) || !/HONG KONG/i.test(result.text)) {
         throw new Error(`packaged 圖片框選 OCR 中英結果不完整：${result.text.slice(0, 500)}`);
       }
-      if (ocrOutputDir) {
+      if (effectiveOcrOutputDir) {
         await evaluate(debuggerClient.send, `document.querySelector('#image-ocr-panel').scrollIntoView({block: 'center'})`);
         const screenshot = await debuggerClient.send("Page.captureScreenshot", {
           format: "png",
           captureBeyondViewport: false
         });
-        fs.mkdirSync(ocrOutputDir, { recursive: true });
-        const screenshotPath = path.join(ocrOutputDir, "packaged-image-workspace.png");
+        fs.mkdirSync(effectiveOcrOutputDir, { recursive: true });
+        const screenshotPath = path.join(effectiveOcrOutputDir, "packaged-image-workspace.png");
         fs.writeFileSync(screenshotPath, Buffer.from(screenshot.data, "base64"));
         console.log(`OK packaged image workspace screenshot (${screenshotPath})`);
       }
@@ -348,11 +378,11 @@ async function main(debuggerEndpoint = endpoint) {
       console.log("OK packaged selected-region chi_tra+eng OCR in same workspace");
     }
 
-    if (ocrFixturePath) {
-      if (ocrOutputDir) {
+    if (effectiveOcrFixturePath) {
+      if (effectiveOcrOutputDir) {
         await evaluate(
           debuggerClient.send,
-          `window.swiftLocalBackend.setDefaultOutputDir(${JSON.stringify(ocrOutputDir)})`
+          `window.swiftLocalBackend.setDefaultOutputDir(${JSON.stringify(effectiveOcrOutputDir)})`
         );
       }
       const documentNode = await debuggerClient.send("DOM.getDocument", { depth: 1 });
@@ -363,7 +393,7 @@ async function main(debuggerEndpoint = endpoint) {
       if (!inputNode.nodeId) throw new Error("找不到 PDF file input");
       await debuggerClient.send("DOM.setFileInputFiles", {
         nodeId: inputNode.nodeId,
-        files: [ocrFixturePath]
+        files: [effectiveOcrFixturePath]
       });
       const loaded = await waitForValue(
         debuggerClient.send,
@@ -395,6 +425,16 @@ async function main(debuggerEndpoint = endpoint) {
     console.log("OK PDF workspace OCR actions and result panel layout");
     console.log("OK image workspace navigation, actions, and responsive layout");
   } finally {
+    if (options.closeWindowOnFinish) {
+      try {
+        await evaluateWhenReady(
+          debuggerClient.send,
+          `(() => { setTimeout(() => window.close(), 0); return true; })()`
+        );
+      } catch (error) {
+        console.warn(`WARN 無法要求 packaged app 正常關閉：${error.message}`);
+      }
+    }
     debuggerClient.close();
   }
 }
@@ -406,4 +446,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { contrastRatio, connectDebugger, evaluateWhenReady, main };
+module.exports = { contrastRatio, connectDebugger, evaluateWhenReady, main, resolveOptionalPath };

@@ -22,6 +22,13 @@ const {
   MAIN_EXE_CANDIDATES
 } = require("../../scripts/verify-release-artifacts");
 const { sha256File, verifyLockedTessdata } = require("../../scripts/tessdata-lock");
+const {
+  PORTABLE_STARTUP_TIMEOUT_MS,
+  UNPACKED_STARTUP_TIMEOUT_MS,
+  isPortableExecutable,
+  parseArgs: parsePackagedUiArgs,
+  resolveStartupTimeoutMs
+} = require("../../scripts/smoke-packaged-ui");
 
 const temporaryDirectories = [];
 const packagedUiVerifier = fs.readFileSync(path.join(__dirname, "..", "..", "scripts", "verify-packaged-ui.js"), "utf8");
@@ -118,6 +125,36 @@ describe("release artifact verification", () => {
     assert.match(packagedUiRunner, /--user-data-dir=/);
     assert.match(packagedUiRunner, /taskkill\.exe/);
     assert.match(packagedUiRunner, /swiftlocal-packaged-ui-smoke-/);
+    assert.match(packagedUiRunner, /closeWindowOnFinish:\s*true/);
+    assert.match(packagedUiRunner, /TEMP:\s*sessionRoot/);
+  });
+
+  test("packaged UI smoke gives Portable a five-minute startup gate", () => {
+    const standard = path.join("dist", "SwiftLocal-0.4.0-alpha.2-portable-x64.exe");
+    const full = path.join("dist-full", "SwiftLocal-0.4.0-alpha.2-full-portable-arm64.exe");
+    const unpacked = path.join("dist-full", "win-unpacked", "SwiftLocal.exe");
+    assert.equal(isPortableExecutable(standard), true);
+    assert.equal(isPortableExecutable(full), true);
+    assert.equal(isPortableExecutable(unpacked), false);
+    assert.equal(resolveStartupTimeoutMs(standard, null, {}), PORTABLE_STARTUP_TIMEOUT_MS);
+    assert.equal(resolveStartupTimeoutMs(unpacked, null, {}), UNPACKED_STARTUP_TIMEOUT_MS);
+    assert.equal(resolveStartupTimeoutMs(unpacked, 12345, {}), 12345);
+    assert.throws(() => resolveStartupTimeoutMs(standard, "0", {}), /正整數/);
+  });
+
+  test("packaged UI smoke resolves executable and fixture paths before launch", () => {
+    const parsed = parsePackagedUiArgs([
+      "dist-full/SwiftLocal-0.4.0-alpha.2-full-portable-x64.exe",
+      "smoke-temp/input.pdf",
+      "smoke-temp/output",
+      "smoke-temp/input.png",
+      "--startup-timeout-ms=300000"
+    ]);
+    assert.equal(path.isAbsolute(parsed.packagedExe), true);
+    assert.equal(path.isAbsolute(parsed.ocrFixturePath), true);
+    assert.equal(path.isAbsolute(parsed.ocrOutputDir), true);
+    assert.equal(path.isAbsolute(parsed.imageFixturePath), true);
+    assert.equal(parsed.startupTimeoutMs, 300000);
   });
 
   test("derives exact portable and installer names from the package version", () => {
