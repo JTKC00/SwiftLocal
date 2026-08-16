@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.4.0-alpha.3 - 2026-08-16
+
 - 將 `pdfjs-dist` 與瀏覽器 vendor 資產升級至 6.2.108，修復 CVE-2026-16633（GHSA-hq66-cqwq-w95j），並在所有 PDF 開啟路徑明確關閉 `enableScripting`。
 
 ## 0.4.0-alpha.2 - 2026-08-12

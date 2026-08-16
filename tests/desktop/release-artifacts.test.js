@@ -130,8 +130,8 @@ describe("release artifact verification", () => {
   });
 
   test("packaged UI smoke gives Portable a five-minute startup gate", () => {
-    const standard = path.join("dist", "SwiftLocal-0.4.0-alpha.2-portable-x64.exe");
-    const full = path.join("dist-full", "SwiftLocal-0.4.0-alpha.2-full-portable-arm64.exe");
+    const standard = path.join("dist", "SwiftLocal-0.4.0-alpha.3-portable-x64.exe");
+    const full = path.join("dist-full", "SwiftLocal-0.4.0-alpha.3-full-portable-arm64.exe");
     const unpacked = path.join("dist-full", "win-unpacked", "SwiftLocal.exe");
     assert.equal(isPortableExecutable(standard), true);
     assert.equal(isPortableExecutable(full), true);
@@ -144,7 +144,7 @@ describe("release artifact verification", () => {
 
   test("packaged UI smoke resolves executable and fixture paths before launch", () => {
     const parsed = parsePackagedUiArgs([
-      "dist-full/SwiftLocal-0.4.0-alpha.2-full-portable-x64.exe",
+      "dist-full/SwiftLocal-0.4.0-alpha.3-full-portable-x64.exe",
       "smoke-temp/input.pdf",
       "smoke-temp/output",
       "smoke-temp/input.png",
