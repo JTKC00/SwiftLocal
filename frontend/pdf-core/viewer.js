@@ -99,6 +99,7 @@
       data,
       disableWorker: Boolean(isNode),
       useWorkerFetch: false,
+      enableScripting: false,
       isEvalSupported: false,
       verbosity: 0
     };
@@ -379,8 +380,9 @@
       if (outputScale !== 1) {
         context.setTransform(outputScale, 0, 0, outputScale, 0, 0);
       }
+      // PDF.js 6.x prefers `canvas`; do not also pass canvasContext.
       const renderTask = page.render({
-        canvasContext: context,
+        canvas,
         viewport,
         intent: opts.intent || "display"
       });

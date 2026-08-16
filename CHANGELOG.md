@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- 將 `pdfjs-dist` 與瀏覽器 vendor 資產升級至 6.2.108，修復 CVE-2026-16633（GHSA-hq66-cqwq-w95j），並在所有 PDF 開啟路徑明確關閉 `enableScripting`。
+
 ## 0.4.0-alpha.2 - 2026-08-12
 
 - 影音工作區新增「線上媒體下載」V1：以內建 yt-dlp、Deno 與既有 FFmpeg 提供公開單一網址分析、縮圖、720p／1080p／最佳畫質、MP3／最佳音訊、真實進度、程序樹取消、安全檔名、開啟結果及 Full／Portable 資源驗證。

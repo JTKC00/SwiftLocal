@@ -2792,6 +2792,7 @@ async function renderPdfPagesToPng(inputPath, pageDir, maxPages, job, options = 
     data,
     disableWorker: true,
     useWorkerFetch: false,
+    enableScripting: false,
     isEvalSupported: false,
     verbosity: 0
   });
@@ -2837,9 +2838,9 @@ async function renderPdfPagesToPng(inputPath, pageDir, maxPages, job, options = 
             `PDF OCR page ${pageNumber} is too large (${width}x${height}); limit is ${(OCR_PDF_MAX_PIXELS / 1_000_000).toFixed(0)} megapixels`
           );
         }
-        // PDF.js 5.x: pass canvas OR canvasContext, never both non-null.
-        // Prefer canvas mode; NodeCanvasFactory intermediate surfaces must share
-        // the same @napi-rs/canvas instance (see loadPdfJsCompatibleCanvas).
+        // PDF.js 6.x: pass canvas (not canvasContext). NodeCanvasFactory
+        // intermediate surfaces must share the same @napi-rs/canvas instance
+        // (see loadPdfJsCompatibleCanvas).
         canvas = createCanvas(width, height);
         await page.render({
           canvas,
@@ -2999,6 +3000,7 @@ async function extractPdfText(inputPath, job = null) {
     data,
     disableWorker: true,
     useWorkerFetch: false,
+    enableScripting: false,
     isEvalSupported: false,
     verbosity: 0
   });

@@ -2544,7 +2544,7 @@
           if (!context) throw new Error("瀏覽器無法建立 PDF 頁面預覽");
           canvas.width = Math.max(1, Math.round(viewport.width));
           canvas.height = Math.max(1, Math.round(viewport.height));
-          await pdfPage.render({ canvasContext: context, viewport }).promise;
+          await pdfPage.render({ canvas, viewport }).promise;
           pagesToAdd.push({
             id: `pdf-page-${++pdfWorkspacePageId}`,
             sourceId,
@@ -3030,7 +3030,7 @@
       if (!context) throw new Error("瀏覽器無法建立 PDF 即時預覽");
       canvas.width = Math.max(1, Math.round(viewport.width));
       canvas.height = Math.max(1, Math.round(viewport.height));
-      await pdfPage.render({ canvasContext: context, viewport }).promise;
+      await pdfPage.render({ canvas, viewport }).promise;
       const imageUrl = canvas.toDataURL("image/jpeg", 0.9);
       pdfWorkspacePreviewCache.set(cacheKey, imageUrl);
       if (pdfWorkspacePreviewCache.size > PDF_WORKSPACE_PREVIEW_CACHE_SIZE) {
@@ -3380,7 +3380,7 @@
         context.fillStyle = "#ffffff";
         context.fillRect(0, 0, canvas.width, canvas.height);
       }
-      await page.render({ canvasContext: context, viewport }).promise;
+      await page.render({ canvas, viewport }).promise;
       const blob = await canvasToBlob(canvas, mime, 0.9);
       results.push({
         name: `${baseName}_page_${String(index + 1).padStart(3, "0")}.${ext}`,
@@ -3517,6 +3517,8 @@
   function createPdfJsDocumentOptions(data) {
     return {
       data,
+      enableScripting: false,
+      isEvalSupported: false,
       cMapUrl: "./vendor/pdfjs/cmaps/",
       cMapPacked: true,
       standardFontDataUrl: "./vendor/pdfjs/standard_fonts/",

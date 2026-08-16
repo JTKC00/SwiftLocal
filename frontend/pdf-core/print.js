@@ -116,7 +116,7 @@
         printDoc.body.appendChild(section);
 
         const renderTask = page.render({
-          canvasContext: context,
+          canvas,
           viewport,
           intent: "print",
           background: "rgb(255,255,255)"
