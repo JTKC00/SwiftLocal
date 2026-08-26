@@ -17,6 +17,14 @@ function positiveEnvNumber(name, fallback) {
 
 const DEFAULT_MAX_PERSISTED_JOBS = 80;
 const DEFAULT_JOB_RETENTION_HOURS = positiveEnvNumber("SWIFTLOCAL_JOB_RETENTION_HOURS", 72);
+const SWIFTLOCAL_TEMP_DIR_PREFIXES = Object.freeze([
+  ".swiftlocal-office-",
+  ".swiftlocal-media-"
+]);
+
+function isSwiftLocalTempDirName(name) {
+  return SWIFTLOCAL_TEMP_DIR_PREFIXES.some((prefix) => name.startsWith(prefix));
+}
 
 /**
  * Pure prune of an in-memory job list.
@@ -67,7 +75,7 @@ function pruneJobList(jobs, options = {}) {
   };
 }
 
-/** Remove aged `.swiftlocal-*` temp directories under rootDir (e.g. LibreOffice work folders). */
+/** Remove aged SwiftLocal-owned LibreOffice/media temp directories under rootDir. */
 function cleanupSwiftLocalTempDirs(rootDir, nowMs = Date.now(), maxAgeMs = 24 * 3600 * 1000) {
   let removed = 0;
   if (!rootDir || !fs.existsSync(rootDir)) {
@@ -81,7 +89,7 @@ function cleanupSwiftLocalTempDirs(rootDir, nowMs = Date.now(), maxAgeMs = 24 * 
   }
   for (const entry of entries) {
     if (!entry.isDirectory()) continue;
-    if (!entry.name.startsWith(".swiftlocal-")) continue;
+    if (!isSwiftLocalTempDirName(entry.name)) continue;
     const full = path.join(rootDir, entry.name);
     try {
       const stat = fs.statSync(full);
@@ -100,6 +108,7 @@ module.exports = {
   TERMINAL_JOB_STATUSES,
   DEFAULT_MAX_PERSISTED_JOBS,
   DEFAULT_JOB_RETENTION_HOURS,
+  SWIFTLOCAL_TEMP_DIR_PREFIXES,
   pruneJobList,
   cleanupSwiftLocalTempDirs
 };

@@ -166,7 +166,7 @@ class BackendService {
   /**
    * Remove finished jobs past retention or over the hard cap.
    * Does not delete user output files under Downloads — only jobs-state history.
-   * Also sweeps leftover `.swiftlocal-office-*` temp dirs under defaultOutputDir.
+   * Also sweeps leftover SwiftLocal-owned office/media temp dirs under defaultOutputDir.
    */
   pruneJobs(options = {}) {
     const before = this.jobs.length;
