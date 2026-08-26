@@ -206,7 +206,10 @@ describe("PDF Open With launch routing", () => {
       assert.deepEqual(requests.map((request) => request.path), paths);
 
       for (const request of requests) {
-        await api.openPath(request.path, { asNewTab: request.asNewTab });
+        await api.openPath(request.path, {
+          asNewTab: request.asNewTab,
+          appendToWorkspace: request.appendToWorkspace
+        });
       }
 
       state.opened.forEach((item) => {
@@ -217,6 +220,100 @@ describe("PDF Open With launch routing", () => {
       assert.deepEqual(dirtyState.tabs.map((tab) => tab.title), ["A.pdf", "B.pdf", "C.pdf"]);
       assert.deepEqual(state.reads, paths);
       assert.equal(state.closed.length, 0);
+    });
+  });
+
+  test("multi-file batch appends after an existing clean document", async () => {
+    await withWorkspaceHarness(async ({ api, state }) => {
+      const existingPath = "C:\\Users\\Demo User\\Documents\\Existing.pdf";
+      const paths = [
+        "C:\\Users\\Demo User\\Documents\\A.pdf",
+        "C:\\Users\\Demo User\\Documents\\B.pdf",
+        "C:\\Users\\Demo User\\Documents\\C.pdf"
+      ];
+      [existingPath, ...paths].forEach((filePath, index) => {
+        state.files.set(filePath, new Uint8Array([index + 1]));
+      });
+
+      await api.openPath(existingPath);
+      const existingSession = api.getSession();
+      for (const request of buildPdfOpenRequests(paths)) {
+        await api.openPath(request.path, {
+          asNewTab: request.asNewTab,
+          appendToWorkspace: request.appendToWorkspace
+        });
+      }
+
+      state.opened.forEach((item) => {
+        item.session.dirty = true;
+      });
+      assert.equal(state.confirmCalls, 0);
+      assert.equal(state.closed.length, 0);
+      assert.notEqual(api.getSession(), existingSession);
+      assert.deepEqual(
+        api.getDirtyState().tabs.map((tab) => tab.title),
+        ["Existing.pdf", "A.pdf", "B.pdf", "C.pdf"]
+      );
+    });
+  });
+
+  test("multi-file batch preserves an existing dirty document without prompting", async () => {
+    await withWorkspaceHarness(async ({ api, state }) => {
+      const existingPath = "C:\\Users\\Demo User\\Documents\\Existing.pdf";
+      const paths = [
+        "C:\\Users\\Demo User\\Documents\\A.pdf",
+        "C:\\Users\\Demo User\\Documents\\B.pdf",
+        "C:\\Users\\Demo User\\Documents\\C.pdf"
+      ];
+      [existingPath, ...paths].forEach((filePath, index) => {
+        state.files.set(filePath, new Uint8Array([index + 1]));
+      });
+
+      await api.openPath(existingPath);
+      const existingSession = api.getSession();
+      existingSession.dirty = true;
+      state.confirmResult = false;
+      for (const request of buildPdfOpenRequests(paths)) {
+        await api.openPath(request.path, {
+          asNewTab: request.asNewTab,
+          appendToWorkspace: request.appendToWorkspace
+        });
+      }
+
+      assert.equal(state.confirmCalls, 0);
+      assert.equal(state.closed.length, 0);
+      assert.equal(existingSession.dirty, true);
+      assert.deepEqual(api.getDirtyState().tabs.map((tab) => tab.title), ["Existing.pdf"]);
+      assert.deepEqual(state.reads, [existingPath, ...paths]);
+    });
+  });
+
+  test("multi-file batch reuses an empty workspace slot", async () => {
+    await withWorkspaceHarness(async ({ api, state }) => {
+      const paths = [
+        "C:\\Users\\Demo User\\Documents\\A.pdf",
+        "C:\\Users\\Demo User\\Documents\\B.pdf",
+        "C:\\Users\\Demo User\\Documents\\C.pdf"
+      ];
+      paths.forEach((filePath, index) => {
+        state.files.set(filePath, new Uint8Array([index + 1]));
+      });
+
+      for (const request of buildPdfOpenRequests(paths)) {
+        await api.openPath(request.path, {
+          asNewTab: request.asNewTab,
+          appendToWorkspace: request.appendToWorkspace
+        });
+      }
+
+      state.opened.forEach((item) => {
+        item.session.dirty = true;
+      });
+      assert.deepEqual(
+        api.getDirtyState().tabs.map((tab) => tab.title),
+        ["A.pdf", "B.pdf", "C.pdf"]
+      );
+      assert.equal(state.reads.length, 3);
     });
   });
 

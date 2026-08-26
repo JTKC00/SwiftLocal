@@ -434,6 +434,21 @@
       return Boolean(session && session._pdf && session.pageCount > 0);
     }
 
+    function workspaceHasDocument() {
+      return hasDocument() || tabs.some((tab) => Boolean(
+        tab && tab.session && tab.session._pdf && tab.session.pageCount > 0
+      ));
+    }
+
+    function shouldOpenAsNewTab(openOptions) {
+      const optsOpen = openOptions || {};
+      return Boolean(
+        openInNewTabNext ||
+        optsOpen.asNewTab ||
+        (optsOpen.appendToWorkspace && workspaceHasDocument())
+      );
+    }
+
     function setChromeEnabled(open) {
       host.querySelectorAll(
         "[data-pdf-ws-close],[data-pdf-ws-prev],[data-pdf-ws-next],[data-pdf-ws-page-input]," +
@@ -1600,7 +1615,7 @@
         setStatus("pdf-core viewer 未載入");
         return;
       }
-      const asNewTab = Boolean(openInNewTabNext || (openOptions && openOptions.asNewTab));
+      const asNewTab = shouldOpenAsNewTab(openOptions);
       openInNewTabNext = false;
       if (!asNewTab && session && core.save && core.save.isDirty(session)) {
         const ok = typeof window !== "undefined" && window.confirm
@@ -1637,7 +1652,7 @@
         setStatus("此環境無法依路徑讀取檔案；請用檔案選擇器開啟。");
         return;
       }
-      const asNewTab = Boolean(openInNewTabNext || (openOptions && openOptions.asNewTab));
+      const asNewTab = shouldOpenAsNewTab(openOptions);
       openInNewTabNext = false;
       if (!asNewTab && session && core.save && core.save.isDirty(session)) {
         const ok = typeof window !== "undefined" && window.confirm
@@ -1682,7 +1697,7 @@
     function openFromPath(filePath, openOptions) {
       if (!filePath) return Promise.resolve();
       const optsPath = openOptions || {};
-      const asNewTab = Boolean(openInNewTabNext || optsPath.asNewTab);
+      const asNewTab = shouldOpenAsNewTab(optsPath);
       const key = launchPathUtils && typeof launchPathUtils.canonicalPathKey === "function"
         ? launchPathUtils.canonicalPathKey(filePath)
         : String(filePath).trim().toLowerCase();

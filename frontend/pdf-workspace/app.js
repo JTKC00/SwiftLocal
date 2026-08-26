@@ -24,10 +24,11 @@
       if (payload && typeof payload === "object") {
         return {
           path: payload.path || payload.filePath || "",
-          asNewTab: Boolean(payload.asNewTab)
+          asNewTab: Boolean(payload.asNewTab),
+          appendToWorkspace: Boolean(payload.appendToWorkspace)
         };
       }
-      return { path: payload || "", asNewTab: false };
+      return { path: payload || "", asNewTab: false, appendToWorkspace: false };
     };
 
     const openLaunchPath = (payload) => {
@@ -35,11 +36,15 @@
       if (!request.path || !api.openPath) return;
       if (launchPathGate) {
         void launchPathGate.request(request.path, (path) => api.openPath(path, {
-          asNewTab: request.asNewTab
+          asNewTab: request.asNewTab,
+          appendToWorkspace: request.appendToWorkspace
         }));
         return;
       }
-      void api.openPath(request.path, { asNewTab: request.asNewTab });
+      void api.openPath(request.path, {
+        asNewTab: request.asNewTab,
+        appendToWorkspace: request.appendToWorkspace
+      });
     };
 
     // Desktop IPC: main process may send a path after open-with / menu open.

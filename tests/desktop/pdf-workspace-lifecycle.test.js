@@ -11,7 +11,7 @@ const viewer = require("../../frontend/pdf-core/viewer.js");
 const pages = require("../../frontend/pdf-core/pages.js");
 const annotations = require("../../frontend/pdf-core/annotations.js");
 const save = require("../../frontend/pdf-core/save.js");
-const canonicalPath = require("../../frontend/shared/canonical-path.js");
+const pathKeys = require("../../frontend/shared/path-keys.js");
 const { createPdfWorkspaceCloseGuard } = require("../../desktop/pdf-workspace-close-guard.js");
 
 const root = path.resolve(__dirname, "..", "..");
@@ -225,20 +225,20 @@ describe("PDF workspace lifecycle regressions", () => {
     const unc = String.raw`\\server\share\a.pdf`;
     const mixed = String.raw`//SERVER/share/A.PDF`;
     const rootRelative = String.raw`\server\share\a.pdf`;
-    assert.equal(canonicalPath.canonicalPathKey(unc, { platform: "win32" }), String.raw`\\server\share\a.pdf`);
+    assert.equal(pathKeys.canonicalPathKey(unc, { platform: "win32" }), String.raw`\\server\share\a.pdf`);
     assert.equal(
-      canonicalPath.canonicalPathKey(unc, { platform: "win32" }),
-      canonicalPath.canonicalPathKey(mixed, { platform: "win32" })
+      pathKeys.canonicalPathKey(unc, { platform: "win32" }),
+      pathKeys.canonicalPathKey(mixed, { platform: "win32" })
     );
     assert.notEqual(
-      canonicalPath.canonicalPathKey(unc, { platform: "win32" }),
-      canonicalPath.canonicalPathKey(rootRelative, { platform: "win32" })
+      pathKeys.canonicalPathKey(unc, { platform: "win32" }),
+      pathKeys.canonicalPathKey(rootRelative, { platform: "win32" })
     );
     const posixBackslash = String.raw`a\b.pdf`;
-    assert.equal(canonicalPath.canonicalPathKey(posixBackslash, { platform: "linux" }), posixBackslash);
+    assert.equal(pathKeys.canonicalPathKey(posixBackslash, { platform: "linux" }), posixBackslash);
     assert.notEqual(
-      canonicalPath.canonicalPathKey(posixBackslash, { platform: "linux" }),
-      canonicalPath.canonicalPathKey("a/b.pdf", { platform: "linux" })
+      pathKeys.canonicalPathKey(posixBackslash, { platform: "linux" }),
+      pathKeys.canonicalPathKey("a/b.pdf", { platform: "linux" })
     );
   });
 
@@ -324,7 +324,7 @@ function loadPreloadHarness(platform) {
     process: { platform },
     require(name) {
       if (name === "electron") return electron;
-      if (name.endsWith("frontend/shared/canonical-path.js")) return canonicalPath;
+      if (name.endsWith("frontend/shared/path-keys.js")) return pathKeys;
       throw new Error(`unexpected preload dependency: ${name}`);
     }
   }, { filename: path.join(root, "desktop", "preload.js") });

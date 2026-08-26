@@ -4,17 +4,23 @@ const path = require("node:path");
 const { pathToFileURL } = require("node:url");
 const { BrowserWindow, shell } = require("electron");
 const { isAllowedExternalUrl, isTrustedRendererUrl } = require("./security");
-const { canonicalPathKey } = require("../frontend/shared/canonical-path.js");
+const { canonicalPathKey } = require("../frontend/shared/path-keys.js");
 
 const APP_TITLE = "PDF 工作區 · 快轉通 SwiftLocal";
 
 function buildPdfOpenRequests(filePaths) {
   const list = Array.isArray(filePaths) ? filePaths : [];
+  const isBatch = list.length > 1;
   return list
     .filter(Boolean)
     .map((filePath, index) => ({
       path: String(filePath),
-      asNewTab: index > 0
+      asNewTab: index > 0,
+      // A batch may reuse the empty workspace slot, but must append when a
+      // real document is already open. The renderer resolves that distinction
+      // from its live tab state instead of relying on timing in the main
+      // process.
+      appendToWorkspace: isBatch && index === 0
     }));
 }
 

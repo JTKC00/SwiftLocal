@@ -5,45 +5,14 @@
  */
 (function (root, factory) {
   if (typeof module === "object" && module.exports) {
-    module.exports = factory();
+    module.exports = factory(require("../shared/path-keys.js"));
   } else {
-    root.SwiftLocalPdfWorkspaceLaunch = factory();
+    root.SwiftLocalPdfWorkspaceLaunch = factory(root.SwiftLocalPathKeys);
   }
-})(typeof self !== "undefined" ? self : this, function () {
+})(typeof self !== "undefined" ? self : this, function (pathKeys) {
   "use strict";
 
-  function getCanonicalPathApi() {
-    if (typeof window !== "undefined" && window.SwiftLocalCanonicalPath) {
-      return window.SwiftLocalCanonicalPath;
-    }
-    try {
-      return require("../shared/canonical-path.js");
-    } catch {
-      return null;
-    }
-  }
-
-  function stripQuotes(raw) {
-    let value = String(raw || "").trim();
-    if (
-      (value.startsWith("\"") && value.endsWith("\"")) ||
-      (value.startsWith("'") && value.endsWith("'"))
-    ) {
-      value = value.slice(1, -1).trim();
-    }
-    return value;
-  }
-
-  function canonicalPathKey(filePath, options) {
-    const shared = getCanonicalPathApi();
-    if (shared && typeof shared.canonicalPathKey === "function") {
-      return shared.canonicalPathKey(filePath, options);
-    }
-    // The shared helper is loaded by the workspace HTML and is available to
-    // Node tests. Keep a literal fallback rather than reintroducing a second
-    // platform-specific normalization implementation.
-    return stripQuotes(filePath);
-  }
+  const { stripQuotes, canonicalPathKey } = pathKeys;
 
   function createPathRequestGate(options) {
     const pending = new Set();

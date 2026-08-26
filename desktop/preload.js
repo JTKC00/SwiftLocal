@@ -1,7 +1,7 @@
 "use strict";
 
 const { contextBridge, ipcRenderer, webUtils } = require("electron");
-const { canonicalPathKey } = require("../frontend/shared/canonical-path.js");
+const { canonicalPathKey } = require("../frontend/shared/path-keys.js");
 
 // Buffer workspace events that fire before the page subscribes.
 const pendingOpenPaths = [];
@@ -13,10 +13,11 @@ function normalizeOpenRequest(payload) {
   if (payload && typeof payload === "object") {
     return {
       path: payload.path || payload.filePath || "",
-      asNewTab: Boolean(payload.asNewTab)
+      asNewTab: Boolean(payload.asNewTab),
+      appendToWorkspace: Boolean(payload.appendToWorkspace)
     };
   }
-  return { path: payload || "", asNewTab: false };
+  return { path: payload || "", asNewTab: false, appendToWorkspace: false };
 }
 
 function bufferOpenPath(payload) {
@@ -27,7 +28,11 @@ function bufferOpenPath(payload) {
     const existing = normalizeOpenRequest(pending);
     return canonicalPathKey(existing.path, { platform: process.platform }) === key;
   })) return;
-  pendingOpenPaths.push({ path: value, asNewTab: request.asNewTab });
+  pendingOpenPaths.push({
+    path: value,
+    asNewTab: request.asNewTab,
+    appendToWorkspace: request.appendToWorkspace
+  });
 }
 
 ipcRenderer.on("pdf-workspace:open-path", (_event, payload) => {
