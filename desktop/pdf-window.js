@@ -17,6 +17,7 @@ const APP_TITLE = "PDF 工作區 · 快轉通 SwiftLocal";
  * @param {string} [options.icon]
  * @param {string[]} options.trustedRendererUrls
  * @param {string} [options.filePath] optional PDF path for later open
+ * @param {string[]} [options.filePaths] PDF paths for initial open
  * @param {BrowserWindow|null} [options.existing] reuse if provided
  * @returns {BrowserWindow}
  */
@@ -27,12 +28,25 @@ function createPdfWorkspaceWindow(options) {
   const trustedRendererUrls = Array.isArray(opts.trustedRendererUrls)
     ? opts.trustedRendererUrls
     : [];
+  const candidates = Array.isArray(opts.filePaths)
+    ? opts.filePaths
+    : (opts.filePath ? [opts.filePath] : []);
+  const filePaths = [];
+  const seen = new Set();
+  candidates.forEach((filePath) => {
+    const value = filePath ? String(filePath) : "";
+    const key = process.platform === "win32" ? value.toLowerCase() : value;
+    if (!value || seen.has(key)) return;
+    seen.add(key);
+    filePaths.push(value);
+  });
 
   if (opts.existing && !opts.existing.isDestroyed()) {
-    if (opts.filePath) {
-      // Renderer may already be listening; also stash for late subscribers via IPC event.
-      opts.existing.webContents.send("pdf-workspace:open-path", opts.filePath);
-    }
+    // Renderer may already be listening; preload also buffers this event if a
+    // navigation is still completing.
+    filePaths.forEach((filePath) => {
+      opts.existing.webContents.send("pdf-workspace:open-path", filePath);
+    });
     if (opts.existing.isMinimized()) opts.existing.restore();
     opts.existing.focus();
     return opts.existing;
@@ -58,11 +72,13 @@ function createPdfWorkspaceWindow(options) {
     }
   });
 
-  let openPathSent = false;
+  let openPathsSent = false;
   const sendOpenPath = () => {
-    if (!opts.filePath || openPathSent || window.isDestroyed()) return;
-    openPathSent = true;
-    window.webContents.send("pdf-workspace:open-path", opts.filePath);
+    if (!filePaths.length || openPathsSent || window.isDestroyed()) return;
+    openPathsSent = true;
+    filePaths.forEach((filePath) => {
+      window.webContents.send("pdf-workspace:open-path", filePath);
+    });
   };
 
   window.once("ready-to-show", () => {
@@ -72,8 +88,6 @@ function createPdfWorkspaceWindow(options) {
   // Prefer did-finish-load so the renderer has registered IPC listeners.
   window.webContents.once("did-finish-load", () => {
     sendOpenPath();
-    // Retry once in case the listener subscribed a tick late.
-    setTimeout(sendOpenPath, 200);
   });
 
   window.webContents.on("will-navigate", (event, url) => {
@@ -91,8 +105,8 @@ function createPdfWorkspaceWindow(options) {
   });
 
   // Query param as a backup channel (decoded in pdf-workspace/app.js).
-  const loadOpts = opts.filePath
-    ? { query: { file: opts.filePath } }
+  const loadOpts = filePaths.length
+    ? { query: { file: filePaths[0] } }
     : undefined;
   window.loadFile(workspaceHtml, loadOpts);
   return window;

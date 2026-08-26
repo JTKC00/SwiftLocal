@@ -4,7 +4,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const { describe, test, before } = require("node:test");
-const { PDFDocument, StandardFonts } = require("pdf-lib");
+const { PDFDocument, StandardFonts, degrees } = require("pdf-lib");
 
 const viewer = require("../../frontend/pdf-core/viewer.js");
 const print = require("../../frontend/pdf-core/print.js");
@@ -30,6 +30,13 @@ async function makeSamplePdf() {
       font
     });
   }
+  return new Uint8Array(await doc.save());
+}
+
+async function makeRotatedPdf(rotation) {
+  const doc = await PDFDocument.create();
+  const page = doc.addPage([400, 500]);
+  page.setRotation(degrees(rotation));
   return new Uint8Array(await doc.save());
 }
 
@@ -135,6 +142,36 @@ describe("PDF.js reader core", () => {
     }
   });
 
+  test("intrinsic PDF rotations drive render geometry", async () => {
+    const { createCanvas } = require("@napi-rs/canvas");
+    for (const rotation of [0, 90, 180, 270]) {
+      const bytes = await makeRotatedPdf(rotation);
+      const session = await viewer.openFromBytes(bytes, { name: `intrinsic-${rotation}.pdf` });
+      try {
+        const page = await session._pdf.getPage(1);
+        assert.equal(page.rotate, rotation);
+        if (typeof page.cleanup === "function") page.cleanup();
+
+        const expected = rotation === 90 || rotation === 270
+          ? { width: 500, height: 400 }
+          : { width: 400, height: 500 };
+        const size = await viewer.getPageSize(session, 1);
+        assert.deepEqual(size, expected);
+
+        const canvas = createCanvas(1, 1);
+        canvas.style = {};
+        const rendered = await viewer.renderPageToCanvas(session, 1, canvas, {
+          scale: 1,
+          skipTextLayer: true
+        });
+        assert.equal(Math.round(rendered.width), expected.width);
+        assert.equal(Math.round(rendered.height), expected.height);
+      } finally {
+        await viewer.closeSession(session);
+      }
+    }
+  });
+
   test("highlightSearchInTextLayer marks matching spans", () => {
     const root = {
       querySelectorAll(sel) {
@@ -198,6 +235,41 @@ describe("PDF.js reader core", () => {
       assert.equal(angle, 90);
     } finally {
       await viewer.closeSession(session);
+    }
+  });
+
+  test("intrinsic and pending rotations compose without double-saving", async () => {
+    const save = require("../../frontend/pdf-core/save.js");
+    const bytes = await makeRotatedPdf(90);
+    const session = await viewer.openFromBytes(bytes, { name: "intrinsic-pending.pdf" });
+    let exported;
+    try {
+      const page = await session._pdf.getPage(1);
+      assert.equal(viewer.getEffectivePageRotation(session, 1, page), 90);
+      if (typeof page.cleanup === "function") page.cleanup();
+
+      assert.equal(viewer.rotatePage(session, 1, 90), 90);
+      const effectivePage = await session._pdf.getPage(1);
+      assert.equal(viewer.getEffectivePageRotation(session, 1, effectivePage), 180);
+      if (typeof effectivePage.cleanup === "function") effectivePage.cleanup();
+      assert.deepEqual(await viewer.getPageSize(session, 1), { width: 400, height: 500 });
+
+      exported = await save.exportBytes(session);
+      const stored = await PDFDocument.load(exported);
+      assert.equal(stored.getPage(0).getRotation().angle, 180);
+    } finally {
+      await viewer.closeSession(session);
+    }
+
+    const reopened = await viewer.openFromBytes(exported, { name: "intrinsic-pending.pdf" });
+    try {
+      assert.equal(viewer.getPageRotation(reopened, 1), 0);
+      assert.deepEqual(await viewer.getPageSize(reopened, 1), { width: 400, height: 500 });
+      const savedAgain = await save.exportBytes(reopened);
+      const storedAgain = await PDFDocument.load(savedAgain);
+      assert.equal(storedAgain.getPage(0).getRotation().angle, 180);
+    } finally {
+      await viewer.closeSession(reopened);
     }
   });
 

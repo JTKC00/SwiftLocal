@@ -23,6 +23,30 @@
     return true;
   }
 
+  function getViewerApi() {
+    if (typeof window !== "undefined" && window.SwiftLocalPdfCore && window.SwiftLocalPdfCore.viewer) {
+      return window.SwiftLocalPdfCore.viewer;
+    }
+    try {
+      return require("./viewer");
+    } catch {
+      return null;
+    }
+  }
+
+  function getEffectiveRotation(session, pageNumber, page) {
+    const viewer = getViewerApi();
+    if (viewer && typeof viewer.getEffectivePageRotation === "function") {
+      return viewer.getEffectivePageRotation(session, pageNumber, page);
+    }
+    const map = session && session.pageRotations ? session.pageRotations : {};
+    const pending = map[pageNumber] != null ? map[pageNumber] : map[String(pageNumber)];
+    const intrinsic = page && page.rotate != null ? page.rotate : 0;
+    const value = Number(intrinsic) + (Number(pending) || 0);
+    const snapped = Math.round(value / 90) * 90;
+    return ((snapped % 360) + 360) % 360;
+  }
+
   function uid(prefix) {
     return `${prefix || "ann"}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
   }
@@ -246,9 +270,6 @@
   // --- Coordinate helpers (PDF user space ↔ CSS overlay) ---
 
   async function getPageMetrics(session, pageNumber) {
-    const rotation = session && session.pageRotations
-      ? (session.pageRotations[pageNumber] || session.pageRotations[String(pageNumber)] || 0)
-      : 0;
     if (session && session._pdf && typeof session._pdf.getPage === "function") {
       const page = await session._pdf.getPage(pageNumber);
       try {
@@ -256,26 +277,24 @@
         return {
           pageWidth: unscaled.width,
           pageHeight: unscaled.height,
-          rotation,
+          rotation: getEffectiveRotation(session, pageNumber, page),
           page
         };
       } finally {
         // caller may use page; don't cleanup here if we return page
       }
     }
-    return { pageWidth: 612, pageHeight: 792, rotation, page: null };
+    return { pageWidth: 612, pageHeight: 792, rotation: getEffectiveRotation(session, pageNumber, null), page: null };
   }
 
   /**
    * Convert CSS point (top-left origin on stage) to PDF user space (bottom-left).
    */
   async function cssPointToPdf(session, pageNumber, cssX, cssY, cssWidth, cssHeight) {
-    const rotation = session && session.pageRotations
-      ? (session.pageRotations[pageNumber] || session.pageRotations[String(pageNumber)] || 0)
-      : 0;
     if (session && session._pdf) {
       try {
         const page = await session._pdf.getPage(pageNumber);
+        const rotation = getEffectiveRotation(session, pageNumber, page);
         const unscaled = page.getViewport({ scale: 1, rotation });
         const scale = cssWidth / Math.max(1, unscaled.width);
         const viewport = page.getViewport({ scale, rotation });
@@ -287,6 +306,7 @@
       }
     }
     // Fallback: no rotation
+    const rotation = getEffectiveRotation(session, pageNumber, null);
     const pageHeight = 792;
     const scaleX = 612 / Math.max(1, cssWidth);
     const scaleY = pageHeight / Math.max(1, cssHeight);

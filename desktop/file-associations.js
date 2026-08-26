@@ -44,6 +44,53 @@ function normalizeArgPath(raw) {
   return s;
 }
 
+function pathApiFor(platform) {
+  return platform === "win32" ? path.win32 : path.posix;
+}
+
+/**
+ * Resolve a PDF path the same way for initial argv, second-instance, and
+ * renderer-delivered paths. The file does not need to exist yet.
+ */
+function canonicalizePdfPath(filePath, options = {}) {
+  const platform = options.platform || process.platform;
+  const pathApi = pathApiFor(platform);
+  const cwd = options.cwd || process.cwd();
+  const value = normalizeArgPath(filePath);
+  if (!value || !isPdfPath(value)) return "";
+  try {
+    return pathApi.normalize(pathApi.isAbsolute(value) ? value : pathApi.resolve(cwd, value));
+  } catch {
+    return "";
+  }
+}
+
+function pathKey(filePath, options = {}) {
+  const platform = options.platform || process.platform;
+  const canonical = canonicalizePdfPath(filePath, options);
+  if (!canonical) return "";
+  return platform === "win32" ? canonical.toLowerCase() : canonical;
+}
+
+/**
+ * Canonicalize and deduplicate PDF paths. Windows file associations are
+ * case-insensitive, while non-Windows paths retain their normal case.
+ */
+function dedupeFilePaths(filePaths, options = {}) {
+  const list = Array.isArray(filePaths) ? filePaths : [filePaths];
+  const results = [];
+  const seen = new Set();
+  for (const raw of list) {
+    const canonical = canonicalizePdfPath(raw, options);
+    if (!canonical) continue;
+    const key = pathKey(canonical, options);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    results.push(canonical);
+  }
+  return results;
+}
+
 /**
  * Extract open-with file paths from process argv (Electron may prepend exe / .).
  * @param {string[]} argv
@@ -53,33 +100,30 @@ function normalizeArgPath(raw) {
 function getOpenFilesFromArgv(argv, options = {}) {
   const args = Array.isArray(argv) ? argv : [];
   const cwd = options.cwd || process.cwd();
-  const results = [];
-  const seen = new Set();
+  const candidates = [];
 
   for (const raw of args) {
     if (!raw || typeof raw !== "string") continue;
     const value = normalizeArgPath(raw);
     if (!value) continue;
     // Skip electron / node flags and the app entry.
-    if (value === "." || value.startsWith("-")) continue;
+    if (value === "." || value === "--" || value.startsWith("-")) continue;
     // Skip electron binary and project entry scripts unless they somehow end in .pdf.
     if (/electron(\.exe)?$/i.test(value) && !isPdfPath(value)) continue;
     if (/\.(js|cjs|mjs|ts|json)$/i.test(value) && !isPdfPath(value)) continue;
     // Skip package.json main path patterns without .pdf
     if (!isPdfPath(value)) continue;
 
-    let resolved;
-    try {
-      resolved = path.isAbsolute(value) ? path.normalize(value) : path.resolve(cwd, value);
-    } catch {
-      continue;
-    }
-    const key = process.platform === "win32" ? resolved.toLowerCase() : resolved;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    results.push(resolved);
+    candidates.push(value);
   }
-  return results;
+  return dedupeFilePaths(candidates, Object.assign({}, options, { cwd }));
+}
+
+function getInitialLaunchRoute(argv, options = {}) {
+  const files = getOpenFilesFromArgv(argv, options);
+  return files.length
+    ? { kind: "pdf-workspace", files }
+    : { kind: "toolbox", files: [] };
 }
 
 /**
@@ -206,7 +250,10 @@ module.exports = {
   PDF_DESCRIPTION,
   isPdfPath,
   normalizeArgPath,
+  canonicalizePdfPath,
+  dedupeFilePaths,
   getOpenFilesFromArgv,
+  getInitialLaunchRoute,
   getAssociationStatus,
   openPdfAssociationSettings,
   registerPdfAssociation

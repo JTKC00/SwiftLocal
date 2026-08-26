@@ -27,7 +27,7 @@
       zoom: 1,
       fitMode: "page",
       rotationView: 0,
-      /** Permanent page rotations (degrees) keyed by 1-based page number — baked on save. */
+      /** Pending SwiftLocal page rotations (degrees) keyed by 1-based page number — baked on save. */
       pageRotations: Object.create(null),
       dirty: false,
       meta: null,
@@ -145,6 +145,13 @@
     return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, value));
   }
 
+  function normalizeRotation(value) {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return 0;
+    const snapped = Math.round(n / 90) * 90;
+    return ((snapped % 360) + 360) % 360;
+  }
+
   function toUint8Copy(bytes) {
     if (bytes instanceof Uint8Array) return bytes.slice();
     if (bytes instanceof ArrayBuffer) return new Uint8Array(bytes.slice(0));
@@ -209,12 +216,26 @@
     return session;
   }
 
+  /**
+   * Return only SwiftLocal's unsaved page rotation delta. Intrinsic PDF.js
+   * rotation is read from the page object by getEffectivePageRotation().
+   */
   function getPageRotation(session, pageNumber) {
     if (!session) return 0;
     const map = session.pageRotations || {};
     const value = map[pageNumber] != null ? map[pageNumber] : map[String(pageNumber)];
-    const n = Number(value) || 0;
-    return ((n % 360) + 360) % 360;
+    return normalizeRotation(value);
+  }
+
+  /**
+   * Compose the PDF's stored page rotation with SwiftLocal's unsaved delta.
+   * `options.rotation` is an intentional absolute render override.
+   */
+  function getEffectivePageRotation(session, pageNumber, page, options) {
+    const opts = options || {};
+    if (opts.rotation != null) return normalizeRotation(opts.rotation);
+    const intrinsic = page && page.rotate != null ? page.rotate : 0;
+    return normalizeRotation(intrinsic + getPageRotation(session, pageNumber));
   }
 
   /**
@@ -225,25 +246,26 @@
     if (!session.pageRotations) session.pageRotations = Object.create(null);
     const page = Math.max(1, Math.round(Number(pageNumber) || 1));
     const delta = Number(deltaDegrees) || 0;
-    const next = (getPageRotation(session, page) + delta + 360) % 360;
+    const next = normalizeRotation(getPageRotation(session, page) + delta);
     session.pageRotations[page] = next;
     session.dirty = true;
-    // Invalidate size cache for this page (orientation may swap).
+    // Invalidate all size entries because their keys include effective
+    // rotation and the previous page orientation may be cached.
     if (session._pageSizes) {
-      delete session._pageSizes[String(page)];
+      session._pageSizes = Object.create(null);
     }
     return next;
   }
 
   async function getPageSize(session, pageNumber) {
     if (!session || !session._pdf) return { width: 1, height: 1 };
-    const rotation = getPageRotation(session, pageNumber);
-    const key = `${pageNumber}@${rotation}`;
-    if (session._pageSizes && session._pageSizes[key]) {
-      return session._pageSizes[key];
-    }
     const page = await session._pdf.getPage(pageNumber);
     try {
+      const rotation = getEffectivePageRotation(session, pageNumber, page);
+      const key = `${pageNumber}@${rotation}`;
+      if (session._pageSizes && session._pageSizes[key]) {
+        return session._pageSizes[key];
+      }
       const viewport = page.getViewport({ scale: 1, rotation });
       const size = { width: viewport.width, height: viewport.height };
       if (session._pageSizes) session._pageSizes[key] = size;
@@ -357,9 +379,7 @@
     const page = await session._pdf.getPage(pageNumber);
     try {
       const scale = clampZoom(opts.scale != null ? opts.scale : session.zoom || 1);
-      const rotation = opts.rotation != null
-        ? opts.rotation
-        : getPageRotation(session, pageNumber);
+      const rotation = getEffectivePageRotation(session, pageNumber, page, opts);
       const viewport = page.getViewport({ scale, rotation });
       const outputScale = opts.outputScale != null
         ? opts.outputScale
@@ -632,6 +652,7 @@
   return {
     MIN_ZOOM,
     MAX_ZOOM,
+    normalizeRotation,
     createEmptySession,
     loadPdfJs,
     openFromBytes,
@@ -641,6 +662,7 @@
     setZoom,
     setRotationView,
     getPageRotation,
+    getEffectivePageRotation,
     rotatePage,
     replaceSessionBytes,
     computeFitZoom,

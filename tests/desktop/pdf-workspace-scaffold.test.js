@@ -34,6 +34,7 @@ describe("PDF workspace scaffold", () => {
       "frontend/pdf-core/compatibility.js",
       "frontend/pdf-core/index.js",
       "frontend/pdf-workspace/index.html",
+      "frontend/pdf-workspace/launch-paths.js",
       "frontend/pdf-workspace/shell.js",
       "frontend/pdf-workspace/app.js",
       "frontend/pdf-workspace/styles.css",

@@ -117,8 +117,8 @@
         rotations[pageNumber] != null ? rotations[pageNumber] : rotations[String(pageNumber)]
       );
       if (!extra) return;
-      const current = page.getRotation().angle || 0;
-      page.setRotation(degrees((current + extra) % 360));
+      const current = normalizeRotation(page.getRotation().angle);
+      page.setRotation(degrees(normalizeRotation(current + extra)));
     });
 
     const forms = getFormsApi();

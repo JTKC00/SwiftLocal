@@ -16,6 +16,30 @@
     return true;
   }
 
+  function getViewerApi() {
+    if (typeof window !== "undefined" && window.SwiftLocalPdfCore && window.SwiftLocalPdfCore.viewer) {
+      return window.SwiftLocalPdfCore.viewer;
+    }
+    try {
+      return require("./viewer");
+    } catch {
+      return null;
+    }
+  }
+
+  function getEffectiveRotation(session, pageNumber, page) {
+    const viewer = getViewerApi();
+    if (viewer && typeof viewer.getEffectivePageRotation === "function") {
+      return viewer.getEffectivePageRotation(session, pageNumber, page);
+    }
+    const map = session && session.pageRotations ? session.pageRotations : {};
+    const pending = map[pageNumber] != null ? map[pageNumber] : map[String(pageNumber)];
+    const intrinsic = page && page.rotate != null ? page.rotate : 0;
+    const value = Number(intrinsic) + (Number(pending) || 0);
+    const snapped = Math.round(value / 90) * 90;
+    return ((snapped % 360) + 360) % 360;
+  }
+
   async function loadPdfLib() {
     if (typeof window !== "undefined" && window.PDFLib) {
       return window.PDFLib;
@@ -500,12 +524,10 @@
    */
   async function rectToViewportBox(session, pageNumber, rect, cssWidth, cssHeight) {
     if (!rect) return null;
-    const rotation = session && session.pageRotations
-      ? (session.pageRotations[pageNumber] || session.pageRotations[String(pageNumber)] || 0)
-      : 0;
     if (session && session._pdf && typeof session._pdf.getPage === "function") {
       try {
         const page = await session._pdf.getPage(pageNumber);
+        const rotation = getEffectiveRotation(session, pageNumber, page);
         const unscaled = page.getViewport({ scale: 1, rotation });
         const displayScale = cssWidth / Math.max(1, unscaled.width);
         const viewport = page.getViewport({ scale: displayScale, rotation });
@@ -527,6 +549,7 @@
       }
     }
     // Fallback without PDF.js page
+    const rotation = getEffectiveRotation(session, pageNumber, null);
     return rectToCssBox(rect, 612, 792, cssWidth, cssHeight, rotation);
   }
 

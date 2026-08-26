@@ -13,6 +13,8 @@ const {
 const { createPdfWorkspaceWindow } = require("./pdf-window");
 const {
   getOpenFilesFromArgv,
+  getInitialLaunchRoute,
+  dedupeFilePaths,
   getAssociationStatus,
   openPdfAssociationSettings,
   isPdfPath
@@ -112,13 +114,21 @@ function focusMainOrWorkspace() {
   }
 }
 
-function openPdfWorkspace(filePath) {
+function openPdfWorkspace(filePathOrOptions) {
+  const options = filePathOrOptions && typeof filePathOrOptions === "object"
+    ? filePathOrOptions
+    : { filePath: filePathOrOptions || "" };
+  const requested = Array.isArray(options.filePaths)
+    ? options.filePaths
+    : (options.filePath ? [options.filePath] : []);
+  const filePaths = dedupeFilePaths(requested);
   pdfWorkspaceWindow = createPdfWorkspaceWindow({
     frontendDir: FRONTEND_DIR,
     preloadPath: PRELOAD_PATH,
     icon: resolveWindowIcon(),
     trustedRendererUrls: TRUSTED_RENDERER_URLS,
-    filePath: filePath || "",
+    filePath: filePaths[0] || "",
+    filePaths,
     existing: pdfWorkspaceWindow && !pdfWorkspaceWindow.isDestroyed() ? pdfWorkspaceWindow : null
   });
   if (!pdfWorkspaceWindow._swiftLocalClosedBound) {
@@ -135,23 +145,20 @@ function openPdfWorkspace(filePath) {
  * additional files are sent sequentially so user can open next if needed).
  */
 function openPdfFiles(filePaths) {
-  const list = (Array.isArray(filePaths) ? filePaths : [filePaths]).filter(isPdfPath);
+  const list = dedupeFilePaths(filePaths);
   if (!list.length) {
     openPdfWorkspace("");
     return { ok: true, count: 0 };
   }
-  // Primary: open / focus workspace with the first file.
-  openPdfWorkspace(list[0]);
-  // If multiple files were dropped, queue the rest after a short delay.
-  if (list.length > 1 && pdfWorkspaceWindow && !pdfWorkspaceWindow.isDestroyed()) {
-    list.slice(1).forEach((filePath, index) => {
-      setTimeout(() => {
-        if (pdfWorkspaceWindow && !pdfWorkspaceWindow.isDestroyed()) {
-          pdfWorkspaceWindow.webContents.send("pdf-workspace:open-path", filePath);
-        }
-      }, 400 * (index + 1));
-    });
+  // A second-instance event can arrive before the ready callback finishes.
+  // Queue the canonical paths and let the initial route consume them.
+  if (!app.isReady()) {
+    pendingOpenFiles.push(...list);
+    return { ok: true, count: list.length, queued: true };
   }
+  // Primary: open / focus workspace with the first file. Additional paths are
+  // delivered by pdf-window through the same buffered IPC channel.
+  openPdfWorkspace({ filePaths: list });
   return { ok: true, count: list.length };
 }
 
@@ -499,19 +506,12 @@ if (gotSingleInstanceLock) {
     installBackendIpc();
     installMenu();
 
+    const launchRoute = getInitialLaunchRoute(process.argv, { cwd: process.cwd() });
     const launchFiles = [
       ...pendingOpenFiles.splice(0, pendingOpenFiles.length),
-      ...getOpenFilesFromArgv(process.argv)
+      ...launchRoute.files
     ];
-    // Deduplicate
-    const unique = [];
-    const seen = new Set();
-    for (const file of launchFiles) {
-      const key = process.platform === "win32" ? String(file).toLowerCase() : String(file);
-      if (seen.has(key)) continue;
-      seen.add(key);
-      unique.push(file);
-    }
+    const unique = dedupeFilePaths(launchFiles);
 
     if (unique.length) {
       // Open-with PDF: go straight to PDF workspace (no toolbox home first).

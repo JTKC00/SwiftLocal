@@ -16,8 +16,16 @@
     });
     window.__swiftLocalPdfWorkspaceApi = api;
 
+    const launchUtils = window.SwiftLocalPdfWorkspaceLaunch || null;
+    const launchPathGate = launchUtils && typeof launchUtils.createPathRequestGate === "function"
+      ? launchUtils.createPathRequestGate()
+      : null;
     const openLaunchPath = (filePath) => {
       if (!filePath || !api.openPath) return;
+      if (launchPathGate) {
+        void launchPathGate.request(filePath, (path) => api.openPath(path));
+        return;
+      }
       void api.openPath(filePath);
     };
 
@@ -26,12 +34,6 @@
       window.swiftLocalBackend.onPdfWorkspaceOpenPath((filePath) => {
         openLaunchPath(filePath);
       });
-    }
-
-    // Path buffered before this page subscribed (preload).
-    if (window.swiftLocalBackend && typeof window.swiftLocalBackend.getPendingPdfOpenPath === "function") {
-      const pending = window.swiftLocalBackend.getPendingPdfOpenPath();
-      if (pending) openLaunchPath(pending);
     }
 
     // Query param backup from loadFile({ query: { file } }).

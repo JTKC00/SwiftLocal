@@ -38,6 +38,17 @@
     return parts[parts.length - 1] || text;
   }
 
+  function getLaunchPathUtils() {
+    if (typeof window !== "undefined" && window.SwiftLocalPdfWorkspaceLaunch) {
+      return window.SwiftLocalPdfWorkspaceLaunch;
+    }
+    try {
+      return require("./launch-paths.js");
+    } catch {
+      return null;
+    }
+  }
+
   /**
    * @param {HTMLElement} host
    * @param {object} [options]
@@ -72,6 +83,8 @@
     let selectedThumbPages = new Set();
     let dragThumbPage = null;
     let openInNewTabNext = false;
+    const launchPathUtils = getLaunchPathUtils();
+    const pathOpenPromises = new Map();
 
     host.classList.add("pdf-ws-root");
     host.innerHTML = buildMarkup();
@@ -1573,7 +1586,7 @@
       }
     }
 
-    async function openFromPath(filePath, openOptions) {
+    async function openFromPathInternal(filePath, openOptions) {
       if (!filePath) return;
       const bridge = typeof window !== "undefined" ? window.swiftLocalBackend : null;
       if (!bridge || typeof bridge.readLocalFile !== "function") {
@@ -1608,7 +1621,7 @@
         }
         const opened = await openBytesWithPasswordLoop(bytes, {
           name: (payload && payload.name) || basename(filePath),
-          sourcePath: filePath,
+          sourcePath: (payload && payload.path) || filePath,
           asNewTab
         });
         if (opened) await afterOpen(session.name, { asNewTab });
@@ -1623,6 +1636,40 @@
         busy = false;
         setChromeEnabled(hasDocument());
       }
+    }
+
+    function openFromPath(filePath, openOptions) {
+      if (!filePath) return Promise.resolve();
+      const optsPath = openOptions || {};
+      const asNewTab = Boolean(openInNewTabNext || optsPath.asNewTab);
+      const key = launchPathUtils && typeof launchPathUtils.canonicalPathKey === "function"
+        ? launchPathUtils.canonicalPathKey(filePath)
+        : String(filePath).trim().toLowerCase();
+      if (!key) return Promise.resolve();
+
+      if (!asNewTab) {
+        const existing = tabs.find((tab) => {
+          const sourcePath = tab && tab.session && tab.session.sourcePath;
+          if (!sourcePath) return false;
+          const existingKey = launchPathUtils && typeof launchPathUtils.canonicalPathKey === "function"
+            ? launchPathUtils.canonicalPathKey(sourcePath)
+            : String(sourcePath).trim().toLowerCase();
+          return existingKey === key;
+        });
+        if (existing) {
+          activateTab(existing.id);
+          setStatus(`已切換至「${existing.title}」`);
+          return Promise.resolve({ ok: true, deduplicated: true });
+        }
+      }
+
+      const inFlight = pathOpenPromises.get(key);
+      if (inFlight) return inFlight;
+      const promise = openFromPathInternal(filePath, openOptions).finally(() => {
+        if (pathOpenPromises.get(key) === promise) pathOpenPromises.delete(key);
+      });
+      pathOpenPromises.set(key, promise);
+      return promise;
     }
 
     function clearThumbs() {

@@ -3,9 +3,27 @@
 const { contextBridge, ipcRenderer, webUtils } = require("electron");
 
 // Buffer open-path events that fire before the workspace page subscribes.
-let pendingOpenPath = "";
+const pendingOpenPaths = [];
+let openPathSubscriberCount = 0;
+const isWindows = typeof process !== "undefined" && process.platform === "win32";
+
+function pendingPathKey(filePath) {
+  const value = String(filePath || "").trim();
+  if (!value) return "";
+  return isWindows
+    ? value.replace(/\//g, "\\").replace(/\\+/g, "\\").toLowerCase()
+    : value.replace(/\\/g, "/");
+}
+
+function bufferOpenPath(filePath) {
+  const value = filePath ? String(filePath) : "";
+  const key = pendingPathKey(value);
+  if (!key || pendingOpenPaths.some((pending) => pendingPathKey(pending) === key)) return;
+  pendingOpenPaths.push(value);
+}
+
 ipcRenderer.on("pdf-workspace:open-path", (_event, filePath) => {
-  pendingOpenPath = filePath ? String(filePath) : "";
+  if (!openPathSubscriberCount) bufferOpenPath(filePath);
 });
 
 contextBridge.exposeInMainWorld("swiftLocalBackend", {
@@ -54,16 +72,22 @@ contextBridge.exposeInMainWorld("swiftLocalBackend", {
   sanitizePdf: (data) => ipcRenderer.invoke("pdf-workspace:sanitize-pdf", data),
   onPdfWorkspaceOpenPath: (callback) => {
     const handler = (_event, filePath) => callback(filePath);
+    openPathSubscriberCount += 1;
     ipcRenderer.on("pdf-workspace:open-path", handler);
-    // Deliver any path that arrived before the listener was attached.
-    if (pendingOpenPath) {
+    // Deliver any paths that arrived before the listener was attached.
+    const pending = pendingOpenPaths.splice(0, pendingOpenPaths.length);
+    pending.forEach((filePath) => {
       try {
-        callback(pendingOpenPath);
+        callback(filePath);
       } catch {
         // ignore
       }
-    }
-    return () => ipcRenderer.removeListener("pdf-workspace:open-path", handler);
+    });
+    return () => {
+      openPathSubscriberCount = Math.max(0, openPathSubscriberCount - 1);
+      ipcRenderer.removeListener("pdf-workspace:open-path", handler);
+    };
   },
-  getPendingPdfOpenPath: () => pendingOpenPath
+  getPendingPdfOpenPath: () => pendingOpenPaths[0] || "",
+  getPendingPdfOpenPaths: () => pendingOpenPaths.slice()
 });
