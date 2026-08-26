@@ -275,7 +275,7 @@ CI：GitHub Actions 工作流程 `.github/workflows/ci.yml` 在 `main` / `master
   - 已結束任務（done／failed／cancelled）超過 `SWIFTLOCAL_JOB_RETENTION_HOURS`（預設 **72** 小時）會從列表移除
   - 超出 80 筆時優先丟掉最舊的已結束任務（不碰 queued／running）
   - FastAPI 同步刪除 `backend/temp/jobs/{id}`；啟動時清理孤兒目錄
-  - 桌面版另清除輸出目錄下超過 24 小時的 `.swiftlocal-*` 暫存資料夾（**不刪使用者輸出檔**）
+  - 桌面版另清除輸出目錄下超過 24 小時、使用已知 `.swiftlocal-office-*`／`.swiftlocal-media-*` 前綴的暫存資料夾（**不刪使用者輸出檔**）
   - 任務結束、啟動還原、任務中心輪詢時會觸發；「清除已結束」走 `forceFinished`
 - 讀取相容 legacy 純陣列與缺 `version` 的物件；未來升版必須寫遷移（見 schema 文件）。
 
