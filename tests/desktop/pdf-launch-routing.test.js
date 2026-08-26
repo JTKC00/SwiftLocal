@@ -59,6 +59,25 @@ describe("PDF Open With launch routing", () => {
     assert.equal(gate.canonicalPathKey(opened[0]), "c:\\users\\demo user\\documents\\a.pdf");
   });
 
+  test("launch gate preserves UNC identity and separates root-relative paths", async () => {
+    const gate = createPathRequestGate({ platform: "win32" });
+    const opened = [];
+    const open = async (filePath) => {
+      opened.push(filePath);
+    };
+
+    await Promise.all([
+      gate.request("\\\\server\\share\\Report.pdf", open),
+      gate.request("//SERVER/SHARE/report.PDF", open)
+    ]);
+
+    assert.equal(opened.length, 1);
+    assert.equal(gate.canonicalPathKey(opened[0]), "\\\\server\\share\\report.pdf");
+
+    await gate.request("\\server\\share\\report.pdf", open);
+    assert.equal(opened.length, 2);
+  });
+
   test("launch gate accepts the same canonical path after the first open completes", async () => {
     const gate = createPathRequestGate({ platform: "win32" });
     const opened = [];

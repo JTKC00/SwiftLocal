@@ -95,17 +95,25 @@ describe("job auto cleanup helpers", () => {
     assert.ok(result.removedByCap >= 1);
   });
 
-  test("cleanupSwiftLocalTempDirs removes aged .swiftlocal-* folders", () => {
+  test("cleanupSwiftLocalTempDirs removes only aged known SwiftLocal temp folders", () => {
     const dir = tempDir("sl-cleanup-temp-");
     const oldTemp = path.join(dir, ".swiftlocal-office-old");
     fs.mkdirSync(oldTemp);
+    const oldMediaTemp = path.join(dir, ".swiftlocal-media-old");
+    fs.mkdirSync(oldMediaTemp);
+    const unrelatedTemp = path.join(dir, ".swiftlocal-backup");
+    fs.mkdirSync(unrelatedTemp);
     const oldTime = Date.now() - 48 * 3600 * 1000;
     fs.utimesSync(oldTemp, new Date(oldTime), new Date(oldTime));
+    fs.utimesSync(oldMediaTemp, new Date(oldTime), new Date(oldTime));
+    fs.utimesSync(unrelatedTemp, new Date(oldTime), new Date(oldTime));
     const freshTemp = path.join(dir, ".swiftlocal-office-fresh");
     fs.mkdirSync(freshTemp);
     const removed = cleanupSwiftLocalTempDirs(dir, Date.now());
-    assert.ok(removed >= 1);
+    assert.equal(removed, 2);
     assert.equal(fs.existsSync(oldTemp), false);
+    assert.equal(fs.existsSync(oldMediaTemp), false);
+    assert.equal(fs.existsSync(unrelatedTemp), true);
     assert.equal(fs.existsSync(freshTemp), true);
   });
 });

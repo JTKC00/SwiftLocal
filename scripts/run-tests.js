@@ -2,7 +2,7 @@
 
 /**
  * Run desktop (Node) + backend (Python) unit tests.
- * Usage: node scripts/run-tests.js
+ * Usage: node scripts/run-tests.js [--python-only]
  */
 
 const { spawnSync } = require("node:child_process");
@@ -19,11 +19,15 @@ function run(command, args, label) {
     shell: false,
     windowsHide: true
   });
-  if (result.error) {
-    console.error(result.error);
+  if (result.error) console.error(result.error);
+  return spawnResultExitCode(result);
+}
+
+function spawnResultExitCode(result) {
+  if (!result || result.error || result.status === null || result.status === undefined) {
     return 1;
   }
-  return result.status === null ? 1 : result.status;
+  return result.status;
 }
 
 function pythonCmd() {
@@ -49,24 +53,41 @@ function pythonCmd() {
   return null;
 }
 
-let code = 0;
-
-const desktopTestDir = path.join(root, "tests", "desktop");
-const desktopTests = fs.readdirSync(desktopTestDir)
-  .filter((name) => name.endsWith(".test.js"))
-  .sort()
-  .map((name) => path.join(desktopTestDir, name));
-code = run("node", ["--test", ...desktopTests], "Desktop (Node)") || code;
-
-const py = pythonCmd();
-if (!py) {
-  console.error("\nNo compatible Python runtime found. Install backend/requirements.txt or set SWIFTLOCAL_PYTHON.");
-  code = 1;
-} else {
-  code =
-    run(py.cmd, [...py.prefix, "-m", "unittest", "tests.backend.test_core", "-v"], "Backend (Python)") ||
-    code;
+function runPythonTests() {
+  const py = pythonCmd();
+  if (!py) {
+    console.error("\nNo compatible Python runtime found. Install backend/requirements.txt or set SWIFTLOCAL_PYTHON.");
+    return 1;
+  }
+  return run(py.cmd, [...py.prefix, "-m", "unittest", "tests.backend.test_core", "-v"], "Backend (Python)");
 }
 
-console.log(code === 0 ? "\nAll tests passed." : "\nSome tests failed.");
-process.exit(code);
+function main(args = process.argv.slice(2)) {
+  let code = 0;
+  const pythonOnly = args.includes("--python-only");
+
+  if (!pythonOnly) {
+    const desktopTestDir = path.join(root, "tests", "desktop");
+    const desktopTests = fs.readdirSync(desktopTestDir)
+      .filter((name) => name.endsWith(".test.js"))
+      .sort()
+      .map((name) => path.join(desktopTestDir, name));
+    code = run("node", ["--test", ...desktopTests], "Desktop (Node)") || code;
+  }
+
+  code = runPythonTests() || code;
+  console.log(code === 0 ? "\nAll tests passed." : "\nSome tests failed.");
+  return code;
+}
+
+if (require.main === module) {
+  process.exit(main());
+}
+
+module.exports = {
+  main,
+  pythonCmd,
+  run,
+  runPythonTests,
+  spawnResultExitCode
+};

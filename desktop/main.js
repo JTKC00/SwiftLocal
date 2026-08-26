@@ -20,6 +20,7 @@ const {
   openPdfAssociationSettings,
   isPdfPath
 } = require("./file-associations");
+const { chooseFileDialogProperties } = require("./dialog-options");
 
 const APP_NAME = "快轉通 SwiftLocal";
 const APP_USER_MODEL_ID = "com.swiftlocal.converter";
@@ -432,7 +433,7 @@ function installBackendIpc() {
   handleTrusted("backend:choose-files", async (_event, options = {}) => {
     const result = await dialog.showOpenDialog({
       title: options.title || "選擇檔案",
-      properties: ["openFile", "multiSelections"],
+      properties: chooseFileDialogProperties(options),
       filters: options.filters || [{ name: "All Files", extensions: ["*"] }]
     });
     return result.canceled ? [] : result.filePaths;
