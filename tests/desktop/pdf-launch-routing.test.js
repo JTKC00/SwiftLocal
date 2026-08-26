@@ -9,6 +9,7 @@ const {
   getOpenFilesFromArgv,
   getInitialLaunchRoute
 } = require("../../desktop/file-associations");
+const { buildPdfOpenRequests } = require("../../desktop/pdf-window");
 const { createPathRequestGate } = require("../../frontend/pdf-workspace/launch-paths.js");
 const { mountPdfWorkspace } = require("../../frontend/pdf-workspace/shell.js");
 
@@ -124,12 +125,89 @@ describe("PDF Open With launch routing", () => {
     });
   });
 
+  test("failed replacement keeps the valid active PDF intact", async () => {
+    await withWorkspaceHarness(async ({ api, state }) => {
+      const firstPath = "C:\\Users\\Demo User\\Documents\\A.pdf";
+      const secondPath = "C:\\Users\\Demo User\\Documents\\B.pdf";
+      state.files.set(firstPath, new Uint8Array([1]));
+      state.files.set(secondPath, new Uint8Array([2]));
+      await api.openPath(firstPath);
+      const firstSession = api.getSession();
+      state.openBehavior = (bytes) => bytes[0] === 2 ? new Error("corrupt PDF") : null;
+
+      await api.openPath(secondPath);
+
+      assert.equal(api.getSession(), firstSession);
+      assert.deepEqual(Array.from(api.getSession().bytes), [1]);
+      assert.equal(state.closed.length, 0);
+    });
+  });
+
+  test("password cancellation and repeated wrong passwords keep the old PDF", async () => {
+    await withWorkspaceHarness(async ({ api, state }) => {
+      const firstPath = "C:\\Users\\Demo User\\Documents\\A.pdf";
+      const secondPath = "C:\\Users\\Demo User\\Documents\\B.pdf";
+      state.files.set(firstPath, new Uint8Array([1]));
+      state.files.set(secondPath, new Uint8Array([2]));
+      await api.openPath(firstPath);
+      const firstSession = api.getSession();
+
+      state.openBehavior = (bytes) => {
+        if (bytes[0] !== 2) return null;
+        const error = new Error("password required");
+        error.code = state.passwordMode || "password_required";
+        return error;
+      };
+      state.promptValues = [null];
+      await api.openPath(secondPath);
+      assert.equal(api.getSession(), firstSession);
+      assert.deepEqual(Array.from(api.getSession().bytes), [1]);
+      assert.equal(state.closed.length, 0);
+
+      state.passwordMode = "password_incorrect";
+      state.promptValues = ["wrong", "wrong", "wrong", "wrong", "wrong"];
+      await api.openPath(secondPath);
+      assert.equal(api.getSession(), firstSession);
+      assert.deepEqual(Array.from(api.getSession().bytes), [1]);
+      assert.equal(state.openAttempts.filter((attempt) => attempt.bytes[0] === 2).length, 6);
+      assert.equal(state.closed.length, 0);
+    });
+  });
+
+  test("multi-file open requests preserve order and open additional files in new tabs", async () => {
+    await withWorkspaceHarness(async ({ api, state }) => {
+      const paths = [
+        "C:\\Users\\Demo User\\Documents\\A.pdf",
+        "C:\\Users\\Demo User\\Documents\\B.pdf",
+        "C:\\Users\\Demo User\\Documents\\C.pdf"
+      ];
+      paths.forEach((filePath, index) => state.files.set(filePath, new Uint8Array([index + 1])));
+      const requests = buildPdfOpenRequests(paths);
+      assert.deepEqual(requests.map((request) => request.asNewTab), [false, true, true]);
+      assert.deepEqual(requests.map((request) => request.path), paths);
+
+      for (const request of requests) {
+        await api.openPath(request.path, { asNewTab: request.asNewTab });
+      }
+
+      state.opened.forEach((item) => {
+        item.session.dirty = true;
+      });
+      const dirtyState = api.getDirtyState();
+      assert.equal(dirtyState.tabs.length, 3);
+      assert.deepEqual(dirtyState.tabs.map((tab) => tab.title), ["A.pdf", "B.pdf", "C.pdf"]);
+      assert.deepEqual(state.reads, paths);
+      assert.equal(state.closed.length, 0);
+    });
+  });
+
   test("launch routing is wired through preload buffering and renderer gating", () => {
     const preload = fs.readFileSync(path.join(root, "desktop", "preload.js"), "utf8");
     const pdfWindow = fs.readFileSync(path.join(root, "desktop", "pdf-window.js"), "utf8");
     const app = fs.readFileSync(path.join(root, "frontend", "pdf-workspace", "app.js"), "utf8");
     assert.match(preload, /pendingOpenPaths/);
     assert.match(pdfWindow, /filePaths/);
+    assert.match(pdfWindow, /asNewTab/);
     assert.match(app, /createPathRequestGate/);
     assert.match(app, /URLSearchParams/);
   });
@@ -143,9 +221,13 @@ async function withWorkspaceHarness(run) {
     files: new Map(),
     reads: [],
     opened: [],
+    openAttempts: [],
     closed: [],
     confirmCalls: 0,
-    confirmResult: true
+    confirmResult: true,
+    promptValues: [],
+    openBehavior: null,
+    passwordMode: "password_required"
   };
   const canonicalKey = (filePath) => launchPaths.canonicalPathKey(filePath, { platform: "win32" });
   const shared = {
@@ -156,8 +238,12 @@ async function withWorkspaceHarness(run) {
   const viewer = {
     async openFromBytes(bytes, options) {
       const copy = new Uint8Array(bytes);
-      state.opened.push({ bytes: Array.from(copy), options });
-      return {
+      state.openAttempts.push({ bytes: Array.from(copy), options });
+      const failure = typeof state.openBehavior === "function"
+        ? state.openBehavior(copy, options)
+        : null;
+      if (failure) throw failure;
+      const session = {
         _pdf: {},
         bytes: copy,
         currentPage: 1,
@@ -169,6 +255,8 @@ async function withWorkspaceHarness(run) {
         sourcePath: options.sourcePath,
         zoom: 1
       };
+      state.opened.push({ bytes: Array.from(copy), options, session });
+      return session;
     },
     async closeSession(session) {
       state.closed.push(session);
@@ -200,6 +288,7 @@ async function withWorkspaceHarness(run) {
       state.confirmCalls += 1;
       return state.confirmResult;
     },
+    prompt: () => state.promptValues.length ? state.promptValues.shift() : null,
     swiftLocalBackend: {
       async readLocalFile(filePath) {
         state.reads.push(filePath);

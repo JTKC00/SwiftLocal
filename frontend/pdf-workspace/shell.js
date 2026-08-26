@@ -106,11 +106,53 @@
       const tab = tabs.find((t) => t.id === activeTabId);
       if (!tab) return;
       tab.session = session;
-      if (session) {
-        tab.title = session.name || tab.title || "document.pdf";
-        tab.dirty = Boolean(core.save && core.save.isDirty(session));
-      }
+      if (session) tab.title = session.name || tab.title || "document.pdf";
+      tab.dirty = sessionIsDirty(session);
       renderTabs();
+    }
+
+    function snapshotSessionState(target) {
+      const source = target || {};
+      return {
+        currentPage: source.currentPage || 1,
+        zoom: source.zoom || 1,
+        fitMode: source.fitMode || "page",
+        annotations: Array.isArray(source.annotations)
+          ? source.annotations.map((annotation) => Object.assign({}, annotation))
+          : [],
+        annotationDirty: Boolean(source.annotationDirty),
+        formFields: Array.isArray(source.formFields)
+          ? source.formFields.map((field) => Object.assign({}, field))
+          : [],
+        formValues: source.formValues && typeof source.formValues === "object"
+          ? Object.assign(Object.create(null), source.formValues)
+          : null,
+        formDirty: Boolean(source.formDirty),
+        pageRotations: Object.assign(Object.create(null), source.pageRotations || {}),
+        dirty: Boolean(source.dirty)
+      };
+    }
+
+    function sessionIsDirty(target) {
+      if (!target) return false;
+      if (core.save && typeof core.save.isDirty === "function") return Boolean(core.save.isDirty(target));
+      return Boolean(target.dirty || target.formDirty || target.annotationDirty);
+    }
+
+    function getDirtyState() {
+      commitSessionToTab();
+      const dirtyTabs = tabs
+        .filter((tab) => sessionIsDirty(tab.session))
+        .map((tab) => ({
+          id: tab.id,
+          title: tab.title || "document.pdf",
+          active: tab.id === activeTabId
+        }));
+      return {
+        dirty: dirtyTabs.length > 0,
+        tabs: dirtyTabs,
+        activeTabId
+      };
     }
 
     function activateTab(tabId, options) {
@@ -997,9 +1039,11 @@
 
     async function applyRebuiltBytes(bytes, message) {
       if (!viewer || !session) return;
+      const preserveState = snapshotSessionState(session);
       await viewer.replaceSessionBytes(session, bytes, {
         name: session.name,
-        sourcePath: session.sourcePath || ""
+        sourcePath: session.sourcePath || "",
+        preserveState
       });
       // Re-detect form geometry; keep typed values when field names still exist.
       const keptValues = session.formValues ? Object.assign({}, session.formValues) : null;
@@ -1127,9 +1171,11 @@
           const buffer = await file.arrayBuffer();
           const bytes = new Uint8Array(buffer);
           const result = await pagesApi.insertPdfBytes(session, bytes, at);
+          const preserveState = snapshotSessionState(session);
           await viewer.replaceSessionBytes(session, result.bytes, {
             name: session.name,
-            sourcePath: session.sourcePath || ""
+            sourcePath: session.sourcePath || "",
+            preserveState
           });
           session.dirty = true;
           at = result.insertedAt + result.insertedCount;
@@ -1506,18 +1552,29 @@
     }
 
     async function openBytesWithPasswordLoop(bytes, openOptions) {
-      const asNewTab = Boolean(openOptions.asNewTab);
-      let password = openOptions.password || "";
+      const optsOpen = openOptions || {};
+      const asNewTab = Boolean(optsOpen.asNewTab);
+      const previousSession = session;
+      let password = optsOpen.password || "";
       for (let attempt = 0; attempt < 5; attempt += 1) {
+        let candidate = null;
         try {
-          if (!asNewTab && session && viewer.closeSession) await viewer.closeSession(session);
-          session = await viewer.openFromBytes(bytes, {
-            name: openOptions.name || "document.pdf",
-            sourcePath: openOptions.sourcePath || "",
+          candidate = await viewer.openFromBytes(bytes, {
+            name: optsOpen.name || "document.pdf",
+            sourcePath: optsOpen.sourcePath || "",
             password
           });
+          // Keep the current document alive until the replacement has fully
+          // opened, including password validation and PDF.js initialization.
+          if (!asNewTab && previousSession && previousSession !== candidate && viewer.closeSession) {
+            await viewer.closeSession(previousSession);
+          }
+          session = candidate;
           return true;
         } catch (error) {
+          if (candidate && candidate !== previousSession && viewer.closeSession) {
+            await viewer.closeSession(candidate).catch(() => {});
+          }
           const code = error && error.code;
           if (code === "password_required" || code === "password_incorrect") {
             const message = code === "password_incorrect"
@@ -1526,11 +1583,6 @@
             const next = await promptPassword(message);
             if (next == null) {
               setStatus("已取消開啟加密 PDF");
-              if (!asNewTab) {
-                session = viewer.createEmptySession ? viewer.createEmptySession() : null;
-                updateChrome();
-                clearThumbs();
-              }
               return false;
             }
             password = next;
@@ -1540,11 +1592,6 @@
         }
       }
       setStatus("密碼嘗試次數過多");
-      if (!asNewTab) {
-        session = viewer.createEmptySession ? viewer.createEmptySession() : null;
-        updateChrome();
-        clearThumbs();
-      }
       return false;
     }
 
@@ -1574,10 +1621,7 @@
         });
         if (opened) await afterOpen(session.name, { asNewTab });
       } catch (error) {
-        if (!asNewTab) {
-          session = viewer.createEmptySession ? viewer.createEmptySession() : null;
-          clearThumbs();
-        }
+        if (!hasDocument()) clearThumbs();
         updateChrome();
         setStatus(shared.formatUserError ? shared.formatUserError(error, "開啟失敗") : String(error));
       } finally {
@@ -1626,10 +1670,7 @@
         });
         if (opened) await afterOpen(session.name, { asNewTab });
       } catch (error) {
-        if (!asNewTab) {
-          session = viewer.createEmptySession ? viewer.createEmptySession() : null;
-          clearThumbs();
-        }
+        if (!hasDocument()) clearThumbs();
         updateChrome();
         setStatus(shared.formatUserError ? shared.formatUserError(error, "開啟失敗") : String(error));
       } finally {
@@ -1702,12 +1743,54 @@
       }
     }
 
-    async function closeDocument() {
-      if (session && core.save && core.save.isDirty(session)) {
+    async function closeDocument(options) {
+      const closeOptions = options || {};
+      if (closeOptions.closeAll) {
+        const dirtyState = getDirtyState();
+        if (!closeOptions.skipConfirm && dirtyState.dirty) {
+          const ok = typeof window !== "undefined" && window.confirm
+            ? window.confirm("PDF 工作區有未儲存的變更，確定關閉所有分頁？")
+            : true;
+          if (!ok) return false;
+        }
+        renderToken += 1;
+        thumbToken += 1;
+        const sessions = [];
+        const seen = new Set();
+        tabs.forEach((tab) => {
+          if (tab && tab.session && !seen.has(tab.session)) {
+            seen.add(tab.session);
+            sessions.push(tab.session);
+          }
+        });
+        if (session && !seen.has(session)) sessions.push(session);
+        for (const target of sessions) {
+          if (viewer && viewer.closeSession) await viewer.closeSession(target);
+        }
+        tabs = [];
+        activeTabId = null;
+        session = viewer && viewer.createEmptySession ? viewer.createEmptySession() : null;
+        selectedStampId = null;
+        selectedThumbPages = new Set();
+        clearPlaceMode();
+        clearThumbs();
+        const formLayer = $("[data-pdf-ws-form-layer]");
+        if (formLayer) formLayer.innerHTML = "";
+        const stampLayer = $("[data-pdf-ws-stamp-layer]");
+        if (stampLayer) stampLayer.innerHTML = "";
+        updateFormSidebar();
+        setCompat("開啟文件後會檢查加密與 XFA 提示。");
+        updateChrome();
+        setStatus("已關閉文件並清除記憶體工作階段（不鎖檔）");
+        if (typeof opts.onClosed === "function") opts.onClosed();
+        return true;
+      }
+
+      if (sessionIsDirty(session)) {
         const ok = typeof window !== "undefined" && window.confirm
           ? window.confirm("有未儲存的變更，確定關閉此分頁？")
           : true;
-        if (!ok) return;
+        if (!ok) return false;
       }
       renderToken += 1;
       thumbToken += 1;
@@ -1729,6 +1812,7 @@
       }
       setStatus(tabs.length ? "已關閉分頁" : "已關閉文件並清除記憶體工作階段（不鎖檔）");
       if (typeof opts.onClosed === "function") opts.onClosed();
+      return true;
     }
 
     function bindChrome() {
@@ -2018,7 +2102,7 @@
       destroy() {
         if (destroyed) return;
         destroyed = true;
-        void closeDocument().then(() => {
+        void closeDocument({ closeAll: true, skipConfirm: true }).then(() => {
           host.innerHTML = "";
           host.classList.remove("pdf-ws-root");
         });
@@ -2028,6 +2112,7 @@
       getSession() {
         return session;
       },
+      getDirtyState,
       setStatus
     };
   }

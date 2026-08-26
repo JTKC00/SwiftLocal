@@ -161,6 +161,19 @@
     return new Uint8Array(bytes);
   }
 
+  async function destroyOpenArtifacts(pdf, loadingTask) {
+    try {
+      if (pdf && typeof pdf.destroy === "function") await pdf.destroy();
+    } catch {
+      // ignore cleanup failures while reporting the original open error
+    }
+    try {
+      if (loadingTask && typeof loadingTask.destroy === "function") await loadingTask.destroy();
+    } catch {
+      // ignore cleanup failures while reporting the original open error
+    }
+  }
+
   /**
    * Load PDF bytes into a session. File handles must already be closed by the caller.
    * @param {object} [options.password] optional user/owner password for encrypted PDFs
@@ -173,47 +186,47 @@
     const forPdfJs = retained.slice();
     const { module: pdfjs, base, isNode } = await loadPdfJs();
 
-    let loadingTask;
-    let pdf;
+    let loadingTask = null;
+    let pdf = null;
     try {
       loadingTask = pdfjs.getDocument(documentOptions(forPdfJs, base, isNode, password));
       pdf = await loadingTask.promise;
+      const session = createEmptySession({
+        name: opts.name || "document.pdf",
+        sourcePath: opts.sourcePath || "",
+        bytes: retained,
+        pageCount: pdf.numPages || 0,
+        currentPage: 1,
+        zoom: 1,
+        fitMode: "page",
+        rotationView: 0,
+        pageRotations: Object.create(null),
+        dirty: false,
+        wasPasswordProtected: Boolean(password),
+        _pdf: pdf,
+        _loadingTask: loadingTask,
+        _pageSizes: Object.create(null),
+        search: null,
+        meta: {
+          loadedAt: new Date().toISOString(),
+          byteLength: retained.byteLength,
+          engine: "pdf.js",
+          note: "文件已載入記憶體；原始檔案控制權可釋放。"
+        }
+      });
+
+      // Warm first page size for fit calculations.
+      if (session.pageCount > 0) {
+        await getPageSize(session, 1);
+      }
+      return session;
     } catch (error) {
+      await destroyOpenArtifacts(pdf, loadingTask);
       const passwordError = classifyOpenError(error, Boolean(password));
       if (passwordError) throw passwordError;
       const detail = error && error.message ? error.message : String(error || "");
       throw new Error(`無法開啟 PDF：${detail}`);
     }
-
-    const session = createEmptySession({
-      name: opts.name || "document.pdf",
-      sourcePath: opts.sourcePath || "",
-      bytes: retained,
-      pageCount: pdf.numPages || 0,
-      currentPage: 1,
-      zoom: 1,
-      fitMode: "page",
-      rotationView: 0,
-      pageRotations: Object.create(null),
-      dirty: false,
-      wasPasswordProtected: Boolean(password),
-      _pdf: pdf,
-      _loadingTask: loadingTask,
-      _pageSizes: Object.create(null),
-      search: null,
-      meta: {
-        loadedAt: new Date().toISOString(),
-        byteLength: retained.byteLength,
-        engine: "pdf.js",
-        note: "文件已載入記憶體；原始檔案控制權可釋放。"
-      }
-    });
-
-    // Warm first page size for fit calculations.
-    if (session.pageCount > 0) {
-      await getPageSize(session, 1);
-    }
-    return session;
   }
 
   /**
@@ -302,19 +315,13 @@
     session.wasPasswordProtected = false;
     session.annotations = [];
     session.annotationDirty = false;
+    session.formFields = [];
+    session.formValues = null;
+    session.formDirty = false;
     session.meta = null;
     session._pageSizes = null;
     session.search = null;
-    try {
-      if (pdf && typeof pdf.destroy === "function") await pdf.destroy();
-    } catch {
-      // ignore
-    }
-    try {
-      if (task && typeof task.destroy === "function") await task.destroy();
-    } catch {
-      // ignore
-    }
+    await destroyOpenArtifacts(pdf, task);
   }
 
   function setCurrentPage(session, page) {
@@ -623,25 +630,57 @@
   async function replaceSessionBytes(session, bytes, options) {
     if (!session) throw new Error("沒有工作階段");
     const opts = options || {};
+    const state = opts.preserveState && typeof opts.preserveState === "object"
+      ? opts.preserveState
+      : null;
+    const hasState = (key) => Boolean(state && Object.prototype.hasOwnProperty.call(state, key));
     const preserved = {
       name: opts.name || session.name || "document.pdf",
       sourcePath: opts.sourcePath != null ? opts.sourcePath : (session.sourcePath || ""),
-      currentPage: session.currentPage || 1,
-      zoom: session.zoom || 1,
-      fitMode: session.fitMode || "page"
+      currentPage: hasState("currentPage") ? state.currentPage : (session.currentPage || 1),
+      zoom: hasState("zoom") ? state.zoom : (session.zoom || 1),
+      fitMode: hasState("fitMode") ? state.fitMode : (session.fitMode || "page")
     };
-    await closeSession(session);
     const next = await openFromBytes(bytes, {
       name: preserved.name,
       sourcePath: preserved.sourcePath,
       password: opts.password || ""
     });
+    // Open the replacement first so a parse/password failure leaves the
+    // current document and its transient state untouched.
+    try {
+      await closeSession(session);
+    } catch (error) {
+      await closeSession(next);
+      throw error;
+    }
     Object.assign(session, next);
     session.currentPage = Math.min(preserved.currentPage, session.pageCount || 1) || 1;
     session.zoom = preserved.zoom;
     session.fitMode = preserved.fitMode;
     session.dirty = false;
     session.pageRotations = Object.create(null);
+    if (hasState("annotations")) {
+      session.annotations = Array.isArray(state.annotations)
+        ? state.annotations.map((annotation) => Object.assign({}, annotation))
+        : [];
+    }
+    if (hasState("annotationDirty")) session.annotationDirty = Boolean(state.annotationDirty);
+    if (hasState("formFields")) {
+      session.formFields = Array.isArray(state.formFields)
+        ? state.formFields.map((field) => Object.assign({}, field))
+        : [];
+    }
+    if (hasState("formValues")) {
+      session.formValues = state.formValues && typeof state.formValues === "object"
+        ? Object.assign(Object.create(null), state.formValues)
+        : null;
+    }
+    if (hasState("formDirty")) session.formDirty = Boolean(state.formDirty);
+    if (hasState("pageRotations")) {
+      session.pageRotations = Object.assign(Object.create(null), state.pageRotations || {});
+    }
+    if (hasState("dirty")) session.dirty = Boolean(state.dirty);
     // Detach so GC does not double-destroy if next is dropped.
     next._pdf = null;
     next._loadingTask = null;

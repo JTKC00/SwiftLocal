@@ -20,19 +20,50 @@
     const launchPathGate = launchUtils && typeof launchUtils.createPathRequestGate === "function"
       ? launchUtils.createPathRequestGate()
       : null;
-    const openLaunchPath = (filePath) => {
-      if (!filePath || !api.openPath) return;
+    const normalizeOpenRequest = (payload) => {
+      if (payload && typeof payload === "object") {
+        return {
+          path: payload.path || payload.filePath || "",
+          asNewTab: Boolean(payload.asNewTab)
+        };
+      }
+      return { path: payload || "", asNewTab: false };
+    };
+
+    const openLaunchPath = (payload) => {
+      const request = normalizeOpenRequest(payload);
+      if (!request.path || !api.openPath) return;
       if (launchPathGate) {
-        void launchPathGate.request(filePath, (path) => api.openPath(path));
+        void launchPathGate.request(request.path, (path) => api.openPath(path, {
+          asNewTab: request.asNewTab
+        }));
         return;
       }
-      void api.openPath(filePath);
+      void api.openPath(request.path, { asNewTab: request.asNewTab });
     };
 
     // Desktop IPC: main process may send a path after open-with / menu open.
     if (window.swiftLocalBackend && typeof window.swiftLocalBackend.onPdfWorkspaceOpenPath === "function") {
       window.swiftLocalBackend.onPdfWorkspaceOpenPath((filePath) => {
         openLaunchPath(filePath);
+      });
+    }
+
+    // Main-process close guard: report every tab, including inactive tabs,
+    // without putting document contents or paths on the IPC boundary.
+    if (window.swiftLocalBackend &&
+        typeof window.swiftLocalBackend.onPdfWorkspaceCloseCheck === "function" &&
+        typeof window.swiftLocalBackend.respondPdfWorkspaceCloseCheck === "function") {
+      window.swiftLocalBackend.onPdfWorkspaceCloseCheck((requestId) => {
+        let state;
+        try {
+          state = typeof api.getDirtyState === "function"
+            ? api.getDirtyState()
+            : { dirty: true, unavailable: true };
+        } catch {
+          state = { dirty: true, unavailable: true };
+        }
+        window.swiftLocalBackend.respondPdfWorkspaceCloseCheck(requestId, state);
       });
     }
 

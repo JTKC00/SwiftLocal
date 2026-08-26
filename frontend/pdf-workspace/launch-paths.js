@@ -12,6 +12,17 @@
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
 
+  function getCanonicalPathApi() {
+    if (typeof window !== "undefined" && window.SwiftLocalCanonicalPath) {
+      return window.SwiftLocalCanonicalPath;
+    }
+    try {
+      return require("../shared/canonical-path.js");
+    } catch {
+      return null;
+    }
+  }
+
   function stripQuotes(raw) {
     let value = String(raw || "").trim();
     if (
@@ -23,37 +34,15 @@
     return value;
   }
 
-  function isWindows(options) {
-    if (options && options.platform) return options.platform === "win32";
-    if (typeof navigator !== "undefined") {
-      return /win/i.test(`${navigator.platform || ""} ${navigator.userAgent || ""}`);
-    }
-    return false;
-  }
-
   function canonicalPathKey(filePath, options) {
-    let value = stripQuotes(filePath);
-    if (!value) return "";
-
-    const windows = isWindows(options);
-    if (/^file:/i.test(value) && typeof URL === "function") {
-      try {
-        const url = new URL(value);
-        let pathname = decodeURIComponent(url.pathname || "");
-        if (windows) {
-          if (url.hostname) pathname = `\\\\${url.hostname}${pathname}`;
-          else if (/^\/[A-Za-z]:/.test(pathname)) pathname = pathname.slice(1);
-        }
-        value = pathname || value;
-      } catch {
-        // Keep the original path for the comparison fallback.
-      }
+    const shared = getCanonicalPathApi();
+    if (shared && typeof shared.canonicalPathKey === "function") {
+      return shared.canonicalPathKey(filePath, options);
     }
-
-    if (windows) {
-      return value.replace(/\//g, "\\").replace(/\\+/g, "\\").toLowerCase();
-    }
-    return value.replace(/\\/g, "/");
+    // The shared helper is loaded by the workspace HTML and is available to
+    // Node tests. Keep a literal fallback rather than reintroducing a second
+    // platform-specific normalization implementation.
+    return stripQuotes(filePath);
   }
 
   function createPathRequestGate(options) {

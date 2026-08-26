@@ -11,6 +11,7 @@ const {
   buildTrustedRendererUrls
 } = require("./security");
 const { createPdfWorkspaceWindow } = require("./pdf-window");
+const { createPdfWorkspaceCloseGuard } = require("./pdf-workspace-close-guard");
 const {
   getOpenFilesFromArgv,
   getInitialLaunchRoute,
@@ -29,6 +30,9 @@ let shutdownStarted = false;
 let shutdownFinished = false;
 let mainWindow = null;
 let pdfWorkspaceWindow = null;
+let pdfWorkspaceCloseGuard = null;
+let pdfCloseRequestSequence = 0;
+const pendingPdfCloseChecks = new Map();
 /** PDF paths received before app ready (macOS open-file). */
 const pendingOpenFiles = [];
 const FRONTEND_DIR = path.join(__dirname, "..", "frontend");
@@ -114,6 +118,85 @@ function focusMainOrWorkspace() {
   }
 }
 
+function normalizePdfDirtyState(state) {
+  const value = state && typeof state === "object" ? state : {};
+  return {
+    dirty: Boolean(value.dirty),
+    unavailable: Boolean(value.unavailable),
+    tabs: Array.isArray(value.tabs)
+      ? value.tabs.slice(0, 100).map((tab) => ({
+        title: String(tab && tab.title ? tab.title : "document.pdf").slice(0, 160),
+        active: Boolean(tab && tab.active)
+      }))
+      : []
+  };
+}
+
+function requestPdfWorkspaceDirtyState(window) {
+  if (!window || window.isDestroyed() || !window.webContents || window.webContents.isDestroyed()) {
+    return Promise.resolve({ dirty: true, unavailable: true, tabs: [] });
+  }
+  const requestId = `pdf-close-${Date.now().toString(36)}-${(++pdfCloseRequestSequence).toString(36)}`;
+  return new Promise((resolve) => {
+    let finished = false;
+    const finish = (state) => {
+      if (finished) return;
+      finished = true;
+      clearTimeout(timer);
+      pendingPdfCloseChecks.delete(requestId);
+      resolve(normalizePdfDirtyState(state));
+    };
+    const timer = setTimeout(() => {
+      finish({ dirty: true, unavailable: true, tabs: [] });
+    }, 2500);
+    pendingPdfCloseChecks.set(requestId, {
+      sender: window.webContents,
+      finish
+    });
+    try {
+      window.webContents.send("pdf-workspace:close-check", requestId);
+    } catch {
+      finish({ dirty: true, unavailable: true, tabs: [] });
+    }
+  });
+}
+
+function confirmPdfWorkspaceClose(state, window) {
+  const titles = state && Array.isArray(state.tabs)
+    ? state.tabs.map((tab) => tab.title).filter(Boolean)
+    : [];
+  const detail = state && state.unavailable
+    ? "無法確認 PDF 工作區的未儲存狀態。若關閉，可能遺失尚未儲存的變更。"
+    : titles.length
+      ? `未儲存的分頁：${titles.join("、")}`
+      : "PDF 工作區有未儲存的變更。";
+  const result = dialog.showMessageBoxSync(window, {
+    type: "warning",
+    title: "PDF 工作區有未儲存的變更",
+    message: "確定要關閉 PDF 工作區嗎？",
+    detail,
+    buttons: ["取消", "關閉"],
+    defaultId: 0,
+    cancelId: 0,
+    noLink: true
+  });
+  return result === 1;
+}
+
+function installPdfWorkspaceCloseGuard(window) {
+  const guard = createPdfWorkspaceCloseGuard({
+    getWindow: () => window,
+    requestDirtyState: (target) => requestPdfWorkspaceDirtyState(target),
+    confirmClose: (state, target) => confirmPdfWorkspaceClose(state, target),
+    closeWindow: (target) => target.close(),
+    quitApp: () => app.quit()
+  });
+  window.on("close", (event) => {
+    guard.handleWindowClose(event);
+  });
+  return guard;
+}
+
 function openPdfWorkspace(filePathOrOptions) {
   const options = filePathOrOptions && typeof filePathOrOptions === "object"
     ? filePathOrOptions
@@ -133,9 +216,17 @@ function openPdfWorkspace(filePathOrOptions) {
   });
   if (!pdfWorkspaceWindow._swiftLocalClosedBound) {
     pdfWorkspaceWindow._swiftLocalClosedBound = true;
+    const window = pdfWorkspaceWindow;
     pdfWorkspaceWindow.on("closed", () => {
-      pdfWorkspaceWindow = null;
+      for (const pending of pendingPdfCloseChecks.values()) {
+        if (pending.sender === window.webContents) pending.finish({ dirty: true, unavailable: true });
+      }
+      if (pdfWorkspaceWindow === window) {
+        pdfWorkspaceWindow = null;
+        pdfWorkspaceCloseGuard = null;
+      }
     });
+    pdfWorkspaceCloseGuard = installPdfWorkspaceCloseGuard(window);
   }
   return { ok: true };
 }
@@ -297,6 +388,19 @@ function installBackendIpc() {
       return handler(event, ...args);
     });
   };
+  ipcMain.on("pdf-workspace:close-check-response", (event, payload) => {
+    try {
+      assertTrustedIpcSender(event, TRUSTED_RENDERER_URLS);
+    } catch {
+      return;
+    }
+    const requestId = payload && typeof payload.requestId === "string"
+      ? payload.requestId
+      : "";
+    const pending = requestId ? pendingPdfCloseChecks.get(requestId) : null;
+    if (!pending || pending.sender !== event.sender) return;
+    pending.finish(payload && payload.state);
+  });
   const mediaResponse = async (handler) => {
     try {
       return { ok: true, data: await handler() };
@@ -537,6 +641,9 @@ if (gotSingleInstanceLock) {
     if (shutdownStarted) {
       event.preventDefault();
       return;
+    }
+    if (pdfWorkspaceCloseGuard && !pdfWorkspaceCloseGuard.isBypassed()) {
+      if (!pdfWorkspaceCloseGuard.handleBeforeQuit(event)) return;
     }
     const backendActive = Boolean(backend && backend.hasActiveWork());
     const mediaActive = Boolean(

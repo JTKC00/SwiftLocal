@@ -1,29 +1,41 @@
 "use strict";
 
 const { contextBridge, ipcRenderer, webUtils } = require("electron");
+const { canonicalPathKey } = require("../frontend/shared/canonical-path.js");
 
-// Buffer open-path events that fire before the workspace page subscribes.
+// Buffer workspace events that fire before the page subscribes.
 const pendingOpenPaths = [];
 let openPathSubscriberCount = 0;
-const isWindows = typeof process !== "undefined" && process.platform === "win32";
+const pendingCloseChecks = [];
+let closeCheckSubscriberCount = 0;
 
-function pendingPathKey(filePath) {
-  const value = String(filePath || "").trim();
-  if (!value) return "";
-  return isWindows
-    ? value.replace(/\//g, "\\").replace(/\\+/g, "\\").toLowerCase()
-    : value.replace(/\\/g, "/");
+function normalizeOpenRequest(payload) {
+  if (payload && typeof payload === "object") {
+    return {
+      path: payload.path || payload.filePath || "",
+      asNewTab: Boolean(payload.asNewTab)
+    };
+  }
+  return { path: payload || "", asNewTab: false };
 }
 
-function bufferOpenPath(filePath) {
-  const value = filePath ? String(filePath) : "";
-  const key = pendingPathKey(value);
-  if (!key || pendingOpenPaths.some((pending) => pendingPathKey(pending) === key)) return;
-  pendingOpenPaths.push(value);
+function bufferOpenPath(payload) {
+  const request = normalizeOpenRequest(payload);
+  const value = request.path ? String(request.path) : "";
+  const key = canonicalPathKey(value, { platform: process.platform });
+  if (!key || pendingOpenPaths.some((pending) => {
+    const existing = normalizeOpenRequest(pending);
+    return canonicalPathKey(existing.path, { platform: process.platform }) === key;
+  })) return;
+  pendingOpenPaths.push({ path: value, asNewTab: request.asNewTab });
 }
 
-ipcRenderer.on("pdf-workspace:open-path", (_event, filePath) => {
-  if (!openPathSubscriberCount) bufferOpenPath(filePath);
+ipcRenderer.on("pdf-workspace:open-path", (_event, payload) => {
+  if (!openPathSubscriberCount) bufferOpenPath(payload);
+});
+
+ipcRenderer.on("pdf-workspace:close-check", (_event, requestId) => {
+  if (!closeCheckSubscriberCount && requestId) pendingCloseChecks.push(String(requestId));
 });
 
 contextBridge.exposeInMainWorld("swiftLocalBackend", {
@@ -71,14 +83,14 @@ contextBridge.exposeInMainWorld("swiftLocalBackend", {
   writeLocalFile: (filePath, data) => ipcRenderer.invoke("pdf-workspace:write-file", filePath, data),
   sanitizePdf: (data) => ipcRenderer.invoke("pdf-workspace:sanitize-pdf", data),
   onPdfWorkspaceOpenPath: (callback) => {
-    const handler = (_event, filePath) => callback(filePath);
+    const handler = (_event, payload) => callback(normalizeOpenRequest(payload));
     openPathSubscriberCount += 1;
     ipcRenderer.on("pdf-workspace:open-path", handler);
     // Deliver any paths that arrived before the listener was attached.
     const pending = pendingOpenPaths.splice(0, pendingOpenPaths.length);
-    pending.forEach((filePath) => {
+    pending.forEach((payload) => {
       try {
-        callback(filePath);
+        callback(normalizeOpenRequest(payload));
       } catch {
         // ignore
       }
@@ -88,6 +100,29 @@ contextBridge.exposeInMainWorld("swiftLocalBackend", {
       ipcRenderer.removeListener("pdf-workspace:open-path", handler);
     };
   },
-  getPendingPdfOpenPath: () => pendingOpenPaths[0] || "",
-  getPendingPdfOpenPaths: () => pendingOpenPaths.slice()
+  onPdfWorkspaceCloseCheck: (callback) => {
+    const handler = (_event, requestId) => callback(String(requestId || ""));
+    closeCheckSubscriberCount += 1;
+    ipcRenderer.on("pdf-workspace:close-check", handler);
+    const pending = pendingCloseChecks.splice(0, pendingCloseChecks.length);
+    pending.forEach((requestId) => {
+      try {
+        callback(requestId);
+      } catch {
+        // ignore
+      }
+    });
+    return () => {
+      closeCheckSubscriberCount = Math.max(0, closeCheckSubscriberCount - 1);
+      ipcRenderer.removeListener("pdf-workspace:close-check", handler);
+    };
+  },
+  respondPdfWorkspaceCloseCheck: (requestId, state) => {
+    ipcRenderer.send("pdf-workspace:close-check-response", {
+      requestId: String(requestId || ""),
+      state: state && typeof state === "object" ? state : { dirty: true, unavailable: true }
+    });
+  },
+  getPendingPdfOpenPath: () => normalizeOpenRequest(pendingOpenPaths[0]).path || "",
+  getPendingPdfOpenPaths: () => pendingOpenPaths.map((payload) => normalizeOpenRequest(payload).path)
 });

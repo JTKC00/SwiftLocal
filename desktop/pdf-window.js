@@ -4,8 +4,19 @@ const path = require("node:path");
 const { pathToFileURL } = require("node:url");
 const { BrowserWindow, shell } = require("electron");
 const { isAllowedExternalUrl, isTrustedRendererUrl } = require("./security");
+const { canonicalPathKey } = require("../frontend/shared/canonical-path.js");
 
 const APP_TITLE = "PDF 工作區 · 快轉通 SwiftLocal";
+
+function buildPdfOpenRequests(filePaths) {
+  const list = Array.isArray(filePaths) ? filePaths : [];
+  return list
+    .filter(Boolean)
+    .map((filePath, index) => ({
+      path: String(filePath),
+      asNewTab: index > 0
+    }));
+}
 
 /**
  * Create (or focus) the dedicated PDF workspace window.
@@ -35,7 +46,7 @@ function createPdfWorkspaceWindow(options) {
   const seen = new Set();
   candidates.forEach((filePath) => {
     const value = filePath ? String(filePath) : "";
-    const key = process.platform === "win32" ? value.toLowerCase() : value;
+    const key = canonicalPathKey(value, { platform: process.platform });
     if (!value || seen.has(key)) return;
     seen.add(key);
     filePaths.push(value);
@@ -44,8 +55,8 @@ function createPdfWorkspaceWindow(options) {
   if (opts.existing && !opts.existing.isDestroyed()) {
     // Renderer may already be listening; preload also buffers this event if a
     // navigation is still completing.
-    filePaths.forEach((filePath) => {
-      opts.existing.webContents.send("pdf-workspace:open-path", filePath);
+    buildPdfOpenRequests(filePaths).forEach((request) => {
+      opts.existing.webContents.send("pdf-workspace:open-path", request);
     });
     if (opts.existing.isMinimized()) opts.existing.restore();
     opts.existing.focus();
@@ -76,8 +87,8 @@ function createPdfWorkspaceWindow(options) {
   const sendOpenPath = () => {
     if (!filePaths.length || openPathsSent || window.isDestroyed()) return;
     openPathsSent = true;
-    filePaths.forEach((filePath) => {
-      window.webContents.send("pdf-workspace:open-path", filePath);
+    buildPdfOpenRequests(filePaths).forEach((request) => {
+      window.webContents.send("pdf-workspace:open-path", request);
     });
   };
 
@@ -118,6 +129,7 @@ function pdfWorkspaceDocumentUrl(frontendDir) {
 
 module.exports = {
   createPdfWorkspaceWindow,
+  buildPdfOpenRequests,
   pdfWorkspaceDocumentUrl,
   APP_TITLE
 };
