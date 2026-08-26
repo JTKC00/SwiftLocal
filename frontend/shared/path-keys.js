@@ -1,7 +1,7 @@
 /**
  * Cross-platform path keys used for logical file identity, not filesystem I/O.
  * Windows paths are case-insensitive and use one slash direction; POSIX paths
- * keep case significant.
+ * keep case significant and preserve backslashes as filename characters.
  */
 (function (root, factory) {
   if (typeof module === "object" && module.exports) {
@@ -34,6 +34,14 @@
     return false;
   }
 
+  function normalizeWindowsPathKey(value) {
+    const normalized = value.replace(/\//g, "\\");
+    const unc = normalized.startsWith("\\\\");
+    const body = unc ? normalized.replace(/^\\+/, "") : normalized;
+    const prefix = unc ? "\\\\" : "";
+    return `${prefix}${body.replace(/\\+/g, "\\")}`.toLowerCase();
+  }
+
   function canonicalPathKey(filePath, options) {
     let value = stripQuotes(filePath);
     if (!value) return "";
@@ -54,9 +62,9 @@
     }
 
     if (windows) {
-      return value.replace(/\//g, "\\").replace(/\\+/g, "\\").toLowerCase();
+      return normalizeWindowsPathKey(value);
     }
-    return value.replace(/\\/g, "/");
+    return value;
   }
 
   return {

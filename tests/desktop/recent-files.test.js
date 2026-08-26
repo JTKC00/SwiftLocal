@@ -7,6 +7,7 @@ const {
   rememberRecentFile,
   recentFilePathKey
 } = require("../../frontend/shared/recent-files");
+const { canonicalPathKey } = require("../../frontend/shared/path-keys");
 
 const previousStorage = global.localStorage;
 
@@ -16,6 +17,37 @@ afterEach(() => {
 });
 
 describe("recent PDF path identity", () => {
+  test("normalizes equivalent Windows UNC paths without losing the UNC prefix", () => {
+    const windows = { platform: "win32" };
+    const keys = [
+      canonicalPathKey("\\\\server\\share\\Report.pdf", windows),
+      canonicalPathKey("\\\\SERVER\\SHARE\\report.PDF", windows),
+      canonicalPathKey("//server/share/report.pdf", windows)
+    ];
+
+    assert.deepEqual(new Set(keys).size, 1);
+    assert.equal(keys[0], "\\\\server\\share\\report.pdf");
+  });
+
+  test("keeps UNC and root-relative Windows paths distinct", () => {
+    const windows = { platform: "win32" };
+    const unc = canonicalPathKey("\\\\server\\share\\report.pdf", windows);
+    const rootRelative = canonicalPathKey("\\server\\share\\report.pdf", windows);
+
+    assert.equal(unc, "\\\\server\\share\\report.pdf");
+    assert.equal(rootRelative, "\\server\\share\\report.pdf");
+    assert.notEqual(unc, rootRelative);
+  });
+
+  test("keeps POSIX backslashes distinct from directory separators", () => {
+    const linux = { platform: "linux" };
+
+    assert.notEqual(
+      canonicalPathKey("/tmp/a\\b.pdf", linux),
+      canonicalPathKey("/tmp/a/b.pdf", linux)
+    );
+  });
+
   test("deduplicates Windows paths with case and slash differences", () => {
     installStorage();
     const windows = { platform: "win32" };
@@ -33,6 +65,16 @@ describe("recent PDF path identity", () => {
       "c:\\users\\測試 使用者\\documents\\報告.pdf");
     assert.equal(result.length, 1);
     assert.equal(result[0].path, "c:/users/測試 使用者/documents/報告.PDF");
+  });
+
+  test("recent files deduplicates equivalent UNC spellings", () => {
+    installStorage();
+    const windows = { platform: "win32" };
+
+    rememberRecentFile({ name: "報告.pdf", path: "\\\\server\\share\\Report.pdf" }, 12, windows);
+    const result = rememberRecentFile({ name: "報告.pdf", path: "//SERVER/SHARE/report.PDF" }, 12, windows);
+
+    assert.equal(result.length, 1);
   });
 
   test("keeps genuinely different Windows files separate", () => {
