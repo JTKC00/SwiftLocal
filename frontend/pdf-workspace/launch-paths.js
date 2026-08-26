@@ -1,7 +1,7 @@
 /**
- * Idempotent launch-path delivery shared by the PDF workspace bootstrap and
- * its Node tests. It deliberately tracks only launch requests; regular file
- * opens remain under the workspace's normal tab behavior.
+ * Transient launch-path delivery shared by the PDF workspace bootstrap and
+ * its Node tests. It deliberately tracks only in-flight launch requests;
+ * regular file opens remain under the workspace's normal tab behavior.
  */
 (function (root, factory) {
   if (typeof module === "object" && module.exports) {
@@ -57,7 +57,7 @@
   }
 
   function createPathRequestGate(options) {
-    const seen = new Set();
+    const pending = new Set();
     const queue = [];
     let draining = null;
 
@@ -69,6 +69,8 @@
         } catch {
           // The workspace reports the open failure; continue with other
           // distinct launch paths without replaying this one.
+        } finally {
+          pending.delete(item.key);
         }
       }
     }
@@ -77,9 +79,9 @@
       if (typeof openPath !== "function") return Promise.resolve(false);
       const path = stripQuotes(filePath);
       const key = canonicalPathKey(path, options);
-      if (!key || seen.has(key)) return Promise.resolve(false);
-      seen.add(key);
-      queue.push({ path, open: openPath });
+      if (!key || pending.has(key)) return Promise.resolve(false);
+      pending.add(key);
+      queue.push({ path, key, open: openPath });
       if (!draining) {
         draining = drain().finally(() => {
           draining = null;

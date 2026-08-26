@@ -1657,9 +1657,9 @@
           return existingKey === key;
         });
         if (existing) {
-          activateTab(existing.id);
-          setStatus(`已切換至「${existing.title}」`);
-          return Promise.resolve({ ok: true, deduplicated: true });
+          // Reuse the existing tab when possible, but continue through the
+          // normal path-open flow so a deliberate reopen reads fresh bytes.
+          if (existing.id !== activeTabId) activateTab(existing.id, { skipRender: true });
         }
       }
 
