@@ -3,6 +3,7 @@
 const path = require("node:path");
 const { fileURLToPath } = require("node:url");
 const { shell } = require("electron");
+const { canonicalPathKey } = require("../frontend/shared/path-keys.js");
 
 /**
  * PDF file association helpers (Windows / macOS open-with + argv / open-file).
@@ -65,16 +66,10 @@ function canonicalizePdfPath(filePath, options = {}) {
   }
 }
 
-function pathKey(filePath, options = {}) {
-  const platform = options.platform || process.platform;
-  const canonical = canonicalizePdfPath(filePath, options);
-  if (!canonical) return "";
-  return platform === "win32" ? canonical.toLowerCase() : canonical;
-}
-
 /**
  * Canonicalize and deduplicate PDF paths. Windows file associations are
- * case-insensitive, while non-Windows paths retain their normal case.
+ * resolved for filesystem routing first, then compared with the shared
+ * cross-platform logical identity rules.
  */
 function dedupeFilePaths(filePaths, options = {}) {
   const list = Array.isArray(filePaths) ? filePaths : [filePaths];
@@ -83,7 +78,7 @@ function dedupeFilePaths(filePaths, options = {}) {
   for (const raw of list) {
     const canonical = canonicalizePdfPath(raw, options);
     if (!canonical) continue;
-    const key = pathKey(canonical, options);
+    const key = canonicalPathKey(canonical, options);
     if (!key || seen.has(key)) continue;
     seen.add(key);
     results.push(canonical);

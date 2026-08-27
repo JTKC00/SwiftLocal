@@ -148,6 +148,46 @@ describe("PDF workspace scaffold", () => {
     assert.match(status.progId, /SwiftLocal/i);
   });
 
+  test("file-associations delegates logical identity to shared path keys", () => {
+    const associationSource = fs.readFileSync(
+      path.join(root, "desktop", "file-associations.js"),
+      "utf8"
+    );
+    assert.match(associationSource, /shared\/path-keys\.js/);
+    assert.match(associationSource, /canonicalPathKey\(canonical, options\)/);
+    assert.doesNotMatch(associationSource, /function pathKey\(/);
+
+    const windowsFiles = getOpenFilesFromArgv([
+      "file:///C:/Users/Demo%20User/Documents/A.pdf",
+      "c:/users/demo user/documents/a.PDF",
+      "\\\\SERVER\\Share\\Report.pdf",
+      "//server/share/report.PDF",
+      "\\server\\share\\report.pdf"
+    ], {
+      cwd: "C:\\Work",
+      platform: "win32"
+    });
+    assert.deepEqual(windowsFiles, [
+      "C:\\Users\\Demo User\\Documents\\A.pdf",
+      "\\\\SERVER\\Share\\Report.pdf",
+      "\\server\\share\\report.pdf"
+    ]);
+
+    const posixFiles = getOpenFilesFromArgv([
+      "/tmp/Report.pdf",
+      "/tmp/report.pdf",
+      "/tmp/a\\b.pdf"
+    ], {
+      cwd: "/work",
+      platform: "linux"
+    });
+    assert.deepEqual(posixFiles, [
+      "/tmp/Report.pdf",
+      "/tmp/report.pdf",
+      "/tmp/a\\b.pdf"
+    ]);
+  });
+
   test("electron-builder registers pdf file association", () => {
     const config = require("../../electron-builder.config.js");
     assert.ok(Array.isArray(config.fileAssociations));

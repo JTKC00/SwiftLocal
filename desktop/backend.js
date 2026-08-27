@@ -19,7 +19,8 @@ const {
   pruneJobList,
   cleanupSwiftLocalTempDirs
 } = require("./job-cleanup");
-const { terminateProcessTree } = require("./process-tree");
+const processTree = require("./process-tree");
+const terminateProcessTree = (...args) => processTree.terminateProcessTree(...args);
 
 const TOOL_DEFINITIONS = {
   libreOffice: {
@@ -3796,20 +3797,62 @@ function runProcess(file, args, job, toolLabel = "外部程序", options = {}) {
     const timeoutMs = Math.max(1, Number(options.timeoutMs) || defaultProcessTimeoutMs(toolLabel));
     let timedOut = false;
     let settled = false;
+    let timeoutTerminationFinished = false;
+    let timeoutCloseCode;
+    let timeoutCloseSignal;
     const settle = (callback, value) => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
       callback(value);
     };
+    const settleTimeout = (code, signal) => {
+      if (job) {
+        job._child = null;
+      }
+      const stdout = stdoutChunks.join("");
+      const stderr = stderrChunks.join("");
+      settle(reject, createProcessError(formatProcessError({
+        timeout: true,
+        timeoutSeconds: Math.ceil(timeoutMs / 1000),
+        stdout,
+        stderr,
+        executable: file,
+        args,
+        cwd: process.cwd(),
+        toolLabel
+      }), {
+        errorCode: ERROR_CODES.TOOL_TIMEOUT,
+        exitCode: code == null ? child.exitCode : code,
+        executable: file,
+        args,
+        cwd: process.cwd(),
+        stdout,
+        stderr,
+        signalCode: signal == null ? child.signalCode : signal
+      }));
+    };
     const timer = setTimeout(() => {
+      if (timedOut || settled) return;
       timedOut = true;
-      void terminateProcessTree(child);
+      void Promise.resolve()
+        .then(() => terminateProcessTree(child))
+        .catch(() => undefined)
+        .then(() => {
+          timeoutTerminationFinished = true;
+          if (!settled) settleTimeout(timeoutCloseCode, timeoutCloseSignal);
+        });
     }, timeoutMs);
     if (typeof timer.unref === "function") timer.unref();
     child.stdout.on("data", (chunk) => stdoutChunks.push(chunk.toString()));
     child.stderr.on("data", (chunk) => stderrChunks.push(chunk.toString()));
     child.on("error", (error) => {
+      if (timedOut) {
+        if (job) {
+          job._child = null;
+        }
+        return;
+      }
       if (job) {
         job._child = null;
       }
@@ -3840,24 +3883,9 @@ function runProcess(file, args, job, toolLabel = "外部程序", options = {}) {
       const stderr = stderrChunks.join("");
       const output = `${stdout}${stderr}`.trim();
       if (timedOut) {
-        settle(reject, createProcessError(formatProcessError({
-          timeout: true,
-          timeoutSeconds: Math.ceil(timeoutMs / 1000),
-          stdout,
-          stderr,
-          executable: file,
-          args,
-          cwd: process.cwd(),
-          toolLabel
-        }), {
-          errorCode: ERROR_CODES.TOOL_TIMEOUT,
-          exitCode: code,
-          executable: file,
-          args,
-          cwd: process.cwd(),
-          stdout,
-          stderr
-        }));
+        timeoutCloseCode = code;
+        timeoutCloseSignal = signal;
+        if (timeoutTerminationFinished) settleTimeout(code, signal);
         return;
       }
       if (job && job.cancelRequested) {

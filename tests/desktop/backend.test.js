@@ -65,6 +65,7 @@ const {
   JobCancelledError,
   runProcess
 } = require("../../desktop/backend.js");
+const processTree = require("../../desktop/process-tree.js");
 
 const { createCanvas } = require("@napi-rs/canvas");
 
@@ -1362,6 +1363,94 @@ describe("BackendService jobs", () => {
         try { process.kill(grandchildPid, "SIGKILL"); } catch { /* already gone */ }
       }
       fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("runProcess rejects after bounded termination when child close never arrives", async () => {
+    const job = { cancelRequested: false, _child: null };
+    const originalTerminate = processTree.terminateProcessTree;
+    let terminateCalls = 0;
+    let terminationFinished = false;
+    let closeEvents = 0;
+    let child = null;
+    let originalEmit = null;
+
+    processTree.terminateProcessTree = (target) => {
+      terminateCalls += 1;
+      try {
+        target.kill();
+      } catch {
+        // The child may already have exited while the timeout was handled.
+      }
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          terminationFinished = true;
+          resolve(true);
+        }, 25);
+      });
+    };
+
+    try {
+      const promise = runProcess(
+        process.execPath,
+        ["-e", "process.stdout.write('timeout-output'); setInterval(() => {}, 1000);"],
+        job,
+        "test tool",
+        { timeoutMs: 250 }
+      );
+      const childDeadline = Date.now() + 1000;
+      while (!job._child && Date.now() < childDeadline) {
+        await new Promise((resolve) => setImmediate(resolve));
+      }
+      child = job._child;
+      assert.ok(child, "runProcess should expose the spawned child on the job");
+      originalEmit = child.emit;
+      child.emit = function (event, ...args) {
+        if (event === "close") {
+          closeEvents += 1;
+          return false;
+        }
+        return originalEmit.call(this, event, ...args);
+      };
+
+      let settlementCount = 0;
+      const startedAt = Date.now();
+      await promise.then(
+        () => {
+          settlementCount += 1;
+          throw new Error("runProcess unexpectedly resolved after timeout");
+        },
+        (error) => {
+          settlementCount += 1;
+          assert.equal(error.errorCode, "tool_timeout");
+          assert.match(error.stdout, /timeout-output/);
+          assert.equal(error.stderr, "");
+        }
+      );
+      const elapsedMs = Date.now() - startedAt;
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      assert.equal(terminateCalls, 1);
+      assert.equal(terminationFinished, true);
+      assert.ok(closeEvents >= 1, "the test child must suppress its close event");
+      assert.equal(settlementCount, 1);
+      assert.equal(job._child, null);
+      assert.ok(elapsedMs < 1500, `timeout rejection took ${elapsedMs}ms`);
+    } finally {
+      processTree.terminateProcessTree = originalTerminate;
+      if (child) {
+        if (originalEmit) child.emit = originalEmit;
+        if (child.exitCode == null && child.signalCode == null) {
+          try {
+            child.kill();
+          } catch {
+            // The timeout terminator may already have stopped the child.
+          }
+        }
+        if (child.stdout) child.stdout.destroy();
+        if (child.stderr) child.stderr.destroy();
+        child.unref();
+      }
     }
   });
 
