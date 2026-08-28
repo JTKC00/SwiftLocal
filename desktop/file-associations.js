@@ -15,17 +15,17 @@ const { canonicalPathKey } = require("../frontend/shared/path-keys.js");
 const PDF_PROG_ID = "SwiftLocal.PDF";
 const PDF_DESCRIPTION = "PDF 文件 — 快轉通 SwiftLocal";
 
-function isPdfPath(filePath) {
+function isPdfPath(filePath, options = {}) {
   if (!filePath || typeof filePath !== "string") return false;
   try {
-    const cleaned = normalizeArgPath(filePath);
+    const cleaned = normalizeArgPath(filePath, options);
     return path.extname(cleaned).toLowerCase() === ".pdf";
   } catch {
     return false;
   }
 }
 
-function normalizeArgPath(raw) {
+function normalizeArgPath(raw, options = {}) {
   let s = String(raw || "").trim();
   if (!s) return "";
   // Strip surrounding quotes (common when shell-invoked).
@@ -37,7 +37,8 @@ function normalizeArgPath(raw) {
   }
   if (/^file:/i.test(s)) {
     try {
-      s = fileURLToPath(s);
+      const platform = options.platform || process.platform;
+      s = fileURLToPath(s, { windows: platform === "win32" });
     } catch {
       // keep original
     }
@@ -57,8 +58,8 @@ function canonicalizePdfPath(filePath, options = {}) {
   const platform = options.platform || process.platform;
   const pathApi = pathApiFor(platform);
   const cwd = options.cwd || process.cwd();
-  const value = normalizeArgPath(filePath);
-  if (!value || !isPdfPath(value)) return "";
+  const value = normalizeArgPath(filePath, options);
+  if (!value || !isPdfPath(value, options)) return "";
   try {
     return pathApi.normalize(pathApi.isAbsolute(value) ? value : pathApi.resolve(cwd, value));
   } catch {
@@ -99,15 +100,15 @@ function getOpenFilesFromArgv(argv, options = {}) {
 
   for (const raw of args) {
     if (!raw || typeof raw !== "string") continue;
-    const value = normalizeArgPath(raw);
+    const value = normalizeArgPath(raw, options);
     if (!value) continue;
     // Skip electron / node flags and the app entry.
     if (value === "." || value === "--" || value.startsWith("-")) continue;
     // Skip electron binary and project entry scripts unless they somehow end in .pdf.
-    if (/electron(\.exe)?$/i.test(value) && !isPdfPath(value)) continue;
-    if (/\.(js|cjs|mjs|ts|json)$/i.test(value) && !isPdfPath(value)) continue;
+    if (/electron(\.exe)?$/i.test(value) && !isPdfPath(value, options)) continue;
+    if (/\.(js|cjs|mjs|ts|json)$/i.test(value) && !isPdfPath(value, options)) continue;
     // Skip package.json main path patterns without .pdf
-    if (!isPdfPath(value)) continue;
+    if (!isPdfPath(value, options)) continue;
 
     candidates.push(value);
   }

@@ -174,17 +174,21 @@ describe("PDF workspace scaffold", () => {
     ]);
 
     const posixFiles = getOpenFilesFromArgv([
+      "file:///tmp/Encoded%20Report.pdf",
       "/tmp/Report.pdf",
       "/tmp/report.pdf",
-      "/tmp/a\\b.pdf"
+      "/tmp/a\\b.pdf",
+      "/tmp/a/b.pdf"
     ], {
       cwd: "/work",
       platform: "linux"
     });
     assert.deepEqual(posixFiles, [
+      "/tmp/Encoded Report.pdf",
       "/tmp/Report.pdf",
       "/tmp/report.pdf",
-      "/tmp/a\\b.pdf"
+      "/tmp/a\\b.pdf",
+      "/tmp/a/b.pdf"
     ]);
   });
 
