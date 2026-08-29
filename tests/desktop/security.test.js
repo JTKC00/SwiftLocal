@@ -69,6 +69,12 @@ describe("Electron renderer security", () => {
     }
   });
 
+  test("sandboxed preload does not require local CommonJS modules", () => {
+    const preload = fs.readFileSync(path.resolve(__dirname, "..", "..", "desktop", "preload.js"), "utf8");
+    const dependencies = Array.from(preload.matchAll(/require\((["'])([^"']+)\1\)/g), (match) => match[2]);
+    assert.deepEqual(dependencies, ["electron"]);
+  });
+
   test("home secondary action has visible text on its white background", () => {
     const css = fs.readFileSync(path.resolve(__dirname, "..", "..", "frontend", "styles.css"), "utf8");
     assert.match(css, /\.home-hero \.ghost-button\s*\{[^}]*background:\s*#fff;[^}]*color:\s*#17483d;/s);

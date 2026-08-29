@@ -12,6 +12,7 @@ const {
 const { buildPdfOpenRequests } = require("../../desktop/pdf-window");
 const { createPathRequestGate } = require("../../frontend/pdf-workspace/launch-paths.js");
 const { mountPdfWorkspace } = require("../../frontend/pdf-workspace/shell.js");
+const { canonicalPathKey } = require("../../frontend/shared/path-keys.js");
 
 const root = path.resolve(__dirname, "..", "..");
 
@@ -204,6 +205,10 @@ describe("PDF Open With launch routing", () => {
       const requests = buildPdfOpenRequests(paths);
       assert.deepEqual(requests.map((request) => request.asNewTab), [false, true, true]);
       assert.deepEqual(requests.map((request) => request.path), paths);
+      assert.deepEqual(
+        requests.map((request) => request.identityKey),
+        paths.map((filePath) => canonicalPathKey(filePath, { platform: process.platform }))
+      );
 
       for (const request of requests) {
         await api.openPath(request.path, {
