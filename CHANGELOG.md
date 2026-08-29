@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+## 0.4.0-alpha.4 - 2026-08-30
+
+### PDF 工作區
+
+- 強化 PDF 工作區生命週期：頁面重排、刪除或重建後保留簽名、日期章、標記與旋轉狀態。
+- 關閉 PDF 視窗或退出應用程式時檢查所有分頁的未儲存變更，包括非目前分頁。
+- 開啟損壞 PDF 失敗或取消加密 PDF 密碼輸入時，保留目前有效文件。
+- 一次開啟多個 PDF 時，將文件加入既有工作區分頁，不再取代已開啟文件。
+
+### 穩定性與跨平台一致性
+
+- 統一 PDF 邏輯路徑身分處理，保留 Windows UNC、root-relative 與 POSIX 反斜線路徑的正確差異。
+- 修正 Windows 外部程序逾時後，可能因缺少 child close event 而持續等待的問題。
+- 依明確指定的目標平台解碼 `file://` URL，使 Windows、macOS 與 Linux 測試環境的結果一致。
+- 修正 sandboxed preload 載入本機 CommonJS 模組而無法建立 IPC bridge 的打包版啟動問題。
+
 ## 0.4.0-alpha.3 - 2026-08-16
 
 - 將 `pdfjs-dist` 與瀏覽器 vendor 資產升級至 6.2.108，修復 CVE-2026-16633（GHSA-hq66-cqwq-w95j），並在所有 PDF 開啟路徑明確關閉 `enableScripting`。

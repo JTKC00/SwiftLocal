@@ -245,8 +245,10 @@ describe("PDF workspace lifecycle regressions", () => {
   test("preload suppresses duplicate pending delivery but permits a fresh delivery after consumption", () => {
     const harness = loadPreloadHarness("win32");
     const unc = String.raw`\\server\share\a.pdf`;
-    harness.emit("pdf-workspace:open-path", { path: unc });
-    harness.emit("pdf-workspace:open-path", { path: String.raw`//SERVER/share/A.PDF` });
+    const mixed = String.raw`//SERVER/share/A.PDF`;
+    const identityKey = pathKeys.canonicalPathKey(unc, { platform: "win32" });
+    harness.emit("pdf-workspace:open-path", { path: unc, identityKey });
+    harness.emit("pdf-workspace:open-path", { path: mixed, identityKey });
 
     const first = [];
     const unsubscribe = harness.api.onPdfWorkspaceOpenPath((request) => first.push(request));
@@ -254,7 +256,7 @@ describe("PDF workspace lifecycle regressions", () => {
     assert.equal(first[0].path, unc);
     unsubscribe();
 
-    harness.emit("pdf-workspace:open-path", { path: String.raw`//SERVER/share/A.PDF`, asNewTab: true });
+    harness.emit("pdf-workspace:open-path", { path: mixed, identityKey, asNewTab: true });
     const second = [];
     harness.api.onPdfWorkspaceOpenPath((request) => second.push(request));
     assert.equal(second.length, 1);
@@ -324,7 +326,6 @@ function loadPreloadHarness(platform) {
     process: { platform },
     require(name) {
       if (name === "electron") return electron;
-      if (name.endsWith("frontend/shared/path-keys.js")) return pathKeys;
       throw new Error(`unexpected preload dependency: ${name}`);
     }
   }, { filename: path.join(root, "desktop", "preload.js") });

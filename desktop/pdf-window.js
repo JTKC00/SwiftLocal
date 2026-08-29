@@ -15,6 +15,7 @@ function buildPdfOpenRequests(filePaths) {
     .filter(Boolean)
     .map((filePath, index) => ({
       path: String(filePath),
+      identityKey: canonicalPathKey(String(filePath), { platform: process.platform }),
       asNewTab: index > 0,
       // A batch may reuse the empty workspace slot, but must append when a
       // real document is already open. The renderer resolves that distinction
