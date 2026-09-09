@@ -14,9 +14,11 @@
 
 | 平台 | 目前狀態 | 說明 |
 | --- | --- | --- |
-| Windows | 已支援桌面打包 | portable EXE 與 installer（一般版／Full 版）。 |
-| macOS | 已支援本機打包 | 可在 Mac 上產生 unsigned `.dmg`；簽章需本機憑證。 |
-| Linux | 未正式整理 | Electron／瀏覽器理論可跑，尚未整理正式發佈流程。 |
+| Windows | **目前唯一完整驗證的平台** | 已完成主要功能、Full 打包、Installer／Portable 產物及封裝 UI 驗證；現階段正式對外發佈以 Windows installer 為主。 |
+| macOS | **尚未完成發佈驗收** | Repo 保留 macOS 開發與打包腳本，但本輪未進行完整實機發佈驗收、Developer ID 簽章與 notarization；暫不視為正式支援平台。 |
+| Linux | **未正式支援** | 尚未整理及驗證正式發佈流程。 |
+
+> **目前對外支援範圍：Windows。** macOS／Linux 可保留作開發與未來移植目標，但不應把現有腳本或可啟動狀態等同於正式可發佈版本。
 
 ## 五大核心工作區
 
@@ -68,23 +70,23 @@
 
 ### Windows：三步即可
 
-1. **下載** `SwiftLocal-*-installer-x64.exe`（或免安裝 portable）。
+1. **下載** `SwiftLocal-*-installer-x64.exe`。
 2. **雙擊安裝**（一鍵安裝，完成後可自動開啟；桌面會有「快轉通 SwiftLocal」捷徑）。
 3. **選檔或貼上公開媒體網址 → 開始處理**。打包版已內建常用工具、繁中 OCR（`chi_tra+eng`）、yt-dlp 與 Deno，**不必自行安裝 Python、yt-dlp、Deno、Tesseract 或 FFmpeg**。
 
 **用 SwiftLocal 開 PDF：** 安裝版會出現在「開啟方式」。在檔案總管對 PDF 右鍵 → **開啟方式 → 快轉通 SwiftLocal**；若要當預設，到 Windows **設定 → 應用程式 → 預設應用程式** 搜尋 PDF 或 SwiftLocal。也可用應用內「設為 PDF 開啟程式…」。雙擊開啟時會直接進入 **PDF 工作區**（不先顯示工具箱）。
 
-| 檔案 | 給誰 |
+| 檔案 | 用途 |
 | --- | --- |
-| `*-installer-x64.exe` | 一般朋友（建議） |
-| `*-portable-x64.exe` | 不想安裝、隨身碟使用 |
-| `*-full-installer-*.exe`（`dist-full/`） | 要完整內建 LibreOffice 的 Full 版 |
+| `*-installer-x64.exe` | **一般使用者／正式對外發佈（建議）** |
+| `*-full-installer-*.exe`（`dist-full/`） | 需要完整內建 LibreOffice 的 Full 版 |
+| `*-portable-x64.exe` | 內部測試／除錯用途；目前不作主要對外發佈檔 |
 
 SmartScreen 若提示「未知發行者」：選「仍要執行」即可（目前未做程式碼簽章）。
 
 開發者打包前建議：
 
-- `SwiftLocal-0.4.0-alpha-portable-x64.exe`：免安裝版，雙擊即可使用。
+- `SwiftLocal-0.4.0-alpha-portable-x64.exe`：免安裝版，可作內部測試。
 - `SwiftLocal-0.4.0-alpha-installer-x64.exe`：安裝版，會建立開始功能表與桌面捷徑。
 - `win-unpacked/`：未封裝資料夾，主要供開發測試，不建議作為正式發佈檔。
 
@@ -95,47 +97,20 @@ npm run tools:tessdata    # 補齊 chi_tra/eng
 npm run pack:win          # 或 pack:win:full
 ```
 
-### macOS
+### macOS（開發／實驗）
 
-目前 repo 已準備好 macOS 打包腳本，但實際產生 `.dmg` 或簽章版本，仍需要在一台 Mac 上執行。
+macOS **目前不是 SwiftLocal 的正式發佈平台**。Repo 已保留 macOS 開發與打包腳本，但目前的完整 release readiness、封裝 UI、內建工具及發佈驗收證據集中於 Windows。
 
-也就是說：
+在把 macOS 標成正式支援前，至少需要另外完成：
 
-- 現在可以先在 Mac 上跑開發模式與測試功能
-- 今晚回到 Mac 後，再執行打包與簽章相關流程
+- 在實際 Mac 上重新跑主要功能與封裝驗收
+- 驗證 macOS 版內建／外部 FFmpeg、Tesseract、QPDF、LibreOffice 等工具路徑
+- 產生並驗收 `.dmg`
+- 完成 Apple Developer ID 簽章與 notarization（如要公開發佈）
 
-在 macOS 本機可建立 unsigned 安裝包：
+因此目前不要把可執行 `pack:mac`、能跑開發模式，或成功產生 unsigned `.dmg`，視為已完成 macOS 支援。
 
-```bash
-npm run pack:mac
-```
-
-也可分開產生：
-
-```bash
-npm run pack:mac:dmg
-npm run pack:mac:dir
-```
-
-若你已在這台 Mac 登入 Apple Developer 憑證，並準備做正式發佈版，可改用：
-
-```bash
-npm run pack:mac:signed
-```
-
-只測已簽章 app 目錄：
-
-```bash
-npm run pack:mac:dir:signed
-```
-
-打包輸出位置：
-
-```text
-dist/
-```
-
-如果你今晚回到 Mac 前，只想先確認專案能跑，開發模式仍可直接執行：
+開發者仍可在 Mac 上跑開發模式：
 
 ```bash
 npm install
@@ -152,6 +127,27 @@ npm run start
 
 ```text
 http://127.0.0.1:4173
+```
+
+保留作未來 macOS 驗收的打包腳本：
+
+```bash
+npm run pack:mac
+npm run pack:mac:dmg
+npm run pack:mac:dir
+```
+
+若已準備 Apple Developer 憑證，可供之後簽章流程使用：
+
+```bash
+npm run pack:mac:signed
+npm run pack:mac:dir:signed
+```
+
+打包輸出位置：
+
+```text
+dist/
 ```
 
 如果桌面版偵測不到外部工具，可在「工具狀態」面板的進階區手動指定路徑。Homebrew 常見位置如下：
@@ -305,6 +301,8 @@ winget install -e --id QPDF.QPDF
 
 ### macOS
 
+以下內容供開發／未來驗收使用；目前不代表 macOS 已正式支援。
+
 建議使用 Homebrew：
 
 ```bash
@@ -438,22 +436,17 @@ npm run pack:win:full:installer
 dist-full/
 ```
 
-### macOS
+### macOS（未納入本輪發佈）
 
-macOS 現在只保留 `dmg` target，但這些流程需要在實際的 Mac 機器上執行。第一次發佈時會先產生 unsigned 成品；若要給外部使用者較順利安裝，下一步仍建議補上 Apple Developer ID 簽章與 notarization。
+macOS 打包流程目前只作開發與未來驗收用途，**不屬於現階段正式發佈流程**。即使成功產生 unsigned `.dmg`，亦不代表已完成使用者環境驗收、簽章或 notarization。
 
-如果你回到 Mac 後，想保留額外的 macOS bundled-tools 打包流程做內部測試，可以另外使用：
+保留的內部／未來驗收腳本包括：
 
 ```bash
+npm run pack:mac
 npm run pack:mac:full
 npm run pack:mac:full:dir
 npm run pack:mac:full:dmg
-```
-
-這些額外腳本會輸出到：
-
-```text
-dist-full/
 ```
 
 若要啟用簽章，先在 macOS Keychain 安裝 `Developer ID Application` 憑證，然後用 signed 腳本：
@@ -487,6 +480,8 @@ npm run pack:mac:signed
 - `npm run pack:mac` 會維持 unsigned，避免開發機沒有憑證時卡住。
 - `npm run pack:mac:signed` 才會啟用 hardened runtime 與簽章流程。
 - 若 signed 模式同時偵測到 `APPLE_*` notarization 憑證，`electron-builder` 會自動送 Apple notarize。
+
+在完成獨立 macOS release readiness 之前，上述流程都只視為開發能力，不視為正式平台支援證據。
 
 ## 工具偵測順序
 
@@ -602,7 +597,7 @@ npm run pack:win:full
 ```
 
 5. 確認 `dist/`（或 `dist-full/`）產物檔名版本正確
-6. macOS：`npm run pack:mac`（簽章／公證見下方維護備註）
+6. **目前 release 僅驗收 Windows。** macOS 需另開一輪實機打包、功能驗收、簽章／notarization 後，才加入正式發佈清單。
 
 ### Smoke 涵蓋（`npm run smoke`）
 
@@ -630,6 +625,6 @@ npm run pack:win:full
 - LibreOffice 體積大：一般版可不內建；Full 版或系統安裝皆可
 - 內建 yt-dlp、Deno、FFmpeg、Tesseract、QPDF 前請確認授權、第三方 notices 與防毒誤判
 - 正式外發 Windows 建議 code signing，降低 SmartScreen 警告
-- 正式外發 macOS 需 Developer ID 簽章與 notarization
+- macOS 目前尚未進入正式發佈；未來正式外發前需 Developer ID 簽章與 notarization，並另做完整 macOS 驗收
 - `electron` / `electron-builder` 已固定版本（見 `package.json`），升級時請一併跑 `npm run smoke`
 - 語法檢查：`npm run typecheck`（node --check，非 TypeScript）
