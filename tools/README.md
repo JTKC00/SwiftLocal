@@ -54,6 +54,29 @@ npm run tools:media-download:current
 - https://github.com/yt-dlp/yt-dlp/blob/master/README.md#release-files
 - https://github.com/denoland/deno/blob/main/LICENSE.md
 
+### Bundled Tool Watch
+
+SwiftLocal 另外以 `tools/bundled-tools.lock.json` 追蹤六個會隨 Windows 發佈版使用的外部工具：yt-dlp、Deno、FFmpeg、Tesseract、QPDF、LibreOffice。
+
+本機可手動檢查：
+
+```bash
+npm run tools:updates
+```
+
+GitHub Actions 的 `.github/workflows/bundled-tool-watch.yml` 會每週自動檢查上游 stable release。這個流程是 **notify-only**：
+
+- 不會自動下載或替換任何 binary
+- 不會自動修改 lock file
+- 不會自動 merge 更新
+- 有新版本或來源檢查錯誤時，才建立／更新 `[Maintenance] Bundled Tool Watch` issue
+- 相同狀態使用 fingerprint 去重，不會每週重複通知同一批更新
+- 關閉已知 issue 後，同一 fingerprint 不會再次建立；上游版本再變才重新提醒
+
+`reviewedVersion` 代表維護者最後審閱過的上游版本，不一定等於實際 bundled binary。yt-dlp／Deno 可直接由 `tools/media-download-tools.lock.json` 取得真正鎖定版本；FFmpeg、Tesseract executable、QPDF、LibreOffice 目前仍主要從本機安裝複製，因此 Watch 會清楚標示未完全 lock-pinned 的範圍。
+
+收到更新提示後，先看 release notes；決定升級才更新來源／checksum 或本機 bundled tool，然後重新跑 `npm run smoke:release` 與打包驗證。
+
 ### Full 版必備：繁中 tessdata
 
 預設 OCR 語言為 `chi_tra+eng`。打 **Full** 包（`npm run pack:win:full` / `pack:mac:full`）前會自動執行：
