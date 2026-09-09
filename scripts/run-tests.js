@@ -8,6 +8,7 @@
 const { spawnSync } = require("node:child_process");
 const fs = require("node:fs");
 const path = require("node:path");
+const os = require("node:os");
 
 const root = path.join(__dirname, "..");
 
@@ -67,12 +68,19 @@ function main(args = process.argv.slice(2)) {
   const pythonOnly = args.includes("--python-only");
 
   if (!pythonOnly) {
+    // Electron 43 downloads on first require instead of npm postinstall. Install
+    // once before parallel workers so they cannot race while extracting dist/.
+    const runtimeCode = run(process.execPath, [require.resolve("electron/install.js")], "Electron runtime");
+    if (runtimeCode !== 0) return runtimeCode;
     const desktopTestDir = path.join(root, "tests", "desktop");
     const desktopTests = fs.readdirSync(desktopTestDir)
       .filter((name) => name.endsWith(".test.js"))
       .sort()
       .map((name) => path.join(desktopTestDir, name));
-    code = run("node", ["--test", ...desktopTests], "Desktop (Node)") || code;
+    // Native OCR/PDF and process-tree fixtures are resource-heavy; launching a
+    // worker for every CPU can starve child startup and make timeout tests race.
+    const concurrency = Math.max(1, Math.min(4, os.availableParallelism()));
+    code = run("node", ["--test", `--test-concurrency=${concurrency}`, ...desktopTests], "Desktop (Node)") || code;
   }
 
   code = runPythonTests() || code;

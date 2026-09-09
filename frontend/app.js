@@ -17,6 +17,7 @@
     imageWorkspaceOcrError: "",
     pdfDownloads: [],
     pdfFiles: [],
+    imagesToPdfRunning: false,
     pdfWorkspacePages: [],
     pdfWorkspaceUndo: [],
     pdfWorkspaceRedo: [],
@@ -113,7 +114,7 @@
     "pdf-hub-panel": { nav: "PDF", hint: "閱讀填表、頁面整理、轉換與 OCR、保護與壓縮。", steps: ["選擇閱讀、整理、轉換或保護", "進入既有 PDF 工作區完成操作", "永久修改前另存或確認輸出"], keywords: "pdf 閱讀 填表 簽名 日期章 列印 工作台 合併 分割 旋轉 ocr word 圖片 壓縮 加密 解密" },
     "ocr-panel": { nav: "OCR", hint: "圖片或掃描 PDF 轉文字、Word 或可搜尋 PDF。", steps: ["選擇來源和輸出用途", "加入圖片或 PDF", "在任務中心追蹤、取消或重試"], keywords: "ocr tesseract 掃描 辨識 圖片 文字 searchable 可搜尋 word 批量 繁中 英文", platform: "local" },
     "office-panel": { nav: "Office", hint: "Office 轉 PDF、PDF 轉 Office 與文件歸檔流程。", steps: ["選擇轉換用途", "加入 Office 或 PDF", "確認相容性提示並在任務中心追蹤"], keywords: "office word excel powerpoint doc docx xls xlsx ppt pptx libreoffice 歸檔 批量", platform: "local" },
-    "image-panel": { nav: "圖片", hint: "在預覽中直接裁切、旋轉、辨識文字或匯出圖片。", steps: ["加入一張或多張圖片", "在預覽上旋轉、翻轉或框選區域", "匯出圖片，或直接執行目前／全部／框選 OCR"], keywords: "image 圖片 相片 jpg jpeg png webp tiff bmp gif 壓縮 縮小 浮水印 旋轉 翻轉 裁切 ocr 辨識" },
+    "image-panel": { nav: "圖片", hint: "在預覽中直接裁切、旋轉、辨識文字或匯出圖片。", steps: ["加入一張或多張圖片", "在預覽上旋轉、翻轉或框選區域", "匯出圖片，或直接執行目前／全部／框選 OCR"], keywords: "image 圖片 相片 圖片轉PDF 圖片 to pdf jpg jpeg png webp tiff bmp gif 壓縮 縮小 浮水印 旋轉 翻轉 裁切 ocr 辨識" },
     "pdf-panel": { nav: "PDF 轉換與整理", hint: "PDF 入口內的頁面整理、轉換、OCR、壓縮及保護。", steps: ["選擇頁面工作台或其他處理方式", "在工作台拖放頁面，並旋轉、複製或刪除", "輸出新 PDF，或在任務區查看後端進度"], keywords: "pdf 工作台 縮圖 排序 合併 分割 抽頁 旋轉 頁碼 浮水印 壓縮 加密 解密 ocr office word docx" },
     "pdf-reader-panel": { nav: "PDF 工作區", hint: "本機 PDF 閱讀、AcroForm 填表、簽名圖與日期章；關閉不鎖檔。", steps: ["開啟 PDF", "填表或放置簽名／日期", "儲存或另存"], keywords: "pdf reader 工作區 閱讀 填表 簽名 日期章 acroform 本機", platform: "web" },
     "data-panel": { nav: "CSV／JSON／XML 轉換", hint: "在 CSV、JSON、XML 之間轉換與格式化。", steps: ["貼上資料內容", "選擇想轉成的格式", "按「執行」，再複製或下載輸出"], keywords: "json csv xml 資料 表格 格式化 壓縮 轉換" },
@@ -1271,7 +1272,7 @@
       container.appendChild(heading);
       if (key === "pdfFiles") {
         setTextIfPresent("#pdf-file-hint", `已加入 ${files.length} 個檔案；重新選擇可替換清單`);
-        if ($("#pdf-mode").value === "merge") return;
+        if (["merge", "images-to-pdf"].includes($("#pdf-mode").value)) return;
       }
       files.forEach((file, index) => {
         const row = document.createElement("div");
@@ -1326,7 +1327,7 @@
       if (!summary) return;
       const background = PDF_BACKEND_JOB_TYPES.has(mode) || mode === "media-convert";
       const desktopOutput = background && electronBridgeAvailable();
-      let output = ({ text: "TXT 文字", "ocr-pdf": "TXT 文字", images: $("#pdf-image-format")?.value === "image/jpeg" ? "JPEG 圖片" : "PNG 圖片", "pdf-to-docx": "Word 文件" })[mode] || "PDF";
+      let output = ({ "images-to-pdf": `1 份 PDF（${files.length} 頁）`, text: "TXT 文字", "ocr-pdf": "TXT 文字", images: $("#pdf-image-format")?.value === "image/jpeg" ? "JPEG 圖片" : "PNG 圖片", "pdf-to-docx": "Word 文件" })[mode] || "PDF";
       if (mode === "pdf-to-office") {
         output = $("#pdf-office-format").value.toUpperCase();
         if (output === "DOCX") output = ({ both: "DOCX 與可搜尋 PDF（使用 OCR 時）", searchable: "可搜尋 PDF", docx: "DOCX" })[$("#pdf-office-ocr-output").value] || output;
@@ -2476,6 +2477,7 @@
 
     $("#pdf-form").addEventListener("submit", async (event) => {
       event.preventDefault();
+      if (state.imagesToPdfRunning) return;
       const mode = $("#pdf-mode").value;
       const files = state.pdfFiles;
       if (mode === "workspace" && state.pdfWorkspaceLoading) {
@@ -2484,8 +2486,9 @@
       }
       const hasInput = mode === "workspace" ? state.pdfWorkspacePages.length > 0 : files.length > 0;
       if (!hasInput) {
-        setEmpty("#pdf-results", mode === "office-to-pdf" ? "請先選擇 Office 文件" : "請先選擇 PDF");
-        showToast(mode === "office-to-pdf" ? "請先選擇 Office 文件" : "請先選擇 PDF", "error");
+        const inputMessage = mode === "images-to-pdf" ? "請先選擇 JPG 或 PNG 圖片" : mode === "office-to-pdf" ? "請先選擇 Office 文件" : "請先選擇 PDF";
+        setEmpty("#pdf-results", inputMessage);
+        showToast(inputMessage, "error");
         return;
       }
       if (PDF_BACKEND_JOB_TYPES.has(mode)) {
@@ -2505,6 +2508,8 @@
       setStatus("#pdf-backend-status", "處理中…");
 
       try {
+        state.imagesToPdfRunning = mode === "images-to-pdf";
+        if (state.imagesToPdfRunning) $("#pdf-submit-button").disabled = true;
         const results = await runPdfTool(mode, files);
         container.textContent = "";
         results.forEach((result) => {
@@ -2518,6 +2523,9 @@
         container.textContent = "";
         container.appendChild(renderErrorItem(files[0] ? files[0].name : "PDF 工作台", readableError(error)));
         setStatus("#pdf-backend-status", "處理失敗");
+      } finally {
+        if (state.imagesToPdfRunning) $("#pdf-submit-button").disabled = false;
+        state.imagesToPdfRunning = false;
       }
     });
 
@@ -2572,11 +2580,13 @@
 
     const input = $("#pdf-files");
     const isOfficeInput = mode === "office-to-pdf";
-    input.accept = isOfficeInput ? ".doc,.docx,.xls,.xlsx,.ppt,.pptx,.odt,.ods,.odp" : "application/pdf,.pdf";
-    input.multiple = showWorkspace || mode === "merge" || usesBackgroundTask;
-    $("#pdf-file-zone-title").textContent = isOfficeInput ? "選擇 Office 文件" : "選擇 PDF";
+    const isImageInput = mode === "images-to-pdf";
+    $(".pdf-from-images-controls").hidden = !isImageInput;
+    input.accept = isImageInput ? "image/jpeg,image/png,.jpg,.jpeg,.png" : isOfficeInput ? ".doc,.docx,.xls,.xlsx,.ppt,.pptx,.odt,.ods,.odp" : "application/pdf,.pdf";
+    input.multiple = isImageInput || showWorkspace || mode === "merge" || usesBackgroundTask;
+    $("#pdf-file-zone-title").textContent = isImageInput ? "選擇 JPG 或 PNG 圖片" : isOfficeInput ? "選擇 Office 文件" : "選擇 PDF";
     if (!state.pdfFiles.length) {
-      $("#pdf-file-hint").textContent = isOfficeInput
+      $("#pdf-file-hint").textContent = isImageInput ? "一張圖片一頁；可一次選擇多張，再調整次序" : isOfficeInput
         ? "支援 Word、Excel、PowerPoint 及 OpenDocument"
         : showWorkspace ? "選擇多個 PDF，載入後逐頁編排"
           : mode === "merge" ? "可一次選擇多個 PDF，再調整合併次序" : "可一次選擇多個 PDF";
@@ -2616,6 +2626,7 @@
   }
 
   function pdfFilesMatchMode(mode, files) {
+    if (mode === "images-to-pdf") return files.every(window.SwiftLocalImagesToPdf.accepts);
     const officeExtensions = new Set(["doc", "docx", "xls", "xlsx", "ppt", "pptx", "odt", "ods", "odp"]);
     const extensions = files.map((file) => String(file.name || "").split(".").pop().toLowerCase());
     if (mode === "office-to-pdf") {
@@ -2632,6 +2643,7 @@
     const notes = {
       workspace: "把多份 PDF 展開成頁面縮圖，自由編排後輸出成一份新 PDF。",
       merge: "檔案會完全在本機記憶體內依照下方次序合併。",
+      "images-to-pdf": "每張圖片建立一頁，按下方次序合併；保持比例、不裁切，透明位置以白色呈現。完全在本機處理，不需轉換服務。",
       split: "每一頁會輸出成獨立 PDF，毋須啟動本機服務。",
       extract: "輸入頁碼範圍，只把需要的頁面輸出成新 PDF。",
       rotate: "只旋轉指定頁面，原始檔案不會被修改。",
@@ -3295,7 +3307,7 @@
   }
 
   function pdfOrderIsVisible(stateKey) {
-    return stateKey === "pdfFiles" && $("#pdf-mode").value === "merge";
+    return stateKey === "pdfFiles" && ["merge", "images-to-pdf"].includes($("#pdf-mode").value);
   }
 
   function renderPdfOrderList(selector, stateKey) {
@@ -3388,6 +3400,29 @@
   }
 
   async function runPdfTool(mode, files) {
+    if (mode === "images-to-pdf") {
+      const bytes = await window.SwiftLocalImagesToPdf.create(files, {
+        PDFDocument: window.PDFLib.PDFDocument,
+        pageSize: $("#pdf-from-images-size").value,
+        margin: Number($("#pdf-from-images-margin").value),
+        prepare: async (file) => {
+          // Decode through the browser to apply photo EXIF orientation and flatten transparency.
+          const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
+          try {
+            const canvas = document.createElement("canvas");
+            canvas.width = bitmap.width; canvas.height = bitmap.height;
+            const ctx = canvas.getContext("2d");
+            ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(bitmap, 0, 0);
+            const png = /\.png$/i.test(file.name);
+            const blob = await new Promise((resolve) => canvas.toBlob(resolve, png ? "image/png" : "image/jpeg", 0.95));
+            if (!blob) throw new Error("圖片解碼失敗");
+            return { bytes: await blob.arrayBuffer(), png };
+          } finally { bitmap.close(); }
+        }
+      });
+      return [{ name: normalizePdfName($("#pdf-output-name").value || "images.pdf"), blob: new Blob([bytes], { type: "application/pdf" }) }];
+    }
     if (mode === "workspace") {
       return [await exportPdfWorkspace()];
     }
@@ -6608,11 +6643,7 @@
   }
 
   function escapeCsvCell(value) {
-    const text = String(value ?? "");
-    if (/[",\r\n]/.test(text)) {
-      return `"${text.replaceAll('"', '""')}"`;
-    }
-    return text;
+    return window.SwiftLocalCsv.escapeCell(value);
   }
 
   function arrayToCsv(rows) {

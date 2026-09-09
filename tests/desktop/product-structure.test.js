@@ -41,7 +41,7 @@ test("OCR and Office product routes reuse existing job modes", () => {
 test("batch routes open multi-file forms without new job types", () => {
   assert.match(html, /class="product-route-actions"[\s\S]*data-image-job="ocr-image"[\s\S]*data-pdf-mode="ocr-pdf"/);
   assert.match(html, /批量 Office 轉換[\s\S]*data-pdf-mode="office-to-pdf"/);
-  assert.match(app, /input\.multiple = showWorkspace \|\| mode === "merge" \|\| usesBackgroundTask/);
+  assert.match(app, /input\.multiple = isImageInput \|\| showWorkspace \|\| mode === "merge" \|\| usesBackgroundTask/);
   assert.doesNotMatch(app, /batch-ocr|batch-office/);
 });
 

@@ -59,10 +59,17 @@ const builderArgs = [
   "--config.nsis.artifactName=SwiftLocal-${version}-full-installer-${arch}.${ext}"
 ];
 
+require("./prepare-win-artifacts").clearNsisArchive(path.join(projectRoot, outputDir), require("../package.json"));
+
 const child = spawn(process.execPath, builderArgs, {
   cwd: projectRoot,
   stdio: "inherit",
-  env: { ...process.env, SWIFTLOCAL_FULL_BUILD: "1" }
+  env: {
+    ...process.env,
+    // electron-builder 26.15 uses 7z level 9 even for compression: "normal".
+    ELECTRON_BUILDER_COMPRESSION_LEVEL: process.env.ELECTRON_BUILDER_COMPRESSION_LEVEL || "5",
+    SWIFTLOCAL_FULL_BUILD: "1"
+  }
 });
 
 child.on("exit", (code) => {

@@ -44,13 +44,19 @@ if (ready.status !== 0) {
   process.exit(ready.status || 1);
 }
 
+require("./prepare-win-artifacts").clearNsisArchive(path.join(projectRoot, "dist"), require("../package.json"));
+
 const child = spawn(
   process.execPath,
   [electronBuilderCli, "--config", "electron-builder.config.js", ...builderArgs],
   {
     cwd: projectRoot,
     stdio: "inherit",
-    env: { ...process.env, SWIFTLOCAL_FULL_BUILD: "0" }
+    env: {
+      ...process.env,
+      ELECTRON_BUILDER_COMPRESSION_LEVEL: process.env.ELECTRON_BUILDER_COMPRESSION_LEVEL || "5",
+      SWIFTLOCAL_FULL_BUILD: "0"
+    }
   }
 );
 child.on("exit", (code) => {

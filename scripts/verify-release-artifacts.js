@@ -6,6 +6,7 @@ const os = require("node:os");
 const crypto = require("node:crypto");
 const { execFileSync } = require("node:child_process");
 const asar = require("@electron/asar");
+const { getPath7za } = require("app-builder-lib/out/toolsets/7zip");
 const { readWindowsPe, readWindowsX64Pe } = require("./windows-pe");
 const { loadTessdataLock, requireLockedTessdata } = require("./tessdata-lock");
 
@@ -13,6 +14,32 @@ const projectRoot = path.resolve(__dirname, "..");
 const MAIN_EXE_CANDIDATES = ["SwiftLocal.exe", "快轉通 SwiftLocal.exe"];
 const PRODUCT_NAME_TOKEN = "SwiftLocal";
 const DISPLAY_PRODUCT_NAME = "快轉通 SwiftLocal";
+
+function verifyNoRuntimeData(entries) {
+  const unexpected = entries.map((entry) => String(entry).replace(/\\/g, "/").replace(/^\/+/, ""))
+    .filter((entry) => /^backend\/(?:temp(?:\/|$)|tools\.json$)/i.test(entry)
+      || /(?:^|\/)(?:jobs-state\.json|\.swiftlocal-tools\.json|__pycache__)(?:\/|$)/i.test(entry)
+      || /\.pyc$/i.test(entry));
+  if (unexpected.length) throw new Error(`Runtime data must not be shipped: ${unexpected.slice(0, 5).join(", ")}`);
+}
+
+function verifyNoNestedCanvas(entries) {
+  const marker = "node_modules/pdfjs-dist/node_modules/@napi-rs/canvas/package.json";
+  if (entries.some((entry) => String(entry).replace(/\\/g, "/").replace(/^\/+/, "") === marker)) {
+    throw new Error("封裝 app.asar 仍含 pdfjs-dist 巢狀 @napi-rs/canvas（會造成 PDF OCR Path 型別不相容）。請確認 overrides 生效後重新打包。");
+  }
+}
+
+function requireTesseractPdfSupport(tessdataDir) {
+  const pdfConfig = path.join(tessdataDir, "configs", "pdf");
+  const pdfFont = path.join(tessdataDir, "pdf.ttf");
+  requireReleaseFile(pdfConfig, 1);
+  requireReleaseFile(pdfFont, 100);
+  if (!/^\s*tessedit_create_pdf\s+1\s*$/m.test(fs.readFileSync(pdfConfig, "utf8"))) {
+    throw new Error(`Tesseract PDF config does not enable PDF output: ${pdfConfig}`);
+  }
+  return { pdfConfig, pdfFont };
+}
 
 function expectedWindowsArtifactNames(version, arch = "x64", full = false) {
   const edition = full ? "-full" : "";
@@ -64,10 +91,10 @@ function requireArtifactNotOlderThan(artifactPath, referencePaths, toleranceMs =
   return { artifactTime, newestReference };
 }
 
-function verifyArtifactPayloadMatches(artifactPath, packaged) {
+async function verifyArtifactPayloadMatches(artifactPath, packaged) {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "swiftlocal-artifact-verify-"));
   try {
-    const payloadRoot = extractReleasePayload(artifactPath, tempDir);
+    const payloadRoot = await extractReleasePayload(artifactPath, tempDir);
     const expected = packaged.payloadManifest || {};
     if (!Object.keys(expected).length) {
       throw new Error("win-unpacked 驗證結果沒有必備 payload 清單");
@@ -179,8 +206,10 @@ function payloadFile(resourcesDir, filePath) {
   };
 }
 
-function extractReleasePayload(artifactPath, tempDir) {
-  const sevenZip = ensureExecutableTool(require("7zip-bin").path7za);
+async function extractReleasePayload(artifactPath, tempDir) {
+  // Use the packager's checksum-verified toolset so new archive filters (such as
+  // ARM64 in LibreOffice's Python helpers) can be decoded by the verifier.
+  const sevenZip = ensureExecutableTool(await getPath7za());
   const outerDir = path.join(tempDir, "outer");
   fs.mkdirSync(outerDir, { recursive: true });
   extractWith7Zip(sevenZip, artifactPath, outerDir);
@@ -445,8 +474,9 @@ function verifyRequiredToolPayload(resourcesDir, options = {}) {
     tessdata[language] = filePath;
   }
 
+  const pdfSupport = requireTesseractPdfSupport(tessdataDir);
   const payloadFiles = {};
-  for (const [key, filePath] of Object.entries({ ...requiredTools, ...tessdata })) {
+  for (const [key, filePath] of Object.entries({ ...requiredTools, ...tessdata, ...pdfSupport })) {
     payloadFiles[key] = payloadFile(resourcesDir, filePath);
   }
   return {
@@ -472,24 +502,15 @@ function verifyPackagedApplication(outputDir, version, options = {}) {
   const resourcesDir = path.join(unpackedDir, "resources");
   const archivePath = path.join(resourcesDir, "app.asar");
   requireReleaseFile(archivePath);
+  const archiveEntries = asar.listPackage(archivePath);
+  verifyNoRuntimeData(archiveEntries);
+  verifyNoNestedCanvas(archiveEntries);
   const packagedManifest = JSON.parse(asar.extractFile(archivePath, "package.json").toString("utf8"));
   if (packagedManifest.version !== version) {
     throw new Error(`封裝版本不符：預期 ${version}，實際 ${packagedManifest.version || "未知"}`);
   }
 
   // Dual @napi-rs/canvas instances break PDF.js Path rendering in OCR.
-  const nestedCanvasMarker = path.posix.join("node_modules", "pdfjs-dist", "node_modules", "@napi-rs", "canvas", "package.json");
-  try {
-    asar.extractFile(archivePath, nestedCanvasMarker);
-    throw new Error(
-      "封裝 app.asar 仍含 pdfjs-dist 巢狀 @napi-rs/canvas（會造成 PDF OCR Path 型別不相容）。請確認 package.json overrides 生效後重新 npm install 與打包。"
-    );
-  } catch (error) {
-    if (error && /仍含 pdfjs-dist 巢狀/.test(String(error.message || ""))) {
-      throw error;
-    }
-    // extractFile throws when missing — expected.
-  }
   const unpackedNested = path.join(
     unpackedDir,
     "resources",
@@ -522,7 +543,7 @@ function verifyPackagedApplication(outputDir, version, options = {}) {
   };
 }
 
-function verifyWindowsRelease(options = {}) {
+async function verifyWindowsRelease(options = {}) {
   const version = options.version || require(path.join(projectRoot, "package.json")).version;
   const full = Boolean(options.full);
   const outputDir = path.resolve(projectRoot, options.outputDir || (full ? "dist-full" : "dist"));
@@ -550,7 +571,7 @@ function verifyWindowsRelease(options = {}) {
   ];
   for (const artifact of artifacts) {
     requireArtifactNotOlderThan(artifact.filePath, packagedReferences);
-    verifyArtifactPayloadMatches(artifact.filePath, packaged);
+    await verifyArtifactPayloadMatches(artifact.filePath, packaged);
   }
   return { version, outputDir, artifacts, packaged, pdfAssociation };
 }
@@ -574,9 +595,9 @@ function parseArgs(args) {
   return output;
 }
 
-if (require.main === module) {
+async function main() {
   try {
-    const result = verifyWindowsRelease(parseArgs(process.argv.slice(2)));
+    const result = await verifyWindowsRelease(parseArgs(process.argv.slice(2)));
     console.log(`OK SwiftLocal ${result.version} Windows 發行產物`);
     for (const artifact of result.artifacts) {
       console.log(`OK ${path.basename(artifact.filePath)} (${Math.round(artifact.size / 1024 / 1024)} MB)`);
@@ -598,7 +619,12 @@ if (require.main === module) {
   }
 }
 
+if (require.main === module) void main();
+
 module.exports = {
+  requireTesseractPdfSupport,
+  verifyNoNestedCanvas,
+  verifyNoRuntimeData,
   ensureExecutableTool,
   buildPayloadManifest,
   expectedWindowsArtifactNames,

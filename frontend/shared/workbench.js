@@ -6,7 +6,7 @@
     extract: "抽出頁面", rotate: "儲存旋轉後 PDF", watermark: "加入浮水印",
     "page-numbers": "加入頁碼", text: "匯出文字", images: "匯出圖片",
     "pdf-to-docx": "轉成 Word", "pdf-to-office": "轉成 Office",
-    "office-to-pdf": "轉成 PDF", "ocr-pdf": "辨識並匯出文字",
+    "images-to-pdf": "圖片轉 PDF", "office-to-pdf": "轉成 PDF", "ocr-pdf": "辨識並匯出文字",
     "pdf-to-searchable-pdf": "建立可搜尋 PDF", "pdf-compress": "壓縮 PDF",
     "pdf-encrypt": "加密 PDF", "pdf-decrypt": "解密 PDF"
   });

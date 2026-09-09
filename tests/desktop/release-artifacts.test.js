@@ -91,6 +91,10 @@ function createRequiredResources(directory, options = {}) {
       sha256: sha256File(traineddata)
     };
   }
+  const pdfConfig = path.join(toolsDir, "tesseract", "tessdata", "configs", "pdf");
+  fs.mkdirSync(path.dirname(pdfConfig), { recursive: true });
+  fs.writeFileSync(pdfConfig, "tessedit_create_pdf 1\n");
+  fs.writeFileSync(path.join(toolsDir, "tesseract", "tessdata", "pdf.ttf"), Buffer.alloc(572));
   return { resourcesDir, executablePaths, tessdataLock };
 }
 
@@ -115,6 +119,19 @@ afterEach(() => {
 });
 
 describe("release artifact verification", () => {
+  test("rejects a language-complete Tesseract bundle without searchable PDF resources", () => {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), "swiftlocal-pdf-resources-"));
+    temporaryDirectories.push(directory);
+    const fixture = createRequiredResources(directory);
+    const pdfConfig = path.join(fixture.resourcesDir, "tools", "tesseract", "tessdata", "configs", "pdf");
+    fs.unlinkSync(pdfConfig);
+    assert.throws(() => verifyRequiredToolPayload(fixture.resourcesDir, { tessdataLock: fixture.tessdataLock }), /configs/);
+    fs.writeFileSync(pdfConfig, "tessedit_create_pdf 0\n");
+    assert.throws(() => verifyRequiredToolPayload(fixture.resourcesDir, { tessdataLock: fixture.tessdataLock }), /does not enable/);
+    fs.writeFileSync(pdfConfig, "tessedit_create_pdf 1\n");
+    fs.unlinkSync(path.join(path.dirname(path.dirname(pdfConfig)), "pdf.ttf"));
+    assert.throws(() => verifyRequiredToolPayload(fixture.resourcesDir, { tessdataLock: fixture.tessdataLock }), /pdf\.ttf/);
+  });
   test("packaged UI smoke follows the current product hubs", () => {
     assert.ok(packagedUiVerifier.includes('#quick-actions [data-panel="pdf-reader-panel"]'));
     assert.ok(packagedUiVerifier.includes('.core-nav-group [data-panel="pdf-hub-panel"]'));
@@ -266,6 +283,8 @@ describe("release artifact verification", () => {
       "eng",
       "ffmpeg",
       "osd",
+      "pdfConfig",
+      "pdfFont",
       "qpdf",
       "tesseract",
       "ytDlp"
@@ -365,7 +384,7 @@ describe("release artifact verification", () => {
     assert.doesNotThrow(() => requireArtifactNotOlderThan(artifact, [packaged]));
   });
 
-  test("cryptographically matches every required unpacked file against the artifact payload", () => {
+  test("cryptographically matches every required unpacked file against the artifact payload", async () => {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), "swiftlocal-artifact-payload-test-"));
     temporaryDirectories.push(directory);
     const payload = path.join(directory, "payload");
@@ -384,15 +403,15 @@ describe("release artifact verification", () => {
     const payloadManifest = buildPayloadManifest(payload);
     const packaged = { payloadFiles, payloadManifest };
     const artifact = path.join(directory, "release.7z");
-    const sevenZip = ensureExecutableTool(require("7zip-bin").path7za);
-    execFileSync(sevenZip, ["a", "-t7z", artifact, "."], { cwd: payload, stdio: "ignore" });
+    const sevenZip = ensureExecutableTool(await require("app-builder-lib/out/toolsets/7zip").getPath7za());
+    execFileSync(sevenZip, ["a", "-t7z", "-m0=ARM64", "-m1=LZMA2", artifact, "."], { cwd: payload, stdio: "ignore" });
     assert.deepEqual(
-      Object.keys(verifyArtifactPayloadMatches(artifact, packaged)).sort(),
+      Object.keys(await verifyArtifactPayloadMatches(artifact, packaged)).sort(),
       Object.keys(packaged.payloadManifest).sort()
     );
     const originalDeno = fs.readFileSync(required.requiredTools.deno);
     fs.writeFileSync(required.requiredTools.deno, "changed-after-packaging");
-    assert.throws(() => verifyArtifactPayloadMatches(artifact, packaged), /已改變|不一致/);
+    await assert.rejects(verifyArtifactPayloadMatches(artifact, packaged), /已改變|不一致/);
 
     fs.writeFileSync(required.requiredTools.deno, originalDeno);
     const misplacedDir = path.join(payload, "wrong", "subdir");
@@ -403,7 +422,7 @@ describe("release artifact verification", () => {
       cwd: payload,
       stdio: "ignore"
     });
-    assert.throws(() => verifyArtifactPayloadMatches(misplacedArtifact, packaged), /應用程式根目錄/);
+    await assert.rejects(verifyArtifactPayloadMatches(misplacedArtifact, packaged), /應用程式根目錄/);
 
     fs.renameSync(path.join(misplacedDir, "SwiftLocal.exe"), mainExecutable);
     fs.writeFileSync(path.join(payload, "unexpected-stale.dll"), "stale");
@@ -412,7 +431,7 @@ describe("release artifact verification", () => {
       cwd: payload,
       stdio: "ignore"
     });
-    assert.throws(() => verifyArtifactPayloadMatches(extraArtifact, packaged), /多餘|unexpected-stale/);
+    await assert.rejects(verifyArtifactPayloadMatches(extraArtifact, packaged), /多餘|unexpected-stale/);
   });
 
   test("fails every unsafe NSIS product-name hint", () => {

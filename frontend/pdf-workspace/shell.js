@@ -75,6 +75,27 @@
     let renderToken = 0;
     let thumbToken = 0;
     let busy = false;
+    // A byte replacement must finish before another document can open or close.
+    // Inert covers tabs, form fields and pointer edits as well as toolbar buttons.
+    const idleWaiters = new Set();
+
+    function setBusy(value) {
+      busy = value;
+      for (const selector of ["[data-pdf-ws-layout]", "[data-pdf-ws-tabs]"]) {
+        const element = $(selector);
+        if (element) element.inert = value;
+      }
+      if (!value) {
+        const waiters = Array.from(idleWaiters);
+        idleWaiters.clear();
+        waiters.forEach((resolve) => resolve());
+      }
+    }
+
+    async function acquireBusy() {
+      while (busy) await new Promise((resolve) => idleWaiters.add(resolve));
+      setBusy(true);
+    }
     let formEditEnabled = true;
     /** @type {null|{ mode: 'signature'|'date', signatureId?: string, dataUrl?: string, width?: number, height?: number }} */
     let placeMode = null;
@@ -242,6 +263,7 @@
       }).join("");
       bar.querySelectorAll("[data-tab-activate]").forEach((btn) => {
         btn.addEventListener("click", () => {
+          if (busy || destroyed) return;
           commitSessionToTab();
           activateTab(btn.getAttribute("data-tab-activate"));
         });
@@ -256,6 +278,7 @@
     }
 
     async function closeTabById(tabId) {
+      if (busy || destroyed) return;
       const tab = tabs.find((t) => t.id === tabId);
       if (!tab) return;
       if (tab.id === activeTabId) {
@@ -269,11 +292,16 @@
           : true;
         if (!ok) return;
       }
-      if (viewer && tab.session && viewer.closeSession) {
-        await viewer.closeSession(tab.session);
+      setBusy(true);
+      try {
+        if (viewer && tab.session && viewer.closeSession) {
+          await viewer.closeSession(tab.session);
+        }
+        tabs = tabs.filter((t) => t.id !== tabId);
+        renderTabs();
+      } finally {
+        setBusy(false);
       }
-      tabs = tabs.filter((t) => t.id !== tabId);
-      renderTabs();
     }
 
     function buildMarkup() {
@@ -380,7 +408,7 @@
               <p class="pdf-ws-compat">簽名只存在本機瀏覽器／裝置，不會上傳。</p>
               <div class="pdf-ws-sig-actions">
                 <button type="button" class="pdf-ws-btn subtle" data-pdf-ws-sig-add>+ 新增簽名圖</button>
-                <input class="visually-hidden" type="file" accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp" data-pdf-ws-sig-file tabindex="-1">
+                <input class="visually-hidden" type="file" accept="image/png,image/jpeg,.png,.jpg,.jpeg" data-pdf-ws-sig-file tabindex="-1">
               </div>
               <ul class="pdf-ws-sig-list" data-pdf-ws-sig-list>
                 <li class="pdf-ws-recent-empty">尚未儲存簽名</li>
@@ -639,7 +667,9 @@
     }
 
     async function placeStampAtCss(cssX, cssY, pageSize) {
-      if (!placeMode || !hasDocument() || !annotations) return;
+      if (busy || destroyed || !placeMode || !hasDocument() || !annotations) return;
+      const target = session;
+      const placement = placeMode;
       const pageNumber = session.currentPage || 1;
       const pdfPt = await annotations.cssPointToPdf(
         session,
@@ -649,6 +679,7 @@
         pageSize.width,
         pageSize.height
       );
+      if (busy || destroyed || target !== session || placement !== placeMode) return;
       if (placeMode.mode === "signature") {
         const w = placeMode.width || 120;
         const h = placeMode.height || 48;
@@ -688,12 +719,13 @@
     }
 
     async function renderStampLayer(token, pageSize) {
+      const target = session;
       const layer = $("[data-pdf-ws-stamp-layer]");
       if (!layer) return;
       layer.innerHTML = "";
       if (!annotations || !pageSize || !hasDocument()) return;
-      const pageNumber = session.currentPage || 1;
-      const stamps = annotations.listAnnotationsOnPage(session, pageNumber);
+      const pageNumber = target.currentPage || 1;
+      const stamps = annotations.listAnnotationsOnPage(target, pageNumber);
       if (!stamps.length) return;
       const cssWidth = Math.floor(pageSize.width);
       const cssHeight = Math.floor(pageSize.height);
@@ -703,7 +735,8 @@
       for (const ann of stamps) {
         if (token !== renderToken) return;
         const rect = { x: ann.x, y: ann.y, width: ann.width, height: ann.height };
-        const box = await annotations.pdfRectToCss(session, pageNumber, rect, cssWidth, cssHeight);
+        const box = await annotations.pdfRectToCss(target, pageNumber, rect, cssWidth, cssHeight);
+        if (token !== renderToken || target !== session || destroyed) return;
         if (!box) continue;
         const el = document.createElement("div");
         el.className = `pdf-ws-stamp${selectedStampId === ann.id ? " is-selected" : ""}`;
@@ -718,7 +751,7 @@
           el.innerHTML = `<span class="pdf-ws-stamp-date">${escapeHtml(ann.text || "")}</span>`;
         }
         el.addEventListener("pointerdown", (event) => {
-          if (placeMode) return;
+          if (placeMode || busy || target !== session || destroyed) return;
           event.preventDefault();
           event.stopPropagation();
           selectedStampId = ann.id;
@@ -744,15 +777,16 @@
             const newCssX = origLeft + dx;
             const newCssY = origTop + dy + box.height; // bottom-left of box in CSS
             const pdfPt = await annotations.cssPointToPdf(
-              session,
+              target,
               pageNumber,
               newCssX,
               newCssY,
               cssWidth,
               cssHeight
             );
+            if (busy || target !== session || destroyed || token !== renderToken) return;
             // convertToPdfPoint of bottom-left; stamp y is bottom in PDF space
-            annotations.updateAnnotation(session, ann.id, {
+            annotations.updateAnnotation(target, ann.id, {
               x: pdfPt.x,
               y: pdfPt.y
             });
@@ -809,14 +843,15 @@
     }
 
     async function renderFormLayer(token, pageSize) {
+      const target = session;
       const layer = $("[data-pdf-ws-form-layer]");
       if (!layer) return;
       layer.innerHTML = "";
-      if (!formEditEnabled || !forms || !forms.hasForm(session) || !pageSize) {
+      if (!formEditEnabled || !forms || !forms.hasForm(target) || !pageSize) {
         return;
       }
-      const pageNumber = session.currentPage || 1;
-      const fields = forms.listFieldsOnPage(session, pageNumber);
+      const pageNumber = target.currentPage || 1;
+      const fields = forms.listFieldsOnPage(target, pageNumber);
       if (!fields.length) return;
 
       const cssWidth = Math.floor(pageSize.width);
@@ -829,8 +864,9 @@
         if (!field.rect) continue;
         let box = null;
         if (typeof forms.rectToViewportBox === "function") {
-          box = await forms.rectToViewportBox(session, pageNumber, field.rect, cssWidth, cssHeight);
+          box = await forms.rectToViewportBox(target, pageNumber, field.rect, cssWidth, cssHeight);
         }
+        if (token !== renderToken || target !== session || destroyed) return;
         if (!box) continue;
         const el = document.createElement(field.type === "text" && field.multiline ? "textarea" : "input");
         if (field.type === "checkbox") {
@@ -869,10 +905,11 @@
             option.textContent = opt;
             select.appendChild(option);
           });
-          const current = forms.getFormValue(session, field.name);
+          const current = forms.getFormValue(target, field.name);
           select.value = current == null ? "" : String(current);
           select.addEventListener("change", () => {
-            forms.setFormValue(session, field.name, select.value);
+            if (busy || target !== session || destroyed) return;
+            forms.setFormValue(target, field.name, select.value);
             updateChrome();
             updateFormSidebar();
             setStatus(`已更新欄位「${field.name}」（未儲存）`);
@@ -882,33 +919,37 @@
         }
 
         if (field.type === "checkbox") {
-          el.checked = Boolean(forms.getFormValue(session, field.name));
+          el.checked = Boolean(forms.getFormValue(target, field.name));
           el.addEventListener("change", () => {
-            forms.setFormValue(session, field.name, el.checked);
+            if (busy || target !== session || destroyed) return;
+            forms.setFormValue(target, field.name, el.checked);
             updateChrome();
             updateFormSidebar();
             setStatus(`已更新欄位「${field.name}」（未儲存）`);
           });
         } else if (field.type === "radio") {
-          const current = forms.getFormValue(session, field.name);
+          const current = forms.getFormValue(target, field.name);
           el.checked = String(current || "") === String(field.optionValue || "");
           el.addEventListener("change", () => {
+            if (busy || target !== session || destroyed) return;
             if (el.checked) {
-              forms.setFormValue(session, field.name, field.optionValue || el.value);
+              forms.setFormValue(target, field.name, field.optionValue || el.value);
               updateChrome();
               updateFormSidebar();
               setStatus(`已更新欄位「${field.name}」（未儲存）`);
             }
           });
         } else {
-          const current = forms.getFormValue(session, field.name);
+          const current = forms.getFormValue(target, field.name);
           el.value = current == null ? "" : String(current);
           el.addEventListener("input", () => {
-            forms.setFormValue(session, field.name, el.value);
+            if (busy || target !== session || destroyed) return;
+            forms.setFormValue(target, field.name, el.value);
             updateChrome();
           });
           el.addEventListener("change", () => {
-            forms.setFormValue(session, field.name, el.value);
+            if (busy || target !== session || destroyed) return;
+            forms.setFormValue(target, field.name, el.value);
             updateChrome();
             updateFormSidebar();
             setStatus(`已更新欄位「${field.name}」（未儲存）`);
@@ -1052,31 +1093,31 @@
       }
     }
 
-    async function applyRebuiltBytes(bytes, message) {
-      if (!viewer || !session) return;
-      const preserveState = snapshotSessionState(session);
-      await viewer.replaceSessionBytes(session, bytes, {
-        name: session.name,
-        sourcePath: session.sourcePath || "",
+    async function applyRebuiltBytes(target, bytes, message) {
+      if (!viewer || !target) return;
+      const preserveState = snapshotSessionState(target);
+      await viewer.replaceSessionBytes(target, bytes, {
+        name: target.name,
+        sourcePath: target.sourcePath || "",
         preserveState
       });
       // Re-detect form geometry; keep typed values when field names still exist.
-      const keptValues = session.formValues ? Object.assign({}, session.formValues) : null;
+      const keptValues = target.formValues ? Object.assign({}, target.formValues) : null;
       if (forms && typeof forms.attachFormToSession === "function") {
         try {
-          await forms.attachFormToSession(session, { allowSanitize: false });
-          if (keptValues && session.formValues) {
+          await forms.attachFormToSession(target, { allowSanitize: false });
+          if (keptValues && target.formValues) {
             Object.keys(keptValues).forEach((name) => {
-              if (Object.prototype.hasOwnProperty.call(session.formValues, name)) {
-                session.formValues[name] = keptValues[name];
+              if (Object.prototype.hasOwnProperty.call(target.formValues, name)) {
+                target.formValues[name] = keptValues[name];
               }
             });
           }
         } catch {
-          session.formFields = [];
+          target.formFields = [];
         }
       }
-      session.dirty = true;
+      target.dirty = true;
       commitSessionToTab();
       updateFormSidebar();
       updateChrome();
@@ -1095,6 +1136,7 @@
     }
 
     async function reorderPage(fromPage, toPage) {
+      if (busy || destroyed) return;
       if (!pagesApi || !hasDocument()) return;
       const count = session.pageCount || 0;
       const order = Array.from({ length: count }, (_v, i) => i + 1);
@@ -1108,91 +1150,100 @@
         await rebuildThumbnails();
         return;
       }
-      busy = true;
+      const target = session;
+      setBusy(true);
       setChromeEnabled(true);
       setStatus("正在重新排列頁面…");
       try {
-        const result = await pagesApi.reorderPages(session, order);
-        await applyRebuiltBytes(result.bytes, `已將第 ${fromPage} 頁移到第 ${toPage} 頁旁（未儲存）· 表格控件可能需重新檢查`);
+        const result = await pagesApi.reorderPages(target, order);
+        await applyRebuiltBytes(target, result.bytes, `已將第 ${fromPage} 頁移到第 ${toPage} 頁旁（未儲存）· 表格控件可能需重新檢查`);
       } catch (error) {
         setStatus(shared.formatUserError ? shared.formatUserError(error, "重排失敗") : String(error));
       } finally {
-        busy = false;
+        setBusy(false);
         setChromeEnabled(hasDocument());
       }
     }
 
     async function deleteSelectedPages() {
+      if (busy || destroyed) return;
       if (!pagesApi || !hasDocument()) return;
       const pages = selectedThumbPages.size
         ? Array.from(selectedThumbPages)
         : [session.currentPage || 1];
       if (!confirmPageRebuild(`刪除 ${pages.length} 頁`)) return;
-      busy = true;
+      const target = session;
+      setBusy(true);
       setChromeEnabled(true);
       try {
-        const result = await pagesApi.deletePages(session, pages);
+        const result = await pagesApi.deletePages(target, pages);
         selectedThumbPages = new Set();
-        await applyRebuiltBytes(result.bytes, `已刪除 ${result.deleted.length} 頁（未儲存）`);
+        await applyRebuiltBytes(target, result.bytes, `已刪除 ${result.deleted.length} 頁（未儲存）`);
       } catch (error) {
         setStatus(shared.formatUserError ? shared.formatUserError(error, "刪頁失敗") : String(error));
       } finally {
-        busy = false;
+        setBusy(false);
         setChromeEnabled(hasDocument());
       }
     }
 
     async function duplicateCurrentPage() {
+      if (busy || destroyed) return;
       if (!pagesApi || !hasDocument()) return;
       if (!confirmPageRebuild("複製頁面")) return;
-      busy = true;
+      const target = session;
+      setBusy(true);
       setChromeEnabled(true);
       try {
-        const result = await pagesApi.duplicatePage(session, session.currentPage || 1);
-        await applyRebuiltBytes(result.bytes, `已複製第 ${result.insertedAt - 1} 頁（未儲存）· 表格控件可能需重新檢查`);
+        const result = await pagesApi.duplicatePage(target, target.currentPage || 1);
+        await applyRebuiltBytes(target, result.bytes, `已複製第 ${result.insertedAt - 1} 頁（未儲存）· 表格控件可能需重新檢查`);
       } catch (error) {
         setStatus(shared.formatUserError ? shared.formatUserError(error, "複製頁失敗") : String(error));
       } finally {
-        busy = false;
+        setBusy(false);
         setChromeEnabled(hasDocument());
       }
     }
 
     async function insertBlankAfterCurrent() {
+      if (busy || destroyed) return;
       if (!pagesApi || !hasDocument()) return;
       if (!confirmPageRebuild("插入空白頁")) return;
       const at = (session.currentPage || 0) + 1;
-      busy = true;
+      const target = session;
+      setBusy(true);
       setChromeEnabled(true);
       try {
-        const result = await pagesApi.insertBlankPage(session, at);
-        await applyRebuiltBytes(result.bytes, `已在第 ${result.insertedAt} 頁插入空白頁（未儲存）· 表格控件可能需重新檢查`);
+        const result = await pagesApi.insertBlankPage(target, at);
+        await applyRebuiltBytes(target, result.bytes, `已在第 ${result.insertedAt} 頁插入空白頁（未儲存）· 表格控件可能需重新檢查`);
       } catch (error) {
         setStatus(shared.formatUserError ? shared.formatUserError(error, "插入失敗") : String(error));
       } finally {
-        busy = false;
+        setBusy(false);
         setChromeEnabled(hasDocument());
       }
     }
 
     async function insertPdfFiles(fileList) {
+      const target = session;
+      if (busy || destroyed) return;
       if (!pagesApi || !hasDocument() || !fileList || !fileList.length) return;
       if (!confirmPageRebuild("插入其他 PDF")) return;
-      busy = true;
+      setBusy(true);
       setChromeEnabled(true);
       try {
-        let at = (session.currentPage || 0) + 1;
+        let at = (target.currentPage || 0) + 1;
         for (const file of fileList) {
           const buffer = await file.arrayBuffer();
           const bytes = new Uint8Array(buffer);
-          const result = await pagesApi.insertPdfBytes(session, bytes, at);
-          const preserveState = snapshotSessionState(session);
-          await viewer.replaceSessionBytes(session, result.bytes, {
-            name: session.name,
-            sourcePath: session.sourcePath || "",
+          const result = await pagesApi.insertPdfBytes(target, bytes, at);
+          const preserveState = snapshotSessionState(target);
+          await viewer.replaceSessionBytes(target, result.bytes, {
+            name: target.name,
+            sourcePath: target.sourcePath || "",
             preserveState
           });
-          session.dirty = true;
+          target.dirty = true;
           at = result.insertedAt + result.insertedCount;
         }
         commitSessionToTab();
@@ -1202,17 +1253,18 @@
       } catch (error) {
         setStatus(shared.formatUserError ? shared.formatUserError(error, "插入 PDF 失敗") : String(error));
       } finally {
-        busy = false;
+        setBusy(false);
         setChromeEnabled(hasDocument());
       }
     }
 
     async function extractSelectedPages() {
+      if (busy || destroyed) return;
       if (!pagesApi || !hasDocument()) return;
       const pages = selectedThumbPages.size
         ? Array.from(selectedThumbPages)
         : [session.currentPage || 1];
-      busy = true;
+      setBusy(true);
       setChromeEnabled(true);
       try {
         const bytes = await pagesApi.extractPages(session, pages);
@@ -1226,7 +1278,7 @@
       } catch (error) {
         setStatus(shared.formatUserError ? shared.formatUserError(error, "匯出失敗") : String(error));
       } finally {
-        busy = false;
+        setBusy(false);
         setChromeEnabled(hasDocument());
       }
     }
@@ -1283,6 +1335,7 @@
     }
 
     async function rotatePage() {
+      if (busy || destroyed) return;
       if (!hasDocument() || !viewer || typeof viewer.rotatePage !== "function") return;
       const page = session.currentPage || 1;
       const degrees = viewer.rotatePage(session, page, 90);
@@ -1343,32 +1396,32 @@
       });
     }
 
-    async function applySavedResult(result) {
+    async function applySavedResult(target, result) {
       if (!result || !result.ok || !result.bytes || !viewer) return;
-      const pathValue = result.path || session.sourcePath || "";
+      const pathValue = result.path || target.sourcePath || "";
       const name = pathValue
         ? pathValue.split(/[/\\]/).pop()
-        : (result.name || session.name || "document.pdf");
-      await viewer.replaceSessionBytes(session, result.bytes, {
+        : (result.name || target.name || "document.pdf");
+      await viewer.replaceSessionBytes(target, result.bytes, {
         name,
         sourcePath: pathValue
       });
       // Re-load form state from saved bytes (values already baked in).
       if (forms && typeof forms.attachFormToSession === "function") {
         try {
-          await forms.attachFormToSession(session);
+          await forms.attachFormToSession(target);
         } catch {
           // ignore
         }
       }
       // Stamps are flattened into the PDF on save — clear session overlays.
       if (annotations && typeof annotations.clearAnnotations === "function") {
-        annotations.clearAnnotations(session);
+        annotations.clearAnnotations(target);
       }
       selectedStampId = null;
       placeMode = null;
       if (typeof shared.rememberRecentFile === "function") {
-        shared.rememberRecentFile({ name: session.name, path: session.sourcePath || "" });
+        shared.rememberRecentFile({ name: target.name, path: target.sourcePath || "" });
       }
       refreshRecent();
       updateFormSidebar();
@@ -1378,19 +1431,21 @@
     }
 
     async function saveDocument(forceSaveAs) {
+      if (busy || destroyed) return;
       if (!hasDocument() || !core.save) return;
-      busy = true;
+      const target = session;
+      setBusy(true);
       setChromeEnabled(true);
       setStatus(forceSaveAs ? "另存中…" : "儲存中…");
       try {
         const result = forceSaveAs || !session.sourcePath
-          ? await core.save.saveAs(session)
-          : await core.save.saveInPlace(session);
+          ? await core.save.saveAs(target)
+          : await core.save.saveInPlace(target);
         if (!result || result.mode === "cancelled" || result.ok === false) {
           setStatus("已取消儲存");
           return;
         }
-        await applySavedResult(result);
+        await applySavedResult(target, result);
         if (result.mode === "download") {
           setStatus(`已下載「${result.name || session.name}」（瀏覽器下載）`);
         } else if (result.path) {
@@ -1401,17 +1456,18 @@
       } catch (error) {
         setStatus(shared.formatUserError ? shared.formatUserError(error, "儲存失敗") : String(error));
       } finally {
-        busy = false;
+        setBusy(false);
         setChromeEnabled(hasDocument());
       }
     }
 
     async function runSearch() {
+      if (busy || destroyed) return;
       if (!hasDocument() || !viewer) return;
       const input = $("[data-pdf-ws-search-input]");
       const query = input ? input.value : "";
       setStatus("搜尋中…");
-      busy = true;
+      setBusy(true);
       setChromeEnabled(true);
       try {
         const result = await viewer.searchDocument(session, query);
@@ -1429,7 +1485,7 @@
       } catch (error) {
         setStatus(shared.formatUserError ? shared.formatUserError(error) : String(error));
       } finally {
-        busy = false;
+        setBusy(false);
         setChromeEnabled(hasDocument());
       }
     }
@@ -1611,6 +1667,17 @@
     }
 
     async function openFromFile(file, pathHint, openOptions) {
+      await acquireBusy();
+      try {
+        if (destroyed) return;
+        return await openFromFileUnlocked(file, pathHint, openOptions);
+      } finally {
+        setBusy(false);
+        setChromeEnabled(hasDocument());
+      }
+    }
+
+    async function openFromFileUnlocked(file, pathHint, openOptions) {
       if (!viewer || typeof viewer.openFromBytes !== "function") {
         setStatus("pdf-core viewer 未載入");
         return;
@@ -1623,7 +1690,7 @@
           : true;
         if (!ok) return;
       }
-      busy = true;
+      setBusy(true);
       setChromeEnabled(false);
       setStatus(`正在開啟「${file.name || "document.pdf"}」…`);
       try {
@@ -1639,13 +1706,21 @@
         if (!hasDocument()) clearThumbs();
         updateChrome();
         setStatus(shared.formatUserError ? shared.formatUserError(error, "開啟失敗") : String(error));
-      } finally {
-        busy = false;
-        setChromeEnabled(hasDocument());
       }
     }
 
     async function openFromPathInternal(filePath, openOptions) {
+      await acquireBusy();
+      try {
+        if (destroyed) return;
+        return await openFromPathInternalUnlocked(filePath, openOptions);
+      } finally {
+        setBusy(false);
+        setChromeEnabled(hasDocument());
+      }
+    }
+
+    async function openFromPathInternalUnlocked(filePath, openOptions) {
       if (!filePath) return;
       const bridge = typeof window !== "undefined" ? window.swiftLocalBackend : null;
       if (!bridge || typeof bridge.readLocalFile !== "function") {
@@ -1653,6 +1728,23 @@
         return;
       }
       const asNewTab = shouldOpenAsNewTab(openOptions);
+      if (!asNewTab) {
+        const existing = tabs.find((tab) => {
+          const sourcePath = tab && tab.session && tab.session.sourcePath;
+          if (!sourcePath) return false;
+          const existingKey = launchPathUtils && typeof launchPathUtils.canonicalPathKey === "function"
+            ? launchPathUtils.canonicalPathKey(sourcePath)
+            : String(sourcePath).trim().toLowerCase();
+          return existingKey === (launchPathUtils && launchPathUtils.canonicalPathKey
+            ? launchPathUtils.canonicalPathKey(filePath) : String(filePath).trim().toLowerCase());
+        });
+        if (existing) {
+          // Reuse the existing tab when possible, but continue through the
+          // normal path-open flow so a deliberate reopen reads fresh bytes.
+          if (existing.id !== activeTabId) activateTab(existing.id, { skipRender: true });
+        }
+      }
+
       openInNewTabNext = false;
       if (!asNewTab && session && core.save && core.save.isDirty(session)) {
         const ok = typeof window !== "undefined" && window.confirm
@@ -1660,7 +1752,7 @@
           : true;
         if (!ok) return;
       }
-      busy = true;
+      setBusy(true);
       setChromeEnabled(false);
       setStatus(`正在讀取「${basename(filePath)}」…`);
       try {
@@ -1688,36 +1780,16 @@
         if (!hasDocument()) clearThumbs();
         updateChrome();
         setStatus(shared.formatUserError ? shared.formatUserError(error, "開啟失敗") : String(error));
-      } finally {
-        busy = false;
-        setChromeEnabled(hasDocument());
       }
     }
 
     function openFromPath(filePath, openOptions) {
+      if (destroyed) return Promise.resolve();
       if (!filePath) return Promise.resolve();
-      const optsPath = openOptions || {};
-      const asNewTab = shouldOpenAsNewTab(optsPath);
       const key = launchPathUtils && typeof launchPathUtils.canonicalPathKey === "function"
         ? launchPathUtils.canonicalPathKey(filePath)
         : String(filePath).trim().toLowerCase();
       if (!key) return Promise.resolve();
-
-      if (!asNewTab) {
-        const existing = tabs.find((tab) => {
-          const sourcePath = tab && tab.session && tab.session.sourcePath;
-          if (!sourcePath) return false;
-          const existingKey = launchPathUtils && typeof launchPathUtils.canonicalPathKey === "function"
-            ? launchPathUtils.canonicalPathKey(sourcePath)
-            : String(sourcePath).trim().toLowerCase();
-          return existingKey === key;
-        });
-        if (existing) {
-          // Reuse the existing tab when possible, but continue through the
-          // normal path-open flow so a deliberate reopen reads fresh bytes.
-          if (existing.id !== activeTabId) activateTab(existing.id, { skipRender: true });
-        }
-      }
 
       const inFlight = pathOpenPromises.get(key);
       if (inFlight) return inFlight;
@@ -1759,6 +1831,16 @@
     }
 
     async function closeDocument(options) {
+      await acquireBusy();
+      try {
+        return await closeDocumentInternal(options);
+      } finally {
+        setBusy(false);
+        setChromeEnabled(hasDocument());
+      }
+    }
+
+    async function closeDocumentInternal(options) {
       const closeOptions = options || {};
       if (closeOptions.closeAll) {
         const dirtyState = getDirtyState();
@@ -1970,6 +2052,10 @@
           sigFile.value = "";
           if (!file || !annotations) return;
           try {
+            if (!/^image\/(png|jpeg)$/i.test(file.type || "")) {
+              setStatus("簽名圖只支援 PNG 或 JPEG，請先轉換圖片格式");
+              return;
+            }
             if (file.size > 350 * 1024) {
               setStatus("簽名圖請小於約 350KB");
               return;
@@ -2040,6 +2126,10 @@
       if (searchNext) searchNext.addEventListener("click", () => { void stepSearch(1); });
 
       host.addEventListener("keydown", (event) => {
+        if (busy || destroyed) {
+          if ((event.ctrlKey || event.metaKey) && event.key === "s") event.preventDefault();
+          return;
+        }
         if (event.key === "Escape" && placeMode) {
           event.preventDefault();
           clearPlaceMode();

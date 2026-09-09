@@ -17,6 +17,26 @@ const fixtureDir = path.join(root, "smoke-temp", "release-queue-check", "input")
 const outRoot = path.join(root, "smoke-temp", "release-smoke-out");
 const version = require("../package.json").version;
 const skipUnitTests = process.argv.includes("--skip-tests");
+const allowMissingTools = process.argv.includes("--allow-missing-tools");
+const requireBundled = process.argv.includes("--require-bundled");
+
+function validateTools(tools, { allowMissing = false, bundledRoot = "" } = {}) {
+  const errors = [];
+  for (const name of ["qpdf", "tesseract", "libreOffice", "ffmpeg"]) {
+    const tool = tools[name];
+    if (!tool?.available) {
+      if (!allowMissing) errors.push(`required tool unavailable: ${name}`);
+      continue;
+    }
+    if (bundledRoot) {
+      const relative = path.relative(path.resolve(bundledRoot), path.resolve(tool.path || "."));
+      if (!relative || relative === ".." || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
+        errors.push(`${name} resolved outside bundled tools: ${tool.path}`);
+      }
+    }
+  }
+  return errors;
+}
 
 function fail(message) {
   console.error(`FAIL: ${message}`);
@@ -62,9 +82,22 @@ async function runJob(backend, payload, label) {
     return null;
   }
   for (const out of job.outputPaths) {
-    if (!fs.existsSync(out)) {
+    if (!fs.existsSync(out) || fs.statSync(out).size === 0) {
       fail(`${label}: missing file ${out}`);
       return null;
+    }
+    if (/\.pdf$/i.test(out) && payload.type !== "pdf-encrypt") {
+      const pdf = await PDFDocument.load(fs.readFileSync(out));
+      if (pdf.getPageCount() < 1) throw new Error(`${label}: PDF has no pages`);
+      if (payload.type === "pdf-merge" && pdf.getPageCount() !== payload.inputPaths.length) {
+        throw new Error(`${label}: merged fixture page count is incorrect`);
+      }
+      if (payload.type === "pdf-rotate" && pdf.getPage(0).getRotation().angle !== 90) {
+        throw new Error(`${label}: rotation was not applied`);
+      }
+    }
+    if (payload.type === "ocr-image" && !/SWIFTLOCAL|HONG\s*KONG/i.test(fs.readFileSync(out, "utf8"))) {
+      throw new Error(`${label}: expected fixture text was not recognized`);
     }
   }
   ok(`${label} -> ${job.outputPaths.map((p) => path.basename(p)).join(", ")}`);
@@ -224,6 +257,11 @@ async function conversionSmoke() {
     defaultOutputDir: path.join(outRoot, "jobs")
   });
   const tools = await backend.detectTools();
+  const toolErrors = validateTools(tools, { allowMissing: allowMissingTools, bundledRoot: requireBundled ? path.join(root, "tools") : "" });
+  if (toolErrors.length) {
+    toolErrors.forEach(fail);
+    return;
+  }
   console.log(
     "tools:",
     Object.entries(tools)
@@ -346,12 +384,16 @@ async function conversionSmoke() {
       },
       "ocr-pdf"
     );
+    await runJob(backend, {
+      type: "pdf-to-searchable-pdf", inputPaths: [ocrPdf], outputDir: out("searchable"),
+      options: { language: "chi_tra+eng", maxPages: "2" }
+    }, "pdf-to-searchable-pdf");
   } else {
     console.log("SKIP ocr (tesseract not available)");
   }
 
   if (tools.libreOffice && tools.libreOffice.available) {
-    await runJob(
+    const officeJob = await runJob(
       backend,
       {
         type: "office-to-pdf",
@@ -361,6 +403,15 @@ async function conversionSmoke() {
       },
       "office-to-pdf (DOCX)"
     );
+    if (officeJob) {
+      await runJob(backend, {
+        type: "pdf-to-docx", inputPaths: officeJob.outputPaths, outputDir: out("docx-text"), options: {}
+      }, "pdf-to-docx text export");
+      await runJob(backend, {
+        type: "pdf-to-office", inputPaths: officeJob.outputPaths, outputDir: out("docx-office"),
+        options: { extension: "docx", scanOcr: "off", ocrOutput: "docx" }
+      }, "pdf-to-office DOCX");
+    }
   } else {
     console.log("SKIP office-to-pdf (LibreOffice not available)");
   }
@@ -428,10 +479,14 @@ async function main() {
     console.error("\nRelease smoke FAILED");
     process.exit(process.exitCode);
   }
-  console.log("\nRelease smoke PASSED");
+  console.log(allowMissingTools ? "\nDevelopment smoke PASSED (missing tools allowed; not a release gate)" : "\nRelease smoke PASSED");
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exit(1);
-});
+if (require.main === module) {
+  main().catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });
+}
+
+module.exports = { validateTools };

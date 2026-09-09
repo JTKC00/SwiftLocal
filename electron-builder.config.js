@@ -48,6 +48,12 @@ module.exports = {
   files: [
     "frontend/**/*",
     "backend/**/*",
+    "!backend/temp{,/**/*}",
+    "!backend/tools.json",
+    "!**/__pycache__{,/**/*}",
+    "!**/*.pyc",
+    "!**/jobs-state.json",
+    "!**/.swiftlocal-tools.json",
     "desktop/**/*",
     "build/icon.ico",
     "build/entitlements.mac.plist",

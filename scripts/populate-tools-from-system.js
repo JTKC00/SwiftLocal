@@ -43,7 +43,7 @@ function copyDirRobocopy(src, dest) {
     { encoding: "utf8" }
   );
   // robocopy exit codes 0-7 are success-ish
-  if (r.status !== null && r.status >= 8) {
+  if (r.error || r.status === null || r.status >= 8) {
     throw new Error(`robocopy failed (${r.status}): ${src} -> ${dest}\n${r.stderr || r.stdout || ""}`);
   }
   console.log(`  COPYDIR ${src}`);
@@ -86,11 +86,12 @@ if (tessSrc) {
   if (exists(tessdataSrc)) {
     ensureDir(tessdataDest);
     for (const f of fs.readdirSync(tessdataSrc)) {
-      if (!f.endsWith(".traineddata") && !f.endsWith(".user-words") && !f.endsWith(".user-patterns") && f !== "configs" && f !== "tessconfigs") {
-        // copy configs dirs
-      }
       const from = path.join(tessdataSrc, f);
       const to = path.join(tessdataDest, f);
+      if (fs.statSync(from).isDirectory() && ["configs", "tessconfigs"].includes(f)) {
+        fs.cpSync(from, to, { recursive: true });
+        continue;
+      }
       if (fs.statSync(from).isFile()) {
         // Don't overwrite larger/better local packs with same name if already valid
         if (exists(to) && fs.statSync(to).size > 50_000 && f.endsWith(".traineddata")) {

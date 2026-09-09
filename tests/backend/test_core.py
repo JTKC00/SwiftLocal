@@ -37,6 +37,22 @@ from backend.security import ALLOWED_FRONTEND_ORIGINS, SESSION_TOKEN, is_valid_s
 from backend.version import APP_VERSION, read_app_version
 
 
+def setUpModule() -> None:
+    """Keep every JobService test away from the user's saved queue and workdirs."""
+    from backend.services import job_service as js_mod
+
+    temporary = tempfile.TemporaryDirectory(prefix="swiftlocal-backend-tests-")
+    unittest.addModuleCleanup(temporary.cleanup)
+    isolated_root = Path(temporary.name)
+    for name, value in (
+        ("TEMP_DIR", isolated_root),
+        ("JOBS_DIR", isolated_root / "jobs"),
+        ("JOBS_STATE_PATH", isolated_root / "jobs-state.json"),
+    ):
+        unittest.addModuleCleanup(setattr, js_mod, name, getattr(js_mod, name))
+        setattr(js_mod, name, value)
+
+
 def write_fake_tesseract(directory: Path, body: str) -> Path:
     if os.name == "nt":
         path = directory / "tesseract.cmd"
@@ -268,6 +284,65 @@ class ApiSecurityTests(unittest.TestCase):
         self.assertTrue(expected)
         self.assertEqual(APP_VERSION, expected)
         self.assertEqual(read_app_version(), APP_VERSION)
+
+
+class ApiHostBoundaryTests(unittest.IsolatedAsyncioTestCase):
+    async def request(self, host: str, *, origin: str = "", token: str = SESSION_TOKEN, method: str = "GET"):
+        from backend.main import app
+
+        headers = [(b"host", host.encode("ascii"))]
+        if token:
+            headers.append((b"x-swiftlocal-token", token.encode("ascii")))
+        if origin:
+            headers.append((b"origin", origin.encode("ascii")))
+        if method == "OPTIONS":
+            headers.extend([
+                (b"access-control-request-method", b"GET"),
+                (b"access-control-request-headers", b"X-SwiftLocal-Token"),
+            ])
+        scope = {
+            "type": "http", "asgi": {"version": "3.0", "spec_version": "2.4"},
+            "http_version": "1.1", "method": method, "scheme": "http",
+            "path": "/api/health", "raw_path": b"/api/health", "query_string": b"",
+            "root_path": "", "headers": headers,
+            "client": ("127.0.0.1", 12345), "server": ("127.0.0.1", 8787),
+        }
+        incoming = asyncio.Queue()
+        incoming.put_nowait({"type": "http.request", "body": b"", "more_body": False})
+        sent = []
+
+        async def send(message):
+            sent.append(message)
+
+        # Calling ASGI directly avoids starting lifespan or touching the real token/job state.
+        await asyncio.wait_for(app(scope, incoming.get, send), timeout=5)
+        start = next(message for message in sent if message["type"] == "http.response.start")
+        return start["status"], dict(start["headers"])
+
+    async def test_rejects_attacker_hosts_even_with_valid_token(self) -> None:
+        for host in ("attacker.example:8787", "localhost.attacker.example", "127.0.0.1.attacker.example"):
+            status, _ = await self.request(host)
+            self.assertEqual(status, 400)
+
+    async def test_loopback_hosts_preserve_token_authentication_and_cors(self) -> None:
+        for host, origin in (
+            ("127.0.0.1:8787", "http://127.0.0.1:4173"),
+            ("localhost:8787", "http://localhost:4173"),
+        ):
+            status, headers = await self.request(host, origin=origin)
+            self.assertEqual(status, 200)
+            self.assertEqual(headers[b"access-control-allow-origin"].decode(), origin)
+            self.assertEqual((await self.request(host, token=""))[0], 401)
+            self.assertEqual((await self.request(host, token="wrong-token"))[0], 401)
+            status, headers = await self.request(host, origin=origin, token="", method="OPTIONS")
+            self.assertEqual(status, 200)
+            self.assertEqual(headers[b"access-control-allow-origin"].decode(), origin)
+
+    async def test_preflight_cannot_bypass_host_validation(self) -> None:
+        status, _ = await self.request(
+            "attacker.example", origin="http://127.0.0.1:4173", token="", method="OPTIONS"
+        )
+        self.assertEqual(status, 400)
 
 
 class JobPersistenceTests(unittest.IsolatedAsyncioTestCase):
@@ -1569,6 +1644,11 @@ class EncryptedPdfTests(unittest.TestCase):
 
 
 class JobCancelTests(unittest.IsolatedAsyncioTestCase):
+    def setUp(self) -> None:
+        temporary = tempfile.TemporaryDirectory(prefix="swiftlocal-cancel-test-")
+        self.addCleanup(temporary.cleanup)
+        self.output_dir = Path(temporary.name)
+
     async def test_cancel_queued(self) -> None:
         service = JobService()
         from backend.services.job_service import Job
@@ -1577,7 +1657,7 @@ class JobCancelTests(unittest.IsolatedAsyncioTestCase):
             id="queued1",
             type="pdf-merge",
             input_paths=[],
-            output_dir=Path(tempfile.mkdtemp()),
+            output_dir=self.output_dir,
             options={},
             status="queued",
         )
@@ -1595,7 +1675,7 @@ class JobCancelTests(unittest.IsolatedAsyncioTestCase):
             id="run1",
             type="pdf-merge",
             input_paths=[],
-            output_dir=Path(tempfile.mkdtemp()),
+            output_dir=self.output_dir,
             options={},
             status="running",
         )
@@ -1615,7 +1695,7 @@ class JobCancelTests(unittest.IsolatedAsyncioTestCase):
             id="run2",
             type="pdf-merge",
             input_paths=[],
-            output_dir=Path(tempfile.mkdtemp()),
+            output_dir=self.output_dir,
             options={},
             status="running",
         )
@@ -1631,7 +1711,7 @@ class JobCancelTests(unittest.IsolatedAsyncioTestCase):
             id="run3",
             type="pdf-merge",
             input_paths=[],
-            output_dir=Path(tempfile.mkdtemp()),
+            output_dir=self.output_dir,
             options={},
             status="queued",
             cancel_requested=True,
