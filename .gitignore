@@ -13,10 +13,12 @@ jobs-state.json
 backend/temp/
 SwiftLocal-output/
 smoke-temp/
+bundled-tool-watch-report.md
 .playwright-cli/
 output/playwright/
 tools/*
 !tools/README.md
 !tools/media-download-tools.lock.json
 !tools/tessdata.lock.json
+!tools/bundled-tools.lock.json
 .DS_Store
