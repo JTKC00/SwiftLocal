@@ -4,6 +4,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const os = require("node:os");
 const crypto = require("node:crypto");
+const { StringDecoder } = require("node:string_decoder");
 const { execFileSync } = require("node:child_process");
 const asar = require("@electron/asar");
 const { getPath7za } = require("app-builder-lib/out/toolsets/7zip");
@@ -278,7 +279,18 @@ function findFileByName(root, names) {
 }
 
 function sha256File(filePath) {
-  return crypto.createHash("sha256").update(fs.readFileSync(filePath)).digest("hex");
+  const hash = crypto.createHash("sha256");
+  const handle = fs.openSync(filePath, "r");
+  const buffer = Buffer.allocUnsafe(64 * 1024);
+  try {
+    let bytesRead;
+    while ((bytesRead = fs.readSync(handle, buffer, 0, buffer.length, null)) > 0) {
+      hash.update(buffer.subarray(0, bytesRead));
+    }
+    return hash.digest("hex");
+  } finally {
+    fs.closeSync(handle);
+  }
 }
 
 function findMainWindowsExecutable(unpackedDir) {
@@ -350,14 +362,35 @@ function readNsisFriendlyAppNameHints(installerPath) {
     return [];
   }
   // NSIS installer embeds Unicode strings for registry FriendlyAppName etc.
-  const bytes = fs.readFileSync(installerPath);
-  const text = Buffer.from(bytes).toString("utf16le");
+  // Full installers exceed 700 MiB. Scan bounded chunks instead of holding
+  // the executable, a second buffer and its decoded string in memory.
+  const handle = fs.openSync(installerPath, "r");
+  const buffer = Buffer.allocUnsafe(64 * 1024);
+  const decoder = new StringDecoder("utf16le");
+  let tail = "";
+  let unsafeName = false;
+  let hasProduct = false;
+  const inspect = (chunk) => {
+    const text = tail + chunk;
+    unsafeName ||= /FriendlyAppName[\s:=\0]{0,32}Electron/i.test(text);
+    hasProduct ||= text.includes("SwiftLocal") || text.includes("快轉通");
+    tail = text.slice(-128);
+  };
+  try {
+    let bytesRead;
+    while ((bytesRead = fs.readSync(handle, buffer, 0, buffer.length, null)) > 0) {
+      inspect(decoder.write(buffer.subarray(0, bytesRead)));
+    }
+    inspect(decoder.end());
+  } finally {
+    fs.closeSync(handle);
+  }
   const hits = [];
-  if (/FriendlyAppName[\s:=\0]{0,32}Electron/i.test(text)) {
+  if (unsafeName) {
     hits.push("installer_strings_electron_without_product");
   }
   // Stronger check: product display name should appear in installer payload.
-  if (!text.includes("SwiftLocal") && !text.includes("快轉通")) {
+  if (!hasProduct) {
     hits.push("installer_missing_swiftlocal_string");
   }
   return hits;

@@ -445,10 +445,7 @@ async function main(debuggerEndpoint = endpoint, options = {}) {
   } finally {
     if (options.closeWindowOnFinish) {
       try {
-        await evaluateWhenReady(
-          debuggerClient.send,
-          `(() => { window.close(); return true; })()`
-        );
+        await debuggerClient.send("Page.close");
       } catch (error) {
         console.warn(`WARN 無法要求 packaged app 正常關閉：${error.message}`);
       }

@@ -460,6 +460,24 @@ describe("release artifact verification", () => {
     assert.throws(() => findMainWindowsExecutable(directory), /缺少主程式 EXE/);
   });
 
+  test("scans installer names across chunk boundaries without full-file reads", (t) => {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), "swiftlocal-installer-stream-test-"));
+    temporaryDirectories.push(directory);
+    const installer = path.join(directory, "installer.exe");
+    const originalReadFile = fs.readFileSync;
+    t.mock.method(fs, "readFileSync", (file, ...args) => {
+      assert.notEqual(file, installer, "installer must be scanned in bounded chunks");
+      return originalReadFile(file, ...args);
+    });
+    const boundary = 64 * 1024 / 2;
+    fs.writeFileSync(installer, "x".repeat(boundary - 4) + "SwiftLocal", "utf16le");
+    assert.doesNotThrow(() => requireSafeInstallerHints(installer));
+    fs.writeFileSync(installer, "x".repeat(boundary - 8) + "FriendlyAppName" + " ".repeat(32) + "Electron\0SwiftLocal", "utf16le");
+    assert.throws(() => requireSafeInstallerHints(installer), /installer_strings_electron_without_product/);
+    fs.writeFileSync(installer, "x".repeat(boundary - 1) + "快轉通", "utf16le");
+    assert.doesNotThrow(() => requireSafeInstallerHints(installer));
+  });
+
   test("builder config rejects Electron product/PDF association names", () => {
     const config = loadWindowsBuilderConfig(false);
     const pdf = verifyPdfAssociationConfig(config);
