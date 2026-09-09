@@ -106,7 +106,7 @@ module.exports = {
     ]
   },
   mac: {
-    icon: "frontend/assets/swiftlocal-logo.png",
+    icon: "build/icon.icns",
     category: "public.app-category.productivity",
     target: ["dmg"],
     artifactName: "SwiftLocal-${version}-mac-${arch}.${ext}",

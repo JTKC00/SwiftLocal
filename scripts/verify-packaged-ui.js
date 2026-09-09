@@ -140,13 +140,13 @@ async function main(debuggerEndpoint = endpoint, options = {}) {
       const deadline = Date.now() + 5000;
       while (Date.now() < deadline && (
         document.readyState === 'loading' ||
-        !document.querySelector('[data-home-panel="pdf-hub-panel"]') ||
-        !document.querySelector('[data-home-panel="ocr-panel"]') ||
+        !document.querySelector('#quick-actions [data-panel="pdf-reader-panel"]') ||
+        !document.querySelector('#quick-actions [data-panel="ocr-panel"]') ||
         !window.swiftLocalBackend
       )) await new Promise((resolve) => setTimeout(resolve, 100));
-      const pdfButton = document.querySelector('[data-home-panel="pdf-hub-panel"]');
-      const ocrButton = document.querySelector('[data-home-panel="ocr-panel"]');
-      const officeButton = document.querySelector('[data-home-panel="office-panel"]');
+      const pdfButton = document.querySelector('#quick-actions [data-panel="pdf-reader-panel"]');
+      const ocrButton = document.querySelector('#quick-actions [data-panel="ocr-panel"]');
+      const officeButton = document.querySelector('#quick-actions [data-panel="office-panel"]');
       if (!pdfButton || !ocrButton || !officeButton || !window.swiftLocalBackend) {
         return { missing: '首頁或 preload 尚未就緒', readyState: document.readyState };
       }
@@ -154,9 +154,9 @@ async function main(debuggerEndpoint = endpoint, options = {}) {
       const config = await window.swiftLocalBackend.getConfig();
       return {
         title: document.title,
-        pdfButtonText: pdfButton?.textContent?.trim(),
-        ocrButtonText: ocrButton?.textContent?.trim(),
-        officeButtonText: officeButton?.textContent?.trim(),
+        pdfButtonText: pdfButton?.querySelector('strong')?.textContent?.trim(),
+        ocrButtonText: ocrButton?.querySelector('strong')?.textContent?.trim(),
+        officeButtonText: officeButton?.querySelector('strong')?.textContent?.trim(),
         secondaryButtonColor: style.color,
         secondaryButtonBackground: style.backgroundColor,
         corePanels: Array.from(document.querySelectorAll('.core-nav-group [data-panel]')).map((button) => button.dataset.panel),
@@ -168,9 +168,9 @@ async function main(debuggerEndpoint = endpoint, options = {}) {
 
     if (home.missing) throw new Error(`${home.missing}（document.readyState=${home.readyState}）`);
     if (home.title !== "快轉通 SwiftLocal") throw new Error(`視窗標題異常：${home.title}`);
-    if (home.pdfButtonText !== "開啟 PDF") throw new Error("PDF 主入口按鈕文字異常");
+    if (home.pdfButtonText !== "開啟／填寫 PDF") throw new Error("PDF 主入口按鈕文字異常");
     if (home.ocrButtonText !== "掃描文件 OCR") throw new Error("OCR 主入口按鈕文字異常");
-    if (home.officeButtonText !== "處理 Office") throw new Error("Office 主入口按鈕文字異常");
+    if (home.officeButtonText !== "Office 轉 PDF") throw new Error("Office 主入口按鈕文字異常");
     const requiredCorePanels = ["pdf-hub-panel", "ocr-panel", "office-panel", "image-panel", "media-panel"];
     if (JSON.stringify(home.corePanels) !== JSON.stringify(requiredCorePanels)) {
       throw new Error(`核心導航異常：${JSON.stringify(home.corePanels)}`);
@@ -182,7 +182,7 @@ async function main(debuggerEndpoint = endpoint, options = {}) {
     if (home.inlineTransformCount !== 0) throw new Error("頁面仍含 CSP 不允許的 inline transform");
 
     const pdf = await evaluate(debuggerClient.send, `(async () => {
-      document.querySelector('[data-home-panel="pdf-hub-panel"]').click();
+      document.querySelector('.core-nav-group [data-panel="pdf-hub-panel"]').click();
       await new Promise((resolve) => setTimeout(resolve, 100));
       const panel = document.querySelector('#pdf-hub-panel');
       return {
@@ -264,7 +264,7 @@ async function main(debuggerEndpoint = endpoint, options = {}) {
     if (!imageWorkspace.active || imageWorkspace.ariaHidden !== "false" || imageWorkspace.heading !== "圖片轉換") {
       throw new Error(`圖片工作區導航失敗：${JSON.stringify(imageWorkspace)}`);
     }
-    if (imageWorkspace.selectAction !== "▣ 框選區域" || imageWorkspace.cropAction !== "套用裁切") {
+    if (imageWorkspace.selectAction !== "框選區域" || imageWorkspace.cropAction !== "套用裁切") {
       throw new Error(`圖片編輯 actions 異常：${JSON.stringify(imageWorkspace)}`);
     }
     if (imageWorkspace.ocrActions.join("|") !== "目前圖片|全部圖片|辨識框選" || !imageWorkspace.resultReadonly) {

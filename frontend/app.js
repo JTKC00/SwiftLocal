@@ -192,6 +192,7 @@
     bindPresetCenter();
     bindGlobalActions();
     enhanceNavigation();
+    bindWorkbench();
     bindQuickStart();
     activatePanel(state.activePanel, null, false);
     $$(".file-zone input[type='file']").forEach(bindFileZoneLabel);
@@ -241,7 +242,7 @@
     document.documentElement.setAttribute("data-theme", theme);
     const btn = $("#theme-toggle");
     if (btn) {
-      btn.textContent = theme === "dark" ? "☀" : "🌙";
+      btn.innerHTML = `${workbenchIcon(theme === "dark" ? "sun" : "moon")}<span>${theme === "dark" ? "淺色外觀" : "深色外觀"}</span>`;
       btn.setAttribute("aria-label", theme === "dark" ? "切換至亮色模式" : "切換至暗色模式");
       btn.setAttribute("aria-pressed", String(theme === "dark"));
     }
@@ -524,6 +525,7 @@
   }
 
   function renderPresetLibrary() {
+    renderHomePresets();
     const container = $("#preset-list");
     if (!container) return;
     const search = $("#preset-search");
@@ -772,9 +774,16 @@
       panel.classList.toggle("is-active", active);
       panel.setAttribute("aria-hidden", String(!active));
     });
-    $("#panel-title").textContent = titles[panelId] || "SwiftLocal";
+    $("#panel-title").textContent = panelId === "pdf-panel" ? $("#pdf-mode").selectedOptions[0].textContent : titles[panelId] || "SwiftLocal";
     const clearButton = $("#clear-all");
-    if (clearButton) clearButton.hidden = ["home-panel", "tasks-panel", "workflow-panel", "presets-panel", "pdf-reader-panel", "pdf-hub-panel", "ocr-panel", "office-panel"].includes(panelId);
+    if (clearButton) {
+      clearButton.hidden = ["home-panel", "tasks-panel", "workflow-panel", "presets-panel", "pdf-reader-panel", "pdf-hub-panel", "ocr-panel", "office-panel", "pdf-panel", "image-panel"].includes(panelId);
+      const heading = $(`#${panelId} .surface-heading`);
+      if (!clearButton.hidden && heading) heading.appendChild(clearButton);
+      clearButton.classList.add("local-clear-action");
+    }
+    if (panelId === "home-panel") renderHomeActivity();
+    updateConversionSummaries();
     updatePresetAction(panelId);
     updatePanelAssist(panelId);
     closeMobileNavigation();
@@ -1123,7 +1132,230 @@
       const taskCount = button.dataset.panel === "tasks-panel" ? '<b id="sidebar-task-count">0</b>' : "";
       button.title = guide.hint;
       button.setAttribute("aria-label", `${guide.nav}：${guide.hint}`);
-      button.innerHTML = `<span>${escapeHtml(guide.nav)}${platform}</span>${taskCount}<small>${escapeHtml(guide.hint)}</small>`;
+      button.innerHTML = `${workbenchIcon(panelIcon(button.dataset.panel))}<span>${escapeHtml(guide.nav)}${platform}</span>${taskCount}<small>${escapeHtml(guide.hint)}</small>`;
+    });
+  }
+
+  function workbenchIcon(name) {
+    return `<span class="ui-icon" data-icon="${escapeHtml(name)}" aria-hidden="true"></span>`;
+  }
+
+  function panelIcon(panelId) {
+    return ({ "home-panel": "home", "presets-panel": "star", "tasks-panel": "check-square",
+      "pdf-hub-panel": "file-text", "pdf-panel": "file-text", "pdf-reader-panel": "file-text",
+      "ocr-panel": "scan", "office-panel": "briefcase", "image-panel": "image",
+      "media-panel": "film", "media-download-panel": "download", "workflow-panel": "git-merge",
+      "backend-panel": "settings", "zip-panel": "archive", "rename-panel": "edit-3",
+      "hash-panel": "shield", "diff-panel": "columns", "text-panel": "type",
+      "data-panel": "code", "split-panel": "scissors", "tools-panel": "grid" })[panelId] || "grid";
+  }
+
+  function workbenchButton(label, handler, className = "text-button") {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = className;
+    button.textContent = label;
+    button.addEventListener("click", handler);
+    return button;
+  }
+
+  function bindWorkbench() {
+    $$("#quick-actions [data-panel]").forEach((button) => button.insertAdjacentHTML("afterbegin", workbenchIcon(panelIcon(button.dataset.panel))));
+    // The global clear control is relocated into the selected tool by activatePanel.
+    $("#clear-all").hidden = true;
+    const pdfSelection = document.createElement("div");
+    pdfSelection.id = "pdf-selected-files";
+    pdfSelection.className = "selection-summary";
+    $("#pdf-files").closest(".file-zone").insertAdjacentElement("afterend", pdfSelection);
+    ["pdf-form", "media-backend-form"].forEach((id) => {
+      const form = $(`#${id}`);
+      const summary = document.createElement("section");
+      summary.id = `${id}-summary`;
+      summary.className = "conversion-summary";
+      summary.setAttribute("aria-label", "確認輸出");
+      summary.innerHTML = '<strong>3　確認並開始</strong><p data-output-description></p><p data-output-destination></p><p class="conversion-blocker" data-output-blocker role="status"></p>';
+      summary.appendChild(workbenchButton("選擇輸出資料夾", pickDesktopOutputDir));
+      const repair = workbenchButton("狀態與修復", () => activatePanel("backend-panel"));
+      repair.dataset.outputRepair = "";
+      summary.appendChild(repair);
+      form.querySelector(".actions").insertAdjacentElement("beforebegin", summary);
+      const submit = form.querySelector('[type="submit"]');
+      submit.setAttribute("aria-describedby", `${id}-summary`);
+      form.addEventListener("input", updateConversionSummaries);
+      form.addEventListener("change", () => { renderWorkbenchFiles(); updateConversionSummaries(); });
+      form.addEventListener("submit", (event) => {
+        const mode = id === "pdf-form" ? $("#pdf-mode").value : "media-convert";
+        const files = id === "pdf-form" ? state.pdfFiles : state.mediaBackendFiles;
+        if (conversionBlocker(mode, files)) {
+          event.preventDefault();
+          event.stopImmediatePropagation();
+          updateConversionSummaries();
+          const reason = summary.querySelector("[data-output-blocker]");
+          reason.tabIndex = -1;
+          reason.focus();
+        }
+      }, true);
+    });
+    renderHomePresets();
+    renderHomeActivity();
+    renderWorkbenchFiles();
+    updateConversionSummaries();
+  }
+
+  function renderHomePresets() {
+    const container = $("#home-presets");
+    if (!container) return;
+    container.replaceChildren();
+    if (!state.userPresets.length) {
+      const empty = document.createElement("div");
+      empty.className = "home-empty";
+      const text = document.createElement("span");
+      text.textContent = "調好工具選項後，按「保存這組設定」，下次就能直接使用。";
+      empty.append(text, workbenchButton("瀏覽推薦設定", () => activatePanel("presets-panel")));
+      container.appendChild(empty);
+      return;
+    }
+    state.userPresets.slice(0, 3).forEach((preset) => {
+      const button = workbenchButton("", () => applyPreset(preset), "home-preset-button");
+      button.innerHTML = `${workbenchIcon(panelIcon(preset.panelId))}<span>${escapeHtml(preset.name)}</span>`;
+      button.title = preset.name;
+      container.appendChild(button);
+    });
+  }
+
+  function renderHomeActivity() {
+    const container = $("#home-recent-tasks");
+    if (!container) return;
+    container.replaceChildren();
+    const jobs = [...state.backendJobs].sort((a, b) => (Date.parse(b.createdAt) || 0) - (Date.parse(a.createdAt) || 0)).slice(0, 3);
+    if (!jobs.length) {
+      const empty = document.createElement("div");
+      empty.className = "home-empty";
+      empty.textContent = state.backendConnected ? "還沒有背景任務。從上方選擇工具，開始處理檔案。" : "連接本機處理服務後，這裡會顯示最近任務。";
+      container.appendChild(empty);
+      return;
+    }
+    jobs.forEach((job) => {
+      const row = document.createElement("div");
+      row.className = "home-task-row";
+      const name = job.inputFiles?.[0]?.name || job.inputPaths?.[0] || jobTypeLabel(job.type);
+      const title = document.createElement("strong");
+      title.textContent = window.SwiftLocalWorkbench.fileName(name);
+      const meta = document.createElement("small");
+      meta.textContent = `${jobTypeLabel(job.type)} · ${jobStatusLabel(job.status, job)}`;
+      row.append(title, meta, workbenchButton("查看任務", () => {
+        state.taskFilter = "all";
+        $("#task-search").value = window.SwiftLocalWorkbench.fileName(name);
+        syncTaskFilterButtons();
+        activatePanel("tasks-panel");
+        renderGlobalTaskCenter();
+      }));
+      container.appendChild(row);
+    });
+  }
+
+  function renderWorkbenchFiles() {
+    [["pdf-selected-files", "pdfFiles", "pdf-files"], ["media-selected-files", "mediaBackendFiles", "media-files"]].forEach(([id, key, inputId]) => {
+      const container = $(`#${id}`);
+      if (!container) return;
+      const files = state[key];
+      container.replaceChildren();
+      container.classList.toggle("empty", !files.length);
+      if (!files.length) {
+        if (key === "mediaBackendFiles") container.textContent = "尚未選擇檔案";
+        return;
+      }
+      const heading = document.createElement("p");
+      heading.className = "selection-heading";
+      heading.textContent = `${files.length} 個檔案 · ${formatBytes(files.reduce((sum, file) => sum + file.size, 0))}`;
+      container.appendChild(heading);
+      if (key === "pdfFiles") {
+        setTextIfPresent("#pdf-file-hint", `已加入 ${files.length} 個檔案；重新選擇可替換清單`);
+        if ($("#pdf-mode").value === "merge") return;
+      }
+      files.forEach((file, index) => {
+        const row = document.createElement("div");
+        row.className = "selected-file-row";
+        const label = document.createElement("span");
+        label.textContent = `${file.name} · ${formatBytes(file.size)}`;
+        row.appendChild(label);
+        // Page-workspace files are represented by editable pages, whose removal has undo support.
+        if (key !== "pdfFiles" || $("#pdf-mode").value !== "workspace") {
+          const remove = workbenchButton("移除", () => {
+            files.splice(index, 1);
+            $(`#${inputId}`).value = "";
+            renderWorkbenchFiles();
+            if (key === "pdfFiles") updatePdfControls();
+            updateConversionSummaries();
+            const next = container.querySelectorAll("button")[Math.min(index, files.length - 1)];
+            if (next) next.focus(); else $(`#${inputId}`).focus();
+          });
+          remove.setAttribute("aria-label", `移除 ${file.name}`);
+          row.appendChild(remove);
+        }
+        container.appendChild(row);
+      });
+    });
+  }
+
+  function conversionBlocker(mode, files) {
+    if (!files.length && mode !== "workspace") return "請先加入檔案。";
+    if (mode === "workspace") return state.pdfWorkspacePages.length ? "" : "請先加入 PDF 或空白頁。";
+    if (!PDF_BACKEND_JOB_TYPES.has(mode) && mode !== "media-convert") return "";
+    if (!state.backendConnected) return "本機處理服務未連接，請先查看狀態與修復。";
+    if (mode === "media-convert" && !isToolAvailable("ffmpeg")) return "需要影音處理工具，請前往修復。";
+    if (mode === "office-to-pdf" && !isToolAvailable("libreOffice")) return "需要 Office 轉換工具，請前往修復。";
+    if (["ocr-pdf", "pdf-to-searchable-pdf"].includes(mode) && !isToolAvailable("tesseract")) return "需要文字辨識工具，請前往修復。";
+    if (["pdf-encrypt", "pdf-decrypt"].includes(mode) && !isToolAvailable("qpdf")) return "需要 PDF 保護工具，請前往修復。";
+    if (mode === "pdf-encrypt" && !$("#pdf-password").value.trim()) return "請先設定加密密碼。";
+    if (mode === "pdf-to-office") {
+      const word = $("#pdf-office-format").value === "docx";
+      const searchableOnly = word && $("#pdf-office-ocr-output").value === "searchable";
+      const compat = word && $("#pdf-office-compat-only").checked;
+      if (!compat && !searchableOnly && !isToolAvailable("libreOffice")) return "需要 Office 轉換工具；Word 也可在進階設定選擇相容模式。";
+      if (searchableOnly && !isToolAvailable("tesseract")) return "需要文字辨識工具，請前往修復。";
+      if (compat && !searchableOnly && !isToolAvailable("pdf2docx") && !isToolAvailable("tesseract")) return "需要 Word 相容或文字辨識工具，請前往修復。";
+    }
+    return "";
+  }
+
+  function updateConversionSummaries() {
+    if (!window.SwiftLocalWorkbench) return;
+    [["pdf-form", $("#pdf-mode")?.value, state.pdfFiles], ["media-backend-form", "media-convert", state.mediaBackendFiles]].forEach(([id, mode, files]) => {
+      const summary = $(`#${id}-summary`);
+      if (!summary) return;
+      const background = PDF_BACKEND_JOB_TYPES.has(mode) || mode === "media-convert";
+      const desktopOutput = background && electronBridgeAvailable();
+      let output = ({ text: "TXT 文字", "ocr-pdf": "TXT 文字", images: $("#pdf-image-format")?.value === "image/jpeg" ? "JPEG 圖片" : "PNG 圖片", "pdf-to-docx": "Word 文件" })[mode] || "PDF";
+      if (mode === "pdf-to-office") {
+        output = $("#pdf-office-format").value.toUpperCase();
+        if (output === "DOCX") output = ({ both: "DOCX 與可搜尋 PDF（使用 OCR 時）", searchable: "可搜尋 PDF", docx: "DOCX" })[$("#pdf-office-ocr-output").value] || output;
+      }
+      if (mode === "media-convert") output = $("#media-output-extension").value.toUpperCase();
+      summary.querySelector("[data-output-description]").textContent = `${mode === "workspace" ? `${state.pdfWorkspacePages.length} 頁` : `${files.length} 個檔案`} → ${output}`;
+      summary.querySelector("[data-output-destination]").textContent = desktopOutput
+        ? `儲存到：${state.desktopOutputDir || "下載／SwiftLocal（預設）"}`
+        : background ? "完成後可在轉換結果或任務中心下載。" : "完成後由下載按鈕儲存到你的裝置。";
+      const blocker = conversionBlocker(mode, files);
+      const blockerEl = summary.querySelector("[data-output-blocker]");
+      blockerEl.textContent = blocker;
+      blockerEl.hidden = !blocker;
+      const buttons = summary.querySelectorAll("button");
+      buttons[0].hidden = !desktopOutput;
+      buttons[1].hidden = !blocker || !background || (!files.length);
+      const submit = $(`#${id} [type="submit"]`);
+      // Existing submission handlers still perform their complete validation.
+      // Do not override a running handler's disabled state for synchronous PDF processing.
+      submit.setAttribute("aria-disabled", String(Boolean(blocker)));
+      submit.textContent = mode === "media-convert" ? `轉成 ${output}` : window.SwiftLocalWorkbench.PDF_ACTIONS[mode] || "開始處理";
+    });
+  }
+
+  function syncTaskFilterButtons() {
+    $$('[data-task-filter]').forEach((button) => {
+      const active = button.dataset.taskFilter === state.taskFilter;
+      button.classList.toggle("is-active", active);
+      button.setAttribute("aria-pressed", String(active));
     });
   }
 
@@ -1162,13 +1394,7 @@
         return !hasQuery || terms.every((term) => haystack.includes(term));
       });
 
-      $$(".nav-item").forEach((button) => {
-        const haystack = (button.dataset.keywords || button.textContent || "").toLowerCase();
-        button.hidden = hasQuery && !terms.every((term) => haystack.includes(term));
-      });
-      $$(".nav-group").forEach((group) => {
-        group.hidden = hasQuery && !group.querySelector(".nav-item:not([hidden])");
-      });
+      // Search is scoped to results: navigation must remain available after opening a tool.
 
       quickActions.innerHTML = "";
       if (!hasQuery) {
@@ -1189,7 +1415,7 @@
         const button = document.createElement("button");
         button.type = "button";
         button.dataset.panel = panelId;
-        button.innerHTML = `<strong>${escapeHtml(guide.nav)}</strong><span>${escapeHtml(guide.hint)}</span><em>${escapeHtml(toolAreaLabel(panelId))}</em>`;
+        button.innerHTML = `${workbenchIcon(panelIcon(panelId))}<strong>${escapeHtml(guide.nav)}</strong><span>${escapeHtml(guide.hint)}</span><em>${escapeHtml(toolAreaLabel(panelId))}</em>`;
         quickActions.appendChild(button);
       });
       bindQuickActionButtons();
@@ -1200,7 +1426,7 @@
     const assist = $("#panel-assist");
     const guide = toolGuides[panelId];
     if (!assist) return;
-    if (panelId === "home-panel" || panelId === "tasks-panel" || panelId === "presets-panel") {
+    if (["home-panel", "tasks-panel", "presets-panel", "pdf-hub-panel", "ocr-panel", "office-panel", "pdf-panel", "pdf-reader-panel", "image-panel", "media-panel"].includes(panelId)) {
       assist.innerHTML = "";
       return;
     }
@@ -1363,6 +1589,8 @@
         if (hint) hint.textContent = hint.dataset.originalHint;
       });
     }
+    renderWorkbenchFiles();
+    updateConversionSummaries();
   }
 
   function bindImageTool() {
@@ -2234,6 +2462,8 @@
       } else {
         renderPdfOrderList("#pdf-merge-order", "pdfFiles");
       }
+      renderWorkbenchFiles();
+      updateConversionSummaries();
     });
     bindPdfOrderList("#pdf-merge-order", "pdfFiles");
     bindPdfWorkspace();
@@ -2302,6 +2532,8 @@
 
   function updatePdfControls() {
     const mode = $("#pdf-mode").value;
+    $("#pdf-title").textContent = $("#pdf-mode").selectedOptions[0].textContent;
+    if (state.activePanel === "pdf-panel") $("#panel-title").textContent = $("#pdf-title").textContent;
     const usesBackgroundTask = PDF_BACKEND_JOB_TYPES.has(mode);
     const showWorkspace = mode === "workspace";
     const showRange = mode === "extract" || mode === "rotate" || mode === "watermark" || mode === "text" || mode === "images" || mode === "page-numbers";
@@ -2365,6 +2597,8 @@
     updatePdfSectionNavigation(mode);
     renderPdfOrderList("#pdf-merge-order", "pdfFiles");
     renderPdfWorkspace();
+    renderWorkbenchFiles();
+    updateConversionSummaries();
   }
 
   function updatePdfSectionNavigation(mode) {
@@ -3076,12 +3310,13 @@
 
     const rows = files.map((file, index) => [
       `<li class="pdf-order-item" draggable="true" data-index="${index}">`,
-      '<span class="pdf-order-handle" aria-hidden="true">⋮⋮</span>',
+      `<span class="pdf-order-handle" aria-hidden="true">${workbenchIcon("move")}</span>`,
       `<span class="pdf-order-number">${index + 1}</span>`,
       `<span class="pdf-order-file"><strong>${escapeHtml(file.name)}</strong><small>${formatBytes(file.size)}</small></span>`,
       '<span class="pdf-order-actions">',
-      `<button class="secondary-button compact" type="button" data-order-move="up" aria-label="上移 ${escapeHtml(file.name)}"${index === 0 ? " disabled" : ""}>↑</button>`,
-      `<button class="secondary-button compact" type="button" data-order-move="down" aria-label="下移 ${escapeHtml(file.name)}"${index === files.length - 1 ? " disabled" : ""}>↓</button>`,
+      `<button class="secondary-button compact" type="button" data-order-move="up" aria-label="上移 ${escapeHtml(file.name)}"${index === 0 ? " disabled" : ""}>${workbenchIcon("arrow-up")}</button>`,
+      `<button class="secondary-button compact" type="button" data-order-move="down" aria-label="下移 ${escapeHtml(file.name)}"${index === files.length - 1 ? " disabled" : ""}>${workbenchIcon("arrow-down")}</button>`,
+      `<button class="secondary-button compact" type="button" data-order-move="remove" aria-label="移除 ${escapeHtml(file.name)}">${workbenchIcon("x")}</button>`,
       "</span>",
       "</li>"
     ].join("")).join("");
@@ -3110,6 +3345,14 @@
       const row = event.target.closest(".pdf-order-item");
       if (!button || !row) return;
       const fromIndex = Number(row.dataset.index);
+      if (button.dataset.orderMove === "remove") {
+        pdfOrderFiles(stateKey).splice(fromIndex, 1);
+        $("#pdf-files").value = "";
+        updatePdfControls();
+        const next = container.querySelector('[data-order-move="remove"]');
+        if (next) next.focus(); else $("#pdf-files").focus();
+        return;
+      }
       const offset = button.dataset.orderMove === "up" ? -1 : 1;
       movePdfOrderFile(stateKey, fromIndex, fromIndex + offset);
     });
@@ -4451,14 +4694,11 @@
     const list = $(`#${listId}`);
 
     function applyFiles(files) {
-      state[stateKey] = Array.from(files);
-      if (!state[stateKey].length) {
-        list.classList.add("empty");
-        list.textContent = "尚未選擇檔案";
-      } else {
-        list.classList.remove("empty");
-        list.innerHTML = state[stateKey].map((f) => `<span>${escapeHtml(f.name)} · ${formatBytes(f.size)}</span>`).join("");
-      }
+      const incoming = Array.from(files);
+      state[stateKey] = window.SwiftLocalWorkbench.acceptedFiles(incoming, input.accept);
+      if (state[stateKey].length !== incoming.length) showToast(`已略過 ${incoming.length - state[stateKey].length} 個不支援的檔案，請加入音訊或影片。`, "error");
+      renderWorkbenchFiles();
+      updateConversionSummaries();
     }
 
     input.addEventListener("change", () => applyFiles(input.files || []));
@@ -4533,6 +4773,7 @@
     if (input) {
       input.value = state.desktopOutputDir || "";
     }
+    updateConversionSummaries();
   }
 
   async function loadDesktopOutputDir() {
@@ -4803,6 +5044,13 @@
     }
     renderCapabilityStatus("#capability-security", checking, connected && Boolean(tools.qpdf && tools.qpdf.available), "QPDF 已就緒", "需要 QPDF");
     updateProductHubReadiness(tools, connected, checking);
+    const notice = $("#home-service-notice");
+    if (notice) {
+      notice.hidden = checking || (connected && availableCount === keys.length);
+      setTextIfPresent("#home-service-message", connected ? "部分進階工具尚未就緒，其他功能可繼續使用。" : "本機進階服務未連接；PDF 閱讀與圖片編輯仍可使用。");
+    }
+    updateConversionSummaries();
+    renderHomeActivity();
   }
 
   function updateProductHubReadiness(tools, connected, checking) {
@@ -5051,6 +5299,7 @@
     if (gifRow) {
       gifRow.style.display = ext === "gif" ? "" : "none";
     }
+    updateConversionSummaries();
   }
 
   async function enqueueMediaBackendJob(event) {
@@ -5456,6 +5705,7 @@
   }
 
   function renderGlobalTaskCenter() {
+    renderHomeActivity();
     const jobs = Array.isArray(state.backendJobs) ? state.backendJobs : [];
     const activeJobs = jobs.filter((job) => job.status === "queued" || job.status === "running");
     const doneJobs = jobs.filter((job) => job.status === "done");
@@ -5491,9 +5741,16 @@
     if (!filtered.length) {
       const empty = document.createElement("div");
       empty.className = "task-empty-state";
-      empty.innerHTML = jobs.length
-        ? "<strong>沒有符合條件的任務</strong><span>請更改篩選條件或搜尋字詞。</span>"
-        : "<strong>暫時沒有任務</strong><span>從 PDF、圖片或影音工具建立進階處理任務後，會在這裡顯示。</span>";
+      const content = window.SwiftLocalWorkbench.taskEmptyState({ connected: state.backendConnected, hasJobs: jobs.length > 0, filtered: Boolean(query) || state.taskFilter !== "all" });
+      empty.innerHTML = `<strong>${content.title}</strong><span>${content.detail}</span>`;
+      empty.appendChild(workbenchButton(content.action, () => {
+        if (content.target !== "reset") return activatePanel(content.target);
+        state.taskFilter = "all";
+        if (search) search.value = "";
+        syncTaskFilterButtons();
+        renderGlobalTaskCenter();
+        if (search) search.focus();
+      }, "secondary-button"));
       container.appendChild(empty);
       return;
     }
@@ -5514,7 +5771,7 @@
     const spaceHint = formatJobSpaceSummary(job).replace(/^空間：/, "");
     meta.innerHTML = `<span>建立 ${created && !Number.isNaN(created.getTime()) ? escapeHtml(created.toLocaleString([], { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })) : "—"}</span><span>歷時 ${escapeHtml(duration)}</span><span class="task-space-hint" title="${escapeHtml(formatJobSpaceSummary(job))}">${escapeHtml(spaceHint)}</span><code>${escapeHtml(String(job.id || "").slice(-8))}</code>`;
     if (header) header.insertAdjacentElement("afterend", meta);
-    if (job.status === "running" || job.status === "queued") {
+    if ((job.status === "running" || job.status === "queued") && !job.progress) {
       const progress = document.createElement("div");
       progress.className = `task-progress ${job.status}`;
       const progressMessage = job.progress && job.progress.message
@@ -5651,6 +5908,17 @@
       headerRight.appendChild(delBtn);
     }
 
+    if (headerRight.children.length > 1) {
+      const secondary = document.createElement("details");
+      secondary.className = "job-secondary-actions";
+      const summary = document.createElement("summary");
+      summary.textContent = "更多操作";
+      secondary.appendChild(summary);
+      Array.from(headerRight.children).forEach((button) => {
+        if (["複製任務", "診斷", "刪除"].includes(button.textContent)) secondary.appendChild(button);
+      });
+      if (secondary.children.length > 1) headerRight.appendChild(secondary);
+    }
     header.appendChild(title);
     header.appendChild(headerRight);
     div.appendChild(header);
@@ -5671,26 +5939,26 @@
     div.appendChild(spaceLine);
 
     if ((job.status === "queued" || job.status === "running") && job.progress) {
-      const current = Math.max(0, Number(job.progress.current) || 0);
-      const total = Math.max(current, Number(job.progress.total) || 0);
-      const percent = total ? Math.min(100, Math.round((current / total) * 100)) : 0;
+      const percent = window.SwiftLocalWorkbench.progressValue(job.progress);
       const progress = document.createElement("div");
       progress.className = "job-inline-progress";
       const meter = document.createElement("progress");
       meter.max = 100;
-      meter.value = percent;
-      meter.setAttribute("aria-label", `任務進度 ${percent}%`);
+      if (percent !== null) meter.value = percent;
+      meter.setAttribute("aria-label", percent === null ? "正在處理" : `任務進度 ${percent}%`);
       const message = document.createElement("small");
-      message.textContent = job.progress.message || `${current} / ${total}`;
+      message.textContent = job.progress.message || (percent === null ? "正在處理，完成後會通知你" : `${percent}%`);
       progress.append(meter, message);
       div.appendChild(progress);
     }
 
     if (job.outputDir) {
-      const outDir = document.createElement("small");
+      const outDir = document.createElement(electronBridgeAvailable() ? "button" : "small");
       outDir.className = "job-output-dir";
       outDir.textContent = `輸出：${job.outputDir}`;
       if (electronBridgeAvailable()) {
+        outDir.type = "button";
+        outDir.textContent = `開啟資料夾：${job.outputDir}`;
         outDir.style.cursor = "pointer";
         outDir.title = "點擊開啟輸出資料夾";
         outDir.addEventListener("click", () => window.swiftLocalBackend.openPath(job.outputDir));
@@ -5738,9 +6006,14 @@
     } else {
       const log = job.error || (job.log && job.log.length ? job.log[job.log.length - 1] : "");
       if (log) {
+        const details = document.createElement("details");
+        details.className = "job-log-details";
+        const summary = document.createElement("summary");
+        summary.textContent = "處理詳情";
         const pre = document.createElement("pre");
         pre.textContent = log;
-        div.appendChild(pre);
+        details.append(summary, pre);
+        div.appendChild(details);
       }
     }
 
@@ -5775,6 +6048,11 @@
       }
       if (!technical) technical = raw;
     }
+    if (/^(?:Cannot read properties|TypeError:|ReferenceError:|SyntaxError:|Error:|Traceback\b)/i.test(summary)) {
+      technical = technical || raw;
+      summary = "未能處理這個檔案。";
+      suggestion = suggestion || "請確認檔案能正常開啟，再重試或改用其他輸出格式。";
+    }
     return { summary, suggestion, technical };
   }
 
@@ -5802,7 +6080,7 @@
     } else if (job.status === "failed") {
       const tip = document.createElement("p");
       tip.className = "job-error-suggestion";
-      tip.textContent = "建議：確認輸入檔完整後重試；DOCX 可依賴相容模式，XLSX／PPTX／ODT 為實驗性。";
+      tip.textContent = "建議：確認輸入檔能正常開啟後重試，或展開技術詳情查看原因。";
       wrap.appendChild(tip);
     }
     const techBody = parts.technical

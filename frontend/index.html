@@ -7,6 +7,8 @@
   <title>快轉通 SwiftLocal</title>
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="pdf-workspace/styles.css">
+  <link rel="stylesheet" href="workbench.css">
+  <link rel="icon" href="assets/brand/app-icon.svg" type="image/svg+xml">
 </head>
 <body>
   <a class="skip-link" href="#main-content">跳到主要內容</a>
@@ -16,11 +18,11 @@
       <button class="brand" type="button" data-panel="home-panel" aria-label="返回首頁">
         <img class="brand-mark" src="assets/swiftlocal-logo.png" alt="快轉通 SwiftLocal logo">
         <div>
-          <h1>快轉通 SwiftLocal</h1>
-          <p>檔案處理，留在你的裝置</p>
+          <h1>SwiftLocal<span class="brand-chinese">快轉通</span></h1>
+          <p>檔案處理，留在本機</p>
         </div>
       </button>
-      <button id="mobile-nav-close" class="mobile-nav-close" type="button" aria-label="關閉工具選單" aria-controls="app-sidebar">×</button>
+      <button id="mobile-nav-close" class="mobile-nav-close" type="button" aria-label="關閉工具選單" aria-controls="app-sidebar"><span class="ui-icon" data-icon="x" aria-hidden="true"></span></button>
       </div>
       <div class="runtime-chip"><span></span><strong id="runtime-label">瀏覽器模式</strong></div>
       <nav class="tool-nav" aria-label="工具選單">
@@ -76,7 +78,7 @@
     <main id="main-content" class="workspace" tabindex="-1">
       <section class="topbar" aria-label="狀態列">
         <div class="topbar-title">
-          <button id="mobile-nav-toggle" class="mobile-nav-toggle" type="button" aria-label="開啟工具選單" aria-controls="app-sidebar" aria-expanded="false">☰</button>
+          <button id="mobile-nav-toggle" class="mobile-nav-toggle" type="button" aria-label="開啟工具選單" aria-controls="app-sidebar" aria-expanded="false"><span class="ui-icon" data-icon="menu" aria-hidden="true"></span></button>
           <div>
             <p class="eyebrow">快轉通 SwiftLocal</p>
             <h2 id="panel-title" tabindex="-1">首頁</h2>
@@ -84,11 +86,7 @@
         </div>
         <div class="topbar-actions">
           <button id="save-tool-preset" class="save-tool-preset" type="button" hidden>保存這組設定</button>
-          <button id="preset-shortcut" class="preset-shortcut" type="button" aria-label="開啟我的常用設定"><span aria-hidden="true">★</span><strong>常用設定</strong></button>
-          <button class="privacy-shortcut" type="button" data-open-privacy aria-label="查看私隱及資料處理詳情">
-            <span aria-hidden="true">◉</span><strong>本機私隱</strong>
-          </button>
-          <button class="accessibility-shortcut" type="button" data-open-accessibility aria-label="開啟無障礙顯示設定"><span aria-hidden="true">Aa</span></button>
+          <button id="preset-shortcut" class="preset-shortcut" type="button" aria-label="開啟我的常用設定"><span class="ui-icon" data-icon="star" aria-hidden="true"></span><strong>常用設定</strong></button>
           <button id="task-center-shortcut" class="task-center-shortcut" type="button" aria-label="開啟任務中心">
             <span class="task-pulse" aria-hidden="true"></span><strong>任務</strong><b id="global-task-count">0</b>
           </button>
@@ -97,57 +95,16 @@
       </section>
 
       <section id="home-panel" class="panel home-panel is-active" aria-labelledby="home-title">
-        <section class="home-hero">
-          <div class="home-hero-copy">
-            <div class="hero-kicker"><span>本機優先</span><span>無需上載</span><span>手機可用</span></div>
-            <p class="eyebrow">本機優先的辦公文件與媒體處理工作台</p>
-            <h1 id="home-title">PDF、OCR 與辦公檔案，<br>都留在你的裝置。</h1>
-            <p class="hero-lead">集中處理 PDF、OCR、Office、圖片及影音；所有檔案留在本機，批量任務與自動化流程也能可靠追蹤。</p>
-            <div class="hero-actions">
-              <button class="primary-button" type="button" data-home-panel="pdf-hub-panel">開啟 PDF</button>
-              <button class="ghost-button" type="button" data-home-panel="ocr-panel">掃描文件 OCR</button>
-              <button class="ghost-button" type="button" data-home-panel="office-panel">處理 Office</button>
-            </div>
-          </div>
-          <aside class="device-status-card" aria-label="目前裝置模式">
-            <div class="device-status-heading">
-              <span class="device-icon" aria-hidden="true">↗</span>
-              <div><small>目前執行模式</small><strong id="home-runtime-title">瀏覽器版</strong></div>
-            </div>
-            <p id="home-runtime-note">這部裝置可使用所有瀏覽器處理工具。</p>
-            <ul>
-              <li><span>PDF、圖片及其他瀏覽器工具</span><strong>可用</strong></li>
-              <li><span>檔案不經雲端上載</span><strong>本機</strong></li>
-              <li><span>影音、Office、OCR 批量任務</span><strong>桌面進階</strong></li>
-            </ul>
-            <p class="device-network-note">手機需透過可連線網址開啟；電腦的 <code>127.0.0.1</code> 網址不能直接在手機使用。</p>
-          </aside>
-        </section>
-
-        <section class="platform-grid" aria-label="平台能力說明">
-          <article class="platform-card featured">
-            <span class="platform-tag">手機 · 平板 · 瀏覽器</span>
-            <h2>同一套核心入口</h2>
-            <p>PDF、OCR、Office、圖片及影音依用途分類；各入口會標示目前裝置可用的能力。</p>
-          </article>
-          <article class="platform-card">
-            <span class="platform-tag desktop">Windows · macOS · Linux</span>
-            <h2>桌面版擴充本機引擎</h2>
-            <p>連接本機 FFmpeg、LibreOffice、Tesseract 與 QPDF，處理批量任務、輸出資料夾及自動化。</p>
-          </article>
-        </section>
-
-      <section class="quick-start" aria-label="快速開始">
-        <div class="quick-start-heading">
-          <div>
-            <p class="eyebrow">不知道要選哪個工具？</p>
-            <h2>先選你想完成的事</h2>
-          </div>
+        <header class="home-intro">
+          <div><p class="eyebrow">你的本機工作台</p><h1 id="home-title">今天，想完成甚麼？</h1><p>處理文件、圖片與影音，檔案留在你的裝置。</p></div>
+          <span class="home-local-note"><span class="ui-icon" data-icon="hard-drive" aria-hidden="true"></span>本機優先</span>
+        </header>
+        <section class="quick-start" aria-label="快速開始">
           <label class="tool-search">
-            <span class="visually-hidden">搜尋工具</span>
-            <input id="tool-search" type="search" placeholder="搜尋用途或格式，例如：PDF OCR、Word、MP3">
+            <span class="ui-icon" data-icon="search" aria-hidden="true"></span><span class="visually-hidden">搜尋工具</span>
+            <input id="tool-search" type="search" placeholder="你想做甚麼？搜尋 PDF、Word、MP3…">
           </label>
-        </div>
+          <div class="home-section-heading"><h2>快速開始</h2><span>依用途選擇，直接開始</span></div>
         <div class="quick-actions" id="quick-actions" aria-label="工具搜尋結果" aria-live="polite">
           <button type="button" data-panel="pdf-reader-panel">
             <strong>開啟／填寫 PDF</strong>
@@ -180,12 +137,21 @@
             <em>影音 · 需要網絡</em>
           </button>
         </div>
-      </section>
+        </section>
+        <section class="home-section" aria-labelledby="home-presets-title">
+          <div class="home-section-heading"><h2 id="home-presets-title">我的常用設定</h2><button class="text-button" type="button" data-home-panel="presets-panel">查看全部</button></div>
+          <div id="home-presets" class="home-preset-list"></div>
+        </section>
+        <section class="home-section" aria-labelledby="home-tasks-title">
+          <div class="home-section-heading"><h2 id="home-tasks-title">最近任務</h2><button class="text-button" type="button" data-home-panel="tasks-panel">任務中心</button></div>
+          <div id="home-recent-tasks" class="home-recent-list"></div>
+        </section>
+        <div id="home-service-notice" class="home-service-notice" role="status" hidden><span id="home-service-message"></span><button class="text-button" type="button" data-home-panel="backend-panel">查看狀態與修復</button></div>
       </section>
 
       <section id="pdf-hub-panel" class="panel product-hub" aria-labelledby="pdf-hub-title">
         <header class="product-hub-hero">
-          <div><p class="eyebrow">一個入口，處理整份文件</p><h1 id="pdf-hub-title">PDF</h1><p>閱讀操作與永久修改清楚分開；既有 PDF 工作區、頁面工作台與轉換引擎仍在原有模組執行。</p></div>
+          <div><p class="eyebrow">一個入口，處理整份文件</p><h1 id="pdf-hub-title">PDF</h1><p>閱讀、填寫、整理與轉換 PDF，按用途選擇下一步。</p></div>
           <span class="badge">瀏覽器 · 桌面</span>
         </header>
         <nav class="pdf-section-nav" aria-label="PDF 工作分區">
@@ -195,7 +161,7 @@
           <button type="button" data-product-panel="pdf-panel" data-pdf-mode="pdf-compress">保護與壓縮</button>
         </nav>
         <div class="product-route-grid">
-          <article><span>01</span><h2>閱讀與填表</h2><p>開啟、搜尋、填寫 AcroForm、簽名圖片、日期章、儲存、另存及列印。縮放與適合頁面只改變檢視。</p><button class="primary-button" type="button" data-product-panel="pdf-reader-panel">開啟 PDF</button></article>
+          <article><span>01</span><h2>閱讀與填表</h2><p>開啟、搜尋、填寫表單、簽名圖片、日期章、儲存、另存及列印。縮放與適合頁面只改變檢視。</p><button class="primary-button" type="button" data-product-panel="pdf-reader-panel">開啟 PDF</button></article>
           <article><span>02</span><h2>頁面整理</h2><p>排序、旋轉、複製、刪除、插入與匯出頁面。這些操作會建立永久修改的新 PDF。</p><button class="secondary-button" type="button" data-product-panel="pdf-panel" data-pdf-mode="workspace" data-product-focus="#pdf-files">整理頁面</button></article>
           <article><span>03</span><h2>轉換與 OCR</h2><p>轉成文字、圖片或 Office，亦可辨識掃描文件及建立可搜尋 PDF。</p><button class="secondary-button" type="button" data-product-panel="pdf-panel" data-pdf-mode="text" data-product-focus="#pdf-files">選擇轉換</button></article>
           <article><span>04</span><h2>保護與壓縮</h2><p>壓縮、加密或解密 PDF；相容性受限時會顯示 QPDF 或 Adobe Acrobat 修復提示。</p><button class="secondary-button" type="button" data-product-panel="pdf-panel" data-pdf-mode="pdf-compress" data-product-focus="#pdf-files">壓縮或保護</button></article>
@@ -204,8 +170,8 @@
 
       <section id="ocr-panel" class="panel product-hub" aria-labelledby="ocr-title">
         <header class="product-hub-hero">
-          <div><p class="eyebrow">用途導向的文字辨識</p><h1 id="ocr-title">OCR</h1><p>預設辨識繁體中文及英文（chi_tra+eng）。語言代碼、最多頁數及輸出模式收在進階設定；所有任務沿用既有 Tesseract 管線。</p></div>
-          <span class="badge">Tesseract · 本機</span>
+          <div><p class="eyebrow">用途導向的文字辨識</p><h1 id="ocr-title">OCR</h1><p>把圖片或掃描文件轉成文字、Word 或可搜尋的 PDF。預設辨識繁體中文與英文。</p></div>
+          <span class="badge">本機辨識</span>
         </header>
         <div id="ocr-hub-readiness" class="hub-readiness pending" role="status" aria-live="polite">
           <span class="hub-readiness-icon" aria-hidden="true">○</span>
@@ -216,7 +182,7 @@
           <article><span>圖片</span><h2>圖片 → 文字</h2><p>適合相片、截圖及單頁掃描，可一次加入多張圖片。</p><button class="primary-button" type="button" data-product-panel="image-panel" data-image-job="ocr-image" data-product-focus="#img-backend-files">辨識圖片</button></article>
           <article><span>掃描 PDF</span><h2>掃描 PDF → 文字</h2><p>逐頁辨識並輸出文字，頁數上限可在進階設定調整。</p><button class="secondary-button" type="button" data-product-panel="pdf-panel" data-pdf-mode="ocr-pdf" data-product-focus="#pdf-files">辨識 PDF</button></article>
           <article><span>可搜尋</span><h2>掃描 PDF → 可搜尋 PDF</h2><p>保留頁面影像並加入 OCR 文字層，方便搜尋及複製。</p><button class="secondary-button" type="button" data-product-panel="pdf-panel" data-pdf-mode="pdf-to-searchable-pdf" data-product-focus="#pdf-files">建立可搜尋 PDF</button></article>
-          <article><span>Word</span><h2>掃描 PDF → Word</h2><p>使用相容／OCR fallback 建立 DOCX；版面可能與原掃描件不同。</p><button class="secondary-button" type="button" data-product-panel="pdf-panel" data-pdf-mode="pdf-to-office" data-office-format="docx" data-scan-ocr="force" data-product-focus="#pdf-files">轉成 Word</button></article>
+          <article><span>Word</span><h2>掃描 PDF → Word</h2><p>辨識掃描文字並建立 Word 文件；版面可能與原掃描件不同。</p><button class="secondary-button" type="button" data-product-panel="pdf-panel" data-pdf-mode="pdf-to-office" data-office-format="docx" data-scan-ocr="force" data-product-focus="#pdf-files">轉成 Word</button></article>
           <article><span>批量</span><h2>批量 OCR</h2><p>一次加入多張圖片或多份 PDF，處理進度、取消、重試與輸出集中在任務中心。</p><div class="product-route-actions"><button class="secondary-button" type="button" data-product-panel="image-panel" data-image-job="ocr-image" data-product-focus="#img-backend-files">批量圖片</button><button class="secondary-button" type="button" data-product-panel="pdf-panel" data-pdf-mode="ocr-pdf" data-product-focus="#pdf-files">批量 PDF</button></div></article>
         </div>
         <p class="product-repair-note">若未偵測到 Tesseract 或繁中語言包，入口會保留並在「狀態與設定」提供重新偵測、工具路徑與語言包修復提示。</p>
@@ -224,8 +190,8 @@
 
       <section id="office-panel" class="panel product-hub" aria-labelledby="office-title">
         <header class="product-hub-hero">
-          <div><p class="eyebrow">文件轉換與歸檔</p><h1 id="office-title">Office</h1><p>以用途選擇工作，LibreOffice、相容模式與 OCR fallback 留在進階設定。轉換仍使用既有任務與輸出資料夾。</p></div>
-          <span class="badge">LibreOffice · 本機</span>
+          <div><p class="eyebrow">文件轉換與歸檔</p><h1 id="office-title">Office</h1><p>將 Office 文件轉成 PDF，或把 PDF 轉成可編輯的文件。</p></div>
+          <span class="badge">本機轉換</span>
         </header>
         <div id="office-hub-readiness" class="hub-readiness pending" role="status" aria-live="polite">
           <span class="hub-readiness-icon" aria-hidden="true">○</span>
@@ -236,7 +202,7 @@
           <article><span>正式功能</span><h2>Office → PDF</h2><p>Word、Excel、PowerPoint 文件可批量轉成 PDF。</p><button class="primary-button" type="button" data-product-panel="pdf-panel" data-pdf-mode="office-to-pdf" data-product-focus="#pdf-files">Office 轉 PDF</button></article>
           <article><span>可用</span><h2>PDF → Word</h2><p>建立 DOCX；PDF 並非原始 Word 文件，版面及相容性可能不同。</p><button class="secondary-button" type="button" data-product-panel="pdf-panel" data-pdf-mode="pdf-to-office" data-office-format="docx" data-product-focus="#pdf-files">PDF 轉 Word</button></article>
           <article><span>實驗性</span><h2>PDF → Excel / PowerPoint</h2><p>適合試取表格或投影片內容，正式用途請核對輸出。</p><button class="secondary-button" type="button" data-product-panel="pdf-panel" data-pdf-mode="pdf-to-office" data-office-format="xlsx" data-product-focus="#pdf-files">選擇實驗格式</button></article>
-          <article><span>OCR</span><h2>掃描 PDF → Word</h2><p>文字不足時使用 OCR fallback，可輸出可搜尋 PDF 與 DOCX。</p><button class="secondary-button" type="button" data-product-panel="pdf-panel" data-pdf-mode="pdf-to-office" data-office-format="docx" data-scan-ocr="force" data-product-focus="#pdf-files">辨識並轉 Word</button></article>
+          <article><span>OCR</span><h2>掃描 PDF → Word</h2><p>辨識掃描頁面的文字，建立可搜尋 PDF 或可編輯的 Word 文件。</p><button class="secondary-button" type="button" data-product-panel="pdf-panel" data-pdf-mode="pdf-to-office" data-office-format="docx" data-scan-ocr="force" data-product-focus="#pdf-files">辨識並轉 Word</button></article>
           <article><span>自動化</span><h2>Office 歸檔流程</h2><p>Office → PDF → 壓縮，自動接力並可從失敗步驟繼續。</p><button class="secondary-button" type="button" data-product-panel="workflow-panel" data-workflow-template="office-archive">建立歸檔流程</button></article>
           <article><span>批量</span><h2>批量 Office 轉換</h2><p>一次選擇多份 Word、Excel、PowerPoint 或 OpenDocument，個別任務可取消或重試。</p><button class="secondary-button" type="button" data-product-panel="pdf-panel" data-pdf-mode="office-to-pdf" data-product-focus="#pdf-files">選擇多份 Office 文件</button></article>
         </div>
@@ -348,23 +314,16 @@
             <h1 id="tasks-title">全域任務中心</h1>
             <p>PDF、圖片、影音及 Office 的進階處理都集中在這裡。離開原本工具後，任務仍會繼續執行。</p>
           </div>
-          <button id="refresh-task-center" class="primary-button" type="button">重新整理</button>
+          <button id="refresh-task-center" class="secondary-button compact" type="button">重新整理</button>
         </header>
-
-        <div class="task-summary" aria-label="任務摘要">
-          <article><span>全部</span><strong id="task-count-all">0</strong><small>任務紀錄</small></article>
-          <article class="active"><span>進行中</span><strong id="task-count-active">0</strong><small>排隊及處理中</small></article>
-          <article class="success"><span>已完成</span><strong id="task-count-done">0</strong><small>可開啟輸出</small></article>
-          <article class="danger"><span>需要處理</span><strong id="task-count-attention">0</strong><small>失敗或已取消</small></article>
-        </div>
 
         <section class="task-board">
           <div class="task-board-toolbar">
             <div class="task-filters" role="group" aria-label="篩選任務">
-              <button class="is-active" type="button" data-task-filter="all">全部</button>
-              <button type="button" data-task-filter="active">進行中</button>
-              <button type="button" data-task-filter="done">已完成</button>
-              <button type="button" data-task-filter="attention">需要處理</button>
+              <button class="is-active" type="button" data-task-filter="all">全部 <b id="task-count-all">0</b></button>
+              <button type="button" data-task-filter="active">進行中 <b id="task-count-active">0</b></button>
+              <button type="button" data-task-filter="done">已完成 <b id="task-count-done">0</b></button>
+              <button type="button" data-task-filter="attention">需要處理 <b id="task-count-attention">0</b></button>
             </div>
             <label class="task-search"><span class="visually-hidden">搜尋任務</span><input id="task-search" type="search" placeholder="搜尋類型或檔名"></label>
           </div>
@@ -387,7 +346,7 @@
               <p>看到甚麼，就直接裁切、調整、辨識或匯出；原始圖片不會被修改。</p>
             </div>
             <div class="actions compact-actions">
-              <label class="primary-button compact" for="image-files">＋ 加入圖片</label>
+              <label class="primary-button compact" for="image-files"><span class="ui-icon" data-icon="plus" aria-hidden="true"></span> 加入圖片</label>
               <input id="image-files" class="visually-hidden" type="file" accept="image/*,.tif,.tiff,.bmp" multiple tabindex="-1">
               <button class="secondary-button compact" type="button" data-clear-panel="image-panel">清空</button>
               <span id="image-workspace-count" class="badge muted">0 張圖片</span>
@@ -395,8 +354,8 @@
           </div>
 
           <div class="image-workspace-toolbar" aria-label="圖片編輯工具">
-            <button id="image-rotate-left" class="secondary-button compact" type="button" disabled>↶ 左轉</button>
-            <button id="image-rotate-right" class="secondary-button compact" type="button" disabled>↷ 右轉</button>
+            <button id="image-rotate-left" class="secondary-button compact" type="button" disabled><span class="ui-icon" data-icon="rotate-ccw" aria-hidden="true"></span> 左轉</button>
+            <button id="image-rotate-right" class="secondary-button compact" type="button" disabled><span class="ui-icon" data-icon="rotate-cw" aria-hidden="true"></span> 右轉</button>
             <label>
               <span>翻轉</span>
               <select id="image-flip" disabled>
@@ -415,7 +374,7 @@
                 <option value="270">270°</option>
               </select>
             </label>
-            <button id="image-select-region" class="secondary-button compact" type="button" disabled>▣ 框選區域</button>
+            <button id="image-select-region" class="secondary-button compact" type="button" disabled><span class="ui-icon" data-icon="maximize" aria-hidden="true"></span> 框選區域</button>
             <button id="image-apply-crop" class="secondary-button compact" type="button" disabled>套用裁切</button>
             <button id="image-clear-selection" class="secondary-button compact" type="button" disabled>清除框選</button>
             <button id="image-reset-edits" class="secondary-button compact" type="button" disabled>重設目前圖片</button>
@@ -486,7 +445,7 @@
                 <div class="actions">
                   <button id="image-export-current" class="primary-button" type="button" disabled>匯出目前圖片</button>
                   <button id="download-all-images" class="secondary-button" type="button" disabled>匯出全部</button>
-                  <button id="image-export-cancel" class="secondary-button danger-button" type="button" hidden>Cancel</button>
+                  <button id="image-export-cancel" class="secondary-button danger-button" type="button" hidden>取消</button>
                 </div>
                 <p id="image-export-progress" class="image-export-progress" aria-live="polite">尚未匯出圖片。</p>
                 <div id="image-results" class="result-list empty compact-results">尚未產生檔案</div>
@@ -501,22 +460,22 @@
                   <button id="image-ocr-current" class="primary-button compact" type="button" disabled>目前圖片</button>
                   <button id="image-ocr-all" class="secondary-button compact" type="button" disabled>全部圖片</button>
                   <button id="image-ocr-region" class="secondary-button compact" type="button" disabled>辨識框選</button>
-                  <button id="image-ocr-cancel" class="secondary-button compact danger-button" type="button" hidden>Cancel</button>
+                  <button id="image-ocr-cancel" class="secondary-button compact danger-button" type="button" hidden>取消</button>
                 </div>
                 <details class="advanced-details compact-details">
                   <summary>進階語言設定</summary>
-                  <label><span>OCR language code</span><input id="img-backend-ocr-language" type="text" value="chi_tra+eng" placeholder="一般無需更改"></label>
+                  <label><span>辨識語言代碼</span><input id="img-backend-ocr-language" type="text" value="chi_tra+eng" placeholder="一般無需更改"></label>
                 </details>
                 <p id="image-ocr-progress" class="image-ocr-progress">選擇圖片後，可辨識目前圖片、全部圖片或框選區域。</p>
                 <div id="image-ocr-error" class="image-ocr-error" role="alert" hidden></div>
                 <textarea id="image-ocr-text" class="image-ocr-text" readonly spellcheck="false" aria-label="圖片 OCR 辨識文字" hidden></textarea>
                 <div id="image-ocr-empty" class="image-ocr-empty">辨識結果會直接顯示在這裡。</div>
                 <div class="image-ocr-result-actions">
-                  <button id="image-ocr-copy" class="secondary-button compact" type="button" disabled>Copy</button>
-                  <button id="image-ocr-export" class="secondary-button compact" type="button" disabled>Export TXT</button>
-                  <button id="image-ocr-clear" class="secondary-button compact" type="button" disabled>Clear / Close</button>
+                  <button id="image-ocr-copy" class="secondary-button compact" type="button" disabled>複製</button>
+                  <button id="image-ocr-export" class="secondary-button compact" type="button" disabled>匯出 TXT</button>
+                  <button id="image-ocr-clear" class="secondary-button compact" type="button" disabled>清除結果</button>
                 </div>
-                <small>技術詳情保留在任務紀錄；一般錯誤不會顯示 raw stack trace。</small>
+                <small>遇到問題時，可從任務中心查看原因與修復建議。</small>
               </section>
             </aside>
           </div>
@@ -567,6 +526,16 @@
               <h3 id="pdf-title">PDF 處理</h3>
               <span id="pdf-engine-badge" class="badge">本機即時</span>
             </div>
+            <p class="flow-step">1 <span>加入檔案</span></p>
+            <label class="file-zone" for="pdf-files">
+              <input id="pdf-files" type="file" accept="application/pdf,.pdf" multiple>
+              <span id="pdf-file-zone-title">選擇 PDF</span>
+              <small id="pdf-file-hint">可一次選擇多個檔案</small>
+            </label>
+
+            <div id="pdf-merge-order" class="pdf-order-panel" hidden></div>
+
+            <p class="flow-step">2 <span>設定輸出</span></p>
             <div class="control-row">
               <label>
                 <span>想完成的工作</span>
@@ -603,14 +572,6 @@
             </div>
 
             <p id="pdf-mode-note" class="backend-inline-note pdf-mode-note"></p>
-
-            <label class="file-zone" for="pdf-files">
-              <input id="pdf-files" type="file" accept="application/pdf,.pdf" multiple>
-              <span id="pdf-file-zone-title">選擇 PDF</span>
-              <small id="pdf-file-hint">可一次選擇多個檔案</small>
-            </label>
-
-            <div id="pdf-merge-order" class="pdf-order-panel" hidden></div>
 
             <div class="control-row pdf-range-controls">
               <label>
@@ -705,15 +666,16 @@
             </details>
             <p id="pdf-office-format-note" class="backend-inline-note pdf-office-format-note" hidden></p>
 
+            <details class="pdf-ocr-advanced" id="pdf-ocr-advanced" hidden>
+              <summary>進階：辨識語言與頁數</summary>
             <div class="control-row pdf-ocr-controls">
               <label>
                 <span>最多頁數</span>
                 <input id="pdf-ocr-max-pages" type="number" min="1" max="100" value="50">
               </label>
-              <p class="backend-inline-note backend-inline-note-centered">預設自動使用繁中+英文（chi_tra+eng）；缺語言包時會自動改用可用語言。</p>
+              <p class="backend-inline-note backend-inline-note-centered">預設辨識繁體中文與英文。可在進階設定調整語言。</p>
             </div>
-            <details class="pdf-ocr-advanced" id="pdf-ocr-advanced" hidden>
-              <summary>進階：OCR 語言代碼</summary>
+
               <label>
                 <span>OCR 語言</span>
                 <input id="pdf-ocr-language" type="text" value="chi_tra+eng" placeholder="一般無需更改">
@@ -767,9 +729,9 @@
               <span id="pdf-workspace-status" class="status-pill">準備就緒</span>
             </div>
             <div class="pdf-workspace-toolbar" aria-label="PDF 頁面工具">
-              <button id="pdf-workspace-add-files" class="secondary-button compact" type="button">＋ 加入 PDF</button>
+              <button id="pdf-workspace-add-files" class="secondary-button compact" type="button"><span class="ui-icon" data-icon="plus" aria-hidden="true"></span> 加入 PDF</button>
               <input id="pdf-workspace-add-input" class="visually-hidden" type="file" accept="application/pdf,.pdf" multiple tabindex="-1">
-              <button id="pdf-workspace-add-blank" class="secondary-button compact" type="button">＋ 空白頁</button>
+              <button id="pdf-workspace-add-blank" class="secondary-button compact" type="button"><span class="ui-icon" data-icon="plus" aria-hidden="true"></span> 空白頁</button>
               <div class="pdf-workspace-ocr-actions" aria-label="OCR 辨識文字">
                 <strong>OCR / 辨識文字</strong>
                 <button id="pdf-workspace-ocr-page" class="primary-button compact" type="button" disabled>目前頁面</button>
@@ -794,9 +756,9 @@
                 <div id="pdf-live-preview-stage" class="pdf-live-preview-stage">選擇頁面後在此預覽</div>
                 <div id="pdf-live-preview-meta" class="pdf-live-preview-meta">載入 PDF 後可逐頁查看</div>
                 <div class="pdf-live-preview-actions">
-                  <button id="pdf-preview-prev" class="secondary-button compact" type="button" disabled>← 上一頁</button>
-                  <button id="pdf-preview-rotate" class="secondary-button compact" type="button" disabled>↻ 旋轉</button>
-                  <button id="pdf-preview-next" class="secondary-button compact" type="button" disabled>下一頁 →</button>
+                  <button id="pdf-preview-prev" class="secondary-button compact" type="button" disabled><span class="ui-icon" data-icon="chevron-left" aria-hidden="true"></span> 上一頁</button>
+                  <button id="pdf-preview-rotate" class="secondary-button compact" type="button" disabled><span class="ui-icon" data-icon="rotate-cw" aria-hidden="true"></span> 旋轉</button>
+                  <button id="pdf-preview-next" class="secondary-button compact" type="button" disabled><span class="ui-icon" data-icon="chevron-right" aria-hidden="true"></span> 下一頁</button>
                 </div>
               </aside>
               <aside id="pdf-workspace-ocr-panel" class="pdf-workspace-ocr-panel empty" aria-labelledby="pdf-workspace-ocr-title">
@@ -812,10 +774,10 @@
                 <textarea id="pdf-workspace-ocr-text" class="pdf-workspace-ocr-text" readonly spellcheck="false" aria-label="OCR 辨識文字" hidden></textarea>
                 <div id="pdf-workspace-ocr-empty" class="pdf-workspace-ocr-empty">OCR 完成後，文字會直接顯示在這裡。</div>
                 <div class="pdf-workspace-ocr-result-actions">
-                  <button id="pdf-workspace-ocr-copy" class="secondary-button compact" type="button" disabled>Copy</button>
-                  <button id="pdf-workspace-ocr-export" class="secondary-button compact" type="button" disabled>Export TXT</button>
-                  <button id="pdf-workspace-ocr-clear" class="secondary-button compact" type="button" disabled>Clear / Close</button>
-                  <button id="pdf-workspace-ocr-cancel" class="secondary-button compact danger-button" type="button" hidden>Cancel</button>
+                  <button id="pdf-workspace-ocr-copy" class="secondary-button compact" type="button" disabled>複製</button>
+                  <button id="pdf-workspace-ocr-export" class="secondary-button compact" type="button" disabled>匯出 TXT</button>
+                  <button id="pdf-workspace-ocr-clear" class="secondary-button compact" type="button" disabled>清除結果</button>
+                  <button id="pdf-workspace-ocr-cancel" class="secondary-button compact danger-button" type="button" hidden>取消</button>
                 </div>
                 <small class="pdf-workspace-ocr-diagnostic">技術詳情會保留在下方「任務紀錄」，方便診斷而不干擾閱讀。</small>
               </aside>
@@ -1128,8 +1090,15 @@
           <form id="media-backend-form" class="tool-surface">
             <div class="surface-heading">
               <h3 id="media-title">音訊 / 影片轉換</h3>
-              <span class="badge">FFmpeg</span>
+              <span class="badge">本機處理</span>
             </div>
+            <p class="flow-step">1 <span>加入檔案</span></p>
+            <label class="file-drop-zone" id="media-drop" for="media-files">
+              <input id="media-files" type="file" multiple accept=".mp3,.wav,.m4a,.flac,.aac,.ogg,.mp4,.mov,.mkv,.avi,.webm">
+              <span>選擇或拖放音訊／影片</span><small>支援 MP3、WAV、MP4、MOV 等常見格式</small>
+            </label>
+            <div id="media-selected-files" class="drop-file-list empty">尚未選擇檔案</div>
+            <p class="flow-step">2 <span>設定輸出</span></p>
             <fieldset class="media-purpose-picker">
               <legend>想完成的工作</legend>
               <div role="group" aria-label="影音常見用途">
@@ -1196,15 +1165,10 @@
                 </label>
                 <div></div>
               </div>
-              <p class="backend-inline-note">留空則由 FFmpeg 自動決定。音訊格式會忽略影片碼率／scale／crop；GIF 主要使用 FPS 與 scale。</p>
+              <p class="backend-inline-note">留空即可使用建議值。音訊輸出不受影片尺寸設定影響。</p>
             </details>
-            <label class="file-drop-zone" id="media-drop" for="media-files">
-              <input id="media-files" type="file" multiple accept=".mp3,.wav,.m4a,.flac,.aac,.ogg,.mp4,.mov,.mkv,.avi,.webm">
-              <span>選擇或拖放音訊 / 影片</span>
-              <div id="media-selected-files" class="drop-file-list empty">尚未選擇檔案</div>
-            </label>
             <div class="actions">
-              <button class="primary-button" type="submit">加入佇列</button>
+              <button class="primary-button" type="submit">開始轉換</button>
             </div>
           </form>
 
@@ -1425,6 +1389,20 @@
       </section>
 
       <section id="backend-panel" class="panel" aria-labelledby="backend-title">
+        <details class="platform-help"><summary>關於此裝置與平台功能</summary><p>本機優先的辦公文件與媒體處理工作台。桌面版支援本機輸出與背景任務；瀏覽器版依可用工具提供處理功能。</p>          <aside class="device-status-card" aria-label="目前裝置模式">
+            <div class="device-status-heading">
+              <span class="device-icon" aria-hidden="true">↗</span>
+              <div><small>目前執行模式</small><strong id="home-runtime-title">瀏覽器版</strong></div>
+            </div>
+            <p id="home-runtime-note">這部裝置可使用所有瀏覽器處理工具。</p>
+            <ul>
+              <li><span>PDF、圖片及其他瀏覽器工具</span><strong>可用</strong></li>
+              <li><span>檔案不經雲端上載</span><strong>本機</strong></li>
+              <li><span>影音、Office、OCR 批量任務</span><strong>桌面進階</strong></li>
+            </ul>
+            <p class="device-network-note">手機需透過可連線網址開啟；電腦的 <code>127.0.0.1</code> 網址不能直接在手機使用。</p>
+          </aside></details>
+
         <div class="tool-grid">
           <form id="backend-form" class="tool-surface">
             <div class="surface-heading">
@@ -1562,13 +1540,13 @@
       </section>
     </main>
     <nav class="mobile-primary-nav" aria-label="手機主要導航">
-      <button class="is-active" type="button" data-mobile-panel="home-panel"><span aria-hidden="true">⌂</span>首頁</button>
-      <button type="button" data-mobile-panel="pdf-hub-panel"><span aria-hidden="true">▤</span>PDF</button>
-      <button type="button" data-mobile-panel="ocr-panel"><span aria-hidden="true">⌕</span>OCR</button>
-      <button type="button" data-mobile-panel="office-panel"><span aria-hidden="true">▣</span>Office</button>
-      <button type="button" data-mobile-panel="image-panel"><span aria-hidden="true">▧</span>圖片</button>
-      <button type="button" data-mobile-panel="media-panel"><span aria-hidden="true">▷</span>影音</button>
-      <button id="mobile-more-tools" type="button"><span aria-hidden="true">☰</span>更多</button>
+      <button class="is-active" type="button" data-mobile-panel="home-panel"><span class="ui-icon" data-icon="home" aria-hidden="true"></span>首頁</button>
+      <button type="button" data-mobile-panel="pdf-hub-panel"><span class="ui-icon" data-icon="file-text" aria-hidden="true"></span>PDF</button>
+      <button type="button" data-mobile-panel="ocr-panel"><span class="ui-icon" data-icon="maximize" aria-hidden="true"></span>OCR</button>
+      <button type="button" data-mobile-panel="office-panel"><span class="ui-icon" data-icon="briefcase" aria-hidden="true"></span>Office</button>
+      <button type="button" data-mobile-panel="image-panel"><span class="ui-icon" data-icon="image" aria-hidden="true"></span>圖片</button>
+      <button type="button" data-mobile-panel="media-panel"><span class="ui-icon" data-icon="film" aria-hidden="true"></span>影音</button>
+      <button id="mobile-more-tools" type="button"><span class="ui-icon" data-icon="menu" aria-hidden="true"></span>更多</button>
     </nav>
   </div>
 
@@ -1576,7 +1554,7 @@
     <form id="preset-dialog-form" class="dialog-card">
       <header>
         <div><p class="eyebrow">保存到這部裝置</p><h2 id="preset-dialog-title">保存這組設定</h2></div>
-        <button id="preset-dialog-close" class="dialog-close" type="button" aria-label="關閉預設視窗">×</button>
+        <button id="preset-dialog-close" class="dialog-close" type="button" aria-label="關閉預設視窗"><span class="ui-icon" data-icon="x" aria-hidden="true"></span></button>
       </header>
       <label><span>為這組設定命名</span><input id="preset-name" type="text" maxlength="40" required autocomplete="off" placeholder="例如：每週報告 PDF"></label>
       <div class="preset-save-preview">
@@ -1592,7 +1570,7 @@
     <form method="dialog" class="dialog-card">
       <header>
         <div><p class="eyebrow">清楚交代資料去向</p><h2 id="privacy-dialog-title">私隱與資料處理</h2></div>
-        <button class="dialog-close" type="submit" value="close" aria-label="關閉私隱說明">×</button>
+        <button class="dialog-close" type="submit" value="close" aria-label="關閉私隱說明"><span class="ui-icon" data-icon="x" aria-hidden="true"></span></button>
       </header>
       <p id="privacy-dialog-summary" class="dialog-lead">SwiftLocal 不設帳戶、雲端上載或使用分析。不同處理模式仍有以下本機資料差異。</p>
       <div class="privacy-grid">
@@ -1610,7 +1588,7 @@
     <form method="dialog" class="dialog-card">
       <header>
         <div><p class="eyebrow">依你的需要顯示</p><h2 id="accessibility-dialog-title">無障礙顯示設定</h2></div>
-        <button class="dialog-close" type="submit" value="close" aria-label="關閉顯示設定">×</button>
+        <button class="dialog-close" type="submit" value="close" aria-label="關閉顯示設定"><span class="ui-icon" data-icon="x" aria-hidden="true"></span></button>
       </header>
       <fieldset class="accessibility-options">
         <legend class="visually-hidden">顯示選項</legend>
@@ -1642,6 +1620,7 @@
   <script src="pdf-core/index.js"></script>
   <script src="pdf-workspace/shell.js"></script>
   <script src="media-downloader.js"></script>
+  <script src="shared/workbench.js"></script>
   <script src="app.js"></script>
   <div id="toast-container" aria-live="assertive"></div>
 </body>

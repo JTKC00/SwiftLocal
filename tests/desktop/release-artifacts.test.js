@@ -116,7 +116,8 @@ afterEach(() => {
 
 describe("release artifact verification", () => {
   test("packaged UI smoke follows the current product hubs", () => {
-    assert.ok(packagedUiVerifier.includes('[data-home-panel="pdf-hub-panel"]'));
+    assert.ok(packagedUiVerifier.includes('#quick-actions [data-panel="pdf-reader-panel"]'));
+    assert.ok(packagedUiVerifier.includes('.core-nav-group [data-panel="pdf-hub-panel"]'));
     assert.match(packagedUiVerifier, /pdf-hub-panel/);
     assert.match(packagedUiVerifier, /ocr-panel/);
     assert.match(packagedUiVerifier, /office-panel/);
