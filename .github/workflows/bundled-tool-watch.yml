@@ -1,0 +1,91 @@
+name: Bundled Tool Watch
+
+on:
+  schedule:
+    - cron: "17 2 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: bundled-tool-watch
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Check bundled tool releases
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Check upstream releases
+        id: watch
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/check-bundled-tool-updates.js --report bundled-tool-watch-report.md
+
+      - name: Add report to job summary
+        if: always()
+        shell: bash
+        run: |
+          if [[ -f bundled-tool-watch-report.md ]]; then
+            cat bundled-tool-watch-report.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Open or update maintenance issue
+        if: steps.watch.outputs.actionable == 'true'
+        uses: actions/github-script@v8
+        env:
+          WATCH_FINGERPRINT: ${{ steps.watch.outputs.fingerprint }}
+          WATCH_REPORT_PATH: ${{ steps.watch.outputs.report_path }}
+        with:
+          script: |
+            const fs = require('fs');
+            const title = '[Maintenance] Bundled Tool Watch';
+            const marker = `<!-- bundled-tool-watch:${process.env.WATCH_FINGERPRINT} -->`;
+            const report = fs.readFileSync(process.env.WATCH_REPORT_PATH, 'utf8');
+
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'all',
+              per_page: 100,
+              sort: 'updated',
+              direction: 'desc'
+            });
+
+            const matching = issues.filter((issue) => !issue.pull_request && issue.title === title);
+            if (matching.some((issue) => (issue.body || '').includes(marker))) {
+              core.info('This exact watch state has already been reported; no duplicate notification needed.');
+              return;
+            }
+
+            const openIssue = matching.find((issue) => issue.state === 'open');
+            if (openIssue) {
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: openIssue.number,
+                body: report
+              });
+              core.info(`Updated existing issue #${openIssue.number}.`);
+              return;
+            }
+
+            const { data: created } = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              body: report
+            });
+            core.info(`Created issue #${created.number}.`);
