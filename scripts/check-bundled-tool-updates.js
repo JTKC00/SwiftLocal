@@ -145,16 +145,18 @@ async function main() {
     }
 
     const reviewed = normalizeVersion(tool.reviewedVersion);
+    const bundledHint = tool.bundledVersionHint ? normalizeVersion(tool.bundledVersionHint) : null;
     try {
       const latest = await fetchLatest(tool.upstream);
       const reviewedBehind = compareVersions(latest.version, reviewed) > 0;
-      const bundledBehind = bundled ? compareVersions(latest.version, bundled) > 0 : false;
+      const bundledComparable = bundled || bundledHint;
+      const bundledBehind = bundledComparable ? compareVersions(latest.version, bundledComparable) > 0 : false;
       const actionRequired = reviewedBehind || bundledBehind;
       results.push({
         key,
         name: tool.name,
         bundled,
-        bundledHint: tool.bundledVersionHint || "",
+        bundledHint: bundledHint || "",
         bundledNote: tool.bundledVersionNote || "",
         bundledError,
         reviewed,
@@ -168,7 +170,7 @@ async function main() {
         key,
         name: tool.name,
         bundled,
-        bundledHint: tool.bundledVersionHint || "",
+        bundledHint: bundledHint || "",
         bundledNote: tool.bundledVersionNote || "",
         bundledError,
         reviewed,
@@ -186,6 +188,7 @@ async function main() {
   const fingerprintPayload = results.map((result) => ({
     key: result.key,
     bundled: result.bundled,
+    bundledHint: result.bundledHint,
     bundledError: result.bundledError,
     reviewed: result.reviewed,
     latest: result.latest,
