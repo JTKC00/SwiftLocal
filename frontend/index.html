@@ -163,6 +163,7 @@
         <div class="product-route-grid">
           <article><span>01</span><h2>閱讀與填表</h2><p>開啟、搜尋、填寫表單、簽名圖片、日期章、儲存、另存及列印。縮放與適合頁面只改變檢視。</p><button class="primary-button" type="button" data-product-panel="pdf-reader-panel">開啟 PDF</button></article>
           <article><span>02</span><h2>頁面整理</h2><p>排序、旋轉、複製、刪除、插入與匯出頁面。這些操作會建立永久修改的新 PDF。</p><button class="secondary-button" type="button" data-product-panel="pdf-panel" data-pdf-mode="workspace" data-product-focus="#pdf-files">整理頁面</button></article>
+          <article><span>圖片</span><h2>圖片 → PDF</h2><p>把 JPG、PNG 依次合併成一份 PDF；可排序、移除及選擇 A4 頁面。</p><button class="secondary-button" type="button" data-product-panel="pdf-panel" data-pdf-mode="images-to-pdf" data-product-focus="#pdf-files">圖片轉 PDF</button></article>
           <article><span>03</span><h2>轉換與 OCR</h2><p>轉成文字、圖片或 Office，亦可辨識掃描文件及建立可搜尋 PDF。</p><button class="secondary-button" type="button" data-product-panel="pdf-panel" data-pdf-mode="text" data-product-focus="#pdf-files">選擇轉換</button></article>
           <article><span>04</span><h2>保護與壓縮</h2><p>壓縮、加密或解密 PDF；相容性受限時會顯示 QPDF 或 Adobe Acrobat 修復提示。</p><button class="secondary-button" type="button" data-product-panel="pdf-panel" data-pdf-mode="pdf-compress" data-product-focus="#pdf-files">壓縮或保護</button></article>
         </div>
@@ -338,7 +339,7 @@
       </section>
 
       <section id="image-panel" class="panel" aria-labelledby="image-title">
-        <div class="panel-context-bar"><span>圖片工作區</span><button type="button" data-product-panel="ocr-panel">前往 OCR</button></div>
+        <div class="panel-context-bar"><span>圖片工作區</span><button type="button" data-product-panel="pdf-panel" data-pdf-mode="images-to-pdf" data-product-focus="#pdf-files">圖片轉 PDF</button><button type="button" data-product-panel="ocr-panel">前往 OCR</button></div>
         <div id="image-workspace" class="image-workspace tool-surface">
           <div class="image-workspace-heading">
             <div>
@@ -551,6 +552,7 @@
                     <option value="pdf-compress">壓縮 PDF</option>
                   </optgroup>
                   <optgroup label="轉換內容">
+                    <option value="images-to-pdf">圖片 → PDF</option>
                     <option value="text">PDF → TXT</option>
                     <option value="images">PDF → 圖片</option>
                     <option value="pdf-to-docx">PDF → DOCX（純文字）</option>
@@ -572,6 +574,11 @@
             </div>
 
             <p id="pdf-mode-note" class="backend-inline-note pdf-mode-note"></p>
+
+            <div class="control-row pdf-from-images-controls" hidden>
+              <label><span>頁面大小</span><select id="pdf-from-images-size"><option value="image">按圖片比例（96 dpi）</option><option value="a4-portrait">A4 直向</option><option value="a4-landscape">A4 橫向</option></select></label>
+              <label><span>頁邊距</span><select id="pdf-from-images-margin"><option value="0">無邊距</option><option value="28.35">10 mm</option><option value="56.7">20 mm</option></select></label>
+            </div>
 
             <div class="control-row pdf-range-controls">
               <label>
@@ -1621,6 +1628,8 @@
   <script src="pdf-workspace/shell.js"></script>
   <script src="media-downloader.js"></script>
   <script src="shared/workbench.js"></script>
+  <script src="shared/images-to-pdf.js"></script>
+  <script src="shared/csv.js"></script>
   <script src="app.js"></script>
   <div id="toast-container" aria-live="assertive"></div>
 </body>

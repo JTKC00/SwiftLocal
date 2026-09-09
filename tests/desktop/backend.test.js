@@ -1393,7 +1393,7 @@ describe("BackendService jobs", () => {
     try {
       const promise = runProcess(
         process.execPath,
-        ["-e", "process.stdout.write('timeout-output'); setInterval(() => {}, 1000);"],
+        ["-e", "setInterval(() => {}, 1000);"],
         job,
         "test tool",
         { timeoutMs: 250 }
@@ -1404,6 +1404,9 @@ describe("BackendService jobs", () => {
       }
       child = job._child;
       assert.ok(child, "runProcess should expose the spawned child on the job");
+      // This test concerns timeout settlement without close, not Node startup
+      // speed. Deliver output deterministically before the short timeout.
+      child.stdout.emit("data", Buffer.from("timeout-output"));
       originalEmit = child.emit;
       child.emit = function (event, ...args) {
         if (event === "close") {

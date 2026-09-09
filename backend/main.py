@@ -4,6 +4,7 @@ from pathlib import Path
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 from starlette.responses import JSONResponse
 
 from .routers import jobs, tools
@@ -54,6 +55,11 @@ app.add_middleware(
     allow_credentials=False,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "X-SwiftLocal-Token"],
+)
+app.add_middleware(
+    TrustedHostMiddleware,
+    allowed_hosts=["127.0.0.1", "localhost"],
+    www_redirect=False,
 )
 
 app.include_router(tools.router, prefix="/api")

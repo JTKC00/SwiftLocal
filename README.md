@@ -1,12 +1,14 @@
 # 快轉通 SwiftLocal
 
-**版本 0.4.0-alpha** · 本機優先的辦公文件與媒體處理工作台，集中處理 PDF、OCR、Office、圖片及影音，並提供可靠的批量任務與自動化流程。
+**版本 0.4.0-alpha.4** · 本機優先的辦公文件與媒體處理工作台，集中處理 PDF、OCR、Office、圖片及影音，並提供可靠的批量任務與自動化流程。
 
 > **PDF、OCR 與辦公檔案，都留在你的裝置。**
 
 它不是要取代 LibreOffice、FFmpeg、Tesseract 或 QPDF，而是把這些工具整合成較好用的桌面工作台。Windows 打包版可內建 FFmpeg、Tesseract 與 QPDF；LibreOffice 體積較大，建議可選安裝或 Full 版內建。
 
 變更摘要見 [CHANGELOG.md](./CHANGELOG.md)。
+
+正式版準備與實測紀錄見 [2026-09-09 發布檢查](./docs/RELEASE_READINESS_2026-09-09.md)。開發環境建議 Node.js 24 LTS、Python 3.12；正式版煙霧檢查使用 `npm run smoke:release`，要求四個轉換引擎均來自專案內的 `tools/`。
 
 ## 平台狀態
 
@@ -35,7 +37,7 @@
 | 類別 | 功能 |
 | --- | --- |
 | 圖片 | JPG / PNG / WebP 轉換、壓縮、縮放、旋轉、浮水印 |
-| PDF | 合併、分割、抽頁、旋轉、浮水印、頁碼、轉圖片、抽文字 |
+| PDF | 合併、分割、抽頁、旋轉、浮水印、頁碼、轉圖片、抽文字、JPG／PNG 合成 PDF（原圖尺寸或 A4） |
 | 其他工具 | ZIP、Hash、檔案分片、批量改名、文字整理、繁簡轉換、文字比對、CSV / JSON / XML、QR Code、Base64 / URL / HTML、UUID、顏色轉換 |
 
 ### 本機後端／桌面任務（依賴工具或內建引擎）

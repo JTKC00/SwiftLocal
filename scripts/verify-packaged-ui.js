@@ -74,17 +74,35 @@ async function connectDebugger(url, options = {}) {
   });
   let requestId = 0;
   const pending = new Map();
+  const rejectPending = () => {
+    for (const request of pending.values()) {
+      clearTimeout(request.timer);
+      request.reject(new Error("packaged debugger connection closed"));
+    }
+    pending.clear();
+  };
+  socket.addEventListener("close", rejectPending);
+  socket.addEventListener("error", rejectPending);
   socket.addEventListener("message", (event) => {
     const message = JSON.parse(event.data);
     if (!message.id || !pending.has(message.id)) return;
-    const { resolve, reject } = pending.get(message.id);
+    const { resolve, reject, timer } = pending.get(message.id);
+    clearTimeout(timer);
     pending.delete(message.id);
     if (message.error) reject(new Error(message.error.message));
     else resolve(message.result);
   });
   const send = (method, params = {}) => new Promise((resolve, reject) => {
+    if (socket.readyState !== WebSocket.OPEN) {
+      reject(new Error("packaged debugger connection is not open"));
+      return;
+    }
     const id = ++requestId;
-    pending.set(id, { resolve, reject });
+    const timer = setTimeout(() => {
+      pending.delete(id);
+      reject(new Error(`packaged debugger request timed out: ${method}`));
+    }, 60000);
+    pending.set(id, { resolve, reject, timer });
     socket.send(JSON.stringify({ id, method, params }));
   });
   return { page, send, close: () => socket.close(), startupElapsedMs: Date.now() - startedAt };
@@ -429,7 +447,7 @@ async function main(debuggerEndpoint = endpoint, options = {}) {
       try {
         await evaluateWhenReady(
           debuggerClient.send,
-          `(() => { setTimeout(() => window.close(), 0); return true; })()`
+          `(() => { window.close(); return true; })()`
         );
       } catch (error) {
         console.warn(`WARN 無法要求 packaged app 正常關閉：${error.message}`);

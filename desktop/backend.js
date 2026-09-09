@@ -130,7 +130,14 @@ function redactJobText(value, options = {}) {
   let safe = String(value || "");
   for (const [key, secret] of Object.entries(options || {})) {
     if (!/password|passphrase/i.test(key) || !secret) continue;
-    safe = safe.split(String(secret)).join("[REDACTED]");
+    const variants = new Set([String(secret), String(secret).trim()].flatMap((text) => [
+      text,
+      text.replace(/"/g, '\\"'),
+      JSON.stringify(text).slice(1, -1)
+    ]));
+    for (const variant of [...variants].filter(Boolean).sort((a, b) => b.length - a.length)) {
+      safe = safe.split(variant).join("[REDACTED]");
+    }
   }
   return safe;
 }
@@ -881,9 +888,6 @@ class BackendService {
         }
         loError = error;
       }
-
-      const expectedPath = path.join(job.outputDir, `${path.parse(inputPath).name}.${extension}`);
-      removeIncompleteOfficeOutput(expectedPath);
 
       if (extension === "docx") {
         job.log.push(String(loError && loError.message ? loError.message : loError || "LibreOffice failed"));
@@ -1751,32 +1755,33 @@ function resolveOcrLanguage(toolPath, requested) {
   };
 }
 
-async function runImageTextOcr(toolPath, inputPath, outputBase, language, tessdataDir, job) {
-  const primaryArgs = buildTesseractOcrArgs(inputPath, outputBase, language, tessdataDir, "", "6");
-  const primaryResult = await runProcess(toolPath, primaryArgs, job, "Tesseract");
-  const primaryTextPath = `${outputBase}.txt`;
-  const primaryText = fs.existsSync(primaryTextPath) ? fs.readFileSync(primaryTextPath, "utf8") : "";
-
-  const sparseBase = `${outputBase}_sparse`;
-  const sparseArgs = buildTesseractOcrArgs(inputPath, sparseBase, language, tessdataDir, "", "11");
-  let sparseOutput = "";
-  let sparseText = "";
+async function runImageTextOcr(toolPath, inputPath, outputBase, language, tessdataDir, job, runTool = runProcess) {
+  const scratchDir = createOcrTempDir("text-ocr");
   try {
-    const sparseResult = await runProcess(toolPath, sparseArgs, job, "Tesseract");
-    sparseOutput = sparseResult.output || "";
-    const sparseTextPath = `${sparseBase}.txt`;
-    sparseText = fs.existsSync(sparseTextPath) ? fs.readFileSync(sparseTextPath, "utf8") : "";
-    try {
-      fs.rmSync(sparseTextPath, { force: true });
-    } catch {
-      // ignore
-    }
-  } catch {
-    sparseText = "";
-  }
+    const primaryBase = path.join(scratchDir, "primary");
+    const primaryArgs = buildTesseractOcrArgs(inputPath, primaryBase, language, tessdataDir, "", "6");
+    const primaryResult = await runTool(toolPath, primaryArgs, job, "Tesseract");
+    const primaryTextPath = `${primaryBase}.txt`;
+    const primaryText = fs.existsSync(primaryTextPath) ? fs.readFileSync(primaryTextPath, "utf8") : "";
 
-  fs.writeFileSync(primaryTextPath, chooseOcrText(primaryText, sparseText), "utf8");
-  return [primaryResult.output, sparseOutput].filter(Boolean).join("\n").trim();
+    const sparseBase = path.join(scratchDir, "sparse");
+    const sparseArgs = buildTesseractOcrArgs(inputPath, sparseBase, language, tessdataDir, "", "11");
+    let sparseOutput = "";
+    let sparseText = "";
+    try {
+      const sparseResult = await runTool(toolPath, sparseArgs, job, "Tesseract");
+      sparseOutput = sparseResult.output || "";
+      const sparseTextPath = `${sparseBase}.txt`;
+      sparseText = fs.existsSync(sparseTextPath) ? fs.readFileSync(sparseTextPath, "utf8") : "";
+    } catch (error) {
+      if (isJobCancelledError(error)) throw error;
+    }
+    ensureJobNotCancelled(job);
+    fs.writeFileSync(`${outputBase}.txt`, chooseOcrText(primaryText, sparseText), { encoding: "utf8", flag: "wx" });
+    return [primaryResult.output, sparseOutput].filter(Boolean).join("\n").trim();
+  } finally {
+    cleanupOcrTempDir(scratchDir);
+  }
 }
 
 function chooseOcrText(primary, sparse) {
@@ -3757,6 +3762,7 @@ function defaultProcessTimeoutMs(toolLabel) {
 }
 
 function runProcess(file, args, job, toolLabel = "外部程序", options = {}) {
+  const diagnosticArgs = args.map((arg) => redactJobText(arg, job && job.options));
   return new Promise((resolve, reject) => {
     if (job && job.cancelRequested) {
       reject(new JobCancelledError());
@@ -3775,14 +3781,14 @@ function runProcess(file, args, job, toolLabel = "外部程序", options = {}) {
         notFound,
         permissionDenied,
         executable: file,
-        args,
+        args: diagnosticArgs,
         cwd: process.cwd(),
         toolLabel,
         stdout: String(error && error.message ? error.message : error || "")
       }), {
         errorCode: notFound ? ERROR_CODES.MISSING_TOOL : permissionDenied ? ERROR_CODES.PERMISSION_DENIED : ERROR_CODES.UNKNOWN,
         executable: file,
-        args,
+        args: diagnosticArgs,
         cwd: process.cwd(),
         stdout: String(error && error.message ? error.message : error || ""),
         stderr: ""
@@ -3818,14 +3824,14 @@ function runProcess(file, args, job, toolLabel = "外部程序", options = {}) {
         stdout,
         stderr,
         executable: file,
-        args,
+        args: diagnosticArgs,
         cwd: process.cwd(),
         toolLabel
       }), {
         errorCode: ERROR_CODES.TOOL_TIMEOUT,
         exitCode: code == null ? child.exitCode : code,
         executable: file,
-        args,
+        args: diagnosticArgs,
         cwd: process.cwd(),
         stdout,
         stderr,
@@ -3862,14 +3868,14 @@ function runProcess(file, args, job, toolLabel = "外部程序", options = {}) {
         notFound,
         permissionDenied,
         executable: file,
-        args,
+        args: diagnosticArgs,
         cwd: process.cwd(),
         toolLabel,
         stdout: String(error && error.message ? error.message : error || "")
       }), {
         errorCode: notFound ? ERROR_CODES.MISSING_TOOL : permissionDenied ? ERROR_CODES.PERMISSION_DENIED : ERROR_CODES.UNKNOWN,
         executable: file,
-        args,
+        args: diagnosticArgs,
         cwd: process.cwd(),
         stdout: String(error && error.message ? error.message : error || ""),
         stderr: ""
@@ -3902,14 +3908,14 @@ function runProcess(file, args, job, toolLabel = "外部程序", options = {}) {
             stdout,
             stderr,
             executable: file,
-            args,
+            args: diagnosticArgs,
             cwd: process.cwd(),
             toolLabel
           }), {
             errorCode: processErrorCode({ code, stdout, stderr, toolLabel }),
             exitCode: code,
             executable: file,
-            args,
+            args: diagnosticArgs,
             cwd: process.cwd(),
             stdout,
             stderr
@@ -3924,14 +3930,14 @@ function runProcess(file, args, job, toolLabel = "外部程序", options = {}) {
           stdout: [stdout, signal ? `signal=${signal}` : ""].filter(Boolean).join("\n"),
           stderr,
           executable: file,
-          args,
+          args: diagnosticArgs,
           cwd: process.cwd(),
           toolLabel: isQpdf ? "QPDF" : toolLabel
         }), {
           errorCode,
           exitCode: code,
           executable: file,
-          args,
+          args: diagnosticArgs,
           cwd: process.cwd(),
           stdout,
           stderr
@@ -3968,6 +3974,7 @@ module.exports = {
   buildTesseractOcrArgs,
   chooseOcrText,
   repairOcrText,
+  runImageTextOcr,
   sanitizeMediaBitrate,
   sanitizeGifFps,
   renderPdfPagesToPng,

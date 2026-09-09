@@ -134,14 +134,14 @@ function downloadFile(url, destination, redirects = 0) {
 function extractArchive(archivePath, outputDir) {
   fs.mkdirSync(outputDir, { recursive: true });
   const command = process.platform === "win32" ? "powershell.exe" : "unzip";
+  const quote = (value) => `'${String(value).replace(/'/g, "''")}'`;
+  const script = `$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue'; Add-Type -AssemblyName System.IO.Compression.FileSystem; [System.IO.Compression.ZipFile]::ExtractToDirectory(${quote(path.resolve(archivePath))}, ${quote(path.resolve(outputDir))})`;
   const args = process.platform === "win32"
     ? [
         "-NoProfile",
         "-NonInteractive",
-        "-Command",
-        "& { param([string]$archivePath, [string]$outputDir) Expand-Archive -LiteralPath $archivePath -DestinationPath $outputDir -Force }",
-        archivePath,
-        outputDir
+        "-EncodedCommand",
+        Buffer.from(script, "utf16le").toString("base64")
       ]
     : ["-o", archivePath, "-d", outputDir];
   const result = spawnSync(command, args, { encoding: "utf8", windowsHide: true });
@@ -231,6 +231,7 @@ if (require.main === module) {
 }
 
 module.exports = {
+  extractArchive,
   executablePath,
   hasExecutableHeader,
   parseArgs,

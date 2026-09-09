@@ -109,6 +109,12 @@ if (validWindowsExecutable(tesseract)) {
 
 // --- tessdata languages ---
 const tessdataDir = resolveTessdataDir(tesseract || "");
+try {
+  require("./verify-release-artifacts").requireTesseractPdfSupport(tessdataDir);
+  ok("Tesseract 可搜尋 PDF 設定及字型");
+} catch (error) {
+  bad("Tesseract 可搜尋 PDF 資源不完整", `執行 npm run tools:populate，保留 tessdata/configs/pdf 及 pdf.ttf（${error.message}）`);
+}
 const requiredLangs = ["eng", "chi_tra", "osd"];
 if (!fs.existsSync(tessdataDir)) {
   bad(
