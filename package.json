@@ -55,7 +55,7 @@
     "brand:build": "node scripts/build-brand-assets.js"
   },
   "devDependencies": {
-    "electron": "43.6.0",
+    "electron": "44.2.0",
     "electron-builder": "26.15.3"
   },
   "dependencies": {
