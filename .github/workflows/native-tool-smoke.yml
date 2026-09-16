@@ -70,6 +70,8 @@ jobs:
         run: npm run check:pack:full
       - name: Exercise bundled OCR, PDF, media and Office conversions
         run: node scripts/smoke-release.js --require-bundled --skip-tests
+      - name: Verify real Tesseract with Unicode install and temp paths
+        run: node scripts/smoke-windows-unicode-ocr.js
       - name: Build candidate Full Installer for separate fresh-runner acceptance
         run: |
           npm version 0.4.1-qa.20260916 --no-git-tag-version

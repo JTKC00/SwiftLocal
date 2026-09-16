@@ -1759,17 +1759,15 @@ async function runImageTextOcr(toolPath, inputPath, outputBase, language, tessda
   const scratchDir = createOcrTempDir("text-ocr");
   try {
     const primaryBase = path.join(scratchDir, "primary");
-    const primaryArgs = buildTesseractOcrArgs(inputPath, primaryBase, language, tessdataDir, "", "6");
-    const primaryResult = await runTool(toolPath, primaryArgs, job, "Tesseract");
+    const primaryResult = await runTesseractOcr(toolPath, inputPath, primaryBase, language, tessdataDir, job, { psm: "6", runTool });
     const primaryTextPath = `${primaryBase}.txt`;
     const primaryText = fs.existsSync(primaryTextPath) ? fs.readFileSync(primaryTextPath, "utf8") : "";
 
     const sparseBase = path.join(scratchDir, "sparse");
-    const sparseArgs = buildTesseractOcrArgs(inputPath, sparseBase, language, tessdataDir, "", "11");
     let sparseOutput = "";
     let sparseText = "";
     try {
-      const sparseResult = await runTool(toolPath, sparseArgs, job, "Tesseract");
+      const sparseResult = await runTesseractOcr(toolPath, inputPath, sparseBase, language, tessdataDir, job, { psm: "11", runTool });
       sparseOutput = sparseResult.output || "";
       const sparseTextPath = `${sparseBase}.txt`;
       sparseText = fs.existsSync(sparseTextPath) ? fs.readFileSync(sparseTextPath, "utf8") : "";
@@ -1812,17 +1810,29 @@ function repairOcrText(text) {
   return fixed;
 }
 
-function buildTesseractOcrArgs(inputPath, outputBase, language, tessdataDir, outputFormat = "", psm = "6") {
-  const args = [];
-  if (tessdataDir) {
-    args.push("--tessdata-dir", tessdataDir);
+async function runTesseractOcr(toolPath, inputPath, outputBase, language, tessdataDir, job, options = {}) {
+  const { outputFormat = "", psm = "6", runTool = runProcess, platform = process.platform } = options;
+  if (platform !== "win32") {
+    return runTool(toolPath, buildTesseractOcrArgs(inputPath, outputBase, language, tessdataDir, outputFormat, psm), job, "Tesseract");
   }
-  args.push("--psm", psm);
-  args.push(inputPath, outputBase, "-l", language);
-  if (outputFormat) {
-    args.push(outputFormat);
+  // The Windows Tesseract build uses ANSI argv/file APIs. Keep every argument
+  // ASCII and let CreateProcessW set the real (possibly Unicode) working dir.
+  // A private junction exposes existing language resources without copying
+  // them, requiring administrator rights, or relying on enabled 8.3 names.
+  const scratch = createOcrTempDir("tesseract-paths");
+  try {
+    fs.copyFileSync(inputPath, path.join(scratch, "input.png"));
+    if (tessdataDir) fs.symlinkSync(path.resolve(tessdataDir), path.join(scratch, "tessdata"), "junction");
+    const args = buildTesseractOcrArgs("input.png", "output", language, tessdataDir ? "tessdata" : "", outputFormat, psm);
+    const result = await runTool(toolPath, args, job, "Tesseract", { cwd: scratch });
+    ensureJobNotCancelled(job);
+    const extension = outputFormat === "pdf" ? ".pdf" : ".txt";
+    fs.copyFileSync(path.join(scratch, `output${extension}`), `${outputBase}${extension}`, fs.constants.COPYFILE_EXCL);
+    return result;
+  } finally {
+    // rm removes the junction itself; the installed language directory stays intact.
+    cleanupOcrTempDir(scratch);
   }
-  return args;
 }
 
 function listOcrLanguages(tessdataDir) {
@@ -3170,8 +3180,7 @@ async function createSearchablePdfViaOcr(service, job, inputPath, outputPath) {
       ensureJobNotCancelled(job);
       const { imagePath, pageNumber } = pageImages[i];
       const pageBase = path.join(pageDir, `page_${String(pageNumber).padStart(3, "0")}_searchable`);
-      const args = buildTesseractOcrArgs(imagePath, pageBase, language, tessdataDir, "pdf");
-      await runProcess(tool.path, args, job, "Tesseract");
+      await runTesseractOcr(tool.path, imagePath, pageBase, language, tessdataDir, job, { outputFormat: "pdf" });
       const pagePdf = `${pageBase}.pdf`;
       if (!fs.existsSync(pagePdf) || fs.statSync(pagePdf).size < 64) {
         throw new Error(`Tesseract 未產生第 ${i + 1} 頁可搜尋 PDF`);
@@ -3762,6 +3771,7 @@ function defaultProcessTimeoutMs(toolLabel) {
 }
 
 function runProcess(file, args, job, toolLabel = "外部程序", options = {}) {
+  const cwd = options.cwd || process.cwd();
   const diagnosticArgs = args.map((arg) => redactJobText(arg, job && job.options));
   return new Promise((resolve, reject) => {
     if (job && job.cancelRequested) {
@@ -3772,6 +3782,7 @@ function runProcess(file, args, job, toolLabel = "外部程序", options = {}) {
     try {
       child = spawn(file, args, {
         windowsHide: true,
+        cwd,
         detached: process.platform !== "win32"
       });
     } catch (error) {
@@ -3782,14 +3793,14 @@ function runProcess(file, args, job, toolLabel = "外部程序", options = {}) {
         permissionDenied,
         executable: file,
         args: diagnosticArgs,
-        cwd: process.cwd(),
+        cwd,
         toolLabel,
         stdout: String(error && error.message ? error.message : error || "")
       }), {
         errorCode: notFound ? ERROR_CODES.MISSING_TOOL : permissionDenied ? ERROR_CODES.PERMISSION_DENIED : ERROR_CODES.UNKNOWN,
         executable: file,
         args: diagnosticArgs,
-        cwd: process.cwd(),
+        cwd,
         stdout: String(error && error.message ? error.message : error || ""),
         stderr: ""
       }));
@@ -3825,14 +3836,14 @@ function runProcess(file, args, job, toolLabel = "外部程序", options = {}) {
         stderr,
         executable: file,
         args: diagnosticArgs,
-        cwd: process.cwd(),
+        cwd,
         toolLabel
       }), {
         errorCode: ERROR_CODES.TOOL_TIMEOUT,
         exitCode: code == null ? child.exitCode : code,
         executable: file,
         args: diagnosticArgs,
-        cwd: process.cwd(),
+        cwd,
         stdout,
         stderr,
         signalCode: signal == null ? child.signalCode : signal
@@ -3869,14 +3880,14 @@ function runProcess(file, args, job, toolLabel = "外部程序", options = {}) {
         permissionDenied,
         executable: file,
         args: diagnosticArgs,
-        cwd: process.cwd(),
+        cwd,
         toolLabel,
         stdout: String(error && error.message ? error.message : error || "")
       }), {
         errorCode: notFound ? ERROR_CODES.MISSING_TOOL : permissionDenied ? ERROR_CODES.PERMISSION_DENIED : ERROR_CODES.UNKNOWN,
         executable: file,
         args: diagnosticArgs,
-        cwd: process.cwd(),
+        cwd,
         stdout: String(error && error.message ? error.message : error || ""),
         stderr: ""
       }));
@@ -3909,14 +3920,14 @@ function runProcess(file, args, job, toolLabel = "外部程序", options = {}) {
             stderr,
             executable: file,
             args: diagnosticArgs,
-            cwd: process.cwd(),
+            cwd,
             toolLabel
           }), {
             errorCode: processErrorCode({ code, stdout, stderr, toolLabel }),
             exitCode: code,
             executable: file,
             args: diagnosticArgs,
-            cwd: process.cwd(),
+            cwd,
             stdout,
             stderr
           }));
@@ -3931,14 +3942,14 @@ function runProcess(file, args, job, toolLabel = "外部程序", options = {}) {
           stderr,
           executable: file,
           args: diagnosticArgs,
-          cwd: process.cwd(),
+          cwd,
           toolLabel: isQpdf ? "QPDF" : toolLabel
         }), {
           errorCode,
           exitCode: code,
           executable: file,
           args: diagnosticArgs,
-          cwd: process.cwd(),
+          cwd,
           stdout,
           stderr
         }));
@@ -3975,6 +3986,7 @@ module.exports = {
   chooseOcrText,
   repairOcrText,
   runImageTextOcr,
+  runTesseractOcr,
   sanitizeMediaBitrate,
   sanitizeGifFps,
   renderPdfPagesToPng,

@@ -105,11 +105,12 @@ async function main(configFile, phase) {
         assert.ok(outputPaths.length, type);
         for (const file of outputPaths) assert.ok(fs.statSync(file).size > 0, file);
         if (type === "ocr-image") assert.match(fs.readFileSync(outputPaths[0], "utf8"), /SWIFTLOCAL|HONG\s*KONG/i);
-        if (type === "office-to-pdf") assert.equal(fs.readFileSync(outputPaths[0]).subarray(0, 5).toString(), "%PDF-");
+        if (["office-to-pdf", "pdf-to-searchable-pdf"].includes(type)) assert.equal(fs.readFileSync(outputPaths[0]).subarray(0, 5).toString(), "%PDF-");
         record(`installed-conversion-${type}`, { outputs: outputPaths, bytes: outputPaths.map(p => fs.statSync(p).size) });
       }
       await job("pdf-compress", ["a.pdf"]);
       await job("ocr-image", ["ocr-text.png"], { language: "chi_tra+eng" });
+      await job("pdf-to-searchable-pdf", ["ocr-scan.pdf"], { language: "chi_tra+eng" });
       await job("office-to-pdf", ["office-smoke.docx"]);
       await job("media-convert", ["tone.wav"], { extension: "mp3", audioBitrate: "128k" });
       const screenshot = await client.send("Page.captureScreenshot", { format: "png" });

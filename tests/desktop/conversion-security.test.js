@@ -45,8 +45,9 @@ test("image OCR preserves an existing sparse-name file and publishes the better 
   const existing = `${outputBase}_sparse.txt`;
   fs.writeFileSync(existing, "unrelated user document");
   const intermediateFiles = [];
-  const runTesseract = async (_file, args) => {
-    const output = `${args[args.indexOf(input) + 1]}.txt`;
+  fs.writeFileSync(input, "test image");
+  const runTesseract = async (_file, args, _job, _label, options = {}) => {
+    const output = path.resolve(options.cwd || process.cwd(), `${args[args.indexOf("--psm") + 3]}.txt`);
     intermediateFiles.push(output);
     const text = args[args.indexOf("--psm") + 1] === "6" ? "hello" : "這是完整而清晰的文字辨識結果";
     fs.writeFileSync(output, text);
@@ -64,8 +65,9 @@ test("image OCR keeps the primary result when the optional sparse pass fails", a
   const input = path.join(directory, "scan.png");
   const outputBase = path.join(directory, "scan_ocr");
   let scratch;
-  const runTesseract = async (_file, args) => {
-    const output = `${args[args.indexOf(input) + 1]}.txt`;
+  fs.writeFileSync(input, "test image");
+  const runTesseract = async (_file, args, _job, _label, options = {}) => {
+    const output = path.resolve(options.cwd || process.cwd(), `${args[args.indexOf("--psm") + 3]}.txt`);
     scratch = path.dirname(output);
     if (args[args.indexOf("--psm") + 1] === "11") throw new Error("optional sparse failure");
     fs.writeFileSync(output, "primary text");
@@ -81,8 +83,9 @@ test("image OCR does not overwrite a final output created while OCR runs", async
   const input = path.join(directory, "scan.png");
   const outputBase = path.join(directory, "scan_ocr");
   let scratch;
-  const runTesseract = async (_file, args) => {
-    const output = `${args[args.indexOf(input) + 1]}.txt`;
+  fs.writeFileSync(input, "test image");
+  const runTesseract = async (_file, args, _job, _label, options = {}) => {
+    const output = path.resolve(options.cwd || process.cwd(), `${args[args.indexOf("--psm") + 3]}.txt`);
     scratch = path.dirname(output);
     fs.writeFileSync(output, "OCR text");
     if (args[args.indexOf("--psm") + 1] === "11") fs.writeFileSync(`${outputBase}.txt`, "new user document");
@@ -98,8 +101,9 @@ test("cancelled sparse OCR cleans scratch files and does not publish a result", 
   const input = path.join(directory, "scan.png");
   const outputBase = path.join(directory, "scan_ocr");
   let scratch;
-  const runTesseract = async (_file, args) => {
-    const output = `${args[args.indexOf(input) + 1]}.txt`;
+  fs.writeFileSync(input, "test image");
+  const runTesseract = async (_file, args, _job, _label, options = {}) => {
+    const output = path.resolve(options.cwd || process.cwd(), `${args[args.indexOf("--psm") + 3]}.txt`);
     scratch = path.dirname(output);
     if (args[args.indexOf("--psm") + 1] === "11") throw new JobCancelledError();
     fs.writeFileSync(output, "primary text");
