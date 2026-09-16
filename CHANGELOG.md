@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- 將 README 開發環境與安裝版說明對齊 v0.4.1：Electron 44.2.0、pdfjs-dist 6.3.289，以及鎖定的 Windows 內附引擎版本與已完成的 Windows Server 安裝驗收範圍。
+
 ## 0.4.1 - 2026-09-16
 
 Windows x64 正式版，提供 Full Installer 與 Portable。macOS／Linux 不在本次發佈範圍。

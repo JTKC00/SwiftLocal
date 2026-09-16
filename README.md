@@ -37,12 +37,12 @@ v0.4.1 Release 亦保留 Full Portable 產物作測試／備用，但 **Installe
 
 Full Installer 會把常用本機引擎一併帶入，包括：
 
-- FFmpeg
-- Tesseract OCR
+- FFmpeg 9.0.1
+- Tesseract OCR 5.5.3
 - 繁體中文／英文 OCR 語言資料（`chi_tra+eng`）
-- QPDF
-- LibreOffice
-- 公開媒體網址處理所需的下載引擎與執行環境
+- QPDF 12.4.1
+- LibreOffice 26.2.6
+- 公開媒體網址處理：yt-dlp 2026.08.19、Deno 2.9.6
 
 一般使用者不需要另外安裝 Python、FFmpeg、Tesseract、QPDF 或相關下載工具即可使用主要功能。
 
@@ -208,7 +208,7 @@ Windows 設定 → 應用程式 → 預設應用程式
 
 雙擊以 SwiftLocal 開啟 PDF 時，應用程式會直接進入 PDF 工作區。
 
-> 乾淨 Windows 環境的安裝、升級、卸載及 PDF 檔案關聯完整 acceptance 仍列在 release readiness 的後續驗收項目；現有本機封裝測試不等同所有乾淨環境均已驗證。
+> Windows Server 全新標準使用者的安裝、升級、卸載與 PDF「開啟方式」已在 v0.4.1 通過驗收。可見的 Explorer「開啟方式」選單、互動安裝精靈、SmartScreen，以及乾淨 Windows 11 VM 仍未驗證。詳見 [Windows 驗收 2026-09-16](./docs/WINDOWS_ACCEPTANCE_2026-09-16.md)。
 
 ## macOS
 
@@ -239,12 +239,16 @@ npm run pack:mac:dir
 
 ### 環境
 
-目前專案基準：
+目前專案基準（與 `package.json`、CI 對齊）：
 
-- Node.js 24 LTS
+- Node.js 24
 - Python 3.12
-- Electron 43.6.0
+- Electron 44.2.0
 - electron-builder 26.15.3
+- pdfjs-dist 6.3.289
+- @napi-rs/canvas 1.0.8
+
+後端套件版本見 `backend/requirements.txt`。Windows 內附引擎版本見上方安裝版說明及 `tools/` 鎖檔。
 
 ### 安裝依賴
 
@@ -323,6 +327,8 @@ npm run pack:win:full
 dist/
 dist-full/
 ```
+
+`pack:win`／`pack:win:full` 會依鎖檔下載並校驗原生工具，不再從本機安裝複製。Full 版另含 LibreOffice。亦可單獨執行 `npm run tools:native`、`npm run tools:native:full` 或 `npm run tools:updates`。
 
 目前正式對外發佈策略以 **Windows Installer** 為主；Portable 保留作內部測試、除錯或特殊情境備用。
 
@@ -435,7 +441,8 @@ scripts/    開發、驗證與打包腳本
 build/      打包資源
 tools/      可選／內建的第三方本機工具
 docs/       產品、架構、驗收及 release 文件
-dist/       打包輸出，不納入版本控制
+dist/       標準打包輸出，不納入版本控制
+dist-full/  Full 版打包輸出，不納入版本控制
 ```
 
 ## 維護原則
