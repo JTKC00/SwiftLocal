@@ -130,6 +130,7 @@ jobs:
           if ($candidate.Count -ne 1) { throw 'Expected exactly one candidate installer' }
           ./scripts/accept-windows-fresh-user.ps1 -Candidate $candidate[0].FullName -Baseline (Resolve-Path baseline/SwiftLocal-0.4.0-full-installer-x64.exe) -Fixtures (Resolve-Path candidate/smoke-temp/release-queue-check/input) -Evidence (Join-Path $PWD 'acceptance-evidence/fresh') -Scenario fresh
       - name: Separate standard user - upgrade from v0.4.0, retain settings and uninstall
+        if: ${{ !cancelled() }}
         env:
           SWIFTLOCAL_CANDIDATE_RUN: ${{ inputs.candidate_run || github.run_id }}
         shell: pwsh

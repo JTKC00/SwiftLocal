@@ -61,11 +61,12 @@ try {
   $openWith = Get-Item -LiteralPath 'HKCU:\Software\Classes\.pdf\OpenWithProgids'
   Assert ($openWith.GetValueNames() -contains 'SwiftLocal.PDF') 'Missing PDF Open With registration'
   Record 'silent-install-unicode-path-and-open-with-registration' @{ directory=$config.installDir; version=(Get-Item $config.exe).VersionInfo.ProductVersion; default=(Pdf-Default) }
-  Run-App 'fresh'
+  try { Run-App 'fresh' } finally {
   Uninstall
   Assert (-not (Test-Path 'HKCU:\Software\Classes\SwiftLocal.PDF')) 'Uninstall left our PDF class'
   Assert ((Pdf-Default) -eq 'SwiftLocal.Acceptance.Default') 'Uninstall changed PDF default'
   Record 'uninstall-removes-app-and-owned-association' $true
+  }
   } else {
   Run-Installer $config.baseline
   Record 'baseline-v0.4.0-installed' (Get-Item $config.exe).VersionInfo.ProductVersion
@@ -76,10 +77,11 @@ try {
   Assert ((Get-Item $config.exe).VersionInfo.ProductVersion -match '^0\.4\.1') 'Candidate version did not replace v0.4.0'
   Assert ((Pdf-Default) -eq 'SwiftLocal.Acceptance.Default') 'Upgrade changed PDF default'
   Record 'upgrade-from-v0.4.0-to-candidate' (Get-Item $config.exe).VersionInfo.ProductVersion
-  Run-App 'upgrade'
+  try { Run-App 'upgrade' } finally {
   Uninstall
   Assert (-not (Test-Path 'HKCU:\Software\Classes\SwiftLocal.PDF')) 'Final uninstall left association'
   Record 'final-uninstall' $true
+  }
   }
 } catch {
   $report.steps += [ordered]@{ name='acceptance'; status='FAIL'; error=$_.Exception.Message; scriptStack=$_.ScriptStackTrace }

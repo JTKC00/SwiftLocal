@@ -3,6 +3,7 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const net = require("node:net");
+const crypto = require("node:crypto");
 const { spawn, spawnSync } = require("node:child_process");
 const { once } = require("node:events");
 const assert = require("node:assert/strict");
@@ -53,6 +54,13 @@ async function main(configFile, phase) {
   const config = JSON.parse(fs.readFileSync(configFile, "utf8").replace(/^\uFEFF/, ""));
   const report = { phase, platform: process.platform, userProfile: process.env.USERPROFILE, path: process.env.PATH, tests: [] };
   const record = (name, evidence) => report.tests.push({ name, status: "PASS", evidence });
+  const failures = [];
+  const attempt = async (name, action) => {
+    try { await action(); } catch (error) {
+      failures.push(error);
+      report.tests.push({ name, status: "FAIL", error: error.stack });
+    }
+  };
   let app, client, appLog;
   const debugPort = await port(); const endpoint = `http://127.0.0.1:${debugPort}/json`;
   try {
@@ -89,6 +97,12 @@ async function main(configFile, phase) {
       assert.equal(tools.tesseract.hasChiTra, true); assert.equal(tools.tesseract.hasEng, true);
       record("all-tools-from-installed-full-package", tools);
       const inputs = config.fixtures;
+      const languageState = () => Object.fromEntries(["chi_tra.traineddata", "eng.traineddata", "configs/pdf", "pdf.ttf"].map(name => {
+        const file = path.join(tools.tesseract.tessdataPath, name);
+        return [name, fs.existsSync(file) ? { bytes: fs.statSync(file).size, sha256: crypto.createHash("sha256").update(fs.readFileSync(file)).digest("hex") } : { missing: true }];
+      }));
+      const initialLanguages = languageState();
+      report.languageSnapshots = [{ phase: "before-conversions", files: initialLanguages }];
       async function job(type, files, options = {}) {
         const outputDir = path.join(config.output, phase, type); fs.mkdirSync(outputDir, { recursive: true });
         const payload = { type, inputPaths: files.map(name => path.join(inputs, name)), outputDir, options };
@@ -108,13 +122,22 @@ async function main(configFile, phase) {
         if (["office-to-pdf", "pdf-to-searchable-pdf"].includes(type)) assert.equal(fs.readFileSync(outputPaths[0]).subarray(0, 5).toString(), "%PDF-");
         record(`installed-conversion-${type}`, { outputs: outputPaths, bytes: outputPaths.map(p => fs.statSync(p).size) });
       }
-      await job("pdf-compress", ["a.pdf"]);
-      await job("ocr-image", ["ocr-text.png"], { language: "chi_tra+eng" });
-      await job("pdf-to-searchable-pdf", ["ocr-scan.pdf"], { language: "chi_tra+eng" });
-      await job("office-to-pdf", ["office-smoke.docx"]);
-      await job("media-convert", ["tone.wav"], { extension: "mp3", audioBitrate: "128k" });
+      for (const [type, files, options] of [
+        ["pdf-compress", ["a.pdf"]],
+        ["ocr-image", ["ocr-text.png"], { language: "chi_tra+eng" }],
+        ["pdf-to-searchable-pdf", ["ocr-scan.pdf"], { language: "chi_tra+eng" }],
+        ["office-to-pdf", ["office-smoke.docx"]],
+        ["media-convert", ["tone.wav"], { extension: "mp3", audioBitrate: "128k" }]
+      ]) {
+        await attempt(`installed-conversion-${type}`, () => job(type, files, options));
+        await attempt(`language-resources-preserved-after-${type}`, async () => {
+          const files = languageState(); report.languageSnapshots.push({ phase: type, files });
+          assert.deepEqual(files, initialLanguages, "A conversion changed installed language resources");
+        });
+      }
       const screenshot = await client.send("Page.captureScreenshot", { format: "png" });
       fs.writeFileSync(path.join(config.evidence, `${phase}-installed-home.png`), Buffer.from(screenshot.data, "base64"));
+      await attempt("registered-pdf-shell-verb-opens-document", async () => {
       // Invoke the registered PDF class through Windows ShellExecuteEx (not a direct app argv).
       const shell = spawnSync("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", config.shellOpen, "-Pdf", path.join(inputs, "a.pdf")], { encoding: "utf8", windowsHide: true });
       assert.equal(shell.status, 0, shell.stderr || shell.stdout);
@@ -130,12 +153,14 @@ async function main(configFile, phase) {
         void evaluate(pdfClient, `window.close(); true`).catch(() => {});
         await delay(500);
       } finally { pdfClient.close(); }
+      });
     }
     void evaluate(client, `window.close(); true`).catch(() => {});
     for (let i = 0; i < 120 && app.exitCode === null; i++) await delay(250);
     assert.equal(app.exitCode, 0, "Installed app did not exit normally");
     record("normal-exit", app.exitCode);
     client.close(); client = null;
+    if (failures.length) throw new AggregateError(failures, `${failures.length} installed-app acceptance checks failed`);
   } catch (error) {
     report.tests.push({ name: "acceptance", status: "FAIL", error: error.stack }); throw error;
   } finally {
