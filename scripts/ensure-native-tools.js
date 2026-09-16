@@ -27,7 +27,15 @@ async function extract(archive, output, spec) {
     execFileSync("msiexec.exe", ["/a", archive, "/qn", "/norestart", `TARGETDIR=${output}`], { stdio: "pipe", windowsHide: true, timeout: 10 * 60_000 });
     return;
   }
-  const sevenZip = await require("app-builder-lib/out/toolsets/7zip").getPath7za();
+  let sevenZip;
+  if (process.platform === "win32" && spec.format === "nsis") {
+    // electron-builder's Windows 7za supports ZIP/7z, but not NSIS.
+    // The extracted payload still has to match the checked-in tree digest.
+    sevenZip = path.join(process.env.ProgramFiles || "C:\\Program Files", "7-Zip", "7z.exe");
+    if (!fs.existsSync(sevenZip)) throw new Error("NSIS extraction requires full 7-Zip at Program Files/7-Zip/7z.exe on the Windows build host");
+  } else {
+    sevenZip = await require("app-builder-lib/out/toolsets/7zip").getPath7za();
+  }
   fs.mkdirSync(output, { recursive: true });
   execFileSync(sevenZip, ["x", "-y", `-o${output}`, archive], { stdio: "pipe", windowsHide: true, maxBuffer: 32 * 1024 * 1024 });
 }

@@ -38,7 +38,10 @@ jobs:
       - name: Exercise bundled OCR, PDF, media and Office conversions
         run: node scripts/smoke-release.js --require-bundled --skip-tests
       - name: Build candidate Full Installer for separate fresh-runner acceptance
-        run: npm run pack:win:full:installer
+        run: |
+          npm version 0.4.1-qa.20260916 --no-git-tag-version
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm run pack:win:full:installer
       - name: Retain evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -50,6 +53,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: windows-full-candidate
-          path: dist-full/*-full-installer-x64.exe
+          path: |
+            dist-full/*-full-installer-x64.exe
+            smoke-temp/release-queue-check/input/**
           compression-level: 0
           retention-days: 3
