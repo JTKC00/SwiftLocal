@@ -1,6 +1,6 @@
 # 快轉通 SwiftLocal
 
-**版本 0.4.0** · 本機優先的辦公文件與媒體處理工作台。
+**版本 0.4.1** · 本機優先的辦公文件與媒體處理工作台。
 
 > **PDF、OCR 與辦公檔案，盡量留在你的裝置完成。**
 
@@ -8,16 +8,16 @@ SwiftLocal 把 PDF、OCR、Office、圖片、影音與批量任務集中在一�
 
 目前正式對外支援 **Windows x64**。macOS 與 Linux 尚未完成正式發佈驗收。
 
-- 最新版本：[SwiftLocal v0.4.0](https://github.com/JTKC00/SwiftLocal/releases/tag/v0.4.0)
+- 最新版本：[SwiftLocal v0.4.1](https://github.com/JTKC00/SwiftLocal/releases/tag/v0.4.1)
 - 變更紀錄：[CHANGELOG.md](./CHANGELOG.md)
-- 發佈準備與實測紀錄：[2026-09-09 發佈檢查](./docs/RELEASE_READINESS_2026-09-09.md)
+- 發佈紀錄：[v0.4.1](./docs/RELEASE_v0.4.1.md) · [Windows 驗收 2026-09-16](./docs/WINDOWS_ACCEPTANCE_2026-09-16.md)
 - 產品資訊架構：[docs/PRODUCT_STRUCTURE.md](./docs/PRODUCT_STRUCTURE.md)
 
 ## 目前發佈狀態
 
 | 平台 | 狀態 | 說明 |
 | --- | --- | --- |
-| Windows x64 | **正式支援** | v0.4.0 已正式發佈；目前唯一完成主要功能、封裝與 release 驗證的平台。 |
+| Windows x64 | **正式支援** | v0.4.1 已正式發佈；目前唯一完成主要功能、封裝與 release 驗證的平台。 |
 | macOS | **開發／實驗** | Repo 保留開發及打包腳本，但尚未完成完整實機驗收、Developer ID 簽章與 notarization。 |
 | Linux | **未正式支援** | 尚未建立及驗證正式發佈流程。 |
 
@@ -28,10 +28,10 @@ SwiftLocal 把 PDF、OCR、Office、圖片、影音與批量任務集中在一�
 一般使用者建議下載：
 
 ```text
-SwiftLocal-0.4.0-full-installer-x64.exe
+SwiftLocal-0.4.1-full-installer-x64.exe
 ```
 
-v0.4.0 Release 亦保留 Full Portable 產物作測試／備用，但 **Installer 是主要對外發佈格式**。
+v0.4.1 Release 亦保留 Full Portable 產物作測試／備用，但 **Installer 是主要對外發佈格式**。
 
 ### 安裝版包含甚麼
 
@@ -55,7 +55,7 @@ Full Installer 會把常用本機引擎一併帶入，包括：
 PowerShell 範例：
 
 ```powershell
-Get-FileHash -Algorithm SHA256 .\SwiftLocal-0.4.0-full-installer-x64.exe
+Get-FileHash -Algorithm SHA256 .\SwiftLocal-0.4.1-full-installer-x64.exe
 ```
 
 ## Microsoft Store / MSIX 狀態
@@ -375,15 +375,16 @@ npm run smoke:packaged-ui
 
 `npm run smoke:release` 會要求正式轉換引擎來自專案內的 `tools/`，用於 release 前本機煙霧檢查。
 
-v0.4.0 已完成的 Windows release 驗證摘要包括：
+v0.4.1 已完成的 Windows release 驗證摘要包括：
 
 - JavaScript 與 Python 測試通過
 - 主要語法與 CI metadata 檢查通過
 - PDF、繁中／英文 OCR、可搜尋 PDF、Office 與影音轉換 smoke 通過
 - Full Installer／Portable 產物的版本、PE、必要資源、完整檔案清單及 SHA-256 驗證通過
-- Packaged UI、IPC、CSP、五大核心導航及 PDF 主入口驗證
+- Windows Server 全新標準使用者安裝、升級、卸載與 PDF 開啟方式驗收通過
+- 乾淨 Windows 11 互動桌面、Explorer「開啟方式」選單與 SmartScreen 仍未驗證
 
-完整紀錄見 [docs/RELEASE_READINESS_2026-09-09.md](./docs/RELEASE_READINESS_2026-09-09.md)。
+完整紀錄見 [docs/RELEASE_v0.4.1.md](./docs/RELEASE_v0.4.1.md) 與 [docs/WINDOWS_ACCEPTANCE_2026-09-16.md](./docs/WINDOWS_ACCEPTANCE_2026-09-16.md)。
 
 ## 已知限制
 

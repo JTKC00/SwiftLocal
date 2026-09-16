@@ -1,6 +1,8 @@
 # Windows bundled tools and installed-app acceptance — 2026-09-16
 
-Status: **PASS for the automated Windows Server fresh-user and upgrade acceptance below.** Clean Windows 11 VM and interactive OS acceptance remain **UNVERIFIED**. No public release was made.
+Status: **PASS for the automated Windows Server fresh-user and upgrade acceptance below.** This evidence is the basis for SwiftLocal v0.4.1 Windows 正式版. Clean Windows 11 VM and interactive OS acceptance remain **UNVERIFIED**.
+
+v0.4.1 GitHub Release was published 2026-09-16. Lifecycle acceptance used a same-payload build stamp `0.4.1-qa.20260916`; the GitHub Release artifacts are a new Full Installer and Portable built with repository version `0.4.1`.
 
 ## Scope and environment
 

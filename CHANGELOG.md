@@ -2,12 +2,17 @@
 
 ## Unreleased
 
+## 0.4.1 - 2026-09-16
+
+Windows x64 正式版，提供 Full Installer 與 Portable。macOS／Linux 不在本次發佈範圍。
+
 - 更新 yt-dlp 至 2026.08.19、Deno 至 2.9.6、Windows QPDF 至 12.4.1。
 - Windows 原生工具改用固定下載來源與 SHA-256；FFmpeg、QPDF、Tesseract、LibreOffice 均鎖定完整 runtime 目錄，建置不再複製本機安裝。
 - 修正 Windows 中文使用者／安裝／暫存路徑造成 Tesseract 找不到已內附語言包的問題；文字 OCR 與可搜尋 PDF 改以私人暫存工作目錄及 ASCII 相對參數執行。
 - Windows Installer 的 PDF「開啟方式」改用獨立註冊，保留使用者的預設 PDF 程式。
 - 新增 Windows 全新標準使用者的安裝、升級、卸載與 Full 引擎驗收流程；實測範圍與未驗證項目見 `docs/WINDOWS_ACCEPTANCE_2026-09-16.md`。
 - Bundled Tool Watch 保留來源追蹤與驗收缺口的通知，避免版本追上後遺漏 maintenance debt。
+- 更新 Electron 至 44.2.0、pdfjs-dist 至 6.3.289。
 
 ## 0.4.0 - 2026-09-09
 
