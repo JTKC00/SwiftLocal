@@ -213,7 +213,13 @@ async function extractReleasePayload(artifactPath, tempDir) {
   const sevenZip = ensureExecutableTool(await getPath7za());
   const outerDir = path.join(tempDir, "outer");
   fs.mkdirSync(outerDir, { recursive: true });
-  extractWith7Zip(sevenZip, artifactPath, outerDir);
+  // Windows 7za has no NSIS decoder. Full 7-Zip opens the installer;
+  // keep the packager toolset for the nested application 7z payload.
+  const outerExtractor = process.platform === "win32"
+    ? path.join(process.env.ProgramFiles || "C:\\Program Files", "7-Zip", "7z.exe")
+    : sevenZip;
+  if (!fs.existsSync(outerExtractor)) throw new Error("Windows installer verification requires full 7-Zip at Program Files/7-Zip/7z.exe");
+  extractWith7Zip(outerExtractor, artifactPath, outerDir);
   if (findFileBySuffix(outerDir, path.join("resources", "app.asar"))) return outerDir;
 
   const nestedArchives = findFiles(outerDir).filter((filePath) => /\.(?:7z|zip)$/i.test(filePath)).slice(0, 12);
