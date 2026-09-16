@@ -3,6 +3,7 @@
 ## Unreleased
 
 - 將 README 開發環境與安裝版說明對齊 v0.4.1：Electron 44.2.0、pdfjs-dist 6.3.289，以及鎖定的 Windows 內附引擎版本與已完成的 Windows Server 安裝驗收範圍。
+- 新增 Windows 11 人手驗收紀錄，並與 Windows Server 自動化驗收分開。GitHub Release v0.4.1 的 GUI 安裝、SmartScreen 提示後仍可安裝、Explorer「開啟方式」、轉換與卸載經專案擁有者確認為 PASS；乾淨 Windows 11 VM／首次使用者設定仍為 UNVERIFIED。
 
 ## 0.4.1 - 2026-09-16
 

@@ -24,7 +24,8 @@ Windows 產物未簽章，系統可能顯示未知發行者或 SmartScreen 提�
 - 內附引擎的 PDF、繁中／英文 OCR、可搜尋 PDF、Office 與影音轉換煙霧測試，已在 Native Tool Smoke 與安裝後驗收中通過。
 - Full Installer（684,101,265 bytes）及 Portable（683,943,853 bytes）已解開，版本、PE、必要資源、完整檔案清單與 SHA-256 均通過驗證，內容與 v0.4.1 `win-unpacked` 一致。
 - 安裝後驗收（GitHub Actions run 35054778424）在獨立 Unicode 標準使用者下通過：全新安裝、由 v0.4.0 升級、卸載、PDF 開啟方式、以及 PDF／OCR／Office／影音轉換。候選安裝包為 `0.4.1-qa.20260916`；正式產物以 repository 版本 `0.4.1` 重新封裝。
-- 可見的 Explorer「開啟方式」選單、互動安裝精靈、預設安裝路徑、SmartScreen，以及乾淨 Windows 11 VM／首次使用者設定仍未驗證。
+- 一般 Windows 11 人手驗收（GitHub Release v0.4.1）：GUI 安裝、SmartScreen 提示後仍可安裝、預設路徑、Explorer「開啟方式」、保留原 PDF 預設、PDF／OCR／Office／影音、正常退出與卸載為 PASS。見 [Windows 11 人手驗收 2026-09-16](https://github.com/JTKC00/SwiftLocal/blob/main/docs/WINDOWS_MANUAL_ACCEPTANCE_2026-09-16.md)。
+- 乾淨 Windows 11 VM／首次使用者設定仍未驗證。不得以 Windows Server 自動化結果推定該項。
 - PDF → XLSX／PPTX 等既有實驗性轉換仍有限制，轉換後請檢查內容與版面。
 
-完整驗收矩陣與失敗後修復紀錄見 [Windows 驗收 2026-09-16](https://github.com/JTKC00/SwiftLocal/blob/v0.4.1/docs/WINDOWS_ACCEPTANCE_2026-09-16.md)。
+完整自動化驗收矩陣與失敗後修復紀錄見 [Windows 自動化驗收 2026-09-16](https://github.com/JTKC00/SwiftLocal/blob/v0.4.1/docs/WINDOWS_ACCEPTANCE_2026-09-16.md)。

@@ -1,6 +1,6 @@
 # Windows bundled tools and installed-app acceptance — 2026-09-16
 
-Status: **PASS for the automated Windows Server fresh-user and upgrade acceptance below.** This evidence is the basis for SwiftLocal v0.4.1 Windows 正式版. Clean Windows 11 VM and interactive OS acceptance remain **UNVERIFIED**.
+Status: **PASS for the automated Windows Server fresh-user and upgrade acceptance below.** This evidence is the basis for SwiftLocal v0.4.1 Windows 正式版. Interactive consumer items (GUI installer, SmartScreen prompt, default path, Explorer Open With, install/use/uninstall) are **PASS** by owner confirmation in [manual consumer acceptance](WINDOWS_MANUAL_ACCEPTANCE_2026-09-16.md). Clean Windows 11 VM / first-user OOBE remains **UNVERIFIED**.
 
 v0.4.1 GitHub Release was published 2026-09-16. Lifecycle acceptance used a same-payload build stamp `0.4.1-qa.20260916`; the GitHub Release artifacts are a new Full Installer and Portable built with repository version `0.4.1`.
 
@@ -10,7 +10,7 @@ The release scope is Windows x64. GitHub-hosted `windows-2025` runners are dispo
 
 Installers are exercised in silent mode with explicit Unicode destination directories; interactive installer prompts and the default destination flow are not covered. The installed application itself is launched normally and its real renderer and IPC are exercised.
 
-This provides fresh-user and installed-payload evidence. It does not prove Windows 11 OOBE, SmartScreen interaction, a visible Explorer Open With menu selection, or a pristine consumer OS image. No existing Windows VM or connected Windows host was found on the current Mac; those criteria remain unverified.
+This provides fresh-user and installed-payload evidence. It does not prove Windows 11 OOBE, SmartScreen interaction, a visible Explorer Open With menu selection, or a pristine consumer OS image. When this runner evidence was written, no Windows VM or connected Windows host was found on the then-current Mac; those criteria remain unverified by this workflow.
 
 ## Bundled Tool Watch #11
 
@@ -66,9 +66,9 @@ Commit `bf92296` subsequently strengthened build verification of optional langua
 | Upgrade v0.4.0 to candidate | PASS | Separate SL驗收16232 profile; product version replaced, localStorage marker and Unicode output setting preserved; all five conversions and shell-open repeated successfully |
 | Uninstall | PASS (both scenarios) | EXE, uninstall registration, shortcuts, PDF class, Applications entry and OpenWithProgids entry removed; existing PDF default retained |
 | PDF Open With registration + shell invocation | PASS (both scenarios) | ShellExecuteEx invoked the registered class and opened a.pdf in the PDF workspace; screenshot visually inspected |
-| Visible Explorer Open With menu selection | UNVERIFIED | Requires an accessible interactive Windows desktop |
-| Interactive installer / default install destination / SmartScreen | UNVERIFIED | CI uses silent installation and an explicit Unicode destination |
-| Clean Windows 11 VM / first-user OS setup | UNVERIFIED | Requires an available consumer Windows VM |
+| Visible Explorer Open With menu selection | PASS (manual consumer) | Not covered by this runner (`ShellExecuteEx` only). Owner confirmation 2026-09-16 on GitHub v0.4.1: visible Explorer menu listed SwiftLocal and opened the PDF workspace. See [manual consumer acceptance](WINDOWS_MANUAL_ACCEPTANCE_2026-09-16.md). |
+| Interactive installer / default install destination / SmartScreen | PASS (manual consumer) | CI still uses silent `/S /D=…`. Owner confirmation 2026-09-16 on GitHub v0.4.1: GUI installer, default path, SmartScreen/unknown-publisher prompt then successful install. See [manual consumer acceptance](WINDOWS_MANUAL_ACCEPTANCE_2026-09-16.md). |
+| Clean Windows 11 VM / first-user OS setup | UNVERIFIED | Requires a clean consumer Windows VM / OOBE. The manual session was a general Windows 11 PC, not a first-user image. See [manual consumer acceptance](WINDOWS_MANUAL_ACCEPTANCE_2026-09-16.md). |
 
 The shell fixture `a.pdf` is intentionally a blank one-page PDF. Its screenshot verifies the correct document tab and page count; it is not a test of complex PDF rendering.
 
@@ -103,4 +103,12 @@ Run 35053746187 additionally confirmed installed PDF compression, image OCR, DOC
 
 The workflow's optional `candidate_run` input reuses the exact `windows-full-candidate` artifact from a completed build run. It allows changes to acceptance scripts to be tested without rebuilding the installer. Lifecycle evidence records the source run and candidate/baseline SHA-256 values. Candidate artifacts are retained for 3 days and evidence for 7 days; the results in this document are the durable summary.
 
-The recorded candidate passed the complete automated lifecycle. Manual consumer-VM criteria remain open as listed above; passing this workflow alone must not close those criteria.
+The recorded candidate passed the complete automated lifecycle. Passing this workflow alone must not close consumer interactive criteria.
+
+## Manual consumer acceptance
+
+Owner confirmation of the GitHub Release v0.4.1 GUI flow is in [WINDOWS_MANUAL_ACCEPTANCE_2026-09-16.md](WINDOWS_MANUAL_ACCEPTANCE_2026-09-16.md): interactive installer, SmartScreen prompt with continued install, default path, first launch, workspaces, visible Explorer Open With, retained PDF default, PDF / OCR / Office / media, normal exit, and uninstall leftovers. Clean Windows 11 VM / first-user OOBE remains **UNVERIFIED**.
+
+A separate developer-host snapshot of a silent local **0.4.0** Full Installer is recorded in that document and is not this workflow.
+
+Historical failures, rejected candidates, and runner evidence in this file are unchanged.

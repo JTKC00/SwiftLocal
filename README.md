@@ -10,7 +10,7 @@ SwiftLocal 把 PDF、OCR、Office、圖片、影音與批量任務集中在一�
 
 - 最新版本：[SwiftLocal v0.4.1](https://github.com/JTKC00/SwiftLocal/releases/tag/v0.4.1)
 - 變更紀錄：[CHANGELOG.md](./CHANGELOG.md)
-- 發佈紀錄：[v0.4.1](./docs/RELEASE_v0.4.1.md) · [Windows 驗收 2026-09-16](./docs/WINDOWS_ACCEPTANCE_2026-09-16.md)
+- 發佈紀錄：[v0.4.1](./docs/RELEASE_v0.4.1.md) · [Windows 自動化驗收](./docs/WINDOWS_ACCEPTANCE_2026-09-16.md) · [Windows 11 人手驗收](./docs/WINDOWS_MANUAL_ACCEPTANCE_2026-09-16.md)
 - 產品資訊架構：[docs/PRODUCT_STRUCTURE.md](./docs/PRODUCT_STRUCTURE.md)
 
 ## 目前發佈狀態
@@ -48,7 +48,7 @@ Full Installer 會把常用本機引擎一併帶入，包括：
 
 ### 未簽章提示
 
-目前 GitHub Release 的 Windows 安裝檔 **尚未做商業程式碼簽章**，因此 Windows 可能顯示「未知發行者」或 SmartScreen 提示。
+目前 GitHub Release 的 Windows 安裝檔 **尚未做商業程式碼簽章**，因此 Windows 可能顯示「未知發行者」或 SmartScreen 提示。v0.4.1 人手驗收曾出現該提示，並仍完成安裝。
 
 請只從本專案官方 GitHub Release 下載，並使用 Release 內的 `SHA256SUMS.txt` 核對檔案完整性。
 
@@ -208,7 +208,7 @@ Windows 設定 → 應用程式 → 預設應用程式
 
 雙擊以 SwiftLocal 開啟 PDF 時，應用程式會直接進入 PDF 工作區。
 
-> Windows Server 全新標準使用者的安裝、升級、卸載與 PDF「開啟方式」已在 v0.4.1 通過驗收。可見的 Explorer「開啟方式」選單、互動安裝精靈、SmartScreen，以及乾淨 Windows 11 VM 仍未驗證。詳見 [Windows 驗收 2026-09-16](./docs/WINDOWS_ACCEPTANCE_2026-09-16.md)。
+> Windows Server 全新標準使用者的安裝、升級、卸載與 PDF「開啟方式」已在 v0.4.1 **自動化**驗收通過。一般 Windows 11 人手驗收（GitHub Release v0.4.1 GUI 安裝、SmartScreen 提示後仍可安裝、預設路徑、Explorer「開啟方式」、保留原 PDF 預設、PDF／OCR／Office／影音、退出與卸載）為 **PASS**。乾淨 Windows 11 VM／首次使用者設定仍為 **UNVERIFIED**。詳見 [自動化驗收](./docs/WINDOWS_ACCEPTANCE_2026-09-16.md) 與 [人手驗收](./docs/WINDOWS_MANUAL_ACCEPTANCE_2026-09-16.md)。
 
 ## macOS
 
@@ -387,10 +387,11 @@ v0.4.1 已完成的 Windows release 驗證摘要包括：
 - 主要語法與 CI metadata 檢查通過
 - PDF、繁中／英文 OCR、可搜尋 PDF、Office 與影音轉換 smoke 通過
 - Full Installer／Portable 產物的版本、PE、必要資源、完整檔案清單及 SHA-256 驗證通過
-- Windows Server 全新標準使用者安裝、升級、卸載與 PDF 開啟方式驗收通過
-- 乾淨 Windows 11 互動桌面、Explorer「開啟方式」選單與 SmartScreen 仍未驗證
+- Windows Server 全新標準使用者安裝、升級、卸載與 PDF 開啟方式 **自動化**驗收通過
+- 一般 Windows 11 人手驗收：GitHub Release v0.4.1 GUI 安裝、SmartScreen 提示後仍可安裝、Explorer「開啟方式」、PDF／OCR／Office／影音、退出與卸載為 PASS
+- 乾淨 Windows 11 VM／首次使用者設定仍為 UNVERIFIED
 
-完整紀錄見 [docs/RELEASE_v0.4.1.md](./docs/RELEASE_v0.4.1.md) 與 [docs/WINDOWS_ACCEPTANCE_2026-09-16.md](./docs/WINDOWS_ACCEPTANCE_2026-09-16.md)。
+完整紀錄見 [docs/RELEASE_v0.4.1.md](./docs/RELEASE_v0.4.1.md)、[docs/WINDOWS_ACCEPTANCE_2026-09-16.md](./docs/WINDOWS_ACCEPTANCE_2026-09-16.md) 與 [docs/WINDOWS_MANUAL_ACCEPTANCE_2026-09-16.md](./docs/WINDOWS_MANUAL_ACCEPTANCE_2026-09-16.md)。
 
 ## 已知限制
 

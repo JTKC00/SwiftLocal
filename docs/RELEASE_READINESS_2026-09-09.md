@@ -50,7 +50,7 @@
 
 ## 正式發布前的驗收
 
-2026-09-16 補充：Bundled Tool Watch #11 與 Windows 安裝生命週期的新驗收記錄見 [Windows acceptance](WINDOWS_ACCEPTANCE_2026-09-16.md)。該文件逐項區分 GitHub Windows Server 全新使用者實測與仍未完成的乾淨 Windows 11 VM／互動畫面驗收；不將 CI 結果視為所有 Windows 環境已驗收。
+2026-09-16 補充：Bundled Tool Watch #11 與 Windows 安裝生命週期的新驗收記錄見 [Windows acceptance](WINDOWS_ACCEPTANCE_2026-09-16.md)。該文件逐項區分 GitHub Windows Server 全新使用者實測與 consumer 人手驗收。人手項目見 [Windows 11 人手驗收](WINDOWS_MANUAL_ACCEPTANCE_2026-09-16.md)：GitHub v0.4.1 GUI 流程為 PASS；乾淨 Windows 11 VM／首次使用者設定仍為 UNVERIFIED。不將 CI 結果視為所有 Windows 環境已驗收。
 
 1. 在乾淨 Windows 使用者／VM 實際安裝 Installer，驗證首次啟動、非 ASCII 路徑、升級、卸載及 PDF「開啟方式」。本機來源測試、解壓與 payload 比對無法代替安裝驗收。
 2. 在沒有額外安裝引擎的 Windows 環境測試 Full 版；一般版若同時發布，另驗證缺少 LibreOffice 時的提示與手動設定流程。
