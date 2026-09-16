@@ -108,3 +108,14 @@ test("watch remains actionable for source/tracking gaps even with no version upd
   assert.equal(summarizeResults([{ actionRequired: false }]).actionable, false);
   assert.equal(summarizeResults([{ error: "upstream failed" }]).actionable, true);
 });
+
+
+test("Windows installer registers Open With without rewriting the PDF default", () => {
+  const config = require("../../electron-builder.config");
+  assert.deepEqual(config.win.fileAssociations, []);
+  const include = fs.readFileSync(path.resolve(__dirname, "../..", config.nsis.include), "utf8");
+  assert.match(include, /WriteRegNone SHELL_CONTEXT "Software\\Classes\\\.pdf\\OpenWithProgids" "SwiftLocal\.PDF"/);
+  assert.doesNotMatch(include, /WriteRegStr[^\n]*"Software\\Classes\\\.pdf"/);
+  assert.match(include, /DeleteRegValue[^\n]*OpenWithProgids/);
+  assert.match(include, /customUnInstall/);
+});

@@ -296,7 +296,8 @@
           "to": "zlib1.dll"
         }
       ],
-      "payloadSha256": "f755ddf6d5a2b17cc9bdfb3cead6a2cfc3e7472666aafcbfb82f996aed4628bd"
+      "payloadSha256": "f755ddf6d5a2b17cc9bdfb3cead6a2cfc3e7472666aafcbfb82f996aed4628bd",
+      "runtimeVersion": "5.5.3.20260724"
     },
     "libreoffice": {
       "version": "26.2.6",

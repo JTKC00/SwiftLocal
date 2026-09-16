@@ -86,6 +86,9 @@ module.exports = {
     }
   ],
   win: {
+    // The default NSIS fileAssociations macro overwrites the extension default.
+    // Register only our Open With entries through the custom NSIS include.
+    fileAssociations: [],
     icon: "build/icon.ico",
     // Stable ASCII EXE name for Windows shell / Open With registry keys.
     // productName remains "快轉通 SwiftLocal" (FileDescription / ProductName via rcedit).
@@ -142,6 +145,7 @@ module.exports = {
     artifactName: "SwiftLocal-${version}-portable-${arch}.${ext}"
   },
   nsis: {
+    include: "build/windows-file-associations.nsh",
     artifactName: "SwiftLocal-${version}-installer-${arch}.${ext}",
     // One-click install: double-click → install → desktop shortcut. Power users can still use portable.
     oneClick: true,

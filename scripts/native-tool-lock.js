@@ -56,7 +56,7 @@ function verifyNativeTool(key, toolsRoot, lock = loadNativeLock(), options = {})
   if (process.platform === "win32" && options.runVersion !== false) {
     const result = spawnSync(path.join(root, spec.executables[0]), spec.versionArgs || ["--version"], { encoding: "utf8", timeout: 30_000, windowsHide: true });
     const output = `${result.stdout || ""}${result.stderr || ""}`;
-    const escaped = spec.version.replace(/\./g, "\\.");
+    const escaped = (spec.runtimeVersion || spec.version).replace(/\./g, "\\.");
     if (result.status !== 0 || !new RegExp(`(?:^|[^0-9])${escaped}${key === "libreoffice" ? "(?:\\.[0-9]+)?" : ""}(?:[^0-9.]|$)`).test(output)) throw new Error(`${key}: expected version ${spec.version}; ${result.error || output}`);
   }
   return { version: spec.version, root };
