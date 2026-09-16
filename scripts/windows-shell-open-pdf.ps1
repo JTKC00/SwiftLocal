@@ -19,7 +19,9 @@ public static class SwiftLocalShell {
 '@
 $info = New-Object SwiftLocalShell+Info
 $info.cbSize = [Runtime.InteropServices.Marshal]::SizeOf($info)
-$info.fMask = 1 # SEE_MASK_CLASSNAME: invoke the registered class through the shell.
+# This helper has no message loop and exits after launching the document.
+# https://learn.microsoft.com/windows/win32/api/shellapi/ns-shellapi-shellexecuteinfow
+$info.fMask = 0x101 # SEE_MASK_CLASSNAME | SEE_MASK_NOASYNC
 $info.lpVerb = 'open'
 $info.lpFile = $Pdf
 $info.lpClass = 'SwiftLocal.PDF'

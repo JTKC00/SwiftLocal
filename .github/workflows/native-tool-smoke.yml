@@ -121,7 +121,7 @@ jobs:
           if (@($line).Count -ne 1) { throw 'Missing unique baseline checksum' }
           $expected = ($line -split '\s+')[0]
           if ((Get-FileHash "baseline/$name" -Algorithm SHA256).Hash -ne $expected) { throw 'Baseline checksum mismatch' }
-      - name: Install, launch, convert, upgrade and uninstall as a fresh standard user
+      - name: Fresh standard user - install, launch, convert, shell-open PDF and uninstall
         env:
           SWIFTLOCAL_CANDIDATE_RUN: ${{ inputs.candidate_run || github.run_id }}
         shell: pwsh
@@ -129,7 +129,13 @@ jobs:
           $candidate = @(Get-ChildItem candidate -Recurse -Filter '*-full-installer-x64.exe')
           if ($candidate.Count -ne 1) { throw 'Expected exactly one candidate installer' }
           ./scripts/accept-windows-fresh-user.ps1 -Candidate $candidate[0].FullName -Baseline (Resolve-Path baseline/SwiftLocal-0.4.0-full-installer-x64.exe) -Fixtures (Resolve-Path candidate/smoke-temp/release-queue-check/input) -Evidence (Join-Path $PWD 'acceptance-evidence/fresh') -Scenario fresh
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Separate standard user - upgrade from v0.4.0, retain settings and uninstall
+        env:
+          SWIFTLOCAL_CANDIDATE_RUN: ${{ inputs.candidate_run || github.run_id }}
+        shell: pwsh
+        run: |
+          $candidate = @(Get-ChildItem candidate -Recurse -Filter '*-full-installer-x64.exe')
+          if ($candidate.Count -ne 1) { throw 'Expected exactly one candidate installer' }
           ./scripts/accept-windows-fresh-user.ps1 -Candidate $candidate[0].FullName -Baseline (Resolve-Path baseline/SwiftLocal-0.4.0-full-installer-x64.exe) -Fixtures (Resolve-Path candidate/smoke-temp/release-queue-check/input) -Evidence (Join-Path $PWD 'acceptance-evidence/upgrade') -Scenario upgrade
       - name: Retain fresh-user evidence
         if: always()
