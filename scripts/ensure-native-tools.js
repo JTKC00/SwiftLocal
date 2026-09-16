@@ -8,13 +8,13 @@ const { loadNativeLock, verifyNativeTool, isLanguagePack, payloadDigest, receipt
 const { downloadFile, sha256File } = require("./ensure-media-download-tools");
 
 function parseArgs(args) {
-  const options = { download: false, full: false, toolsRoot: path.resolve(__dirname, "..", "tools"), archives: "" };
+  const options = { download: false, full: false, toolsRoot: path.resolve(__dirname, "..", "tools"), archives: "", archiveCache: "" };
   for (let i = 0; i < args.length; i++) {
     if (args[i] === "--download") options.download = true;
     else if (args[i] === "--check") options.download = false;
     else if (args[i] === "--full") options.full = true;
-    else if (["--tools-root", "--archives"].includes(args[i]) && args[i + 1]) {
-      const key = args[i] === "--tools-root" ? "toolsRoot" : "archives";
+    else if (["--tools-root", "--archives", "--archive-cache"].includes(args[i]) && args[i + 1]) {
+      const key = args[i] === "--tools-root" ? "toolsRoot" : args[i] === "--archive-cache" ? "archiveCache" : "archives";
       options[key] = path.resolve(args[++i]);
     } else throw new Error(`Unsupported argument: ${args[i]}`);
   }
@@ -106,12 +106,17 @@ async function main(args = process.argv.slice(2)) {
       // Same filesystem as the final destination so promotion is a rename.
       const temp = fs.mkdtempSync(path.join(path.dirname(options.toolsRoot), ".swiftlocal-native-"));
       try {
-        const archive = options.archives ? path.join(options.archives, spec.archiveName) : path.join(temp, spec.archiveName);
-        if (!options.archives) {
+        const cached = options.archiveCache ? path.join(options.archiveCache, spec.archiveName) : "";
+        const archive = options.archives ? path.join(options.archives, spec.archiveName) : cached && fs.existsSync(cached) ? cached : path.join(temp, spec.archiveName);
+        if (!options.archives && archive !== cached) {
           console.log(`Downloading ${key} ${spec.version} from ${spec.url}`);
           await downloadFile(spec.url, archive);
         }
         if (sha256File(archive) !== spec.sha256) throw new Error(`${key}: source archive checksum mismatch`);
+        if (cached && archive !== cached && !fs.existsSync(cached)) {
+          fs.mkdirSync(options.archiveCache, { recursive: true });
+          fs.copyFileSync(archive, cached, fs.constants.COPYFILE_EXCL);
+        }
         const extracted = path.join(temp, "extracted");
         await extract(archive, extracted, spec);
         const stagedTools = path.join(temp, "tools");

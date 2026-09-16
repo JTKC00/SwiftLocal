@@ -405,11 +405,15 @@ function requireSafeInstallerHints(installerPath) {
 }
 
 function verifyPdfAssociationConfig(config) {
-  const associations = Array.isArray(config.fileAssociations) ? config.fileAssociations : [];
-  const pdf = associations.find((item) => String(item.ext || "").toLowerCase() === "pdf");
-  if (!pdf) {
-    throw new Error("electron-builder 缺少 PDF fileAssociations");
+  const associations = [...(config.fileAssociations || []), ...(config.win?.fileAssociations || [])];
+  if (associations.length) throw new Error("Windows must use Open With registration without the default-overwriting NSIS association macro");
+  if (!config.nsis?.include) throw new Error("Missing Windows PDF Open With include");
+  const include = fs.readFileSync(path.resolve(projectRoot, config.nsis.include), "utf8");
+  if (!include.includes('"SwiftLocal.PDF"') || !include.includes("OpenWithProgids") || !include.includes("customUnInstall")) {
+    throw new Error("Missing Windows PDF Open With registration/unregistration");
   }
+  if (/WriteRegStr[^\n]*"Software\\Classes\\\.pdf"/.test(include)) throw new Error("Installer must preserve PDF default");
+  const pdf = { ext: "pdf", name: "SwiftLocal.PDF", description: config.productName };
   const description = String(pdf.description || pdf.name || "");
   if (/^electron$/i.test(description) || description.toLowerCase() === "electron") {
     throw new Error("PDF association FriendlyAppName/description 仍為 Electron");

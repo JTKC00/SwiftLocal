@@ -27,8 +27,20 @@ jobs:
             if ($errors.Count) { throw ($errors | Out-String) }
           }
       - run: npm ci
+      - name: Restore verified source archive cache
+        id: native-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}/swiftlocal-native-archives
+          key: native-sources-ffmpeg9.0.1-qpdf12.4.1-tesseract5.5.3-lo26.2.6
       - name: Provision pinned native tools including LibreOffice
-        run: npm run tools:native:full
+        run: node scripts/ensure-native-tools.js --download --full --archive-cache "${{ runner.temp }}/swiftlocal-native-archives"
+      - name: Save source archives for repeat acceptance
+        if: always() && steps.native-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ runner.temp }}/swiftlocal-native-archives
+          key: native-sources-ffmpeg9.0.1-qpdf12.4.1-tesseract5.5.3-lo26.2.6
       - name: Record actual native payload digests
         if: always()
         shell: pwsh

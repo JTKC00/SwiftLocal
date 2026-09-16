@@ -71,20 +71,6 @@ module.exports = {
     "README.md",
     "package.json"
   ],
-  // Register as a PDF viewer in “Open with” (installer / mac .app).
-  // Does not force system default — user chooses in OS settings.
-  fileAssociations: [
-    {
-      ext: "pdf",
-      name: "PDF",
-      description: "PDF Document — 快轉通 SwiftLocal",
-      icon: "icon.ico",
-      mimeType: "application/pdf",
-      role: "Viewer",
-      // macOS: Alternate so we appear as a viewer without replacing Preview by default.
-      rank: "Alternate"
-    }
-  ],
   win: {
     // The default NSIS fileAssociations macro overwrites the extension default.
     // Register only our Open With entries through the custom NSIS include.
@@ -123,6 +109,20 @@ module.exports = {
     ]
   },
   mac: {
+    // Register as a PDF viewer in “Open with” (installer / mac .app).
+    // Does not force system default — user chooses in OS settings.
+    fileAssociations: [
+      {
+        ext: "pdf",
+        name: "PDF",
+        description: "PDF Document — 快轉通 SwiftLocal",
+        icon: "icon.ico",
+        mimeType: "application/pdf",
+        role: "Viewer",
+        // macOS: Alternate so we appear as a viewer without replacing Preview by default.
+        rank: "Alternate"
+      }
+    ],
     icon: "build/icon.icns",
     category: "public.app-category.productivity",
     target: ["dmg"],

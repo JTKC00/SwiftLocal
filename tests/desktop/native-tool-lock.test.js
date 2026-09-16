@@ -115,6 +115,7 @@ test("watch remains actionable for source/tracking gaps even with no version upd
 
 test("Windows installer registers Open With without rewriting the PDF default", () => {
   const config = require("../../electron-builder.config");
+  assert.equal(config.fileAssociations, undefined);
   assert.deepEqual(config.win.fileAssociations, []);
   const include = fs.readFileSync(path.resolve(__dirname, "../..", config.nsis.include), "utf8");
   assert.match(include, /WriteRegNone SHELL_CONTEXT "Software\\Classes\\\.pdf\\OpenWithProgids" "SwiftLocal\.PDF"/);
