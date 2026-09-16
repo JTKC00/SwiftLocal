@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- 更新 yt-dlp 至 2026.08.19、Deno 至 2.9.6、Windows QPDF 至 12.4.1。
+- Windows 原生工具改用固定下載來源與 SHA-256；FFmpeg、QPDF、Tesseract 新增完整目錄鎖定，LibreOffice 新增 MSI 來源校驗及抽取流程（Windows runtime 驗收待完成）。
+- Bundled Tool Watch 保留來源追蹤與驗收缺口的通知，避免版本追上後遺漏 maintenance debt。
+
 ## 0.4.0 - 2026-09-09
 
 Windows x64 正式版，提供 Full Installer 與 Portable。macOS／Linux 不在本次發佈範圍。

@@ -11,6 +11,17 @@ const projectRoot = path.resolve(__dirname, "..");
 const electronBuilderCli = require.resolve("electron-builder/out/cli/cli.js");
 const builderArgs = process.argv.slice(2);
 
+console.log("=== ensure pinned native Windows tools ===");
+const nativeTools = spawnSync(
+  process.execPath,
+  [path.join(__dirname, "ensure-native-tools.js"), "--download"],
+  { cwd: projectRoot, stdio: "inherit" }
+);
+if (nativeTools.status !== 0) {
+  console.error("Pack aborted: native tool provisioning or checksum verification failed.");
+  process.exit(nativeTools.status || 1);
+}
+
 console.log("=== ensure pinned online-media tools ===");
 const mediaTools = spawnSync(
   process.execPath,

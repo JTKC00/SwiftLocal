@@ -128,6 +128,13 @@ function appendGithubOutput(name, value) {
   fs.appendFileSync(process.env.GITHUB_OUTPUT, `${name}=${String(value)}\n`, "utf8");
 }
 
+function summarizeResults(results) {
+  const updates = results.filter(result => result.actionRequired);
+  const errors = results.filter(result => result.error || result.bundledError);
+  const trackingNotes = results.filter(result => result.bundledNote);
+  return { updates, errors, trackingNotes, actionable: updates.length > 0 || errors.length > 0 || trackingNotes.length > 0 };
+}
+
 async function main() {
   const config = JSON.parse(fs.readFileSync(lockPath, "utf8"));
   if (config.schemaVersion !== 1 || !config.tools || typeof config.tools !== "object") {
@@ -182,13 +189,12 @@ async function main() {
     }
   }
 
-  const updates = results.filter((result) => result.actionRequired);
-  const errors = results.filter((result) => result.error || result.bundledError);
-  const actionable = updates.length > 0 || errors.length > 0;
+  const { updates, errors, trackingNotes, actionable } = summarizeResults(results);
   const fingerprintPayload = results.map((result) => ({
     key: result.key,
     bundled: result.bundled,
     bundledHint: result.bundledHint,
+    bundledNote: result.bundledNote,
     bundledError: result.bundledError,
     reviewed: result.reviewed,
     latest: result.latest,
@@ -205,7 +211,7 @@ async function main() {
     "",
     "> Notify-only maintenance check. This workflow never downloads, replaces, commits, or auto-merges bundled binaries.",
     "",
-    "| Tool | Bundled / hint | Reviewed baseline | Latest upstream | Status |",
+    "| Tool | Windows source lock / hint | Reviewed baseline | Latest upstream | Status |",
     "| --- | --- | --- | --- | --- |"
   ];
 
@@ -218,7 +224,7 @@ async function main() {
     const latestDisplay = result.latest
       ? `[${result.latest}](${result.releaseUrl})`
       : "source check failed";
-    let status = "Current against reviewed baseline";
+    let status = result.bundledNote ? "**Tracking / verification gap**" : "Current against reviewed baseline";
     if (result.actionRequired) status = "**Review update**";
     if (result.error || result.bundledError) status = "**Check failed / incomplete**";
     lines.push(`| ${markdownCell(result.name)} | ${markdownCell(bundledDisplay)} | ${markdownCell(result.reviewed)} | ${latestDisplay} | ${status} |`);
@@ -232,7 +238,6 @@ async function main() {
     }
   }
 
-  const trackingNotes = results.filter((result) => !result.bundled && result.bundledNote);
   if (trackingNotes.length) {
     lines.push("", "## Bundled-version tracking gaps", "");
     for (const result of trackingNotes) {
@@ -262,14 +267,17 @@ async function main() {
   appendGithubOutput("actionable", actionable ? "true" : "false");
   appendGithubOutput("updates_count", updates.length);
   appendGithubOutput("errors_count", errors.length);
+  appendGithubOutput("tracking_gaps_count", trackingNotes.length);
   appendGithubOutput("fingerprint", fingerprint);
   appendGithubOutput("report_path", path.relative(projectRoot, reportPath).replace(/\\/g, "/"));
 
-  console.log(`Bundled Tool Watch: ${updates.length} update(s), ${errors.length} error(s).`);
+  console.log(`Bundled Tool Watch: ${updates.length} update(s), ${errors.length} error(s), ${trackingNotes.length} tracking gap(s).`);
   console.log(`Report: ${path.relative(projectRoot, reportPath)}`);
 }
 
-main().catch((error) => {
+if (require.main === module) main().catch((error) => {
   console.error(`Bundled Tool Watch failed: ${error.message}`);
   process.exit(1);
 });
+
+module.exports = { summarizeResults, compareVersions, bundledVersion };

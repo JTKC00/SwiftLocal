@@ -37,6 +37,14 @@ const macToolFilters = [
 ];
 
 module.exports = {
+  beforePack: async (context) => {
+    if (context.electronPlatformName !== "win32") return;
+    const { verifyNativeTool } = require("./scripts/native-tool-lock");
+    const toolsRoot = require("node:path").join(__dirname, "tools");
+    for (const key of ["ffmpeg", "qpdf", "tesseract", ...(isFullWindowsBuild ? ["libreoffice"] : [])]) {
+      verifyNativeTool(key, toolsRoot);
+    }
+  },
   appId: "com.swiftlocal.converter",
   productName: "快轉通 SwiftLocal",
   // Large tools/ tree (~2GB+) — maximum compression often fails or hangs on Windows 7za.

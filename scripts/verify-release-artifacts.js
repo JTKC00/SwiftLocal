@@ -561,6 +561,10 @@ function verifyPackagedApplication(outputDir, version, options = {}) {
   }
 
   const tools = verifyRequiredToolPayload(resourcesDir, options);
+  const { verifyNativeTool } = require("./native-tool-lock");
+  for (const key of ["ffmpeg", "qpdf", "tesseract", ...(options.full ? ["libreoffice"] : [])]) {
+    verifyNativeTool(key, tools.toolsDir, undefined, { runVersion: false });
+  }
   const payloadManifest = buildPayloadManifest(unpackedDir);
   return {
     archivePath,

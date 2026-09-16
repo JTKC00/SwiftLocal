@@ -1,0 +1,315 @@
+{
+  "schemaVersion": 1,
+  "target": "win32-x64",
+  "tools": {
+    "ffmpeg": {
+      "version": "9.0.1",
+      "url": "https://github.com/GyanD/codexffmpeg/releases/download/9.0.1/ffmpeg-9.0.1-full_build.zip",
+      "sha256": "2e8e28af97c2ae338ccef92e36da9b2a4cd21d0cad9dde093545606cb07f5b00",
+      "archiveName": "swiftlocal-ffmpeg-9.0.1.zip",
+      "format": "zip",
+      "executables": [
+        "bin/ffmpeg.exe",
+        "bin/ffprobe.exe",
+        "bin/ffplay.exe"
+      ],
+      "versionArgs": [
+        "-version"
+      ],
+      "copy": [
+        {
+          "from": "ffmpeg-9.0.1-full_build/bin",
+          "to": "bin"
+        },
+        {
+          "from": "ffmpeg-9.0.1-full_build/LICENSE",
+          "to": "LICENSE"
+        },
+        {
+          "from": "ffmpeg-9.0.1-full_build/README.txt",
+          "to": "README.txt"
+        }
+      ],
+      "payloadSha256": "c94313ef8980b56e68491da6d1868b21044353fd2983e50c91ee5da580ad43ae"
+    },
+    "qpdf": {
+      "version": "12.4.1",
+      "url": "https://github.com/qpdf/qpdf/releases/download/v12.4.1/qpdf-12.4.1-msvc64.zip",
+      "sha256": "3cd016cd433ef7232e42f4c13348a49cc14907a3c7278ef4f99120593126f7a6",
+      "archiveName": "swiftlocal-qpdf-12.4.1.zip",
+      "format": "zip",
+      "executables": [
+        "bin/qpdf.exe"
+      ],
+      "copy": [
+        {
+          "from": "qpdf-12.4.1-msvc64/bin",
+          "to": "bin"
+        },
+        {
+          "from": "qpdf-12.4.1-msvc64/share/doc/qpdf/manual-html/_sources/license.rst.txt",
+          "to": "LICENSE.txt"
+        }
+      ],
+      "payloadSha256": "c9c5753471935783286e2f785bda98ec350e5c470ed209836c0442f7a3783710"
+    },
+    "tesseract": {
+      "version": "5.5.3",
+      "url": "https://github.com/tesseract-ocr/tesseract/releases/download/5.5.3/tesseract-ocr-w64-setup-5.5.3.20260724.exe",
+      "sha256": "bee9e3434bd94fd65387d9be28cd467a41f61b1275383b55b0f59a1331270ae4",
+      "archiveName": "swiftlocal-tesseract-5.5.3.exe",
+      "format": "nsis",
+      "executables": [
+        "tesseract.exe"
+      ],
+      "copy": [
+        {
+          "from": "doc",
+          "to": "doc"
+        },
+        {
+          "from": "libLerc.dll",
+          "to": "libLerc.dll"
+        },
+        {
+          "from": "libarchive-13.dll",
+          "to": "libarchive-13.dll"
+        },
+        {
+          "from": "libb2-1.dll",
+          "to": "libb2-1.dll"
+        },
+        {
+          "from": "libbrotlicommon.dll",
+          "to": "libbrotlicommon.dll"
+        },
+        {
+          "from": "libbrotlidec.dll",
+          "to": "libbrotlidec.dll"
+        },
+        {
+          "from": "libbz2-1.dll",
+          "to": "libbz2-1.dll"
+        },
+        {
+          "from": "libcairo-2.dll",
+          "to": "libcairo-2.dll"
+        },
+        {
+          "from": "libcurl-4.dll",
+          "to": "libcurl-4.dll"
+        },
+        {
+          "from": "libdatrie-1.dll",
+          "to": "libdatrie-1.dll"
+        },
+        {
+          "from": "libdeflate.dll",
+          "to": "libdeflate.dll"
+        },
+        {
+          "from": "libexpat-1.dll",
+          "to": "libexpat-1.dll"
+        },
+        {
+          "from": "libffi-8.dll",
+          "to": "libffi-8.dll"
+        },
+        {
+          "from": "libfontconfig-1.dll",
+          "to": "libfontconfig-1.dll"
+        },
+        {
+          "from": "libfreetype-6.dll",
+          "to": "libfreetype-6.dll"
+        },
+        {
+          "from": "libfribidi-0.dll",
+          "to": "libfribidi-0.dll"
+        },
+        {
+          "from": "libgcc_s_seh-1.dll",
+          "to": "libgcc_s_seh-1.dll"
+        },
+        {
+          "from": "libgif-7.dll",
+          "to": "libgif-7.dll"
+        },
+        {
+          "from": "libgio-2.0-0.dll",
+          "to": "libgio-2.0-0.dll"
+        },
+        {
+          "from": "libglib-2.0-0.dll",
+          "to": "libglib-2.0-0.dll"
+        },
+        {
+          "from": "libgmodule-2.0-0.dll",
+          "to": "libgmodule-2.0-0.dll"
+        },
+        {
+          "from": "libgobject-2.0-0.dll",
+          "to": "libgobject-2.0-0.dll"
+        },
+        {
+          "from": "libgraphite2.dll",
+          "to": "libgraphite2.dll"
+        },
+        {
+          "from": "libharfbuzz-0.dll",
+          "to": "libharfbuzz-0.dll"
+        },
+        {
+          "from": "libiconv-2.dll",
+          "to": "libiconv-2.dll"
+        },
+        {
+          "from": "libicudt78.dll",
+          "to": "libicudt78.dll"
+        },
+        {
+          "from": "libicuin78.dll",
+          "to": "libicuin78.dll"
+        },
+        {
+          "from": "libicuuc78.dll",
+          "to": "libicuuc78.dll"
+        },
+        {
+          "from": "libidn2-0.dll",
+          "to": "libidn2-0.dll"
+        },
+        {
+          "from": "libintl-8.dll",
+          "to": "libintl-8.dll"
+        },
+        {
+          "from": "libjbig-0.dll",
+          "to": "libjbig-0.dll"
+        },
+        {
+          "from": "libjpeg-8.dll",
+          "to": "libjpeg-8.dll"
+        },
+        {
+          "from": "libleptonica-6.dll",
+          "to": "libleptonica-6.dll"
+        },
+        {
+          "from": "liblz4.dll",
+          "to": "liblz4.dll"
+        },
+        {
+          "from": "liblzma-5.dll",
+          "to": "liblzma-5.dll"
+        },
+        {
+          "from": "libopenjp2-7.dll",
+          "to": "libopenjp2-7.dll"
+        },
+        {
+          "from": "libpango-1.0-0.dll",
+          "to": "libpango-1.0-0.dll"
+        },
+        {
+          "from": "libpangocairo-1.0-0.dll",
+          "to": "libpangocairo-1.0-0.dll"
+        },
+        {
+          "from": "libpangoft2-1.0-0.dll",
+          "to": "libpangoft2-1.0-0.dll"
+        },
+        {
+          "from": "libpangowin32-1.0-0.dll",
+          "to": "libpangowin32-1.0-0.dll"
+        },
+        {
+          "from": "libpcre2-8-0.dll",
+          "to": "libpcre2-8-0.dll"
+        },
+        {
+          "from": "libpixman-1-0.dll",
+          "to": "libpixman-1-0.dll"
+        },
+        {
+          "from": "libpng16-16.dll",
+          "to": "libpng16-16.dll"
+        },
+        {
+          "from": "libpsl-5.dll",
+          "to": "libpsl-5.dll"
+        },
+        {
+          "from": "libsharpyuv-0.dll",
+          "to": "libsharpyuv-0.dll"
+        },
+        {
+          "from": "libssh2-1.dll",
+          "to": "libssh2-1.dll"
+        },
+        {
+          "from": "libstdc++-6.dll",
+          "to": "libstdc++-6.dll"
+        },
+        {
+          "from": "libtesseract-5.dll",
+          "to": "libtesseract-5.dll"
+        },
+        {
+          "from": "libthai-0.dll",
+          "to": "libthai-0.dll"
+        },
+        {
+          "from": "libtiff-6.dll",
+          "to": "libtiff-6.dll"
+        },
+        {
+          "from": "libunistring-5.dll",
+          "to": "libunistring-5.dll"
+        },
+        {
+          "from": "libwebp-7.dll",
+          "to": "libwebp-7.dll"
+        },
+        {
+          "from": "libwebpmux-3.dll",
+          "to": "libwebpmux-3.dll"
+        },
+        {
+          "from": "libwinpthread-1.dll",
+          "to": "libwinpthread-1.dll"
+        },
+        {
+          "from": "libzstd.dll",
+          "to": "libzstd.dll"
+        },
+        {
+          "from": "tessdata",
+          "to": "tessdata"
+        },
+        {
+          "from": "tesseract.exe",
+          "to": "tesseract.exe"
+        },
+        {
+          "from": "zlib1.dll",
+          "to": "zlib1.dll"
+        }
+      ],
+      "payloadSha256": "f755ddf6d5a2b17cc9bdfb3cead6a2cfc3e7472666aafcbfb82f996aed4628bd"
+    },
+    "libreoffice": {
+      "version": "26.2.6",
+      "url": "https://download.documentfoundation.org/libreoffice/stable/26.2.6/win/x86_64/LibreOffice_26.2.6_Win_x86-64.msi",
+      "sha256": "f9877032fd908beb9c0ddf06df4af5c2e85f419c42e14876c4cce5aae5fb2660",
+      "archiveName": "swiftlocal-libreoffice-26.2.6.msi",
+      "format": "msi",
+      "executables": [
+        "program/soffice.com",
+        "program/soffice.exe"
+      ],
+      "payloadVerification": "source-receipt",
+      "copy": []
+    }
+  }
+}

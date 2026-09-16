@@ -161,6 +161,16 @@ if (validWindowsExecutable(qpdf, 10_000)) {
   bad("缺少 QPDF", "請放入 tools/qpdf/…/qpdf.exe");
 }
 
+// Verify complete native payloads, including DLLs and OCR PDF support files.
+for (const key of ["ffmpeg", "qpdf", "tesseract", ...(wantFull ? ["libreoffice"] : [])]) {
+  try {
+    const result = require("./native-tool-lock").verifyNativeTool(key, toolsRoot);
+    ok(`${key} ${result.version}: 完整工具目錄校驗通過`);
+  } catch (error) {
+    bad(`${key} 來源或檔案校驗失敗`, `執行 npm run tools:native${wantFull ? ":full" : ""}（${error.message}）`);
+  }
+}
+
 // --- Online media downloader (pinned, checksum-verified) ---
 try {
   const mediaTarget = { targetPlatform: "win32", targetArch: "x64", targetKey: "win32-x64" };

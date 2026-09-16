@@ -1,0 +1,55 @@
+name: Native Tool Smoke
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [codex/bundled-tools-windows-acceptance]
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-2025
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci
+      - name: Provision pinned native tools including LibreOffice
+        run: npm run tools:native:full
+      - name: Record actual native payload digests
+        if: always()
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force acceptance-evidence | Out-Null
+          node -e "const fs=require('fs');const n=require('./scripts/native-tool-lock');const l=n.loadNativeLock();const r={commit:process.env.GITHUB_SHA,platform:process.platform,tools:{}};for(const k of Object.keys(l.tools)){try{r.tools[k]={...n.verifyNativeTool(k,'tools',l),payloadSha256:n.payloadDigest('tools/'+k,k)}}catch(e){r.tools[k]={error:e.message}}}fs.writeFileSync('acceptance-evidence/native-payloads.json',JSON.stringify(r,null,2))"
+      - name: Provision pinned media tools and language packs
+        run: |
+          npm run tools:media-download
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm run tools:tessdata
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Verify Full payload and native versions
+        run: npm run check:pack:full
+      - name: Exercise bundled OCR, PDF, media and Office conversions
+        run: node scripts/smoke-release.js --require-bundled --skip-tests
+      - name: Build candidate Full Installer for separate fresh-runner acceptance
+        run: npm run pack:win:full:installer
+      - name: Retain evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-tool-evidence
+          path: acceptance-evidence/
+          retention-days: 7
+      - name: Retain candidate installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-full-candidate
+          path: dist-full/*-full-installer-x64.exe
+          compression-level: 0
+          retention-days: 3

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "lastReviewed": "2026-09-09",
+  "lastReviewed": "2026-09-16",
   "policy": {
     "mode": "notify-only",
     "description": "reviewedVersion is the last upstream version reviewed by SwiftLocal maintainers. It is not automatically the version bundled in a release unless bundledVersionSource is present."
@@ -8,7 +8,7 @@
   "tools": {
     "ytDlp": {
       "name": "yt-dlp",
-      "reviewedVersion": "2026.07.04",
+      "reviewedVersion": "2026.08.19",
       "bundledVersionSource": {
         "type": "json",
         "path": "tools/media-download-tools.lock.json",
@@ -21,7 +21,7 @@
     },
     "deno": {
       "name": "Deno",
-      "reviewedVersion": "2.9.5",
+      "reviewedVersion": "2.9.6",
       "bundledVersionSource": {
         "type": "json",
         "path": "tools/media-download-tools.lock.json",
@@ -35,42 +35,61 @@
     "ffmpeg": {
       "name": "FFmpeg",
       "reviewedVersion": "9.0.1",
-      "bundledVersionNote": "Windows release binary is copied from a local installation/build and is not lock-pinned in git.",
+      "bundledVersionNote": "Windows x64 source archive is SHA-256 pinned. macOS tools still use local Homebrew/application copies and are not reproducible.",
       "upstream": {
         "type": "html-regex",
         "url": "https://ffmpeg.org/download.html",
         "pattern": "FFmpeg\\s+([0-9]+\\.[0-9]+(?:\\.[0-9]+)?)",
         "selection": "max"
+      },
+      "bundledVersionSource": {
+        "type": "json",
+        "path": "tools/native-tools.lock.json",
+        "property": "tools.ffmpeg.version"
       }
     },
     "tesseract": {
       "name": "Tesseract OCR",
       "reviewedVersion": "5.5.3",
-      "bundledVersionNote": "The executable is copied from a local Windows installation and is not lock-pinned in git. tessdata is tracked separately by tools/tessdata.lock.json.",
+      "bundledVersionNote": "Windows x64 source archive is SHA-256 pinned. macOS tools still use local Homebrew/application copies and are not reproducible.",
       "upstream": {
         "type": "github-release",
         "repository": "tesseract-ocr/tesseract"
+      },
+      "bundledVersionSource": {
+        "type": "json",
+        "path": "tools/native-tools.lock.json",
+        "property": "tools.tesseract.version"
       }
     },
     "qpdf": {
       "name": "QPDF",
-      "reviewedVersion": "12.3.2",
-      "bundledVersionHint": "12.3.2",
-      "bundledVersionNote": "scripts/populate-tools-from-system.js contains a qpdf 12.3.2 fallback path, but the release binary itself is not lock-pinned.",
+      "reviewedVersion": "12.4.1",
+      "bundledVersionNote": "Windows x64 source archive is SHA-256 pinned. macOS tools still use local Homebrew/application copies and are not reproducible.",
       "upstream": {
         "type": "github-release",
         "repository": "qpdf/qpdf"
+      },
+      "bundledVersionSource": {
+        "type": "json",
+        "path": "tools/native-tools.lock.json",
+        "property": "tools.qpdf.version"
       }
     },
     "libreoffice": {
       "name": "LibreOffice",
       "reviewedVersion": "26.2.6",
-      "bundledVersionNote": "Full builds copy LibreOffice from a local installation. Track the mature Previous Branch, not the newest feature branch.",
+      "bundledVersionNote": "Windows x64 source archive is SHA-256 pinned. macOS tools still use local Homebrew/application copies and are not reproducible. Windows MSI extraction and runtime acceptance are pending; installed payload uses a source receipt, not a checked-in payload digest.",
       "upstream": {
         "type": "html-regex",
         "url": "https://www.libreoffice.org/release-notes/",
         "pattern": "LibreOffice\\s+([0-9]+\\.[0-9]+\\.[0-9]+)\\s*\\([^)]*\\)\\s*-\\s*Previous Branch",
         "selection": "first"
+      },
+      "bundledVersionSource": {
+        "type": "json",
+        "path": "tools/native-tools.lock.json",
+        "property": "tools.libreoffice.version"
       }
     }
   }
