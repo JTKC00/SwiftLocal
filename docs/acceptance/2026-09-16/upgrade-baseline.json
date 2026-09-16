@@ -1,0 +1,29 @@
+{
+  "phase": "baseline",
+  "platform": "win32",
+  "userProfile": "C:\\Users\\SL驗收16232",
+  "path": "C:\\Windows\\System32;C:\\Windows;C:\\Windows\\System32\\WindowsPowerShell\\v1.0",
+  "tests": [
+    {
+      "name": "installed-startup-default-profile",
+      "status": "PASS",
+      "evidence": {
+        "title": "快轉通 SwiftLocal",
+        "config": {
+          "toolPaths": {},
+          "defaultOutputDir": "C:\\Users\\SL驗收16232\\Downloads\\SwiftLocal"
+        }
+      }
+    },
+    {
+      "name": "upgrade-marker-and-setting-written",
+      "status": "PASS",
+      "evidence": "C:\\SwiftLocal驗收-SL驗收16232\\轉換結果 日本語\\保留的輸出設定"
+    },
+    {
+      "name": "normal-exit",
+      "status": "PASS",
+      "evidence": 0
+    }
+  ]
+}

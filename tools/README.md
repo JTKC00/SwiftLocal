@@ -90,7 +90,7 @@ npm run tools:tessdata
 1. 在 `tools/**/tessdata` 檢查 `eng`、`chi_tra`、`osd`
 2. 若缺少，優先從本機系統 Tesseract 複製（Windows：`C:\Program Files\Tesseract-OCR\tessdata`）
 3. 仍缺少則從 GitHub `tesseract-ocr/tessdata_fast` 的 4.1.0 固定 commit 下載
-4. 依 `tools/tessdata.lock.json` 驗證檔案大小與 SHA-256
+4. 依 `tools/tessdata.lock.json` 驗證檔案大小與 SHA-256；Windows 建置與產物檢查亦涵蓋所有額外語言包，未鎖定或校驗不符者中止建置
 5. Full build **缺少或校驗不符則中止**，避免出貨後用家無法用繁中 OCR
 
 手動只檢查（不下載）：
@@ -127,7 +127,7 @@ node scripts/ensure-native-tools.js --download --archives /absolute/archive-cach
 
 `--archives` 使用 lock 中的 `archiveName`，仍須通過原始 SHA-256；不會信任檔名或本機安裝版本。
 
-**尚未完成的驗收：** LibreOffice Windows administrative extraction、四個原生工具的 Windows runtime／轉換，以及實際 Windows 安裝包。`.github/workflows/native-tool-smoke.yml` 提供手動 Windows 驗收：完整 provision、版本檢查、tessdata 檢查與轉換 smoke。執行及確認通過前，不可視為發行驗收完成。
+**Windows 驗證：** 已實測 LibreOffice administrative extraction、四個原生工具的 runtime／轉換，以及 Installer 內容逐檔比對。`.github/workflows/native-tool-smoke.yml` 另外驗證真實 Tesseract 的非 ASCII 路徑，並在另一個 Windows runner 以新標準使用者執行安裝、啟動、轉換、升級及卸載。最新通過／失敗及乾淨 Windows VM 尚待驗收項目，以 [Windows 驗收報告](../docs/WINDOWS_ACCEPTANCE_2026-09-16.md) 為準。
 
 **macOS 範圍：** yt-dlp／Deno 已鎖定；`bundle-mac-tools.js` 的 Homebrew 程式及 dylib、現有 LibreOffice.app 仍未鎖定。此變更不宣稱 macOS 或完整安裝包 bit-for-bit reproducible。
 
