@@ -38,6 +38,8 @@ jobs:
           path: ${{ runner.temp }}/swiftlocal-native-archives
           key: native-sources-ffmpeg9.0.1-qpdf12.4.1-tesseract5.5.3-lo26.2.6
       - name: Provision pinned native tools including LibreOffice
+        env:
+          SWIFTLOCAL_NATIVE_DIAGNOSTICS: acceptance-evidence
         run: node scripts/ensure-native-tools.js --download --full --archive-cache "${{ runner.temp }}/swiftlocal-native-archives"
       - name: Save source archives for repeat acceptance
         if: always() && steps.native-cache.outputs.cache-hit != 'true'

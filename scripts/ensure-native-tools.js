@@ -4,7 +4,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const os = require("node:os");
 const { execFileSync } = require("node:child_process");
-const { loadNativeLock, verifyNativeTool, isLanguagePack } = require("./native-tool-lock");
+const { loadNativeLock, verifyNativeTool, isLanguagePack, payloadManifest } = require("./native-tool-lock");
 const { downloadFile, sha256File } = require("./ensure-media-download-tools");
 
 function parseArgs(args) {
@@ -105,6 +105,8 @@ async function main(args = process.argv.slice(2)) {
       fs.mkdirSync(options.toolsRoot, { recursive: true });
       // Same filesystem as the final destination so promotion is a rename.
       const temp = fs.mkdtempSync(path.join(path.dirname(options.toolsRoot), ".swiftlocal-native-"));
+      let provisionError;
+      let phase = "download";
       try {
         const cached = options.archiveCache ? path.join(options.archiveCache, spec.archiveName) : "";
         const archive = options.archives ? path.join(options.archives, spec.archiveName) : cached && fs.existsSync(cached) ? cached : path.join(temp, spec.archiveName);
@@ -118,14 +120,37 @@ async function main(args = process.argv.slice(2)) {
           fs.copyFileSync(archive, cached, fs.constants.COPYFILE_EXCL);
         }
         const extracted = path.join(temp, "extracted");
+        phase = "extract";
+        console.log(`Extracting ${key} ${spec.version}`);
         await extract(archive, extracted, spec);
         const stagedTools = path.join(temp, "tools");
         const prepared = path.join(stagedTools, key);
+        phase = "prepare";
         preparePayload(extracted, prepared, spec);
+        phase = "verify";
         verifyNativeTool(key, stagedTools, lock);
+        phase = "promote";
         replacePayload(key, prepared, options.toolsRoot);
+      } catch (error) {
+        provisionError = error;
+        console.error(`${key} failed during ${phase}: ${error.stack || error}`);
+        if (process.env.SWIFTLOCAL_NATIVE_DIAGNOSTICS) {
+          try {
+            const diagnostics = path.resolve(process.env.SWIFTLOCAL_NATIVE_DIAGNOSTICS);
+            fs.mkdirSync(diagnostics, { recursive: true });
+            const prepared = path.join(temp, "tools", key);
+            fs.writeFileSync(path.join(diagnostics, `failed-${key}.json`), JSON.stringify({ phase, error: error.message, manifest: fs.existsSync(prepared) ? payloadManifest(prepared, key) : null }, null, 2));
+          } catch (diagnosticError) { console.error(`Diagnostic capture failed: ${diagnosticError.message}`); }
+        }
+        throw error;
       } finally {
-        fs.rmSync(temp, { recursive: true, force: true });
+        try {
+          fs.rmSync(temp, { recursive: true, force: true, maxRetries: 10, retryDelay: 500 });
+        } catch (cleanupError) {
+          // Do not hide the real extraction/verification error behind Windows file locks.
+          if (provisionError) console.error(`Temporary cleanup also failed: ${cleanupError.message}`);
+          else throw cleanupError;
+        }
       }
     }
     const result = verifyNativeTool(key, options.toolsRoot, lock);

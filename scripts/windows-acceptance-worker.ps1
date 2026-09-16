@@ -36,6 +36,9 @@ try {
   $env:USERPROFILE = $profile
   $env:APPDATA = [Environment]::GetFolderPath('ApplicationData')
   $env:LOCALAPPDATA = [Environment]::GetFolderPath('LocalApplicationData')
+  $env:TEMP = Join-Path $env:LOCALAPPDATA 'Temp'
+  $env:TMP = $env:TEMP
+  New-Item -ItemType Directory -Force -Path $env:TEMP | Out-Null
   $env:PATH = "$env:SystemRoot\System32;$env:SystemRoot;$env:SystemRoot\System32\WindowsPowerShell\v1.0"
   foreach ($name in @('SWIFTLOCAL_LIBREOFFICE','SWIFTLOCAL_TESSERACT','SWIFTLOCAL_FFMPEG','SWIFTLOCAL_QPDF','PYTHONPATH','ELECTRON_RUN_AS_NODE')) { Remove-Item "Env:$name" -ErrorAction SilentlyContinue }
   foreach ($command in @('soffice','tesseract','ffmpeg','qpdf','python','node')) {
