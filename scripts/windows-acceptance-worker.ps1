@@ -1,7 +1,7 @@
 param([Parameter(Mandatory=$true)][string]$Configuration)
 $ErrorActionPreference = 'Stop'
 $config = Get-Content -LiteralPath $Configuration -Raw | ConvertFrom-Json
-$report = [ordered]@{ scope = 'Fresh standard user on GitHub Windows Server runner; not Windows 11 clean VM'; identity = [Security.Principal.WindowsIdentity]::GetCurrent().Name; steps = @() }
+$report = [ordered]@{ scope = 'Fresh standard user on GitHub Windows Server runner; not Windows 11 clean VM'; identity = [Security.Principal.WindowsIdentity]::GetCurrent().Name; candidateSha256=$config.candidateSha256; baselineSha256=$config.baselineSha256; candidateSourceRun=$config.candidateSourceRun; steps = @() }
 function Record($Name, $Evidence) { $script:report.steps += [ordered]@{ name=$Name; status='PASS'; evidence=$Evidence } }
 function Assert($Condition, $Message) { if (-not $Condition) { throw $Message } }
 function Run-Installer($Installer) {

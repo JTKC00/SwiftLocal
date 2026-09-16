@@ -59,7 +59,7 @@ require("./prepare-win-artifacts").clearNsisArchive(path.join(projectRoot, "dist
 
 const child = spawn(
   process.execPath,
-  [electronBuilderCli, "--config", "electron-builder.config.js", ...builderArgs],
+  [electronBuilderCli, "--config", "electron-builder.config.js", ...builderArgs, "--publish", "never"],
   {
     cwd: projectRoot,
     stdio: "inherit",

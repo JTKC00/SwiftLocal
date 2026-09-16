@@ -63,6 +63,7 @@ const builderArgs = [
   "--config",
   "electron-builder.config.js",
   "--win",
+  "--publish", "never",
   ...mapTargets(targets),
   `--config.directories.output=${outputDir}`,
   "--config.win.artifactName=SwiftLocal-${version}-full-${arch}.${ext}",
