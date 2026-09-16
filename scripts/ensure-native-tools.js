@@ -102,7 +102,10 @@ async function main(args = process.argv.slice(2)) {
       const temp = fs.mkdtempSync(path.join(path.dirname(options.toolsRoot), ".swiftlocal-native-"));
       try {
         const archive = options.archives ? path.join(options.archives, spec.archiveName) : path.join(temp, spec.archiveName);
-        if (!options.archives) await downloadFile(spec.url, archive);
+        if (!options.archives) {
+          console.log(`Downloading ${key} ${spec.version} from ${spec.url}`);
+          await downloadFile(spec.url, archive);
+        }
         if (sha256File(archive) !== spec.sha256) throw new Error(`${key}: source archive checksum mismatch`);
         const extracted = path.join(temp, "extracted");
         await extract(archive, extracted, spec);
