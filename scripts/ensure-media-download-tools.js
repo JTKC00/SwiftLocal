@@ -231,6 +231,7 @@ if (require.main === module) {
 }
 
 module.exports = {
+  downloadFile,
   extractArchive,
   executablePath,
   hasExecutableHeader,

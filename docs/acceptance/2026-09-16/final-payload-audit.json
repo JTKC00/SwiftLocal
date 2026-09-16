@@ -1,0 +1,51 @@
+{
+  "status": "PASS",
+  "sourceRun": "35054778424",
+  "sourceCommit": "5d12ea58e6707bdc62527c87a988cec0a77f21af",
+  "verificationCommit": "bf922965ad08468707cb6413218d2518d7ce78dd",
+  "verificationPlatform": "darwin",
+  "windowsFileVersion": {
+    "skipped": true,
+    "reason": "non-windows"
+  },
+  "artifact": "SwiftLocal-0.4.1-qa.20260916-full-installer-x64.exe",
+  "artifactBytes": 802518507,
+  "artifactSha256": "d608c790eab1118394d76158bfef2cec339bb5e3849593c8a82da4605b13456c",
+  "applicationFiles": 19691,
+  "native": {
+    "ffmpeg": {
+      "version": "9.0.1",
+      "verifiedPayloadSha256": "c94313ef8980b56e68491da6d1868b21044353fd2983e50c91ee5da580ad43ae"
+    },
+    "qpdf": {
+      "version": "12.4.1",
+      "verifiedPayloadSha256": "c9c5753471935783286e2f785bda98ec350e5c470ed209836c0442f7a3783710"
+    },
+    "tesseract": {
+      "version": "5.5.3.20260724",
+      "verifiedPayloadSha256": "f755ddf6d5a2b17cc9bdfb3cead6a2cfc3e7472666aafcbfb82f996aed4628bd"
+    },
+    "libreoffice": {
+      "version": "26.2.6",
+      "verifiedPayloadSha256": "8c88e50fe694958ff584b1868b707210877bf40850540c7cfc4348bbd6f6b003"
+    }
+  },
+  "languages": {
+    "chi_sim": {
+      "bytes": 2469156,
+      "sha256": "a5fcb6f0db1e1d6d8522f39db4e848f05984669172e584e8d76b6b3141e1f730"
+    },
+    "chi_tra": {
+      "bytes": 2366642,
+      "sha256": "529c5b5797d64b126065cd55f2bb4c7fd7b15790798091b1ff259941a829330b"
+    },
+    "eng": {
+      "bytes": 4113088,
+      "sha256": "7d4322bd2a7749724879683fc3912cb542f19906c83bcc1a52132556427170b2"
+    },
+    "osd": {
+      "bytes": 10562727,
+      "sha256": "9cf5d576fcc47564f11265841e5ca839001e7e6f38ff7f7aacf46d15a96b00ff"
+    }
+  }
+}

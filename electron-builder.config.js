@@ -37,6 +37,19 @@ const macToolFilters = [
 ];
 
 module.exports = {
+  beforePack: async (context) => {
+    if (context.electronPlatformName !== "win32") return;
+    const { verifyNativeTool } = require("./scripts/native-tool-lock");
+    const toolsRoot = require("node:path").join(__dirname, "tools");
+    for (const key of ["ffmpeg", "qpdf", "tesseract", ...(isFullWindowsBuild ? ["libreoffice"] : [])]) {
+      verifyNativeTool(key, toolsRoot);
+    }
+    const { requireLockedTessdata, tessdataLanguagesForVerification } = require("./scripts/tessdata-lock");
+    const data = require("node:path").join(toolsRoot, "tesseract", "tessdata");
+    for (const language of tessdataLanguagesForVerification(data)) {
+      requireLockedTessdata(require("node:path").join(data, `${language}.traineddata`), language);
+    }
+  },
   appId: "com.swiftlocal.converter",
   productName: "快轉通 SwiftLocal",
   // Large tools/ tree (~2GB+) — maximum compression often fails or hangs on Windows 7za.
@@ -63,21 +76,10 @@ module.exports = {
     "README.md",
     "package.json"
   ],
-  // Register as a PDF viewer in “Open with” (installer / mac .app).
-  // Does not force system default — user chooses in OS settings.
-  fileAssociations: [
-    {
-      ext: "pdf",
-      name: "PDF",
-      description: "PDF Document — 快轉通 SwiftLocal",
-      icon: "icon.ico",
-      mimeType: "application/pdf",
-      role: "Viewer",
-      // macOS: Alternate so we appear as a viewer without replacing Preview by default.
-      rank: "Alternate"
-    }
-  ],
   win: {
+    // The default NSIS fileAssociations macro overwrites the extension default.
+    // Register only our Open With entries through the custom NSIS include.
+    fileAssociations: [],
     icon: "build/icon.ico",
     // Stable ASCII EXE name for Windows shell / Open With registry keys.
     // productName remains "快轉通 SwiftLocal" (FileDescription / ProductName via rcedit).
@@ -112,6 +114,20 @@ module.exports = {
     ]
   },
   mac: {
+    // Register as a PDF viewer in “Open with” (installer / mac .app).
+    // Does not force system default — user chooses in OS settings.
+    fileAssociations: [
+      {
+        ext: "pdf",
+        name: "PDF",
+        description: "PDF Document — 快轉通 SwiftLocal",
+        icon: "icon.ico",
+        mimeType: "application/pdf",
+        role: "Viewer",
+        // macOS: Alternate so we appear as a viewer without replacing Preview by default.
+        rank: "Alternate"
+      }
+    ],
     icon: "build/icon.icns",
     category: "public.app-category.productivity",
     target: ["dmg"],
@@ -134,6 +150,7 @@ module.exports = {
     artifactName: "SwiftLocal-${version}-portable-${arch}.${ext}"
   },
   nsis: {
+    include: "build/windows-file-associations.nsh",
     artifactName: "SwiftLocal-${version}-installer-${arch}.${ext}",
     // One-click install: double-click → install → desktop shortcut. Power users can still use portable.
     oneClick: true,

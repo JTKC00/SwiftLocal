@@ -1,6 +1,6 @@
 # Bundled Tool Layout
 
-Put portable command-line tools in this folder before running `npm run pack:win`.
+Windows builds provision pinned command-line tools in this folder before packaging.
 Electron Builder copies this folder to the packaged app's `resources/tools` folder,
 and SwiftLocal detects these binaries automatically.
 
@@ -69,11 +69,11 @@ GitHub Actions 的 `.github/workflows/bundled-tool-watch.yml` 會每週自動檢
 - 不會自動下載或替換任何 binary
 - 不會自動修改 lock file
 - 不會自動 merge 更新
-- 有新版本或來源檢查錯誤時，才建立／更新 `[Maintenance] Bundled Tool Watch` issue
+- 有新版本、來源檢查錯誤或尚未解決的追蹤缺口時，建立／更新 `[Maintenance] Bundled Tool Watch` issue
 - 相同狀態使用 fingerprint 去重，不會每週重複通知同一批更新
 - 關閉已知 issue 後，同一 fingerprint 不會再次建立；上游版本再變才重新提醒
 
-`reviewedVersion` 代表維護者最後審閱過的上游版本，不一定等於實際 bundled binary。yt-dlp／Deno 可直接由 `tools/media-download-tools.lock.json` 取得真正鎖定版本；FFmpeg、Tesseract executable、QPDF、LibreOffice 目前仍主要從本機安裝複製，因此 Watch 會清楚標示未完全 lock-pinned 的範圍。
+`reviewedVersion` 代表維護者最後審閱過的上游版本，不一定等於實際 bundled binary。yt-dlp／Deno 的來源由 `tools/media-download-tools.lock.json` 鎖定；Windows FFmpeg、Tesseract、QPDF、LibreOffice 的來源由 `tools/native-tools.lock.json` 鎖定。Watch 的 maintenance 範圍是目前發佈的 Windows x64；未解決的 Windows 來源追蹤缺口即使版本已追上，仍會觸發報告。macOS 的 Homebrew／本機應用程式複製仍未鎖定，另列為未涵蓋的工作；Windows 安裝驗收狀態見 `docs/WINDOWS_ACCEPTANCE_2026-09-16.md`。
 
 收到更新提示後，先看 release notes；決定升級才更新來源／checksum 或本機 bundled tool，然後重新跑 `npm run smoke:release` 與打包驗證。
 
@@ -90,7 +90,7 @@ npm run tools:tessdata
 1. 在 `tools/**/tessdata` 檢查 `eng`、`chi_tra`、`osd`
 2. 若缺少，優先從本機系統 Tesseract 複製（Windows：`C:\Program Files\Tesseract-OCR\tessdata`）
 3. 仍缺少則從 GitHub `tesseract-ocr/tessdata_fast` 的 4.1.0 固定 commit 下載
-4. 依 `tools/tessdata.lock.json` 驗證檔案大小與 SHA-256
+4. 依 `tools/tessdata.lock.json` 驗證檔案大小與 SHA-256；Windows 建置與產物檢查亦涵蓋所有額外語言包，未鎖定或校驗不符者中止建置
 5. Full build **缺少或校驗不符則中止**，避免出貨後用家無法用繁中 OCR
 
 手動只檢查（不下載）：
@@ -99,15 +99,37 @@ npm run tools:tessdata
 npm run tools:tessdata:check
 ```
 
-### 從本機安裝一鍵複製到 tools/（Windows）
-
-若已用官方安裝程式裝過 Tesseract／FFmpeg／QPDF／LibreOffice：
+### Windows 原生工具：固定來源及完整檔案校驗
 
 ```bash
-npm run tools:populate    # 複製到 tools/（LibreOffice 較大，需數分鐘）
-npm run tools:tessdata    # 確保 eng + chi_tra + osd
-npm run check:pack        # 或 check:pack:full
+npm run tools:native        # FFmpeg 9.0.1、QPDF 12.4.1、Tesseract 5.5.3
+npm run tools:native:full   # 加上 LibreOffice 26.2.6（需要 Windows）
+npm run tools:native:check  # 不連網，檢查前三項完整目錄
 ```
+
+`tools/native-tools.lock.json` 記錄 Windows x64 的版本、URL、下載包 SHA-256 及抽取規則：
+
+- FFmpeg 使用 Gyan 發行包；QPDF、Tesseract 使用各專案 GitHub release。抽取後的程式、DLL、PDF 支援檔及隨附授權檔有另一個 Git 內的完整目錄 digest，檔案新增、遺失或內容改變都會失敗。
+- Windows 建置主機需安裝完整 7-Zip（`Program Files/7-Zip/7z.exe`）以抽取 NSIS；electron-builder 的精簡 7za 不支援此格式。抽取結果仍須符合固定目錄 digest。用家執行 Full 安裝包不需要 7-Zip。
+- Tesseract 的 `tessdata/*.traineddata` 及 `swiftlocal-tessdata.json` 由既有 tessdata 流程管理，語言資料另行校驗；原有語言包會保留，打包前再驗證必要語言。
+- LibreOffice 使用 Document Foundation 固定版本 MSI，先驗證下載包，再以 Windows `msiexec /a` 建立 administrative image，不從本機已安裝程式複製。排除 administrative image 重寫的 MSI 安裝資料後，19,486 個 runtime／授權／資源檔案以 Git 內固定 payload digest 校驗；不接受本機 receipt 自行核准內容。
+- 替換既有目錄前會完整備份至 `~/.codex/backups/`，包含來源路徑及時間。備份不會混入發行包。
+- `tools:populate` 保留為相容入口，現在會下載固定來源；`--skip-libreoffice` 只處理前三項。
+
+Windows 一般版及 Full build 會自動 provision，再做 readiness 檢查。直接呼叫 electron-builder 也會檢查 native payload，成品驗證則再次核對 unpacked payload。
+
+隔離驗證可使用：
+
+```bash
+node scripts/ensure-native-tools.js --download --tools-root /absolute/temp/tools
+node scripts/ensure-native-tools.js --download --archives /absolute/archive-cache --tools-root /absolute/temp/tools
+```
+
+`--archives` 使用 lock 中的 `archiveName`，仍須通過原始 SHA-256；不會信任檔名或本機安裝版本。
+
+**Windows 驗證：** 已實測 LibreOffice administrative extraction、四個原生工具的 runtime／轉換，以及 Installer 內容逐檔比對。`.github/workflows/native-tool-smoke.yml` 另外驗證真實 Tesseract 的非 ASCII 路徑，並在另一個 Windows runner 以新標準使用者執行安裝、啟動、轉換、升級及卸載。最新通過／失敗及乾淨 Windows VM 尚待驗收項目，以 [Windows 驗收報告](../docs/WINDOWS_ACCEPTANCE_2026-09-16.md) 為準。
+
+**macOS 範圍：** yt-dlp／Deno 已鎖定；`bundle-mac-tools.js` 的 Homebrew 程式及 dylib、現有 LibreOffice.app 仍未鎖定。此變更不宣稱 macOS 或完整安裝包 bit-for-bit reproducible。
 
 ### 打包前一鍵檢查（建議）
 
@@ -124,7 +146,7 @@ npm run pack:win
 npm run pack:win:full
 ```
 
-`pack:win` / `pack:win:full` 會先補齊並校驗 tessdata，再執行一次 fail-closed readiness 檢查。electron-builder 成功後會立即抽出成品，將整個 `win-unpacked` 檔案樹（包括 Electron runtime、`app.asar.unpacked` native modules、所有工具支援檔）逐檔與 Installer／Portable 內 payload 比對 SHA-256。另會明確要求 `app.asar`、yt-dlp、Deno、FFmpeg、Tesseract、QPDF、`eng`／`chi_tra`／`osd`，Full 版也要求 LibreOffice 主程式與啟動支援檔。缺檔、PE 結構／架構錯誤、SHA-256 不一致或不安全 NSIS 產品名稱提示都會以失敗結束。
+`pack:win` / `pack:win:full` 會先補齊並校驗原生工具、媒體工具及 tessdata，再執行一次 fail-closed readiness 檢查。electron-builder 成功後會立即抽出成品，將整個 `win-unpacked` 檔案樹（包括 Electron runtime、`app.asar.unpacked` native modules、所有工具支援檔）逐檔與 Installer／Portable 內 payload 比對 SHA-256。另會明確要求 `app.asar`、yt-dlp、Deno、FFmpeg、Tesseract、QPDF、`eng`／`chi_tra`／`osd`，Full 版也要求 LibreOffice 主程式與啟動支援檔。缺檔、PE 結構／架構錯誤、SHA-256 不一致或不安全 NSIS 產品名稱提示都會以失敗結束。
 
 Optional LibreOffice layout:
 

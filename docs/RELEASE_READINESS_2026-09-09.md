@@ -50,6 +50,8 @@
 
 ## 正式發布前的驗收
 
+2026-09-16 補充：Bundled Tool Watch #11 與 Windows 安裝生命週期的新驗收記錄見 [Windows acceptance](WINDOWS_ACCEPTANCE_2026-09-16.md)。該文件逐項區分 GitHub Windows Server 全新使用者實測與仍未完成的乾淨 Windows 11 VM／互動畫面驗收；不將 CI 結果視為所有 Windows 環境已驗收。
+
 1. 在乾淨 Windows 使用者／VM 實際安裝 Installer，驗證首次啟動、非 ASCII 路徑、升級、卸載及 PDF「開啟方式」。本機來源測試、解壓與 payload 比對無法代替安裝驗收。
 2. 在沒有額外安裝引擎的 Windows 環境測試 Full 版；一般版若同時發布，另驗證缺少 LibreOffice 時的提示與手動設定流程。
 3. Windows 目前維持未簽章設定。若發布未簽章版本，發布說明需清楚告知來源／校驗碼與系統提示；若要簽章，先調整現有 `signExts` 排除規則並使用實際憑證驗證。未簽章本身不等同功能不穩定。

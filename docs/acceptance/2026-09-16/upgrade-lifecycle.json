@@ -1,0 +1,36 @@
+{
+  "scope": "Fresh standard user on GitHub Windows Server runner; not Windows 11 clean VM",
+  "identity": "runnervmvmocb\\SL驗收16232",
+  "candidateSha256": "D608C790EAB1118394D76158BFEF2CEC339BB5E3849593C8A82DA4605B13456C",
+  "baselineSha256": "561BAA2A6EDAF02DADE16C1DFE791DAF785E0646027F92EB71E6DF9CB8177B59",
+  "candidateSourceRun": "35054778424",
+  "steps": [
+    {
+      "name": "fresh-user-and-no-external-engine-discovery",
+      "status": "PASS",
+      "evidence": {
+        "path": "C:\\Windows\\System32;C:\\Windows;C:\\Windows\\System32\\WindowsPowerShell\\v1.0",
+        "profile": "C:\\Users\\SL驗收16232",
+        "registeredEngines": [],
+        "localAppData": "C:\\Users\\SL驗收16232\\AppData\\Local",
+        "appData": "C:\\Users\\SL驗收16232\\AppData\\Roaming",
+        "temp": "C:\\Users\\SL驗收16232\\AppData\\Local\\Temp"
+      }
+    },
+    {
+      "name": "baseline-v0.4.0-installed",
+      "status": "PASS",
+      "evidence": "0.4.0.0"
+    },
+    {
+      "name": "upgrade-from-v0.4.0-to-candidate",
+      "status": "PASS",
+      "evidence": "0.4.1.0"
+    },
+    {
+      "name": "final-uninstall",
+      "status": "PASS",
+      "evidence": true
+    }
+  ]
+}

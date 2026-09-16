@@ -9,7 +9,7 @@ const { execFileSync } = require("node:child_process");
 const asar = require("@electron/asar");
 const { getPath7za } = require("app-builder-lib/out/toolsets/7zip");
 const { readWindowsPe, readWindowsX64Pe } = require("./windows-pe");
-const { loadTessdataLock, requireLockedTessdata } = require("./tessdata-lock");
+const { loadTessdataLock, requireLockedTessdata, tessdataLanguagesForVerification } = require("./tessdata-lock");
 
 const projectRoot = path.resolve(__dirname, "..");
 const MAIN_EXE_CANDIDATES = ["SwiftLocal.exe", "快轉通 SwiftLocal.exe"];
@@ -213,7 +213,13 @@ async function extractReleasePayload(artifactPath, tempDir) {
   const sevenZip = ensureExecutableTool(await getPath7za());
   const outerDir = path.join(tempDir, "outer");
   fs.mkdirSync(outerDir, { recursive: true });
-  extractWith7Zip(sevenZip, artifactPath, outerDir);
+  // Windows 7za has no NSIS decoder. Full 7-Zip opens the installer;
+  // keep the packager toolset for the nested application 7z payload.
+  const outerExtractor = process.platform === "win32"
+    ? path.join(process.env.ProgramFiles || "C:\\Program Files", "7-Zip", "7z.exe")
+    : sevenZip;
+  if (!fs.existsSync(outerExtractor)) throw new Error("Windows installer verification requires full 7-Zip at Program Files/7-Zip/7z.exe");
+  extractWith7Zip(outerExtractor, artifactPath, outerDir);
   if (findFileBySuffix(outerDir, path.join("resources", "app.asar"))) return outerDir;
 
   const nestedArchives = findFiles(outerDir).filter((filePath) => /\.(?:7z|zip)$/i.test(filePath)).slice(0, 12);
@@ -405,11 +411,15 @@ function requireSafeInstallerHints(installerPath) {
 }
 
 function verifyPdfAssociationConfig(config) {
-  const associations = Array.isArray(config.fileAssociations) ? config.fileAssociations : [];
-  const pdf = associations.find((item) => String(item.ext || "").toLowerCase() === "pdf");
-  if (!pdf) {
-    throw new Error("electron-builder 缺少 PDF fileAssociations");
+  const associations = [...(config.fileAssociations || []), ...(config.win?.fileAssociations || [])];
+  if (associations.length) throw new Error("Windows must use Open With registration without the default-overwriting NSIS association macro");
+  if (!config.nsis?.include) throw new Error("Missing Windows PDF Open With include");
+  const include = fs.readFileSync(path.resolve(projectRoot, config.nsis.include), "utf8");
+  if (!include.includes('"SwiftLocal.PDF"') || !include.includes("OpenWithProgids") || !include.includes("customUnInstall")) {
+    throw new Error("Missing Windows PDF Open With registration/unregistration");
   }
+  if (/WriteRegStr[^\n]*"Software\\Classes\\\.pdf"/.test(include)) throw new Error("Installer must preserve PDF default");
+  const pdf = { ext: "pdf", name: "SwiftLocal.PDF", description: config.productName };
   const description = String(pdf.description || pdf.name || "");
   if (/^electron$/i.test(description) || description.toLowerCase() === "electron") {
     throw new Error("PDF association FriendlyAppName/description 仍為 Electron");
@@ -497,7 +507,7 @@ function verifyRequiredToolPayload(resourcesDir, options = {}) {
   }
   const tessdata = {};
   const tessdataLock = options.tessdataLock || loadTessdataLock();
-  for (const language of ["eng", "chi_tra", "osd"]) {
+  for (const language of tessdataLanguagesForVerification(tessdataDir)) {
     const filePath = path.join(tessdataDir, `${language}.traineddata`);
     try {
       requireLockedTessdata(filePath, language, tessdataLock);
@@ -561,6 +571,10 @@ function verifyPackagedApplication(outputDir, version, options = {}) {
   }
 
   const tools = verifyRequiredToolPayload(resourcesDir, options);
+  const { verifyNativeTool } = require("./native-tool-lock");
+  for (const key of ["ffmpeg", "qpdf", "tesseract", ...(options.full ? ["libreoffice"] : [])]) {
+    verifyNativeTool(key, tools.toolsDir, undefined, { runVersion: false });
+  }
   const payloadManifest = buildPayloadManifest(unpackedDir);
   return {
     archivePath,
@@ -659,6 +673,7 @@ module.exports = {
   verifyNoNestedCanvas,
   verifyNoRuntimeData,
   ensureExecutableTool,
+  extractReleasePayload,
   buildPayloadManifest,
   expectedWindowsArtifactNames,
   findMainWindowsExecutable,

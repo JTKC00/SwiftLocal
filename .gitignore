@@ -22,3 +22,5 @@ tools/*
 !tools/tessdata.lock.json
 !tools/bundled-tools.lock.json
 .DS_Store
+
+!tools/native-tools.lock.json

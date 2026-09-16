@@ -60,6 +60,13 @@ function requireLockedTessdata(filePath, language, lock = loadTessdataLock()) {
   return result;
 }
 
+function tessdataLanguagesForVerification(directory, required = ["eng", "chi_tra", "osd"]) {
+  const present = fs.readdirSync(directory)
+    .filter(name => name.endsWith(".traineddata"))
+    .map(name => name.slice(0, -".traineddata".length));
+  return Array.from(new Set([...required, ...present])).sort();
+}
+
 function lockedTessdataUrl(language, lock = loadTessdataLock(), baseUrl = "") {
   if (!lock.files[language]) throw new Error(`Language is not locked: ${language}`);
   const base = baseUrl || `https://raw.githubusercontent.com/${lock.repository}/${lock.revision}`;
@@ -71,6 +78,7 @@ module.exports = {
   loadTessdataLock,
   lockedTessdataUrl,
   requireLockedTessdata,
+  tessdataLanguagesForVerification,
   sha256File,
   verifyLockedTessdata
 };

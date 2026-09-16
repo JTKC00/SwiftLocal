@@ -1,0 +1,154 @@
+name: Native Tool Smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_run:
+        description: "Optional completed run ID whose exact installer should be retested"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: native-tool-acceptance-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows:
+    if: ${{ !inputs.candidate_run }}
+    runs-on: windows-2025
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: npm
+      - name: Parse PowerShell acceptance harness
+        shell: pwsh
+        run: |
+          foreach ($file in Get-ChildItem scripts/*accept*.ps1,scripts/windows-shell-open-pdf.ps1) {
+            $tokens = $null; $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile($file.FullName, [ref]$tokens, [ref]$errors) | Out-Null
+            if ($errors.Count) { throw ($errors | Out-String) }
+          }
+      - run: npm ci
+      - name: Restore verified source archive cache
+        id: native-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}/swiftlocal-native-archives
+          key: native-sources-ffmpeg9.0.1-qpdf12.4.1-tesseract5.5.3-lo26.2.6
+      - name: Provision pinned native tools including LibreOffice
+        env:
+          SWIFTLOCAL_NATIVE_DIAGNOSTICS: acceptance-evidence
+        run: node scripts/ensure-native-tools.js --download --full --archive-cache "${{ runner.temp }}/swiftlocal-native-archives"
+      - name: Save source archives for repeat acceptance
+        if: always() && steps.native-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ runner.temp }}/swiftlocal-native-archives
+          key: native-sources-ffmpeg9.0.1-qpdf12.4.1-tesseract5.5.3-lo26.2.6
+      - name: Record actual native payload digests
+        if: always()
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force acceptance-evidence | Out-Null
+          node -e "const fs=require('fs');const n=require('./scripts/native-tool-lock');const l=n.loadNativeLock();const r={commit:process.env.GITHUB_SHA,platform:process.platform,tools:{}};for(const k of Object.keys(l.tools)){try{r.tools[k]={...n.verifyNativeTool(k,'tools',l),payloadSha256:n.payloadDigest('tools/'+k,k),manifest:n.payloadManifest('tools/'+k,k)}}catch(e){r.tools[k]={error:e.message}}}fs.writeFileSync('acceptance-evidence/native-payloads.json',JSON.stringify(r,null,2))"
+      - name: Provision pinned media tools and language packs
+        run: |
+          npm run tools:media-download
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm run tools:tessdata
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Verify Full payload and native versions
+        run: npm run check:pack:full
+      - name: Exercise bundled OCR, PDF, media and Office conversions
+        run: node scripts/smoke-release.js --require-bundled --skip-tests
+      - name: Verify real Tesseract with Unicode install and temp paths
+        run: node scripts/smoke-windows-unicode-ocr.js
+      - name: Verify Unicode OCR inside the actual Electron runtime
+        run: node -e "const r=require('node:child_process').spawnSync(require('electron'),['scripts/smoke-windows-unicode-ocr.js'],{stdio:'inherit'});process.exit(r.status ?? 1)"
+      - name: Build candidate Full Installer for separate fresh-runner acceptance
+        run: |
+          npm version 0.4.1-qa.20260916 --no-git-tag-version
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm run pack:win:full:installer
+      - name: Retain evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-tool-evidence
+          path: acceptance-evidence/
+          retention-days: 7
+      - name: Retain candidate installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-full-candidate
+          path: |
+            dist-full/*-full-installer-x64.exe
+            smoke-temp/release-queue-check/input/**
+          compression-level: 0
+          retention-days: 3
+
+  fresh-user:
+    if: ${{ !cancelled() && (needs.windows.result == 'success' || (needs.windows.result == 'skipped' && inputs.candidate_run != '')) }}
+    needs: windows
+    runs-on: windows-2025
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows-full-candidate
+          path: candidate
+          run-id: ${{ inputs.candidate_run || github.run_id }}
+          github-token: ${{ github.token }}
+      - name: Fetch and verify published v0.4.0 baseline
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory baseline | Out-Null
+          Invoke-WebRequest 'https://github.com/JTKC00/SwiftLocal/releases/download/v0.4.0/SHA256SUMS.txt' -OutFile baseline/SHA256SUMS.txt
+          $name = 'SwiftLocal-0.4.0-full-installer-x64.exe'
+          Invoke-WebRequest "https://github.com/JTKC00/SwiftLocal/releases/download/v0.4.0/$name" -OutFile "baseline/$name"
+          $line = Get-Content baseline/SHA256SUMS.txt | Where-Object { $_.EndsWith($name) }
+          if (@($line).Count -ne 1) { throw 'Missing unique baseline checksum' }
+          $expected = ($line -split '\s+')[0]
+          if ((Get-FileHash "baseline/$name" -Algorithm SHA256).Hash -ne $expected) { throw 'Baseline checksum mismatch' }
+      - name: Fresh standard user - install, launch, convert, shell-open PDF and uninstall
+        env:
+          SWIFTLOCAL_CANDIDATE_RUN: ${{ inputs.candidate_run || github.run_id }}
+        shell: pwsh
+        run: |
+          $candidate = @(Get-ChildItem candidate -Recurse -Filter '*-full-installer-x64.exe')
+          if ($candidate.Count -ne 1) { throw 'Expected exactly one candidate installer' }
+          ./scripts/accept-windows-fresh-user.ps1 -Candidate $candidate[0].FullName -Baseline (Resolve-Path baseline/SwiftLocal-0.4.0-full-installer-x64.exe) -Fixtures (Resolve-Path candidate/smoke-temp/release-queue-check/input) -Evidence (Join-Path $PWD 'acceptance-evidence/fresh') -Scenario fresh
+      - name: Retain fresh-install evidence before the upgrade scenario
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fresh-install-acceptance-evidence
+          path: acceptance-evidence/fresh/
+          retention-days: 7
+      - name: Separate standard user - upgrade from v0.4.0, retain settings and uninstall
+        if: ${{ !cancelled() }}
+        env:
+          SWIFTLOCAL_CANDIDATE_RUN: ${{ inputs.candidate_run || github.run_id }}
+        shell: pwsh
+        run: |
+          $candidate = @(Get-ChildItem candidate -Recurse -Filter '*-full-installer-x64.exe')
+          if ($candidate.Count -ne 1) { throw 'Expected exactly one candidate installer' }
+          ./scripts/accept-windows-fresh-user.ps1 -Candidate $candidate[0].FullName -Baseline (Resolve-Path baseline/SwiftLocal-0.4.0-full-installer-x64.exe) -Fixtures (Resolve-Path candidate/smoke-temp/release-queue-check/input) -Evidence (Join-Path $PWD 'acceptance-evidence/upgrade') -Scenario upgrade
+      - name: Retain fresh-user evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fresh-user-acceptance-evidence
+          path: acceptance-evidence/
+          retention-days: 7

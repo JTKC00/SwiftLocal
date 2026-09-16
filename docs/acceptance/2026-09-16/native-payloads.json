@@ -1,0 +1,31 @@
+{
+  "commit": "5d12ea58e6707bdc62527c87a988cec0a77f21af",
+  "platform": "win32",
+  "tools": {
+    "ffmpeg": {
+      "version": "9.0.1",
+      "root": "tools\\ffmpeg",
+      "payloadSha256": "c94313ef8980b56e68491da6d1868b21044353fd2983e50c91ee5da580ad43ae",
+      "fileCount": 5
+    },
+    "qpdf": {
+      "version": "12.4.1",
+      "root": "tools\\qpdf",
+      "payloadSha256": "c9c5753471935783286e2f785bda98ec350e5c470ed209836c0442f7a3783710",
+      "fileCount": 13
+    },
+    "tesseract": {
+      "version": "5.5.3",
+      "root": "tools\\tesseract",
+      "payloadSha256": "f755ddf6d5a2b17cc9bdfb3cead6a2cfc3e7472666aafcbfb82f996aed4628bd",
+      "fileCount": 96
+    },
+    "libreoffice": {
+      "version": "26.2.6",
+      "root": "tools\\libreoffice",
+      "payloadSha256": "8c88e50fe694958ff584b1868b707210877bf40850540c7cfc4348bbd6f6b003",
+      "fileCount": 19486
+    }
+  },
+  "sourceRun": "35054778424"
+}

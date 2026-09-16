@@ -1,0 +1,443 @@
+{
+  "run": "https://github.com/JTKC00/SwiftLocal/actions/runs/35053746187",
+  "candidateSourceRun": "35052264243",
+  "candidateSha256": "f6f45a3b01436765200d080ce2485442c5e9d658c72209d3f522f5fd04ae95a3",
+  "status": "FAIL",
+  "scenarios": {
+    "fresh": {
+      "tests": [
+        {
+          "name": "installed-startup-default-profile",
+          "status": "PASS"
+        },
+        {
+          "name": "fresh-user-startup",
+          "status": "PASS"
+        },
+        {
+          "name": "all-tools-from-installed-full-package",
+          "status": "PASS"
+        },
+        {
+          "name": "installed-conversion-pdf-compress",
+          "status": "PASS"
+        },
+        {
+          "name": "installed-conversion-ocr-image",
+          "status": "PASS"
+        },
+        {
+          "name": "language-resources-preserved-after-ocr-image",
+          "status": "FAIL"
+        },
+        {
+          "name": "installed-conversion-pdf-to-searchable-pdf",
+          "status": "FAIL"
+        },
+        {
+          "name": "language-resources-preserved-after-pdf-to-searchable-pdf",
+          "status": "FAIL"
+        },
+        {
+          "name": "installed-conversion-office-to-pdf",
+          "status": "PASS"
+        },
+        {
+          "name": "language-resources-preserved-after-office-to-pdf",
+          "status": "FAIL"
+        },
+        {
+          "name": "installed-conversion-media-convert",
+          "status": "PASS"
+        },
+        {
+          "name": "language-resources-preserved-after-media-convert",
+          "status": "FAIL"
+        },
+        {
+          "name": "registered-pdf-shell-verb-opens-document",
+          "status": "FAIL"
+        },
+        {
+          "name": "normal-exit",
+          "status": "PASS"
+        },
+        {
+          "name": "acceptance",
+          "status": "FAIL"
+        }
+      ],
+      "languageSnapshots": [
+        {
+          "phase": "before-conversions",
+          "files": {
+            "chi_tra.traineddata": {
+              "bytes": 2366642,
+              "sha256": "529c5b5797d64b126065cd55f2bb4c7fd7b15790798091b1ff259941a829330b"
+            },
+            "eng.traineddata": {
+              "bytes": 4113088,
+              "sha256": "7d4322bd2a7749724879683fc3912cb542f19906c83bcc1a52132556427170b2"
+            },
+            "configs/pdf": {
+              "bytes": 22,
+              "sha256": "54d56e81dfefe289b0d2e4c7bc9bbe662711f5b8255c128b73bcd66efb6bba1a"
+            },
+            "pdf.ttf": {
+              "bytes": 572,
+              "sha256": "c7845420925a23d88ed830a63957b8af85a66a8daf8d9fc90e843673b2ef1a59"
+            }
+          }
+        },
+        {
+          "phase": "pdf-compress",
+          "files": {
+            "chi_tra.traineddata": {
+              "bytes": 2366642,
+              "sha256": "529c5b5797d64b126065cd55f2bb4c7fd7b15790798091b1ff259941a829330b"
+            },
+            "eng.traineddata": {
+              "bytes": 4113088,
+              "sha256": "7d4322bd2a7749724879683fc3912cb542f19906c83bcc1a52132556427170b2"
+            },
+            "configs/pdf": {
+              "bytes": 22,
+              "sha256": "54d56e81dfefe289b0d2e4c7bc9bbe662711f5b8255c128b73bcd66efb6bba1a"
+            },
+            "pdf.ttf": {
+              "bytes": 572,
+              "sha256": "c7845420925a23d88ed830a63957b8af85a66a8daf8d9fc90e843673b2ef1a59"
+            }
+          }
+        },
+        {
+          "phase": "ocr-image",
+          "files": {
+            "chi_tra.traineddata": {
+              "missing": true
+            },
+            "eng.traineddata": {
+              "missing": true
+            },
+            "configs/pdf": {
+              "missing": true
+            },
+            "pdf.ttf": {
+              "missing": true
+            }
+          }
+        },
+        {
+          "phase": "pdf-to-searchable-pdf",
+          "files": {
+            "chi_tra.traineddata": {
+              "missing": true
+            },
+            "eng.traineddata": {
+              "missing": true
+            },
+            "configs/pdf": {
+              "missing": true
+            },
+            "pdf.ttf": {
+              "missing": true
+            }
+          }
+        },
+        {
+          "phase": "office-to-pdf",
+          "files": {
+            "chi_tra.traineddata": {
+              "missing": true
+            },
+            "eng.traineddata": {
+              "missing": true
+            },
+            "configs/pdf": {
+              "missing": true
+            },
+            "pdf.ttf": {
+              "missing": true
+            }
+          }
+        },
+        {
+          "phase": "media-convert",
+          "files": {
+            "chi_tra.traineddata": {
+              "missing": true
+            },
+            "eng.traineddata": {
+              "missing": true
+            },
+            "configs/pdf": {
+              "missing": true
+            },
+            "pdf.ttf": {
+              "missing": true
+            }
+          }
+        }
+      ],
+      "lifecycle": {
+        "scope": "Fresh standard user on GitHub Windows Server runner; not Windows 11 clean VM",
+        "identity": "runnervmvmocb\\SL驗收59444",
+        "candidateSha256": "F6F45A3B01436765200D080CE2485442C5E9D658C72209D3F522F5FD04AE95A3",
+        "baselineSha256": "561BAA2A6EDAF02DADE16C1DFE791DAF785E0646027F92EB71E6DF9CB8177B59",
+        "candidateSourceRun": "35052264243",
+        "steps": [
+          {
+            "name": "fresh-user-and-no-external-engine-discovery",
+            "status": "PASS",
+            "evidence": {
+              "registeredEngines": [],
+              "profile": "C:\\Users\\SL驗收59444",
+              "appData": "C:\\Users\\SL驗收59444\\AppData\\Roaming",
+              "temp": "C:\\Users\\SL驗收59444\\AppData\\Local\\Temp",
+              "localAppData": "C:\\Users\\SL驗收59444\\AppData\\Local",
+              "path": "C:\\Windows\\System32;C:\\Windows;C:\\Windows\\System32\\WindowsPowerShell\\v1.0"
+            }
+          },
+          {
+            "name": "silent-install-unicode-path-and-open-with-registration",
+            "status": "PASS",
+            "evidence": {
+              "default": "SwiftLocal.Acceptance.Default",
+              "directory": "C:\\SwiftLocal驗收-SL驗收59444\\安裝目錄 é 日本語",
+              "version": "0.4.1.0"
+            }
+          },
+          {
+            "name": "uninstall-removes-app-and-owned-association",
+            "status": "PASS",
+            "evidence": true
+          },
+          {
+            "name": "acceptance",
+            "status": "FAIL",
+            "error": "Installed app acceptance failed: fresh",
+            "scriptStack": "at Assert, C:\\SwiftLocal驗收-SL驗收59444\\windows-acceptance-worker.ps1: line 6\r\nat Run-App, C:\\SwiftLocal驗收-SL驗收59444\\windows-acceptance-worker.ps1: line 28\r\nat <ScriptBlock>, C:\\SwiftLocal驗收-SL驗收59444\\windows-acceptance-worker.ps1: line 64"
+          }
+        ]
+      }
+    },
+    "upgrade": {
+      "tests": [
+        {
+          "name": "installed-startup-default-profile",
+          "status": "PASS"
+        },
+        {
+          "name": "upgrade-retains-user-data",
+          "status": "PASS"
+        },
+        {
+          "name": "all-tools-from-installed-full-package",
+          "status": "PASS"
+        },
+        {
+          "name": "installed-conversion-pdf-compress",
+          "status": "PASS"
+        },
+        {
+          "name": "installed-conversion-ocr-image",
+          "status": "PASS"
+        },
+        {
+          "name": "language-resources-preserved-after-ocr-image",
+          "status": "FAIL"
+        },
+        {
+          "name": "installed-conversion-pdf-to-searchable-pdf",
+          "status": "FAIL"
+        },
+        {
+          "name": "language-resources-preserved-after-pdf-to-searchable-pdf",
+          "status": "FAIL"
+        },
+        {
+          "name": "installed-conversion-office-to-pdf",
+          "status": "PASS"
+        },
+        {
+          "name": "language-resources-preserved-after-office-to-pdf",
+          "status": "FAIL"
+        },
+        {
+          "name": "installed-conversion-media-convert",
+          "status": "PASS"
+        },
+        {
+          "name": "language-resources-preserved-after-media-convert",
+          "status": "FAIL"
+        },
+        {
+          "name": "registered-pdf-shell-verb-opens-document",
+          "status": "FAIL"
+        },
+        {
+          "name": "normal-exit",
+          "status": "PASS"
+        },
+        {
+          "name": "acceptance",
+          "status": "FAIL"
+        }
+      ],
+      "languageSnapshots": [
+        {
+          "phase": "before-conversions",
+          "files": {
+            "chi_tra.traineddata": {
+              "bytes": 2366642,
+              "sha256": "529c5b5797d64b126065cd55f2bb4c7fd7b15790798091b1ff259941a829330b"
+            },
+            "eng.traineddata": {
+              "bytes": 4113088,
+              "sha256": "7d4322bd2a7749724879683fc3912cb542f19906c83bcc1a52132556427170b2"
+            },
+            "configs/pdf": {
+              "bytes": 22,
+              "sha256": "54d56e81dfefe289b0d2e4c7bc9bbe662711f5b8255c128b73bcd66efb6bba1a"
+            },
+            "pdf.ttf": {
+              "bytes": 572,
+              "sha256": "c7845420925a23d88ed830a63957b8af85a66a8daf8d9fc90e843673b2ef1a59"
+            }
+          }
+        },
+        {
+          "phase": "pdf-compress",
+          "files": {
+            "chi_tra.traineddata": {
+              "bytes": 2366642,
+              "sha256": "529c5b5797d64b126065cd55f2bb4c7fd7b15790798091b1ff259941a829330b"
+            },
+            "eng.traineddata": {
+              "bytes": 4113088,
+              "sha256": "7d4322bd2a7749724879683fc3912cb542f19906c83bcc1a52132556427170b2"
+            },
+            "configs/pdf": {
+              "bytes": 22,
+              "sha256": "54d56e81dfefe289b0d2e4c7bc9bbe662711f5b8255c128b73bcd66efb6bba1a"
+            },
+            "pdf.ttf": {
+              "bytes": 572,
+              "sha256": "c7845420925a23d88ed830a63957b8af85a66a8daf8d9fc90e843673b2ef1a59"
+            }
+          }
+        },
+        {
+          "phase": "ocr-image",
+          "files": {
+            "chi_tra.traineddata": {
+              "missing": true
+            },
+            "eng.traineddata": {
+              "missing": true
+            },
+            "configs/pdf": {
+              "missing": true
+            },
+            "pdf.ttf": {
+              "missing": true
+            }
+          }
+        },
+        {
+          "phase": "pdf-to-searchable-pdf",
+          "files": {
+            "chi_tra.traineddata": {
+              "missing": true
+            },
+            "eng.traineddata": {
+              "missing": true
+            },
+            "configs/pdf": {
+              "missing": true
+            },
+            "pdf.ttf": {
+              "missing": true
+            }
+          }
+        },
+        {
+          "phase": "office-to-pdf",
+          "files": {
+            "chi_tra.traineddata": {
+              "missing": true
+            },
+            "eng.traineddata": {
+              "missing": true
+            },
+            "configs/pdf": {
+              "missing": true
+            },
+            "pdf.ttf": {
+              "missing": true
+            }
+          }
+        },
+        {
+          "phase": "media-convert",
+          "files": {
+            "chi_tra.traineddata": {
+              "missing": true
+            },
+            "eng.traineddata": {
+              "missing": true
+            },
+            "configs/pdf": {
+              "missing": true
+            },
+            "pdf.ttf": {
+              "missing": true
+            }
+          }
+        }
+      ],
+      "lifecycle": {
+        "scope": "Fresh standard user on GitHub Windows Server runner; not Windows 11 clean VM",
+        "identity": "runnervmvmocb\\SL驗收91958",
+        "candidateSha256": "F6F45A3B01436765200D080CE2485442C5E9D658C72209D3F522F5FD04AE95A3",
+        "baselineSha256": "561BAA2A6EDAF02DADE16C1DFE791DAF785E0646027F92EB71E6DF9CB8177B59",
+        "candidateSourceRun": "35052264243",
+        "steps": [
+          {
+            "name": "fresh-user-and-no-external-engine-discovery",
+            "status": "PASS",
+            "evidence": {
+              "appData": "C:\\Users\\SL驗收91958\\AppData\\Roaming",
+              "profile": "C:\\Users\\SL驗收91958",
+              "temp": "C:\\Users\\SL驗收91958\\AppData\\Local\\Temp",
+              "registeredEngines": [],
+              "localAppData": "C:\\Users\\SL驗收91958\\AppData\\Local",
+              "path": "C:\\Windows\\System32;C:\\Windows;C:\\Windows\\System32\\WindowsPowerShell\\v1.0"
+            }
+          },
+          {
+            "name": "baseline-v0.4.0-installed",
+            "status": "PASS",
+            "evidence": "0.4.0.0"
+          },
+          {
+            "name": "upgrade-from-v0.4.0-to-candidate",
+            "status": "PASS",
+            "evidence": "0.4.1.0"
+          },
+          {
+            "name": "final-uninstall",
+            "status": "PASS",
+            "evidence": true
+          },
+          {
+            "name": "acceptance",
+            "status": "FAIL",
+            "error": "Installed app acceptance failed: upgrade",
+            "scriptStack": "at Assert, C:\\SwiftLocal驗收-SL驗收91958\\windows-acceptance-worker.ps1: line 6\r\nat Run-App, C:\\SwiftLocal驗收-SL驗收91958\\windows-acceptance-worker.ps1: line 28\r\nat <ScriptBlock>, C:\\SwiftLocal驗收-SL驗收91958\\windows-acceptance-worker.ps1: line 80"
+          }
+        ]
+      }
+    }
+  }
+}

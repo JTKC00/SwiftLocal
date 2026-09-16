@@ -1,0 +1,35 @@
+{
+  "scope": "Fresh standard user on GitHub Windows Server runner; not Windows 11 clean VM",
+  "identity": "runnervmvmocb\\SL驗收71645",
+  "candidateSha256": "D608C790EAB1118394D76158BFEF2CEC339BB5E3849593C8A82DA4605B13456C",
+  "baselineSha256": "561BAA2A6EDAF02DADE16C1DFE791DAF785E0646027F92EB71E6DF9CB8177B59",
+  "candidateSourceRun": "35054778424",
+  "steps": [
+    {
+      "name": "fresh-user-and-no-external-engine-discovery",
+      "status": "PASS",
+      "evidence": {
+        "appData": "C:\\Users\\SL驗收71645\\AppData\\Roaming",
+        "temp": "C:\\Users\\SL驗收71645\\AppData\\Local\\Temp",
+        "path": "C:\\Windows\\System32;C:\\Windows;C:\\Windows\\System32\\WindowsPowerShell\\v1.0",
+        "registeredEngines": [],
+        "localAppData": "C:\\Users\\SL驗收71645\\AppData\\Local",
+        "profile": "C:\\Users\\SL驗收71645"
+      }
+    },
+    {
+      "name": "silent-install-unicode-path-and-open-with-registration",
+      "status": "PASS",
+      "evidence": {
+        "default": "SwiftLocal.Acceptance.Default",
+        "directory": "C:\\SwiftLocal驗收-SL驗收71645\\安裝目錄 é 日本語",
+        "version": "0.4.1.0"
+      }
+    },
+    {
+      "name": "uninstall-removes-app-and-owned-association",
+      "status": "PASS",
+      "evidence": true
+    }
+  ]
+}

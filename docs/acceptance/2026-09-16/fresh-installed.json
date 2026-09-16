@@ -1,0 +1,281 @@
+{
+  "phase": "fresh",
+  "platform": "win32",
+  "userProfile": "C:\\Users\\SL驗收71645",
+  "path": "C:\\Windows\\System32;C:\\Windows;C:\\Windows\\System32\\WindowsPowerShell\\v1.0",
+  "tests": [
+    {
+      "name": "installed-startup-default-profile",
+      "status": "PASS",
+      "evidence": {
+        "title": "快轉通 SwiftLocal",
+        "config": {
+          "toolPaths": {},
+          "defaultOutputDir": "C:\\Users\\SL驗收71645\\Downloads\\SwiftLocal"
+        }
+      }
+    },
+    {
+      "name": "fresh-user-startup",
+      "status": "PASS",
+      "evidence": true
+    },
+    {
+      "name": "all-tools-from-installed-full-package",
+      "status": "PASS",
+      "evidence": {
+        "libreOffice": {
+          "available": true,
+          "label": "LibreOffice",
+          "path": "C:\\SwiftLocal驗收-SL驗收71645\\安裝目錄 é 日本語\\resources\\tools\\libreoffice\\program\\soffice.com",
+          "version": "LibreOffice 26.2.6.3 8221e31b3ac356a1623c672912a3d2b492f7e3d1",
+          "source": "bundled",
+          "message": "available"
+        },
+        "ffmpeg": {
+          "available": true,
+          "label": "FFmpeg",
+          "path": "C:\\SwiftLocal驗收-SL驗收71645\\安裝目錄 é 日本語\\resources\\tools\\ffmpeg\\bin\\ffmpeg.exe",
+          "version": "ffmpeg version 9.0.1-full_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers",
+          "source": "bundled",
+          "message": "available"
+        },
+        "tesseract": {
+          "available": true,
+          "label": "Tesseract",
+          "path": "C:\\SwiftLocal驗收-SL驗收71645\\安裝目錄 é 日本語\\resources\\tools\\tesseract\\tesseract.exe",
+          "version": "tesseract v5.5.3.20260724",
+          "source": "bundled",
+          "message": "available",
+          "tessdataPath": "C:\\SwiftLocal驗收-SL驗收71645\\安裝目錄 é 日本語\\resources\\tools\\tesseract\\tessdata",
+          "detectedLanguages": [
+            "chi_sim",
+            "chi_tra",
+            "eng",
+            "osd"
+          ],
+          "detectionMethod": "traineddata-scan",
+          "TESSDATA_PREFIX": "",
+          "languages": "chi_sim,chi_tra,eng,osd",
+          "hasChiTra": true,
+          "hasEng": true,
+          "tessdataDir": "C:\\SwiftLocal驗收-SL驗收71645\\安裝目錄 é 日本語\\resources\\tools\\tesseract\\tessdata",
+          "hasOsd": true
+        },
+        "qpdf": {
+          "available": true,
+          "label": "QPDF",
+          "path": "C:\\SwiftLocal驗收-SL驗收71645\\安裝目錄 é 日本語\\resources\\tools\\qpdf\\bin\\qpdf.exe",
+          "version": "qpdf version 12.4.1",
+          "source": "bundled",
+          "message": "available"
+        },
+        "pdf2docx": {
+          "available": true,
+          "label": "PDF→DOCX 相容引擎",
+          "path": "",
+          "version": "desktop-text",
+          "source": "python"
+        }
+      }
+    },
+    {
+      "name": "installed-conversion-pdf-compress",
+      "status": "PASS",
+      "evidence": {
+        "outputs": [
+          "C:\\SwiftLocal驗收-SL驗收71645\\轉換結果 日本語\\fresh\\pdf-compress\\a_compressed.pdf"
+        ],
+        "bytes": [
+          577
+        ]
+      }
+    },
+    {
+      "name": "installed-conversion-ocr-image",
+      "status": "PASS",
+      "evidence": {
+        "outputs": [
+          "C:\\SwiftLocal驗收-SL驗收71645\\轉換結果 日本語\\fresh\\ocr-image\\ocr-text_ocr.txt"
+        ],
+        "bytes": [
+          67
+        ]
+      }
+    },
+    {
+      "name": "installed-conversion-pdf-to-searchable-pdf",
+      "status": "PASS",
+      "evidence": {
+        "outputs": [
+          "C:\\SwiftLocal驗收-SL驗收71645\\轉換結果 日本語\\fresh\\pdf-to-searchable-pdf\\ocr-scan_ocr_searchable.pdf"
+        ],
+        "bytes": [
+          45391
+        ]
+      }
+    },
+    {
+      "name": "installed-conversion-office-to-pdf",
+      "status": "PASS",
+      "evidence": {
+        "outputs": [
+          "C:\\SwiftLocal驗收-SL驗收71645\\轉換結果 日本語\\fresh\\office-to-pdf\\office-smoke.pdf"
+        ],
+        "bytes": [
+          26157
+        ]
+      }
+    },
+    {
+      "name": "installed-conversion-media-convert",
+      "status": "PASS",
+      "evidence": {
+        "outputs": [
+          "C:\\SwiftLocal驗收-SL驗收71645\\轉換結果 日本語\\fresh\\media-convert\\tone.mp3"
+        ],
+        "bytes": [
+          3500
+        ]
+      }
+    },
+    {
+      "name": "registered-pdf-shell-verb-opens-document",
+      "status": "PASS",
+      "evidence": "a.pdf"
+    },
+    {
+      "name": "normal-exit",
+      "status": "PASS",
+      "evidence": 0
+    }
+  ],
+  "languageSnapshots": [
+    {
+      "phase": "before-conversions",
+      "files": {
+        "chi_tra.traineddata": {
+          "bytes": 2366642,
+          "sha256": "529c5b5797d64b126065cd55f2bb4c7fd7b15790798091b1ff259941a829330b"
+        },
+        "eng.traineddata": {
+          "bytes": 4113088,
+          "sha256": "7d4322bd2a7749724879683fc3912cb542f19906c83bcc1a52132556427170b2"
+        },
+        "configs/pdf": {
+          "bytes": 22,
+          "sha256": "54d56e81dfefe289b0d2e4c7bc9bbe662711f5b8255c128b73bcd66efb6bba1a"
+        },
+        "pdf.ttf": {
+          "bytes": 572,
+          "sha256": "c7845420925a23d88ed830a63957b8af85a66a8daf8d9fc90e843673b2ef1a59"
+        }
+      }
+    },
+    {
+      "phase": "pdf-compress",
+      "files": {
+        "chi_tra.traineddata": {
+          "bytes": 2366642,
+          "sha256": "529c5b5797d64b126065cd55f2bb4c7fd7b15790798091b1ff259941a829330b"
+        },
+        "eng.traineddata": {
+          "bytes": 4113088,
+          "sha256": "7d4322bd2a7749724879683fc3912cb542f19906c83bcc1a52132556427170b2"
+        },
+        "configs/pdf": {
+          "bytes": 22,
+          "sha256": "54d56e81dfefe289b0d2e4c7bc9bbe662711f5b8255c128b73bcd66efb6bba1a"
+        },
+        "pdf.ttf": {
+          "bytes": 572,
+          "sha256": "c7845420925a23d88ed830a63957b8af85a66a8daf8d9fc90e843673b2ef1a59"
+        }
+      }
+    },
+    {
+      "phase": "ocr-image",
+      "files": {
+        "chi_tra.traineddata": {
+          "bytes": 2366642,
+          "sha256": "529c5b5797d64b126065cd55f2bb4c7fd7b15790798091b1ff259941a829330b"
+        },
+        "eng.traineddata": {
+          "bytes": 4113088,
+          "sha256": "7d4322bd2a7749724879683fc3912cb542f19906c83bcc1a52132556427170b2"
+        },
+        "configs/pdf": {
+          "bytes": 22,
+          "sha256": "54d56e81dfefe289b0d2e4c7bc9bbe662711f5b8255c128b73bcd66efb6bba1a"
+        },
+        "pdf.ttf": {
+          "bytes": 572,
+          "sha256": "c7845420925a23d88ed830a63957b8af85a66a8daf8d9fc90e843673b2ef1a59"
+        }
+      }
+    },
+    {
+      "phase": "pdf-to-searchable-pdf",
+      "files": {
+        "chi_tra.traineddata": {
+          "bytes": 2366642,
+          "sha256": "529c5b5797d64b126065cd55f2bb4c7fd7b15790798091b1ff259941a829330b"
+        },
+        "eng.traineddata": {
+          "bytes": 4113088,
+          "sha256": "7d4322bd2a7749724879683fc3912cb542f19906c83bcc1a52132556427170b2"
+        },
+        "configs/pdf": {
+          "bytes": 22,
+          "sha256": "54d56e81dfefe289b0d2e4c7bc9bbe662711f5b8255c128b73bcd66efb6bba1a"
+        },
+        "pdf.ttf": {
+          "bytes": 572,
+          "sha256": "c7845420925a23d88ed830a63957b8af85a66a8daf8d9fc90e843673b2ef1a59"
+        }
+      }
+    },
+    {
+      "phase": "office-to-pdf",
+      "files": {
+        "chi_tra.traineddata": {
+          "bytes": 2366642,
+          "sha256": "529c5b5797d64b126065cd55f2bb4c7fd7b15790798091b1ff259941a829330b"
+        },
+        "eng.traineddata": {
+          "bytes": 4113088,
+          "sha256": "7d4322bd2a7749724879683fc3912cb542f19906c83bcc1a52132556427170b2"
+        },
+        "configs/pdf": {
+          "bytes": 22,
+          "sha256": "54d56e81dfefe289b0d2e4c7bc9bbe662711f5b8255c128b73bcd66efb6bba1a"
+        },
+        "pdf.ttf": {
+          "bytes": 572,
+          "sha256": "c7845420925a23d88ed830a63957b8af85a66a8daf8d9fc90e843673b2ef1a59"
+        }
+      }
+    },
+    {
+      "phase": "media-convert",
+      "files": {
+        "chi_tra.traineddata": {
+          "bytes": 2366642,
+          "sha256": "529c5b5797d64b126065cd55f2bb4c7fd7b15790798091b1ff259941a829330b"
+        },
+        "eng.traineddata": {
+          "bytes": 4113088,
+          "sha256": "7d4322bd2a7749724879683fc3912cb542f19906c83bcc1a52132556427170b2"
+        },
+        "configs/pdf": {
+          "bytes": 22,
+          "sha256": "54d56e81dfefe289b0d2e4c7bc9bbe662711f5b8255c128b73bcd66efb6bba1a"
+        },
+        "pdf.ttf": {
+          "bytes": 572,
+          "sha256": "c7845420925a23d88ed830a63957b8af85a66a8daf8d9fc90e843673b2ef1a59"
+        }
+      }
+    }
+  ]
+}

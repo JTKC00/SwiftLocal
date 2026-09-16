@@ -194,8 +194,8 @@ describe("PDF workspace scaffold", () => {
 
   test("electron-builder registers pdf file association", () => {
     const config = require("../../electron-builder.config.js");
-    assert.ok(Array.isArray(config.fileAssociations));
-    const pdf = config.fileAssociations.find((item) => item.ext === "pdf");
+    assert.ok(Array.isArray(config.mac.fileAssociations));
+    const pdf = config.mac.fileAssociations.find((item) => item.ext === "pdf");
     assert.ok(pdf);
     assert.match(String(pdf.mimeType || ""), /pdf/i);
     assert.match(String(pdf.role || ""), /Viewer/i);
