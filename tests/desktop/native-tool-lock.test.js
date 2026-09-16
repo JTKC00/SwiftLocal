@@ -42,6 +42,13 @@ test("native payload excludes separately locked tessdata but includes PDF config
   assert.throws(f.verify, /checksum mismatch/);
 });
 
+test("native payload does not exempt unknown language models from its digest", t => {
+  const f = fixture(t, "tesseract");
+  fs.mkdirSync(path.join(f.root, "tessdata"));
+  fs.writeFileSync(path.join(f.root, "tessdata", "unlocked.traineddata"), "unreviewed model");
+  assert.throws(f.verify, /checksum mismatch/);
+});
+
 test("native payload manifest is sorted and ignores creation order", t => {
   const f = fixture(t);
   fs.writeFileSync(path.join(f.root, "z"), "z");

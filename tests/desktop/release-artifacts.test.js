@@ -369,6 +369,20 @@ describe("release artifact verification", () => {
     );
   });
 
+  test("all optional language models must be locked and intact", () => {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), "swiftlocal-optional-tessdata-"));
+    temporaryDirectories.push(directory);
+    const fixture = createRequiredResources(directory);
+    const model = path.join(fixture.resourcesDir, "tools", "tesseract", "tessdata", "chi_sim.traineddata");
+    fs.writeFileSync(model, "optional model");
+    const verify = () => verifyRequiredToolPayload(fixture.resourcesDir, { tessdataLock: fixture.tessdataLock });
+    assert.throws(verify, /chi_sim.*lock|chi_sim.*鎖定/);
+    fixture.tessdataLock.files.chi_sim = { bytes: fs.statSync(model).size, sha256: sha256File(model) };
+    assert.ok(verify().tessdata.chi_sim);
+    fs.writeFileSync(model, "changed model!");
+    assert.throws(verify, /chi_sim.*lock|chi_sim.*鎖定/);
+  });
+
   test("rejects stale installer or portable files paired with newer unpacked contents", () => {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), "swiftlocal-stale-release-test-"));
     temporaryDirectories.push(directory);

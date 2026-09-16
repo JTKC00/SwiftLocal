@@ -14,7 +14,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { verifyInstalled } = require("./ensure-media-download-tools");
 const { isWindowsX64Pe } = require("./windows-pe");
-const { loadTessdataLock, verifyLockedTessdata } = require("./tessdata-lock");
+const { loadTessdataLock, verifyLockedTessdata, tessdataLanguagesForVerification } = require("./tessdata-lock");
 
 const projectRoot = path.resolve(__dirname, "..");
 const toolsRoot = path.join(projectRoot, "tools");
@@ -123,7 +123,7 @@ if (!fs.existsSync(tessdataDir)) {
   );
 } else {
   ok(`tessdata: ${path.relative(projectRoot, tessdataDir)}`);
-  for (const lang of requiredLangs) {
+  for (const lang of tessdataLanguagesForVerification(tessdataDir, requiredLangs)) {
     const f = path.join(tessdataDir, `${lang}.traineddata`);
     const verification = verifyLockedTessdata(f, lang, tessdataLock);
     if (verification.ok) {

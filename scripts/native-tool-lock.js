@@ -7,6 +7,8 @@ const { spawnSync } = require("node:child_process");
 const { isWindowsX64Pe } = require("./windows-pe");
 const { sha256File } = require("./ensure-media-download-tools");
 
+const lockedLanguageFiles = new Set(Object.keys(require("./tessdata-lock").loadTessdataLock().files)
+  .map(language => `tessdata/${language}.traineddata`));
 const defaultLock = path.join(__dirname, "..", "tools", "native-tools.lock.json");
 function loadNativeLock(file = defaultLock) {
   const lock = JSON.parse(fs.readFileSync(file, "utf8"));
@@ -14,7 +16,7 @@ function loadNativeLock(file = defaultLock) {
   return lock;
 }
 function isLanguagePack(key, relative) {
-  return key === "tesseract" && /^tessdata\/[a-zA-Z0-9_+-]+\.traineddata$/.test(relative);
+  return key === "tesseract" && lockedLanguageFiles.has(relative);
 }
 function payloadManifest(root, key) {
   const entries = [];

@@ -44,6 +44,11 @@ module.exports = {
     for (const key of ["ffmpeg", "qpdf", "tesseract", ...(isFullWindowsBuild ? ["libreoffice"] : [])]) {
       verifyNativeTool(key, toolsRoot);
     }
+    const { requireLockedTessdata, tessdataLanguagesForVerification } = require("./scripts/tessdata-lock");
+    const data = require("node:path").join(toolsRoot, "tesseract", "tessdata");
+    for (const language of tessdataLanguagesForVerification(data)) {
+      requireLockedTessdata(require("node:path").join(data, `${language}.traineddata`), language);
+    }
   },
   appId: "com.swiftlocal.converter",
   productName: "快轉通 SwiftLocal",

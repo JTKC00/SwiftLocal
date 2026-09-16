@@ -7,8 +7,6 @@ on:
         description: "Optional completed run ID whose exact installer should be retested"
         required: false
         type: string
-  push:
-    branches: [codex/bundled-tools-windows-acceptance]
 
 permissions:
   contents: read

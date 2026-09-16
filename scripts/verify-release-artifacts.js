@@ -9,7 +9,7 @@ const { execFileSync } = require("node:child_process");
 const asar = require("@electron/asar");
 const { getPath7za } = require("app-builder-lib/out/toolsets/7zip");
 const { readWindowsPe, readWindowsX64Pe } = require("./windows-pe");
-const { loadTessdataLock, requireLockedTessdata } = require("./tessdata-lock");
+const { loadTessdataLock, requireLockedTessdata, tessdataLanguagesForVerification } = require("./tessdata-lock");
 
 const projectRoot = path.resolve(__dirname, "..");
 const MAIN_EXE_CANDIDATES = ["SwiftLocal.exe", "快轉通 SwiftLocal.exe"];
@@ -507,7 +507,7 @@ function verifyRequiredToolPayload(resourcesDir, options = {}) {
   }
   const tessdata = {};
   const tessdataLock = options.tessdataLock || loadTessdataLock();
-  for (const language of ["eng", "chi_tra", "osd"]) {
+  for (const language of tessdataLanguagesForVerification(tessdataDir)) {
     const filePath = path.join(tessdataDir, `${language}.traineddata`);
     try {
       requireLockedTessdata(filePath, language, tessdataLock);
@@ -673,6 +673,7 @@ module.exports = {
   verifyNoNestedCanvas,
   verifyNoRuntimeData,
   ensureExecutableTool,
+  extractReleasePayload,
   buildPayloadManifest,
   expectedWindowsArtifactNames,
   findMainWindowsExecutable,
