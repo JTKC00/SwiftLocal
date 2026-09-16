@@ -18,7 +18,7 @@ function Uninstall {
   Assert (-not (Test-Path -LiteralPath $config.exe)) 'Uninstall left the installed executable'
   $leftover = @(Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*' -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -match 'SwiftLocal' })
   Assert ($leftover.Count -eq 0) 'Uninstall left its Apps and Features registration'
-  foreach ($folder in @([Environment]::GetFolderPath('Desktop'), [Environment]::GetFolderPath('Programs'))) {
+  foreach ($folder in @((Join-Path $env:USERPROFILE 'Desktop'), (Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs'))) {
     $links = @(Get-ChildItem -LiteralPath $folder -Filter '*SwiftLocal*.lnk' -Recurse -ErrorAction SilentlyContinue)
     Assert ($links.Count -eq 0) "Uninstall left SwiftLocal shortcuts in $folder"
   }
@@ -34,8 +34,11 @@ try {
   Assert ($profile -match '[^\x00-\x7f]') 'Expected a real Unicode Windows user profile'
   Assert ($profile -notmatch 'runneradmin') 'Refusing existing runner profile'
   $env:USERPROFILE = $profile
-  $env:APPDATA = [Environment]::GetFolderPath('ApplicationData')
-  $env:LOCALAPPDATA = [Environment]::GetFolderPath('LocalApplicationData')
+  # CreateProcessWithLogonW loads HKCU but inherits the parent's environment.
+  # These are new, unredirected profiles; derive their AppData from the verified profile.
+  $env:APPDATA = Join-Path $profile 'AppData\Roaming'
+  $env:LOCALAPPDATA = Join-Path $profile 'AppData\Local'
+  New-Item -ItemType Directory -Force -Path $env:APPDATA,$env:LOCALAPPDATA | Out-Null
   $env:TEMP = Join-Path $env:LOCALAPPDATA 'Temp'
   $env:TMP = $env:TEMP
   New-Item -ItemType Directory -Force -Path $env:TEMP | Out-Null
@@ -48,7 +51,7 @@ try {
   Assert ($external.Count -eq 0) "Preinstalled engine directories: $external"
   $installedEngines = @(Get-ItemProperty 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*','HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*' -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -match 'LibreOffice|Tesseract|FFmpeg|QPDF' } | Select-Object -ExpandProperty DisplayName)
   Assert ($installedEngines.Count -eq 0) "Preinstalled engine registrations: $installedEngines"
-  Record 'fresh-user-and-no-external-engine-discovery' @{ profile=$profile; path=$env:PATH; registeredEngines=$installedEngines }
+  Record 'fresh-user-and-no-external-engine-discovery' @{ profile=$profile; appData=$env:APPDATA; localAppData=$env:LOCALAPPDATA; temp=$env:TEMP; path=$env:PATH; registeredEngines=$installedEngines }
   Assert (-not (Test-Path -LiteralPath $config.exe)) 'Candidate already installed'
   New-Item -Path 'HKCU:\Software\Classes\.pdf' -Force | Out-Null
   Set-Item -LiteralPath 'HKCU:\Software\Classes\.pdf' -Value 'SwiftLocal.Acceptance.Default'

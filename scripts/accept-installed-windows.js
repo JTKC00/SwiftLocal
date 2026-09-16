@@ -53,10 +53,11 @@ async function main(configFile, phase) {
   const config = JSON.parse(fs.readFileSync(configFile, "utf8").replace(/^\uFEFF/, ""));
   const report = { phase, platform: process.platform, userProfile: process.env.USERPROFILE, path: process.env.PATH, tests: [] };
   const record = (name, evidence) => report.tests.push({ name, status: "PASS", evidence });
-  let app, client;
+  let app, client, appLog;
   const debugPort = await port(); const endpoint = `http://127.0.0.1:${debugPort}/json`;
   try {
-    app = spawn(config.exe, [`--remote-debugging-port=${debugPort}`], { cwd: path.dirname(config.exe), stdio: "ignore", windowsHide: false });
+    appLog = fs.openSync(path.join(config.evidence, `${phase}-electron.log`), "w");
+    app = spawn(config.exe, [`--remote-debugging-port=${debugPort}`], { cwd: path.dirname(config.exe), stdio: ["ignore", appLog, appLog], windowsHide: false });
     let launchError; app.on("error", error => { launchError = error; });
     const page = await pageAt(endpoint, /frontend\/index\.html$/);
     if (launchError) throw launchError;
@@ -64,11 +65,18 @@ async function main(configFile, phase) {
     const startup = await evaluate(client, `(async()=>{for(let i=0;i<100;i++){if(window.swiftLocalBackend && document.querySelector('#quick-actions [data-panel="pdf-reader-panel"]'))return {title:document.title,config:await window.swiftLocalBackend.getConfig()};await new Promise(r=>setTimeout(r,100));}throw new Error('preload/home not ready')})()`);
     assert.equal(startup.title, "快轉通 SwiftLocal");
     record("installed-startup-default-profile", startup);
+    const firstLaunch = await client.send("Page.captureScreenshot", { format: "png" });
+    fs.writeFileSync(path.join(config.evidence, `${phase}-first-launch.png`), Buffer.from(firstLaunch.data, "base64"));
     if (phase === "baseline") {
       await evaluate(client, `localStorage.setItem('swiftlocal-acceptance-upgrade','preserve-me')`);
-      record("upgrade-marker-written", true);
+      const savedOutput = path.join(config.output, "保留的輸出設定");
+      await evaluate(client, `window.swiftLocalBackend.setDefaultOutputDir(${JSON.stringify(savedOutput)})`);
+      record("upgrade-marker-and-setting-written", savedOutput);
     } else {
-      if (phase === "upgrade") assert.equal(await evaluate(client, `localStorage.getItem('swiftlocal-acceptance-upgrade')`), "preserve-me");
+      if (phase === "upgrade") {
+        assert.equal(await evaluate(client, `localStorage.getItem('swiftlocal-acceptance-upgrade')`), "preserve-me");
+        assert.equal(startup.config.defaultOutputDir, path.join(config.output, "保留的輸出設定"));
+      }
       record(phase === "upgrade" ? "upgrade-retains-user-data" : "fresh-user-startup", true);
       const tools = await evaluate(client, `window.swiftLocalBackend.detectTools()`);
       const bundledRoot = path.join(path.dirname(config.exe), "resources", "tools");
@@ -131,6 +139,7 @@ async function main(configFile, phase) {
   } finally {
     client?.close();
     if (app?.pid && app.exitCode === null) spawnSync("taskkill.exe", ["/PID", String(app.pid), "/T", "/F"], { stdio: "ignore" });
+    if (appLog !== undefined) fs.closeSync(appLog);
     fs.writeFileSync(path.join(config.evidence, `${phase}-installed.json`), JSON.stringify(report, null, 2));
   }
 }
