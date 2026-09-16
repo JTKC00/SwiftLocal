@@ -4,7 +4,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
-const { payloadDigest, payloadManifest, verifyNativeTool, receiptName } = require("../../scripts/native-tool-lock");
+const { payloadDigest, payloadManifest, verifyNativeTool } = require("../../scripts/native-tool-lock");
 const { main, preparePayload, parseArgs } = require("../../scripts/ensure-native-tools");
 const { summarizeResults } = require("../../scripts/check-bundled-tool-updates");
 
@@ -57,19 +57,11 @@ test("native payload refuses symlinked directories", t => {
   assert.throws(f.verify, /Symbolic/);
 });
 
-test("MSI receipt must match the locked source and complete current payload", t => {
+test("LibreOffice cannot approve changed files through a locally rewritten receipt", t => {
   const f = fixture(t, "libreoffice");
-  const spec = f.lock.tools.libreoffice;
-  spec.payloadVerification = "source-receipt";
-  delete spec.payloadSha256;
-  const receipt = { schemaVersion: 1, version: spec.version, target: f.lock.target, sourceSha256: spec.sha256, payloadSha256: payloadDigest(f.root, "libreoffice") };
-  const save = () => fs.writeFileSync(path.join(f.root, receiptName), JSON.stringify(receipt));
-  save();
   assert.doesNotThrow(f.verify);
-  receipt.sourceSha256 = "b".repeat(64); save();
-  assert.throws(f.verify, /source receipt/);
-  receipt.sourceSha256 = spec.sha256; save();
   fs.writeFileSync(path.join(f.root, "runtime.dll"), "changed DLL");
+  fs.writeFileSync(path.join(f.root, ".swiftlocal-native-source.json"), JSON.stringify({ payloadSha256: payloadDigest(f.root, "libreoffice") }));
   assert.throws(f.verify, /checksum mismatch/);
 });
 

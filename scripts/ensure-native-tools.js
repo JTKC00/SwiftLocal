@@ -4,7 +4,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const os = require("node:os");
 const { execFileSync } = require("node:child_process");
-const { loadNativeLock, verifyNativeTool, isLanguagePack, payloadDigest, receiptName } = require("./native-tool-lock");
+const { loadNativeLock, verifyNativeTool, isLanguagePack } = require("./native-tool-lock");
 const { downloadFile, sha256File } = require("./ensure-media-download-tools");
 
 function parseArgs(args) {
@@ -122,9 +122,6 @@ async function main(args = process.argv.slice(2)) {
         const stagedTools = path.join(temp, "tools");
         const prepared = path.join(stagedTools, key);
         preparePayload(extracted, prepared, spec);
-        if (spec.payloadVerification === "source-receipt") {
-          fs.writeFileSync(path.join(prepared, receiptName), JSON.stringify({ schemaVersion: 1, version: spec.version, target: lock.target, sourceSha256: spec.sha256, payloadSha256: payloadDigest(prepared, key) }, null, 2) + "\n");
-        }
         verifyNativeTool(key, stagedTools, lock);
         replacePayload(key, prepared, options.toolsRoot);
       } finally {

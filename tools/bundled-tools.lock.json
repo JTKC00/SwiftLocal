@@ -79,7 +79,7 @@
     "libreoffice": {
       "name": "LibreOffice",
       "reviewedVersion": "26.2.6",
-      "bundledVersionNote": "Windows x64 source archive is SHA-256 pinned. macOS tools still use local Homebrew/application copies and are not reproducible. Windows MSI extraction and runtime acceptance are pending; installed payload uses a source receipt, not a checked-in payload digest.",
+      "bundledVersionNote": "Windows x64 source archive and complete runtime payload are SHA-256 pinned. Windows installer acceptance remains pending. macOS local application copies are outside the current Windows release scope and are not reproducible.",
       "upstream": {
         "type": "html-regex",
         "url": "https://www.libreoffice.org/release-notes/",

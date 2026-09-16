@@ -7,7 +7,6 @@ const { spawnSync } = require("node:child_process");
 const { isWindowsX64Pe } = require("./windows-pe");
 const { sha256File } = require("./ensure-media-download-tools");
 
-const receiptName = ".swiftlocal-native-source.json";
 const defaultLock = path.join(__dirname, "..", "tools", "native-tools.lock.json");
 function loadNativeLock(file = defaultLock) {
   const lock = JSON.parse(fs.readFileSync(file, "utf8"));
@@ -25,7 +24,7 @@ function payloadManifest(root, key) {
       const file = path.join(directory, entry.name);
       if (entry.isSymbolicLink()) throw new Error(`Symbolic links are not allowed in native payloads: ${relative}`);
       if (entry.isDirectory()) walk(file, relative + "/");
-      else if (entry.isFile() && (key !== "libreoffice" || relative !== receiptName) && !isLanguagePack(key, relative) && !(key === "tesseract" && relative === "tessdata/swiftlocal-tessdata.json")) {
+      else if (entry.isFile() && !isLanguagePack(key, relative) && !(key === "tesseract" && relative === "tessdata/swiftlocal-tessdata.json")) {
         entries.push({ path: relative, bytes: fs.statSync(file).size, sha256: sha256File(file) });
       } else if (!entry.isFile()) throw new Error(`Unsupported native payload entry: ${relative}`);
     }
@@ -42,12 +41,7 @@ function verifyNativeTool(key, toolsRoot, lock = loadNativeLock(), options = {})
   const spec = lock.tools[key];
   if (!spec) throw new Error(`Missing payload lock for ${key}`);
   const root = path.join(toolsRoot, key);
-  let expected = spec.payloadSha256;
-  if (spec.payloadVerification === "source-receipt") {
-    const receipt = JSON.parse(fs.readFileSync(path.join(root, receiptName), "utf8"));
-    if (receipt.schemaVersion !== 1 || receipt.sourceSha256 !== spec.sha256 || receipt.version !== spec.version || receipt.target !== lock.target) throw new Error(`${key}: source receipt does not match lock`);
-    expected = receipt.payloadSha256;
-  }
+  const expected = spec.payloadSha256;
   if (!/^[a-f0-9]{64}$/.test(expected || "")) throw new Error(`Missing payload digest for ${key}`);
   if (payloadDigest(root, key) !== expected) throw new Error(`${key} ${spec.version}: payload checksum mismatch (missing, changed or extra files)`);
   for (const relative of spec.executables) {
@@ -61,4 +55,4 @@ function verifyNativeTool(key, toolsRoot, lock = loadNativeLock(), options = {})
   }
   return { version: spec.version, root };
 }
-module.exports = { receiptName, loadNativeLock, payloadManifest, payloadDigest, verifyNativeTool, isLanguagePack };
+module.exports = { loadNativeLock, payloadManifest, payloadDigest, verifyNativeTool, isLanguagePack };

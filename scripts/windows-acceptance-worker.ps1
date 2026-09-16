@@ -16,6 +16,12 @@ function Uninstall {
   Assert ($p.ExitCode -eq 0) "Uninstaller exited $($p.ExitCode)"
   for ($i=0; $i -lt 240 -and (Test-Path -LiteralPath $config.exe); $i++) { Start-Sleep -Milliseconds 500 }
   Assert (-not (Test-Path -LiteralPath $config.exe)) 'Uninstall left the installed executable'
+  $leftover = @(Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*' -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -match 'SwiftLocal' })
+  Assert ($leftover.Count -eq 0) 'Uninstall left its Apps and Features registration'
+  foreach ($folder in @([Environment]::GetFolderPath('Desktop'), [Environment]::GetFolderPath('Programs'))) {
+    $links = @(Get-ChildItem -LiteralPath $folder -Filter '*SwiftLocal*.lnk' -Recurse -ErrorAction SilentlyContinue)
+    Assert ($links.Count -eq 0) "Uninstall left SwiftLocal shortcuts in $folder"
+  }
 }
 function Run-App($Phase) {
   & $config.node $config.harness $Configuration $Phase

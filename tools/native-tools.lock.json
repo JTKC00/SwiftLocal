@@ -309,8 +309,8 @@
         "program/soffice.com",
         "program/soffice.exe"
       ],
-      "payloadVerification": "source-receipt",
-      "copy": []
+      "copy": [],
+      "payloadSha256": "8c88e50fe694958ff584b1868b707210877bf40850540c7cfc4348bbd6f6b003"
     }
   }
 }
