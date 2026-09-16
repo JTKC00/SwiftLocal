@@ -1817,12 +1817,20 @@ async function runTesseractOcr(toolPath, inputPath, outputBase, language, tessda
   }
   // The Windows Tesseract build uses ANSI argv/file APIs. Keep every argument
   // ASCII and let CreateProcessW set the real (possibly Unicode) working dir.
-  // A private junction exposes existing language resources without copying
-  // them, requiring administrator rights, or relying on enabled 8.3 names.
+  // Copy selected models and configs into this job's private directory.
+  // Do not use junctions: packaged Windows Electron cleanup can traverse their
+  // targets. Every file below scratch must be disposable and independently owned.
   const scratch = createOcrTempDir("tesseract-paths");
   try {
     fs.copyFileSync(inputPath, path.join(scratch, "input.png"));
-    if (tessdataDir) fs.symlinkSync(path.resolve(tessdataDir), path.join(scratch, "tessdata"), "junction");
+    if (tessdataDir) {
+      const models = new Set(sanitizeOcrLanguage(language).split("+").map(value => `${value}.traineddata`));
+      fs.cpSync(tessdataDir, path.join(scratch, "tessdata"), {
+        recursive: true,
+        dereference: true,
+        filter: source => !source.endsWith(".traineddata") || models.has(path.basename(source))
+      });
+    }
     const args = buildTesseractOcrArgs("input.png", "output", language, tessdataDir ? "tessdata" : "", outputFormat, psm);
     const result = await runTool(toolPath, args, job, "Tesseract", { cwd: scratch });
     ensureJobNotCancelled(job);
@@ -1830,7 +1838,7 @@ async function runTesseractOcr(toolPath, inputPath, outputBase, language, tessda
     fs.copyFileSync(path.join(scratch, `output${extension}`), `${outputBase}${extension}`, fs.constants.COPYFILE_EXCL);
     return result;
   } finally {
-    // rm removes the junction itself; the installed language directory stays intact.
+    // Only this invocation's copies can be removed; installed resources are never linked.
     cleanupOcrTempDir(scratch);
   }
 }

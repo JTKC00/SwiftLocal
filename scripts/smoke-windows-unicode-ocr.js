@@ -29,13 +29,20 @@ async function main() {
     await runTesseractOcr(exe, input, pdfBase, "chi_tra+eng", data, {}, { outputFormat: "pdf" });
     const pdf = fs.readFileSync(pdfBase + ".pdf");
     assert.equal((await PDFDocument.load(pdf)).getPageCount(), 1);
-    assert.ok(fs.existsSync(path.join(data, "eng.traineddata")), "junction cleanup removed installed language data");
+    assert.ok(fs.existsSync(path.join(data, "eng.traineddata")), "OCR cleanup removed installed language data");
     fs.mkdirSync("acceptance-evidence", { recursive: true });
-    fs.writeFileSync("acceptance-evidence/unicode-ocr.json", JSON.stringify({ status: "PASS", executable: exe, temp, input, text, pdfBytes: pdf.length, pdfSha256: crypto.createHash("sha256").update(pdf).digest("hex") }, null, 2));
+    const runtime = process.versions.electron ? "electron" : "node";
+    fs.writeFileSync(`acceptance-evidence/unicode-ocr-${runtime}.json`, JSON.stringify({ status: "PASS", runtime, versions: process.versions, executable: exe, temp, input, text, pdfBytes: pdf.length, pdfSha256: crypto.createHash("sha256").update(pdf).digest("hex") }, null, 2));
     console.log("PASS real Windows Tesseract: Unicode executable, tessdata, input, output and Temp; text and searchable PDF");
   } finally {
     for (const [key, value] of Object.entries(saved)) { if (value === undefined) delete process.env[key]; else process.env[key] = value; }
     fs.rmSync(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 500 });
   }
 }
-main().catch(error => { console.error(error); process.exitCode = 1; });
+main().then(() => {
+  if (process.versions.electron) require("electron").app.exit(0);
+}).catch(error => {
+  console.error(error);
+  if (process.versions.electron) require("electron").app.exit(1);
+  else process.exitCode = 1;
+});

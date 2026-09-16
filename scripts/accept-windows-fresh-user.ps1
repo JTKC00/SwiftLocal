@@ -22,7 +22,7 @@ $installDir = Join-Path $root '安裝目錄 é 日本語'
 $config = [ordered]@{
   candidateSha256=(Get-FileHash -LiteralPath $Candidate -Algorithm SHA256).Hash; baselineSha256=(Get-FileHash -LiteralPath $Baseline -Algorithm SHA256).Hash;
   candidateSourceRun=$env:SWIFTLOCAL_CANDIDATE_RUN;
-  scenario=$Scenario; user=$user; node=(Get-Command node.exe).Source; candidate=(Join-Path $root 'candidate.exe'); baseline=(Join-Path $root 'baseline.exe');
+  scenario=$Scenario; user=$user; powershell=(Get-Process -Id $PID).Path; node=(Get-Command node.exe).Source; candidate=(Join-Path $root 'candidate.exe'); baseline=(Join-Path $root 'baseline.exe');
   installDir=$installDir; exe=(Join-Path $installDir 'SwiftLocal.exe'); fixtures=$fixtureRoot; output=(Join-Path $root '轉換結果 日本語');
   evidence=$evidenceRoot; harness=(Join-Path $root 'accept-installed-windows.js'); shellOpen=(Join-Path $root 'windows-shell-open-pdf.ps1')
 }

@@ -72,6 +72,8 @@ jobs:
         run: node scripts/smoke-release.js --require-bundled --skip-tests
       - name: Verify real Tesseract with Unicode install and temp paths
         run: node scripts/smoke-windows-unicode-ocr.js
+      - name: Verify Unicode OCR inside the actual Electron runtime
+        run: node -e "const r=require('node:child_process').spawnSync(require('electron'),['scripts/smoke-windows-unicode-ocr.js'],{stdio:'inherit'});process.exit(r.status ?? 1)"
       - name: Build candidate Full Installer for separate fresh-runner acceptance
         run: |
           npm version 0.4.1-qa.20260916 --no-git-tag-version
@@ -129,6 +131,13 @@ jobs:
           $candidate = @(Get-ChildItem candidate -Recurse -Filter '*-full-installer-x64.exe')
           if ($candidate.Count -ne 1) { throw 'Expected exactly one candidate installer' }
           ./scripts/accept-windows-fresh-user.ps1 -Candidate $candidate[0].FullName -Baseline (Resolve-Path baseline/SwiftLocal-0.4.0-full-installer-x64.exe) -Fixtures (Resolve-Path candidate/smoke-temp/release-queue-check/input) -Evidence (Join-Path $PWD 'acceptance-evidence/fresh') -Scenario fresh
+      - name: Retain fresh-install evidence before the upgrade scenario
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fresh-install-acceptance-evidence
+          path: acceptance-evidence/fresh/
+          retention-days: 7
       - name: Separate standard user - upgrade from v0.4.0, retain settings and uninstall
         if: ${{ !cancelled() }}
         env:

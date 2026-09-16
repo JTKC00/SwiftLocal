@@ -139,7 +139,7 @@ async function main(configFile, phase) {
       fs.writeFileSync(path.join(config.evidence, `${phase}-installed-home.png`), Buffer.from(screenshot.data, "base64"));
       await attempt("registered-pdf-shell-verb-opens-document", async () => {
       // Invoke the registered PDF class through Windows ShellExecuteEx (not a direct app argv).
-      const shell = spawnSync("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", config.shellOpen, "-Pdf", path.join(inputs, "a.pdf")], { encoding: "utf8", windowsHide: true });
+      const shell = spawnSync(config.powershell, ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", config.shellOpen, "-Pdf", path.join(inputs, "a.pdf")], { encoding: "utf8", windowsHide: true });
       assert.equal(shell.status, 0, shell.stderr || shell.stdout);
       const pdfPage = await pageAt(endpoint, /frontend\/pdf-workspace\/index\.html/);
       const pdfClient = await connect(pdfPage.webSocketDebuggerUrl);

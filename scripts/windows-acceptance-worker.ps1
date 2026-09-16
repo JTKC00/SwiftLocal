@@ -23,6 +23,14 @@ function Uninstall {
     Assert ($links.Count -eq 0) "Uninstall left SwiftLocal shortcuts in $folder"
   }
 }
+function Assert-AssociationsRemoved {
+  Assert (-not (Test-Path 'HKCU:\Software\Classes\SwiftLocal.PDF')) 'Uninstall left our PDF class'
+  Assert (-not (Test-Path 'HKCU:\Software\Classes\Applications\SwiftLocal.exe')) 'Uninstall left its Applications registration'
+  if (Test-Path 'HKCU:\Software\Classes\.pdf\OpenWithProgids') {
+    Assert (-not ((Get-Item 'HKCU:\Software\Classes\.pdf\OpenWithProgids').GetValueNames() -contains 'SwiftLocal.PDF')) 'Uninstall left its Open With entry'
+  }
+  Assert ((Pdf-Default) -eq 'SwiftLocal.Acceptance.Default') 'Uninstall changed PDF default'
+}
 function Run-App($Phase) {
   & $config.node $config.harness $Configuration $Phase
   Assert ($LASTEXITCODE -eq 0) "Installed app acceptance failed: $Phase"
@@ -63,8 +71,7 @@ try {
   Record 'silent-install-unicode-path-and-open-with-registration' @{ directory=$config.installDir; version=(Get-Item $config.exe).VersionInfo.ProductVersion; default=(Pdf-Default) }
   try { Run-App 'fresh' } finally {
   Uninstall
-  Assert (-not (Test-Path 'HKCU:\Software\Classes\SwiftLocal.PDF')) 'Uninstall left our PDF class'
-  Assert ((Pdf-Default) -eq 'SwiftLocal.Acceptance.Default') 'Uninstall changed PDF default'
+  Assert-AssociationsRemoved
   Record 'uninstall-removes-app-and-owned-association' $true
   }
   } else {
@@ -79,7 +86,7 @@ try {
   Record 'upgrade-from-v0.4.0-to-candidate' (Get-Item $config.exe).VersionInfo.ProductVersion
   try { Run-App 'upgrade' } finally {
   Uninstall
-  Assert (-not (Test-Path 'HKCU:\Software\Classes\SwiftLocal.PDF')) 'Final uninstall left association'
+  Assert-AssociationsRemoved
   Record 'final-uninstall' $true
   }
   }
