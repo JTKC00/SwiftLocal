@@ -73,7 +73,7 @@ GitHub Actions 的 `.github/workflows/bundled-tool-watch.yml` 會每週自動檢
 - 相同狀態使用 fingerprint 去重，不會每週重複通知同一批更新
 - 關閉已知 issue 後，同一 fingerprint 不會再次建立；上游版本再變才重新提醒
 
-`reviewedVersion` 代表維護者最後審閱過的上游版本，不一定等於實際 bundled binary。yt-dlp／Deno 的來源由 `tools/media-download-tools.lock.json` 鎖定；Windows FFmpeg、Tesseract、QPDF、LibreOffice 的來源由 `tools/native-tools.lock.json` 鎖定。Watch 會保留 macOS 未鎖定及 Windows 尚待驗收的缺口；即使版本已追上，這些缺口仍會觸發報告。
+`reviewedVersion` 代表維護者最後審閱過的上游版本，不一定等於實際 bundled binary。yt-dlp／Deno 的來源由 `tools/media-download-tools.lock.json` 鎖定；Windows FFmpeg、Tesseract、QPDF、LibreOffice 的來源由 `tools/native-tools.lock.json` 鎖定。Watch 的 maintenance 範圍是目前發佈的 Windows x64；未解決的 Windows 來源追蹤缺口即使版本已追上，仍會觸發報告。macOS 的 Homebrew／本機應用程式複製仍未鎖定，另列為未涵蓋的工作；Windows 安裝驗收狀態見 `docs/WINDOWS_ACCEPTANCE_2026-09-16.md`。
 
 收到更新提示後，先看 release notes；決定升級才更新來源／checksum 或本機 bundled tool，然後重新跑 `npm run smoke:release` 與打包驗證。
 

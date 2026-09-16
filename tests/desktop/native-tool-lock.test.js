@@ -96,7 +96,7 @@ test("CLI rejects unknown or incomplete options", () => {
 });
 
 test("watch remains actionable for source/tracking gaps even with no version updates", () => {
-  const summary = summarizeResults([{ actionRequired: false, bundled: "1.2.3", bundledNote: "Mac remains unpinned" }]);
+  const summary = summarizeResults([{ actionRequired: false, bundled: "1.2.3", bundledNote: "Runtime payload is not yet pinned" }]);
   assert.equal(summary.actionable, true);
   assert.equal(summary.updates.length, 0);
   assert.equal(summary.trackingNotes.length, 1);

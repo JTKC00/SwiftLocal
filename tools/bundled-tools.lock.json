@@ -3,7 +3,8 @@
   "lastReviewed": "2026-09-16",
   "policy": {
     "mode": "notify-only",
-    "description": "reviewedVersion is the last upstream version reviewed by SwiftLocal maintainers. It is not automatically the version bundled in a release unless bundledVersionSource is present."
+    "description": "reviewedVersion is the last upstream version reviewed by SwiftLocal maintainers. It is not automatically the version bundled in a release unless bundledVersionSource is present.",
+    "scope": "Windows x64 release tools. macOS native Homebrew/application copies remain unpinned and are outside the current release scope; see tools/README.md and docs/WINDOWS_ACCEPTANCE_2026-09-16.md."
   },
   "tools": {
     "ytDlp": {
@@ -35,7 +36,6 @@
     "ffmpeg": {
       "name": "FFmpeg",
       "reviewedVersion": "9.0.1",
-      "bundledVersionNote": "Windows x64 source archive is SHA-256 pinned. macOS tools still use local Homebrew/application copies and are not reproducible.",
       "upstream": {
         "type": "html-regex",
         "url": "https://ffmpeg.org/download.html",
@@ -51,7 +51,6 @@
     "tesseract": {
       "name": "Tesseract OCR",
       "reviewedVersion": "5.5.3",
-      "bundledVersionNote": "Windows x64 source archive is SHA-256 pinned. macOS tools still use local Homebrew/application copies and are not reproducible.",
       "upstream": {
         "type": "github-release",
         "repository": "tesseract-ocr/tesseract"
@@ -65,7 +64,6 @@
     "qpdf": {
       "name": "QPDF",
       "reviewedVersion": "12.4.1",
-      "bundledVersionNote": "Windows x64 source archive is SHA-256 pinned. macOS tools still use local Homebrew/application copies and are not reproducible.",
       "upstream": {
         "type": "github-release",
         "repository": "qpdf/qpdf"
@@ -79,7 +77,6 @@
     "libreoffice": {
       "name": "LibreOffice",
       "reviewedVersion": "26.2.6",
-      "bundledVersionNote": "Windows x64 source archive and complete runtime payload are SHA-256 pinned. Windows installer acceptance remains pending. macOS local application copies are outside the current Windows release scope and are not reproducible.",
       "upstream": {
         "type": "html-regex",
         "url": "https://www.libreoffice.org/release-notes/",

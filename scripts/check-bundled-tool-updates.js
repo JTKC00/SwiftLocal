@@ -211,6 +211,7 @@ async function main() {
     "",
     "> Notify-only maintenance check. This workflow never downloads, replaces, commits, or auto-merges bundled binaries.",
     "",
+    ...(config.policy?.scope ? [`Scope: ${config.policy.scope}`, ""] : []),
     "| Tool | Windows source lock / hint | Reviewed baseline | Latest upstream | Status |",
     "| --- | --- | --- | --- | --- |"
   ];
