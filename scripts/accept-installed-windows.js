@@ -101,11 +101,12 @@ async function main(configFile, phase) {
           await delay(300);
         }
         assert.equal(finished?.status, "done", `${type}: ${JSON.stringify(finished)}`);
-        assert.ok(finished.outputPaths.length, type);
-        for (const file of finished.outputPaths) assert.ok(fs.statSync(file).size > 0, file);
-        if (type === "ocr-image") assert.match(fs.readFileSync(finished.outputPaths[0], "utf8"), /SWIFTLOCAL|HONG\s*KONG/i);
-        if (type === "office-to-pdf") assert.equal(fs.readFileSync(finished.outputPaths[0]).subarray(0, 5).toString(), "%PDF-");
-        record(`installed-conversion-${type}`, { outputs: finished.outputPaths, bytes: finished.outputPaths.map(p => fs.statSync(p).size) });
+        const outputPaths = finished.outputPaths.map(file => file.path);
+        assert.ok(outputPaths.length, type);
+        for (const file of outputPaths) assert.ok(fs.statSync(file).size > 0, file);
+        if (type === "ocr-image") assert.match(fs.readFileSync(outputPaths[0], "utf8"), /SWIFTLOCAL|HONG\s*KONG/i);
+        if (type === "office-to-pdf") assert.equal(fs.readFileSync(outputPaths[0]).subarray(0, 5).toString(), "%PDF-");
+        record(`installed-conversion-${type}`, { outputs: outputPaths, bytes: outputPaths.map(p => fs.statSync(p).size) });
       }
       await job("pdf-compress", ["a.pdf"]);
       await job("ocr-image", ["ocr-text.png"], { language: "chi_tra+eng" });
