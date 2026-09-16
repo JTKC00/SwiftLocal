@@ -34,7 +34,7 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force acceptance-evidence | Out-Null
-          node -e "const fs=require('fs');const n=require('./scripts/native-tool-lock');const l=n.loadNativeLock();const r={commit:process.env.GITHUB_SHA,platform:process.platform,tools:{}};for(const k of Object.keys(l.tools)){try{r.tools[k]={...n.verifyNativeTool(k,'tools',l),payloadSha256:n.payloadDigest('tools/'+k,k)}}catch(e){r.tools[k]={error:e.message}}}fs.writeFileSync('acceptance-evidence/native-payloads.json',JSON.stringify(r,null,2))"
+          node -e "const fs=require('fs');const n=require('./scripts/native-tool-lock');const l=n.loadNativeLock();const r={commit:process.env.GITHUB_SHA,platform:process.platform,tools:{}};for(const k of Object.keys(l.tools)){try{r.tools[k]={...n.verifyNativeTool(k,'tools',l),payloadSha256:n.payloadDigest('tools/'+k,k),manifest:n.payloadManifest('tools/'+k,k)}}catch(e){r.tools[k]={error:e.message}}}fs.writeFileSync('acceptance-evidence/native-payloads.json',JSON.stringify(r,null,2))"
       - name: Provision pinned media tools and language packs
         run: |
           npm run tools:media-download

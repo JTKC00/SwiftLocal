@@ -25,7 +25,7 @@ function payloadManifest(root, key) {
       const file = path.join(directory, entry.name);
       if (entry.isSymbolicLink()) throw new Error(`Symbolic links are not allowed in native payloads: ${relative}`);
       if (entry.isDirectory()) walk(file, relative + "/");
-      else if (entry.isFile() && (key !== "libreoffice" || relative !== receiptName) && !isLanguagePack(key, relative)) {
+      else if (entry.isFile() && (key !== "libreoffice" || relative !== receiptName) && !isLanguagePack(key, relative) && !(key === "tesseract" && relative === "tessdata/swiftlocal-tessdata.json")) {
         entries.push({ path: relative, bytes: fs.statSync(file).size, sha256: sha256File(file) });
       } else if (!entry.isFile()) throw new Error(`Unsupported native payload entry: ${relative}`);
     }

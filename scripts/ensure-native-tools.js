@@ -49,7 +49,12 @@ function preparePayload(extracted, destination, spec) {
     }
     find(extracted);
     if (matches.length !== 1) throw new Error(`Expected one LibreOffice administrative image, found ${matches.length}`);
-    fs.cpSync(matches[0], destination, { recursive: true });
+    // Administrative images contain a rewritten MSI with build-host metadata.
+    // It is not an application runtime file and must not enter the payload lock.
+    fs.cpSync(matches[0], destination, {
+      recursive: true,
+      filter: source => !(path.dirname(source) === matches[0] && path.extname(source).toLowerCase() === ".msi")
+    });
     return;
   }
   for (const item of spec.copy) {

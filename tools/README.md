@@ -110,7 +110,8 @@ npm run tools:native:check  # 不連網，檢查前三項完整目錄
 `tools/native-tools.lock.json` 記錄 Windows x64 的版本、URL、下載包 SHA-256 及抽取規則：
 
 - FFmpeg 使用 Gyan 發行包；QPDF、Tesseract 使用各專案 GitHub release。抽取後的程式、DLL、PDF 支援檔及隨附授權檔有另一個 Git 內的完整目錄 digest，檔案新增、遺失或內容改變都會失敗。
-- Tesseract 的 `tessdata/*.traineddata` 由既有 tessdata lock 另行校驗；原有語言包會保留，打包前再驗證必要語言。
+- Windows 建置主機需安裝完整 7-Zip（`Program Files/7-Zip/7z.exe`）以抽取 NSIS；electron-builder 的精簡 7za 不支援此格式。抽取結果仍須符合固定目錄 digest。用家執行 Full 安裝包不需要 7-Zip。
+- Tesseract 的 `tessdata/*.traineddata` 及 `swiftlocal-tessdata.json` 由既有 tessdata 流程管理，語言資料另行校驗；原有語言包會保留，打包前再驗證必要語言。
 - LibreOffice 使用 Document Foundation 固定版本 MSI，先驗證下載包，再以 Windows `msiexec /a` 建立 administrative image，不從本機已安裝程式複製。完整目錄的 digest 記入來源 receipt；這份 receipt 是安裝時產生的完整性記錄，**不是 Git 內預先審閱的 payload digest**，也不能抵抗檔案與 receipt 同時被改寫。
 - 替換既有目錄前會完整備份至 `~/.codex/backups/`，包含來源路徑及時間。備份不會混入發行包。
 - `tools:populate` 保留為相容入口，現在會下載固定來源；`--skip-libreoffice` 只處理前三項。

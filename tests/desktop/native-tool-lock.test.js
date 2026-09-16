@@ -36,6 +36,7 @@ test("native payload excludes separately locked tessdata but includes PDF config
   const f = fixture(t, "tesseract");
   fs.mkdirSync(path.join(f.root, "tessdata", "configs"), { recursive: true });
   fs.writeFileSync(path.join(f.root, "tessdata", "eng.traineddata"), "separate language lock");
+  fs.writeFileSync(path.join(f.root, "tessdata", "swiftlocal-tessdata.json"), "generated language manifest");
   assert.doesNotThrow(f.verify);
   fs.writeFileSync(path.join(f.root, "tessdata", "configs", "pdf"), "changed pdf support");
   assert.throws(f.verify, /checksum mismatch/);
@@ -80,9 +81,11 @@ test("MSI preparation preserves a complete program/share tree and rejects ambigu
   fs.mkdirSync(path.join(app, "share"));
   fs.writeFileSync(path.join(app, "program", "soffice.exe"), "exe");
   fs.writeFileSync(path.join(app, "share", "config"), "config");
+  fs.writeFileSync(path.join(app, "administrative.msi"), "host-specific administrative metadata");
   const destination = path.join(f.tools, "prepared");
   preparePayload(extracted, destination, { format: "msi" });
   assert.equal(fs.readFileSync(path.join(destination, "share", "config"), "utf8"), "config");
+  assert.equal(fs.existsSync(path.join(destination, "administrative.msi")), false);
   fs.cpSync(app, path.join(extracted, "duplicate"), { recursive: true });
   assert.throws(() => preparePayload(extracted, path.join(f.tools, "ambiguous"), { format: "msi" }), /found 2/);
 });
