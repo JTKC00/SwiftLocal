@@ -34,8 +34,11 @@ async function main() {
   assert.equal(JSON.parse(asar.extractFile(packaged.archivePath, "package.json")).main, "build/store/main.js");
   const temporary = fs.mkdtempSync(path.join(os.tmpdir(), "swiftlocal-appx-verify-"));
   try {
-    const sevenZip = await require("app-builder-lib/out/toolsets/7zip").getPath7za();
-    execFileSync(sevenZip, ["x", "-y", `-o${temporary}`, artifact], { windowsHide: true, stdio: "pipe", maxBuffer: 16 * 1024 * 1024 });
+    // AppX ZIP stores OPC-escaped part names (%40 for @, etc.). Generic unzip
+    // exposes storage names; MakeAppx restores the installed filesystem names.
+    const { Arch } = require("builder-util");
+    const { kit } = await require("app-builder-lib/out/toolsets/windows").getWindowsKitsBundle({ winCodeSign: "0.0.0", arch: Arch.x64 });
+    execFileSync(path.join(kit, "makeappx.exe"), ["unpack", "/p", artifact, "/d", temporary, "/o"], { windowsHide: true, stdio: "pipe", maxBuffer: 16 * 1024 * 1024 });
     const xml = fs.readFileSync(path.join(temporary, "AppxManifest.xml"), "utf8"); verifyManifest(xml);
     const actual = buildPayloadManifest(path.join(temporary, "app"));
     const comparable = manifest => Object.fromEntries(Object.entries(manifest).map(([name, { bytes, sha256 }]) => [name, { bytes, sha256 }]));

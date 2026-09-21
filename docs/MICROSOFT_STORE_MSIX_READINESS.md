@@ -95,6 +95,35 @@ Store re-signs submitted packages; test certificate trust is only local developm
 
 ## Verification and remaining gates
 
+### Reproduce the TEST spike
+
+Use Windows x64 with Node 24, full 7-Zip, and Windows SDK signing tools. From a
+clean checkout of this branch:
+
+```powershell
+npm ci
+npm run pack:win:store
+node scripts/smoke-release.js --require-bundled --skip-tests
+# In an elevated development PowerShell on a disposable test machine:
+./scripts/accept-store-package.ps1 -RunWack
+```
+
+The build writes `dist-store-test/SwiftLocal-0.4.1-store-TEST-x64.appx` (unsigned).
+The acceptance harness signs a temporary copy with a three-day, non-exportable,
+developer-only certificate, temporarily trusts it in that machine's TrustedPeople
+store, and removes its own trust/certificate after uninstall. It never exports a
+PFX/private key or changes the build artifact. It refuses to replace an existing
+TEST installation. Use the harness only on a disposable test machine; it exercises
+real package registration and retains generated conversion outputs for inspection.
+It requires full 7-Zip and Node dependencies for output verification.
+
+`store-evidence/` contains package bytes/hash, extracted manifest, assets receipt,
+runtime paths, native versions, screenshots and lifecycle results. Full raw CI logs
+provide the NSIS build and existing native smoke evidence. The Store workflow uses
+`contents: read` and uploads Actions artifacts only. `runFullTrust` will require a
+clear justification during Store submission: local desktop document processing and
+bundled native engines, without app elevation.
+
 Initial state: no Store-format artifact, package registration, native package smoke,
 PDF default comparison or WACK result yet. Existing NSIS acceptance is historical
 baseline evidence, not AppX acceptance. Results will be appended after execution.

@@ -90,6 +90,9 @@ async function main(configFile, phase = "store") {
     await evaluate(client, `localStorage.setItem('swiftlocal-store-test', 'saved'); true`);
     assert.equal(await evaluate(client, `localStorage.getItem('swiftlocal-store-test')`), "saved");
     record("localStorage-write-read", true);
+    await evaluate(client, `window.swiftLocalBackend.setDefaultOutputDir(${JSON.stringify(config.output)})`);
+    assert.equal((await evaluate(client, `window.swiftLocalBackend.getConfig()`)).defaultOutputDir, config.output);
+    record("settings-write-read", config.output);
     for (let i = 0; i < 240 && !fs.existsSync(path.join(profile, "store-native-probe.json")); i++) await delay(500);
     const probes = JSON.parse(fs.readFileSync(path.join(profile, "store-native-probe.json"), "utf8"));
     for (const key of ["ffmpeg", "qpdf", "tesseract", "libreoffice", "yt-dlp", "deno"]) assert.equal(probes[key]?.status, "PASS", JSON.stringify(probes));
@@ -141,6 +144,17 @@ async function main(configFile, phase = "store") {
         for (const file of outputPaths) assert.ok(fs.statSync(file).size > 0, file);
         if (type === "ocr-image") assert.match(fs.readFileSync(outputPaths[0], "utf8"), /SWIFTLOCAL|HONG\s*KONG/i);
         if (["office-to-pdf", "pdf-to-searchable-pdf"].includes(type)) assert.equal(fs.readFileSync(outputPaths[0]).subarray(0, 5).toString(), "%PDF-");
+        if (type === "pdf-to-searchable-pdf") {
+          const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
+          const pdf = await getDocument({ data: new Uint8Array(fs.readFileSync(outputPaths[0])), useSystemFonts: true }).promise;
+          try { const page = await pdf.getPage(1); const text = (await page.getTextContent()).items.map(i => i.str || "").join(" "); assert.match(text, /SWIFTLOCAL|HONG\s*KONG/i); }
+          finally { await pdf.destroy(); }
+        }
+        if (type === "pdf-to-office") {
+          const sevenZip = await require("app-builder-lib/out/toolsets/7zip").getPath7za();
+          const document = spawnSync(sevenZip, ["e", "-so", outputPaths[0], "word/document.xml"], { encoding: "utf8", windowsHide: true });
+          assert.equal(document.status, 0, document.stderr); assert.match(document.stdout, /<w:t[ >]/);
+        }
         record(`installed-conversion-${type}`, { outputs: outputPaths, bytes: outputPaths.map(p => fs.statSync(p).size) });
       }
       for (const [type, files, options] of [

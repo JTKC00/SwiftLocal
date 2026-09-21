@@ -2,8 +2,23 @@ name: Store Packaging Spike
 
 on:
   workflow_dispatch:
+    inputs:
+      nsis_regression:
+        description: 'Rebuild NSIS (disable only when unchanged NSIS already has recorded passing evidence)'
+        type: boolean
+        default: true
   push:
     branches: [store/msix-readiness]
+    paths:
+      - 'package*.json'
+      - 'electron-builder*.js'
+      - 'desktop/**'
+      - 'frontend/**'
+      - 'build/**'
+      - 'scripts/**'
+      - 'tools/*.lock.json'
+      - 'tests/**'
+      - '.github/workflows/store-packaging-spike.yml'
 
 permissions:
   contents: read
@@ -93,6 +108,7 @@ jobs:
       - name: Unicode OCR in real Electron runtime
         run: node -e "const r=require('node:child_process').spawnSync(require('electron'),['scripts/smoke-windows-unicode-ocr.js'],{stdio:'inherit'});process.exit(r.status ?? 1)"
       - name: Build and verify unchanged NSIS Full entrypoint
+        if: github.event_name != 'workflow_dispatch' || inputs.nsis_regression
         run: npm run pack:win:full:installer
       - name: Build and extract-verify TEST AppX
         run: npm run pack:win:store

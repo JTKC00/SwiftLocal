@@ -1,4 +1,4 @@
-param([string]$Package = '', [string]$Evidence = 'store-evidence', [switch]$RunWack)
+﻿param([string]$Package = '', [string]$Evidence = 'store-evidence', [switch]$RunWack)
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 Set-Location $root
@@ -16,7 +16,8 @@ function PdfDefault {
   @{ userChoice = $choice.ProgId; userChoiceHash = $choice.Hash; extensionDefault = $(if ($extension) { $extension.GetValue('') } else { $null }) } | ConvertTo-Json -Compress
 }
 $beforeDefault = PdfDefault
-$report = [ordered]@{ commit = $env:GITHUB_SHA; os = (Get-CimInstance Win32_OperatingSystem).Caption; install = 'NOT RUN'; uninstall = 'NOT RUN'; defaultBefore = $beforeDefault; wack = 'UNVERIFIED — WACK environment unavailable' }
+$wack = "${env:ProgramFiles(x86)}/Windows Kits/10/App Certification Kit/appcert.exe"
+$report = [ordered]@{ commit = $env:GITHUB_SHA; os = (Get-CimInstance Win32_OperatingSystem).Caption; install = 'NOT RUN'; uninstall = 'NOT RUN'; defaultBefore = $beforeDefault; wack = $(if (Test-Path $wack) { 'UNVERIFIED — WACK present; not yet executed' } else { 'UNVERIFIED — WACK environment unavailable' }) }
 $certificate = $null; $installed = $null
 $working = Join-Path $env:TEMP ('SwiftLocal Store 中文 ' + [Guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory $working | Out-Null
@@ -60,7 +61,6 @@ try {
   $after = & node -e "const v=require('./scripts/verify-release-artifacts');const m=v.buildPayloadManifest(process.argv[1]);console.log(JSON.stringify(Object.fromEntries(Object.entries(m).map(([n,v])=>[n,{bytes:v.bytes,sha256:v.sha256}]))))" $installed.InstallLocation
   if ($before -ne $after) { throw 'Installed package files changed during smoke' }
   $report.installedPayloadUnchanged = 'PASS'
-  $wack = "${env:ProgramFiles(x86)}/Windows Kits/10/App Certification Kit/appcert.exe"
   if ((Test-Path $wack) -and $RunWack) {
     & $wack reset
     & $wack test -appxpackagepath $signed -reportoutputpath (Join-Path $Evidence 'wack.xml')
@@ -74,9 +74,11 @@ try {
   throw
 } finally {
   if ($installed) {
-    Get-Process SwiftLocal -ErrorAction SilentlyContinue | Where-Object { $_.Path -like ($installed.InstallLocation + '\*') } | Stop-Process -Force
-    Remove-AppxPackage -Package $installed.PackageFullName
-    $report.uninstall = $(if (Get-AppxPackage -Name $identity) { 'FAIL' } else { 'PASS' })
+    try {
+      Get-Process SwiftLocal -ErrorAction SilentlyContinue | Where-Object { $_.Path -like ($installed.InstallLocation + '\*') } | Stop-Process -Force
+      Remove-AppxPackage -Package $installed.PackageFullName
+      $report.uninstall = $(if (Get-AppxPackage -Name $identity) { 'FAIL' } else { 'PASS' })
+    } catch { $report.uninstall = 'FAIL'; $report.uninstallError = $_.Exception.Message }
   }
   $report.defaultAfterUninstall = PdfDefault
   $report.pdfDefaultPreserved = $(if ($report.defaultAfterUninstall -eq $beforeDefault -and (!$report.defaultAfterInstall -or $report.defaultAfterInstall -eq $beforeDefault)) { 'PASS' } else { 'FAIL' })
