@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- TEST ONLY. Package version is deliberately separate from product v0.4.1. -->
+<Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+ xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+ xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+ IgnorableNamespaces="uap rescap">
+  <Identity Name="${identityName}" Publisher="${publisher}" ProcessorArchitecture="${arch}" Version="1.0.0.0" />
+  <Properties>
+    <DisplayName>${displayName}</DisplayName>
+    <PublisherDisplayName>${publisherDisplayName}</PublisherDisplayName>
+    <Description>SwiftLocal v0.4.1 Store packaging TEST</Description>
+    <Logo>assets\StoreLogo.png</Logo>
+  </Properties>
+  <Resources>${resourceLanguages}</Resources>
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="${minVersion}" MaxVersionTested="${maxVersionTested}" />
+  </Dependencies>
+  <Applications>
+    <Application Id="${applicationId}" Executable="app\SwiftLocal.exe" EntryPoint="Windows.FullTrustApplication">
+      <uap:VisualElements DisplayName="${displayName}" Description="SwiftLocal Store TEST"
+       BackgroundColor="#1f7a68" Square150x150Logo="assets\Square150x150Logo.png" Square44x44Logo="assets\Square44x44Logo.png">
+        <uap:DefaultTile Wide310x150Logo="assets\Wide310x150Logo.png" />
+      </uap:VisualElements>
+      <Extensions>
+        <uap:Extension Category="windows.fileTypeAssociation">
+          <uap:FileTypeAssociation Name="pdf">
+            <uap:DisplayName>SwiftLocal TEST PDF</uap:DisplayName>
+            <uap:SupportedFileTypes><uap:FileType>.pdf</uap:FileType></uap:SupportedFileTypes>
+          </uap:FileTypeAssociation>
+        </uap:Extension>
+      </Extensions>
+    </Application>
+  </Applications>
+  <Capabilities><rescap:Capability Name="runFullTrust" /></Capabilities>
+</Package>
