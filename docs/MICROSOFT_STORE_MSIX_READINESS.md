@@ -1,6 +1,6 @@
 # Microsoft Store / AppX readiness — Phase 1
 
-Date: 2026-09-21. Status: implementation and Windows evidence pending.
+Date: 2026-09-21. Status: TEST AppX build/install/native conversions and text-content retest PASS; WACK overall PASS with an optional finding. Not submitted. Manual acceptance gaps remain.
 Baseline: `c98b27fd01eac54710e291db205039e7ed41190d` (`origin/main`), product v0.4.1,
 Electron 44.2.0, electron-builder 26.15.3, Windows x64. Branch: `store/msix-readiness`.
 The original local checkout was v0.4.0; an isolated worktree was created from the
@@ -11,7 +11,7 @@ current remote main. The v0.4.1 GitHub Release remains outside this work.
 Choose **Route A: electron-builder 26.15.3 AppX**. Microsoft accepts `.appx` and
 `.msix` package families. Format alone does not establish certification. Keep
 the exact production builder and native locks; use a separate Store entrypoint,
-config, manifest, output directory and manual CI workflow. No v27 upgrade.
+config, manifest, output directory and isolated CI workflow. No v27 upgrade.
 
 | Route | Capability and practical fit | Risk / disposition |
 | --- | --- | --- |
@@ -48,16 +48,35 @@ No v27 candidate was installed or chosen in this phase.
 | PDF association | NSIS include writes only HKCU OpenWithProgids/Applications and own ProgID, preserves UserChoice. Store must declare `windows.fileTypeAssociation` in manifest; no NSIS include runs. Existing argv, single-instance and PDF workspace routing can receive file activation. UI's NSIS ProgID string is descriptive, not a runtime lookup dependency. |
 | native provisioning | Native lock validates official source checksums, PE executables, complete trees and LibreOffice source receipts. LibreOffice MSI administrative extraction requires Windows; never copy local installations. Retain native licenses/support payload for the spike. |
 | assets / filenames | Existing brand SVG master and pinned canvas renderer support reproducible PNG creation. Package EXE is ASCII. Add four exact-size AppX logos; validate actual package entries, case collisions, forbidden path components and manifest references, not only source names. |
-| CI | `ci.yml` runs unit/syntax/metadata checks on three OSs. `native-tool-smoke.yml` already proves NSIS Full conversion and fresh-user/upgrade scenarios. Store workflow must be separate, manual, read-only repository permissions, artifact upload only. |
+| CI | `ci.yml` runs unit/syntax/metadata checks on three OSs. `native-tool-smoke.yml` already proves NSIS Full conversion and fresh-user/upgrade scenarios. Store workflow is separate, manually dispatchable and triggered only by relevant changes on `store/msix-readiness`; read-only repository permissions, Actions artifact upload only. |
 
 No automatic Store update/download feature, service, driver, elevated app operation
 or NSIS registry dependency was found in the Electron desktop path. Native payload
-size (~684 MB existing installer) does not by itself prohibit AppX. Technical bundling
+size (~684 MB existing installer; first verified AppX 1,115,692,336 bytes) is below
+Microsoft's current 25 GB per-package limit for Windows 10/11 AppX/MSIX. Technical bundling
 does not establish redistribution rights: FFmpeg build license/codecs, QPDF,
 Tesseract/tessdata, LibreOffice and its bundled components, yt-dlp and Deno licenses,
 notices/source-offer duties need owner review before submission. yt-dlp/media download
 functionality also needs Store content-policy review. WACK may flag unused native
 helpers; do not remove locked files ad hoc or suppress certification checks.
+
+The first installed tree includes LibreOffice's Python packaging launchers
+`setuptools/cli-arm64.exe`, `setuptools/gui-arm64.exe`,
+`pip/_vendor/distlib/t64-arm.exe` and `pip/_vendor/distlib/w64-arm.exe` under
+`program/python-core-3.12.14/lib/`. Their names initially raised a cross-architecture
+concern. Microsoft permits x86 alongside x64 but
+not ARM binaries in an x64 package. Other bundled helpers include `updater.exe`
+and `update_service.exe`; merely including them does not register a service, but
+their manifests and runtime reachability need certification review. Therefore the
+unaltered Full payload is a **test candidate**, not an assertion that every native
+file is submission-ready. The actual WACK 10.0.26100.8249 run reported **PASS**
+for its optional Platform appropriate files and User account control checks,
+with no messages; no architecture failure was observed. Do not convert the
+filename-based concern into a claimed WACK failure. Reconcile the retained
+cross-platform helpers with production/S-mode requirements during Phase 2.
+Any future Store-only pruning must have an explicit
+reviewed omission manifest derived from the verified source tree, exact retained
+file comparison and repeat runtime/WACK tests; NSIS locks must remain intact.
 
 ## Store-specific differences
 
@@ -104,6 +123,7 @@ clean checkout of this branch:
 npm ci
 npm run pack:win:store
 node scripts/smoke-release.js --require-bundled --skip-tests
+node scripts/create-store-fixtures.js
 # In an elevated development PowerShell on a disposable test machine:
 ./scripts/accept-store-package.ps1 -RunWack
 ```
@@ -124,9 +144,94 @@ provide the NSIS build and existing native smoke evidence. The Store workflow us
 clear justification during Store submission: local desktop document processing and
 bundled native engines, without app elevation.
 
-Initial state: no Store-format artifact, package registration, native package smoke,
-PDF default comparison or WACK result yet. Existing NSIS acceptance is historical
-baseline evidence, not AppX acceptance. Results will be appended after execution.
+### Evidence ledger
+
+| Run / commit | Actual result |
+| --- | --- |
+| [35561701864](https://github.com/JTKC00/SwiftLocal/actions/runs/35561701864), `9aab2aa` | Three-platform regressions passed; locked LibreOffice source download timed out. Retained checksum validation and added bounded curl retries; no source/version substitution. |
+| [35561865600](https://github.com/JTKC00/SwiftLocal/actions/runs/35561865600), `ca647a0` | Three-platform regressions, Full native smoke, Electron Unicode OCR, NSIS Full build and its EXE payload verifier passed. AppX built, but generic ZIP extraction exposed OPC-escaped names (`%40`); switched verification to Microsoft MakeAppx unpack, retaining semantic checks. Overall run failed; this is only evidence for its passing steps. |
+| [35563159817](https://github.com/JTKC00/SwiftLocal/actions/runs/35563159817), `83036ba` | Cancelled when superseded by a fix that separates opt-in native probes from the real application's job-state file. Not a pass. |
+| [35563235411](https://github.com/JTKC00/SwiftLocal/actions/runs/35563235411), `b04e785` | AppX extraction and all 19,695 entries verified; installed, activated as a real Windows package and uninstalled. All six native version probes, PDF compression, chi_tra+eng OCR, PDF→DOCX, media conversion, Shell PDF activation and default-reader preservation passed. Searchable PDF harness used a removed PDF.js cleanup method; LibreOffice DOCX→PDF crashed with `0xC0000409` under a deep AppData temp path. WACK present but not reached. Overall fail. |
+| [35564552400](https://github.com/JTKC00/SwiftLocal/actions/runs/35564552400), `17a510e` | PASS: three-platform regressions, Full native smoke, Electron Unicode OCR, AppX build/extraction, install/activation, all six native probes, all six conversion classes, Shell PDF activation/default preservation, unchanged installed files, normal exit and uninstall. WACK overall PASS; one optional finding described below. |
+| [35566930271](https://github.com/JTKC00/SwiftLocal/actions/runs/35566930271), `c60b8ec` | PASS: all three regression jobs; SHA-verified reuse of the same AppX; install/launch, six bundled native probes and six conversion classes; known PDF text retained in DOCX XML; PDF shell activation/default preservation, unchanged installed payload and uninstall. WACK was parsed/reused from the same candidate, not rerun. [Retest evidence](https://github.com/JTKC00/SwiftLocal/actions/runs/35566930271/artifacts/10624224784). |
+
+### Built artifact and certification
+
+- Artifact: [`SwiftLocal-0.4.1-store-TEST-x64.appx`](https://github.com/JTKC00/SwiftLocal/actions/runs/35564552400/artifacts/10623689745), unsigned, **1,115,692,339 bytes** (1.116 GB / 1,064 MiB).
+- SHA-256: `9d94ccaaf4c6ea851ac0d0d10269014efb26d4343dc547be0a33ee756f1cec5f`.
+- Builder 26.15.3; product 0.4.1; TEST package 1.0.0.0; 19,695 package entries. Unpacked installed tree: approximately 2.98 GB.
+- [Full evidence artifact](https://github.com/JTKC00/SwiftLocal/actions/runs/35564552400/artifacts/10623993880). Actions artifacts expire after 14 days; key results are preserved in [docs/acceptance/2026-09-21-store](acceptance/2026-09-21-store/).
+- Developer-signed temporary copy installed as `SwiftLocal.StoreSpike.TEST_1.0.0.0_x64__t6bf8bs4kmxeg`; actual `process.windowsStore=true`. Package registration/activation, normal process exit and uninstall passed on Windows Server 2025 Datacenter.
+- WACK **10.0.26100.8249** XML: `OVERALL_RESULT=PASS`, `PARTIAL_RUN=FALSE`, `APP_TYPE=Centennial`. All **13 required tests passed**; 10 optional tests passed, one optional test failed. This is a real certification-kit result, not a build-success inference. It is not Microsoft Store approval.
+- Optional **Blocked executables**: 593 messages (57 process-launch API imports, 536 literal executable references) in Electron and native payloads. Some are binary/data string matches; their presence alone does not establish execution. Packaged child-process use is intentional. Actual desktop cancellation also invokes Windows `taskkill.exe`; S-mode/provider paths need separate review. Do not label every warning a false positive or silently suppress the test. Microsoft documents this category as informational for Desktop Bridge onboarding; investigate reachable external launches before submission.
+- WACK architecture, UAC, service/driver registration, private signing keys, manifest, resources and branding checks all passed. Both independent Windows builds produced identical brand-asset receipts; cross-OS PNG byte identity is not promised.
+
+### Runtime observations and remaining acceptance
+
+The app uses a separate Store TEST profile under `%APPDATA%/SwiftLocal Store TEST`;
+Chromium sessions, settings/jobs, temp, caches, logs and crash data are routed below
+it. AppData can be virtualized by Windows. OCR uses a private copied tessdata scratch
+directory; LibreOffice profile/scratch and media work live in the chosen output
+directory. Unicode Downloads output passed. Every installed package file's size and
+SHA-256 was unchanged after smoke, including OCR language/support files. This
+establishes the observed flows, not syscall tracing of every unused native helper.
+
+PDF manifest registration produced `AppX93s5vjqrxjz3j2mtatx9ks1qvrc12vqp`.
+Windows ShellExecuteEx invoked this registered class and opened `a.pdf` in the real
+PDF workspace. `MSEdgePDF`, its UserChoice hash and the extension default were
+identical before install, after install and after uninstall. Explorer menu selection
+and physical double-click behavior on consumer Windows 11 remain manual checks.
+
+The earlier deep AppData-temp DOCX conversion crash (`0xC0000409`) remains a
+**reproducible unresolved path case**. Moving test documents to the normal Downloads
+location and shortening the path made the same packaged LibreOffice pass; this
+changed two factors and does not isolate virtualization versus path length. No
+LibreOffice/runtime fix is claimed. Keep the rejected parameters in
+`rejected-appdata-paths.json`; compare short/deep AppData and Downloads paths on
+Windows 11 before broad acceptance. Do not change production NSIS to mask it.
+
+Phase 2 preparation can start with the proven Route A candidate, with the following
+gates still open before a submission-ready release: exact Partner Center identity
+and package numbering; consumer Windows 11 standard-user GUI/install/Open With and
+default double-click; Store update/uninstall data retention and NSIS coexistence;
+the deep-path LibreOffice case; optional WACK/S-mode warning disposition and native
+licensing/media policy review. Final identity/payload changes require fresh WACK
+and package smoke. Phase 1's entire manual acceptance list is not claimed complete.
+
+The NSIS evidence is a newly built QA artifact, not a claim of byte-identical output
+to the published release. Production config, builder pin, lockfile, packing scripts
+and NSIS registry include are unchanged. Store-only follow-up edits do not alter that
+NSIS payload. The published v0.4.1 installer and portable hashes were independently
+re-read and remained unchanged.
+
+Local regression baseline: `npm test` passed 310 JavaScript tests and 102 Python
+tests (two Python skips); `npm run typecheck`, `npm run check:ci` and
+`git diff --check` passed. The Store workflow repeats the required checks on
+Windows, macOS and Linux. Its optional `nsis_regression=false` input only skips
+rebuilding the unchanged NSIS artifact after a recorded passing run; it does not
+skip unit tests, Full native smoke or installed Store acceptance.
+
+At `c60b8ec`, all three regression jobs passed. Windows ran 311 JS tests
+(307 passed, four platform skips) and 102 Python tests (99 passed, three skips:
+the POSIX process-tree case and two absent development tessdata fixtures).
+Real bundled Windows OCR runs separately in the package/native smoke jobs.
+`candidate_run=35564552400` selects acceptance-only retesting: it checks the
+downloaded unsigned AppX against that run's SHA-256 and parses its complete WACK
+report, then installs and exercises the same candidate. It explicitly skips a new
+package build and WACK execution; it never turns that skip into a new build/pass.
+
+Acceptance scope: the six-tool probe proves bundled executable resolution and
+child-process startup/version output inside the package. Representative conversion
+jobs exercise FFmpeg, QPDF, Tesseract and LibreOffice separately. This is not an
+online yt-dlp provider/download or Deno extractor integration certification, nor a
+Chinese OCR accuracy benchmark. The OCR fixture contains Chinese and English;
+language availability, resource hashes, execution with `chi_tra+eng`, and recognized
+English text are asserted in CI. Readback of the retained image-OCR and searchable
+PDF outputs also confirmed the Chinese phrase `香港特別行政區` (allowing whitespace
+between PDF text items); the
+Office-generated PDF retained `SWIFTLOCAL STORE DOCX`. See `output-content-checks.json`.
+Consumer Windows 11 and standard-user GUI behavior are
+not inferred from an elevated disposable Windows Server CI runner.
 
 Required Windows sequence: provision Full locks → build AppX → unpack/compare →
 developer-only test signing → register package → activate installed app → home/PDF
@@ -155,6 +260,27 @@ drop the spike. No production builder, native lock, NSIS include, production com
 version, GitHub release asset, certificate purchase or Store submission changes.
 Do not merge this branch automatically.
 
+## Changed files
+
+- `electron-builder.store.config.js`: isolated Full AppX overlay; TEST identity only.
+- `build/store/AppxManifest.xml`: package version, desktop entrypoint, PDF declaration and assets.
+- `build/store/main.js`, `build/store/runtime.js`: Store bootstrap, writable profile and opt-in native probes.
+- `scripts/pack-win-store.js`, `scripts/verify-store-package.js`: build/provision and MakeAppx payload verification.
+- `scripts/build-store-assets.js`: generate four PNGs and a source/output hash receipt.
+- `scripts/accept-store-package.ps1`, `scripts/accept-store-windows.js`: disposable signing, registration, real Electron smoke, certification and uninstall.
+- `scripts/read-store-wack.js`, `scripts/create-store-fixtures.js`: require complete WACK results and create synthetic text-bearing acceptance documents.
+- `scripts/store-activate.ps1`, `scripts/store-shell-open-pdf.ps1`: Windows activation and registered PDF shell invocation.
+- `.github/workflows/store-packaging-spike.yml`: Windows packaging/acceptance and three-platform regressions.
+- `tests/desktop/store-packaging.test.js`: config isolation, writable paths and malformed-package checks.
+- `desktop/main.js`: skip the unpackaged AUMID override only when `process.windowsStore` is true.
+- `package.json`: add `pack:win:store`; no dependency or product version change.
+- `.gitignore`: generated Store output/evidence and certificate exclusions.
+- This readiness document and `docs/acceptance/2026-09-21-store/`: durable acceptance evidence.
+
+`package-lock.json`, `electron-builder.config.js`, `scripts/pack-win.js`,
+`scripts/build-win-full.js`, `build/windows-file-associations.nsh`, native lockfiles,
+the existing CI/Native Tool Smoke workflows and release metadata are unchanged.
+
 ## Official sources checked 2026-09-21
 
 - [electron-builder AppX](https://www.electron.build/docs/appx/) and installed 26.15.3 AppxTarget.js/AppXOptions.d.ts (live site also documents later versions).
@@ -162,6 +288,7 @@ Do not merge this branch automatically.
 - [Microsoft package requirements](https://learn.microsoft.com/en-us/windows/apps/publish/publish-your-app/msix/app-package-requirements), [package identity](https://learn.microsoft.com/en-us/windows/apps/desktop/modernize/package-identity-overview).
 - [Prepare desktop applications](https://learn.microsoft.com/en-us/windows/msix/desktop/desktop-to-uwp-prepare), [Packaging Tool](https://learn.microsoft.com/en-us/windows/msix/packaging-tool/tool-overview), [installer conversion](https://learn.microsoft.com/en-us/windows/msix/packaging-tool/create-app-package).
 - [WACK](https://learn.microsoft.com/en-us/windows/uwp/debug-test-perf/windows-app-certification-kit), [test signing certificate](https://learn.microsoft.com/en-us/windows/msix/package/create-certificate-package-signing), [Electron process.windowsStore](https://www.electronjs.org/docs/latest/api/process).
+- [Desktop Bridge required and optional certification tests](https://learn.microsoft.com/en-us/windows/uwp/debug-test-perf/windows-desktop-bridge-app-tests), [MakeAppx packaging and unpacking](https://learn.microsoft.com/en-us/windows/msix/package/create-app-package-with-makeappx-tool).
 
 The explicitly requested TypeSafe skill and live [System One docs](https://docs.typesafe.ai/concepts/system-one)
 were read. This deterministic packaging task needs no semantic AI integration,

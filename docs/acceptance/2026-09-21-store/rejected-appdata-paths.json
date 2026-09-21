@@ -1,0 +1,50 @@
+{
+  "run": "https://github.com/JTKC00/SwiftLocal/actions/runs/35563235411",
+  "package": {
+    "status": "PASS",
+    "commit": "b04e7858448a44b87c650712b4ee5e6813848f02",
+    "version": "0.4.1",
+    "builder": "26.15.3",
+    "artifact": "SwiftLocal-0.4.1-store-TEST-x64.appx",
+    "bytes": 1115692336,
+    "sha256": "9393c3a608148e598d3abde51c2454201d857ada3e5bde4793be26932c5c46aa",
+    "files": 19695,
+    "payloadComparison": "all extracted app files byte-identical to verified Full win-unpacked",
+    "identity": "TEST ONLY",
+    "wack": "NOT RUN"
+  },
+  "lifecycle": {
+    "commit": "b04e7858448a44b87c650712b4ee5e6813848f02",
+    "os": "Microsoft Windows Server 2025 Datacenter",
+    "install": "PASS",
+    "uninstall": "PASS",
+    "defaultBefore": "{\"userChoice\":\"MSEdgePDF\",\"userChoiceHash\":\"nnk4nM08GiA=\",\"extensionDefault\":null}",
+    "wack": "UNVERIFIED — WACK present; not yet executed",
+    "signedSha256": "1DE43432F4DCAC7C5F98392B224840C4F23E5F157E63CD823B9EDAC30DB87FE9",
+    "fullName": "SwiftLocal.StoreSpike.TEST_1.0.0.0_x64__t6bf8bs4kmxeg",
+    "family": "SwiftLocal.StoreSpike.TEST_t6bf8bs4kmxeg",
+    "installLocation": "C:\\Program Files\\WindowsApps\\SwiftLocal.StoreSpike.TEST_1.0.0.0_x64__t6bf8bs4kmxeg",
+    "defaultAfterInstall": "{\"userChoice\":\"MSEdgePDF\",\"userChoiceHash\":\"nnk4nM08GiA=\",\"extensionDefault\":null}",
+    "pdfProgId": "AppX93s5vjqrxjz3j2mtatx9ks1qvrc12vqp",
+    "error": "System.Management.Automation.RuntimeException: Installed Store conversion/activation acceptance failed",
+    "defaultAfterUninstall": "{\"userChoice\":\"MSEdgePDF\",\"userChoiceHash\":\"nnk4nM08GiA=\",\"extensionDefault\":null}",
+    "pdfDefaultPreserved": "PASS"
+  },
+  "failedTests": [
+    {
+      "name": "installed-conversion-pdf-to-searchable-pdf",
+      "status": "FAIL",
+      "error": "TypeError: pdf.destroy is not a function\n    at job (D:\\a\\SwiftLocal\\SwiftLocal\\scripts\\accept-store-windows.js:151:31)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async attempt (D:\\a\\SwiftLocal\\SwiftLocal\\scripts\\accept-store-windows.js:60:11)\n    at async main (D:\\a\\SwiftLocal\\SwiftLocal\\scripts\\accept-store-windows.js:168:9)"
+    },
+    {
+      "name": "installed-conversion-office-to-pdf",
+      "status": "FAIL",
+      "error": "AssertionError [ERR_ASSERTION]: office-to-pdf: {\"id\":\"1789967894074-720ee3f49a9a98\",\"type\":\"office-to-pdf\",\"inputPaths\":[\"office-smoke.docx\"],\"inputFiles\":[{\"name\":\"office-smoke.docx\",\"size\":3420,\"missing\":false}],\"outputDir\":\"C:\\\\Users\\\\RUNNER~1\\\\AppData\\\\Local\\\\Temp\\\\SwiftLocal Store 中文 ca07ae647d514a7b8d2e6c6c55c64aca\\\\輸出 文件\\\\store\\\\office-to-pdf\",\"options\":{},\"status\":\"failed\",\"createdAt\":\"2026-09-21T05:18:14.074Z\",\"startedAt\":\"2026-09-21T05:18:14.090Z\",\"finishedAt\":\"2026-09-21T05:18:19.747Z\",\"outputPaths\":[],\"space\":{\"inputBytes\":3420,\"outputBytes\":0,\"inputCount\":1,\"outputCount\":0,\"inputMissing\":0,\"savedBytes\":null,\"savedPercent\":null},\"log\":[\"LibreOffice 轉換程序意外崩潰（Windows 0xC0000409）。這通常表示 LibreOffice 無法把此 PDF 匯出成所選 Office 格式。原始 PDF 並未被修改。\\n建議：若目標為 DOCX，系統會自動嘗試相容模式；其他格式請改試 DOCX 或更新 LibreOffice。\\n【技術詳情】\\nexit code=3221226505\\nTechnical details:\\nexitCode=3221226505\\ncommand=\\\"C:\\\\Program Files\\\\WindowsApps\\\\SwiftLocal.StoreSpike.TEST_1.0.0.0_x64__t6bf8bs4kmxeg\\\\app\\\\resources\\\\tools\\\\libreoffice\\\\program\\\\soffice.com\\\" --headless --nologo --nodefault --nofirststartwizard --norestore --nolockcheck -env:UserInstallation=file:///C:/Users/RUNNER%7E1/AppData/Local/Temp/SwiftLocal%20Store%20%E4%B8%AD%E6%96%87%20ca07ae647d514a7b8d2e6c6c55c64aca/%E8%BC%B8%E5%87%BA%20%E6%96%87%E4%BB%B6/store/office-to-pdf/.swiftlocal-office-sIkD0T/lo-profile-UswK3q --convert-to pdf --outdir \\\"C:\\\\Users\\\\RUNNER~1\\\\AppData\\\\Local\\\\Temp\\\\SwiftLocal Store 中文 ca07ae647d514a7b8d2e6c6c55c64aca\\\\輸出 文件\\\\store\\\\office-to-pdf\\\\.swiftlocal-office-sIkD0T\\\" \\\"C:\\\\Users\\\\RUNNER~1\\\\AppData\\\\Local\\\\Temp\\\\SwiftLocal Store 中文 ca07ae647d514a7b8d2e6c6c55c64aca\\\\輸入 文件\\\\office-smoke.docx\\\"\\ncwd=C:\\\\Users\\\\runneradmin\\\\AppData\\\\Roaming\\\\SwiftLocal Store TEST\"],\"error\":\"LibreOffice 轉換程序意外崩潰（Windows 0xC0000409）。這通常表示 LibreOffice 無法把此 PDF 匯出成所選 Office 格式。原始 PDF 並未被修改。\\n建議：若目標為 DOCX，系統會自動嘗試相容模式；其他格式請改試 DOCX 或更新 LibreOffice。\\n【技術詳情】\\nexit code=3221226505\\nTechnical details:\\nexitCode=3221226505\\ncommand=\\\"C:\\\\Program Files\\\\WindowsApps\\\\SwiftLocal.StoreSpike.TEST_1.0.0.0_x64__t6bf8bs4kmxeg\\\\app\\\\resources\\\\tools\\\\libreoffice\\\\program\\\\soffice.com\\\" --headless --nologo --nodefault --nofirststartwizard --norestore --nolockcheck -env:UserInstallation=file:///C:/Users/RUNNER%7E1/AppData/Local/Temp/SwiftLocal%20Store%20%E4%B8%AD%E6%96%87%20ca07ae647d514a7b8d2e6c6c55c64aca/%E8%BC%B8%E5%87%BA%20%E6%96%87%E4%BB%B6/store/office-to-pdf/.swiftlocal-office-sIkD0T/lo-profile-UswK3q --convert-to pdf --outdir \\\"C:\\\\Users\\\\RUNNER~1\\\\AppData\\\\Local\\\\Temp\\\\SwiftLocal Store 中文 ca07ae647d514a7b8d2e6c6c55c64aca\\\\輸出 文件\\\\store\\\\office-to-pdf\\\\.swiftlocal-office-sIkD0T\\\" \\\"C:\\\\Users\\\\RUNNER~1\\\\AppData\\\\Local\\\\Temp\\\\SwiftLocal Store 中文 ca07ae647d514a7b8d2e6c6c55c64aca\\\\輸入 文件\\\\office-smoke.docx\\\"\\ncwd=C:\\\\Users\\\\runneradmin\\\\AppData\\\\Roaming\\\\SwiftLocal Store TEST\",\"errorCode\":\"external_process_crash\",\"errorCodeLabel\":\"外部程序崩潰\",\"errorHint\":\"LibreOffice 未能轉換此文件。文件可能包含不相容內容，或轉換引擎發生錯誤。\",\"retriable\":true,\"cancelRequested\":false,\"progress\":null,\"itemResults\":[]}\n\n'failed' !== 'done'\n\n    at job (D:\\a\\SwiftLocal\\SwiftLocal\\scripts\\accept-store-windows.js:141:16)\n    at async attempt (D:\\a\\SwiftLocal\\SwiftLocal\\scripts\\accept-store-windows.js:60:11)\n    at async main (D:\\a\\SwiftLocal\\SwiftLocal\\scripts\\accept-store-windows.js:168:9)"
+    },
+    {
+      "name": "acceptance",
+      "status": "FAIL",
+      "error": "AggregateError: 2 installed-app acceptance checks failed\n    at main (D:\\a\\SwiftLocal\\SwiftLocal\\scripts\\accept-store-windows.js:199:32)"
+    }
+  ]
+}

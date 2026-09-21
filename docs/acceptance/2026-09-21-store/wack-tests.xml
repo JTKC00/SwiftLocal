@@ -1,0 +1,714 @@
+<?xml version='1.0' encoding='utf-8'?>
+<REPORT xml:lang="en-US" OVERALL_RESULT="PASS" VERSION="10.0.26100.8249" LATEST_VERSION="" UPDATE_DOWNLOAD_URL="" TOOLSET_ARCHITECTURE="x64" SecureBoot="FALSE" APP_TYPE="Centennial" PUBLISHER_DISPLAY_NAME="CN=SwiftLocal Store Spike TEST" APP_NAME="SwiftLocal.StoreSpike.TEST" APP_VERSION="1.0.0.0" OSVERSION="10.0.26100.0" OS="Microsoft Windows Server 2025 Datacenter" PER_USER_APPLICATION="" PARTIAL_RUN="FALSE" LCID="1033" X64_ONLY="TRUE" VALIDATION_TYPE="CommandLine" ReportGenerationTime="9/21/2026 5:57:26 AM" ID="9c5b37cc07b98765abeeca9a8f8c5a22"><REQUIREMENTS>
+    <REQUIREMENT NUMBER="3" TITLE="Digitally signed file test" RATIONALE="An Authenticode digital signature allows users to be sure that the software is genuine. It also allows detection if a file has been tampered with e.g. infected by a virus.">
+      <TEST INDEX="2" NAME="Install signed driver and executable files" DESCRIPTION="Install signed driver and executable files." EXECUTIONTIME="00h:00m:27s.01ms" OPTIONAL="TRUE">
+        <MESSAGES />
+        <RESULT>PASS</RESULT>
+      </TEST>
+    </REQUIREMENT>
+    <REQUIREMENT NUMBER="6" TITLE="User account control (UAC) test" RATIONALE="Most applications do not require administrator privileges at run time, and should be just fine running as a standard-user. Windows applications must have a manifest (embedded or external) to define its execution level that tells OS the privileges needed to run the application.">
+      <TEST INDEX="11" NAME="User account control run level" DESCRIPTION="Windows® applications must have a manifest (embedded or external) to define its execution level that tells OS the privileges needed to run the application." EXECUTIONTIME="00h:00m:01s.07ms" OPTIONAL="TRUE">
+        <MESSAGES />
+        <RESULT>PASS</RESULT>
+      </TEST>
+    </REQUIREMENT>
+    <REQUIREMENT NUMBER="12" TITLE="Package compliance test" RATIONALE="The package does not satisfy Store compliance rules.">
+      <TEST INDEX="77" NAME="Application count" DESCRIPTION="One package should not define more than one app in the manifest." EXECUTIONTIME="00h:00m:00s.83ms" OPTIONAL="TRUE">
+        <MESSAGES />
+        <RESULT>PASS</RESULT>
+      </TEST>
+      <TEST INDEX="31" NAME="App manifest" DESCRIPTION="App manifest must include valid entries for all required fields." EXECUTIONTIME="00h:00m:01s.07ms" OPTIONAL="FALSE">
+        <MESSAGES />
+        <RESULT>PASS</RESULT>
+      </TEST>
+      <TEST INDEX="87" NAME="File association verbs" DESCRIPTION="Registry validation that no registered file association verbs are installed." EXECUTIONTIME="00h:00m:02s.00ms" OPTIONAL="TRUE">
+        <MESSAGES />
+        <RESULT>PASS</RESULT>
+      </TEST>
+      <TEST INDEX="86" NAME="Registry checks" DESCRIPTION="Registry validation that drivers are not installed and NT Services are not installed." EXECUTIONTIME="00h:00m:01s.11ms" OPTIONAL="TRUE">
+        <MESSAGES />
+        <RESULT>PASS</RESULT>
+      </TEST>
+      <TEST INDEX="91" NAME="Enterprise Features" DESCRIPTION="Check if any enterprise-only features are in the package." EXECUTIONTIME="00h:00m:00s.82ms" OPTIONAL="FALSE">
+        <MESSAGES />
+        <RESULT>PASS</RESULT>
+      </TEST>
+      <TEST INDEX="90" NAME="Resource Packages" DESCRIPTION="Check if any resource packages contain PE files." EXECUTIONTIME="00h:00m:00s.79ms" OPTIONAL="FALSE">
+        <MESSAGES />
+        <RESULT>PASS</RESULT>
+      </TEST>
+    </REQUIREMENT>
+    <REQUIREMENT NUMBER="14" TITLE="Windows security features test" RATIONALE="Applications must opt-into Windows security features.">
+      <TEST INDEX="70" NAME="Banned file analyzer" DESCRIPTION="Analysis of application to detect known insecure files" EXECUTIONTIME="00h:00m:01s.04ms" OPTIONAL="FALSE">
+        <MESSAGES />
+        <RESULT>PASS</RESULT>
+      </TEST>
+      <TEST INDEX="62" NAME="Private code signing" DESCRIPTION="App should not package private code signing key files." EXECUTIONTIME="00h:00m:02s.90ms" OPTIONAL="FALSE">
+        <MESSAGES />
+        <RESULT>PASS</RESULT>
+      </TEST>
+    </REQUIREMENT>
+    <REQUIREMENT NUMBER="19" TITLE="App manifest resources tests" RATIONALE="The App Package Manifest should have valid resources defined in the resources.pri file, as per the App Packaging Specification and App Manifest Schema.">
+      <TEST INDEX="45" NAME="App resources" DESCRIPTION="The package should have valid resources defined in the resources.pri file." EXECUTIONTIME="00h:00m:01s.66ms" OPTIONAL="TRUE">
+        <MESSAGES />
+        <RESULT>PASS</RESULT>
+      </TEST>
+      <TEST INDEX="61" NAME="Branding" DESCRIPTION="App should not use the default images packed by windows SDK samples or Visual Studio." EXECUTIONTIME="00h:00m:01s.32ms" OPTIONAL="FALSE">
+        <MESSAGES />
+        <RESULT>PASS</RESULT>
+      </TEST>
+    </REQUIREMENT>
+    <REQUIREMENT NUMBER="20" TITLE="Debug configuration test" RATIONALE="The App should not install any debug binaries.">
+      <TEST INDEX="46" NAME="Debug configuration" DESCRIPTION="The App should not install any debug binaries." EXECUTIONTIME="00h:00m:04s.16ms" OPTIONAL="TRUE">
+        <MESSAGES />
+        <RESULT>PASS</RESULT>
+      </TEST>
+    </REQUIREMENT>
+    <REQUIREMENT NUMBER="23" TITLE="App Capabilities test" RATIONALE="Packages declaring special-use capabilities will have to provide justifications during the onboarding process.">
+      <TEST INDEX="52" NAME="Special use capabilities" DESCRIPTION="Packages declaring special-use capabilities will have to provide justifications during the onboarding process." EXECUTIONTIME="00h:00m:00s.82ms" OPTIONAL="FALSE">
+        <MESSAGES />
+        <RESULT>PASS</RESULT>
+      </TEST>
+    </REQUIREMENT>
+    <REQUIREMENT NUMBER="24" TITLE="Windows Runtime metadata validation" RATIONALE="Metadata needs to be conformant and consistent across all generation sources.">
+      <TEST INDEX="56" NAME="ExclusiveTo attribute" DESCRIPTION="A class must not implement an interface that is marked ExclusiveTo another class." EXECUTIONTIME="00h:00m:11s.78ms" OPTIONAL="FALSE">
+        <MESSAGES />
+        <RESULT>PASS</RESULT>
+      </TEST>
+      <TEST INDEX="57" NAME="Type location" DESCRIPTION="Types must be defined in the metadata file with the longest matching namespace." EXECUTIONTIME="00h:00m:00s.87ms" OPTIONAL="FALSE">
+        <MESSAGES />
+        <RESULT>PASS</RESULT>
+      </TEST>
+      <TEST INDEX="55" NAME="Type name case-sensitivity" DESCRIPTION="Namespace and type names must not vary only by casing." EXECUTIONTIME="00h:00m:00s.77ms" OPTIONAL="FALSE">
+        <MESSAGES />
+        <RESULT>PASS</RESULT>
+      </TEST>
+      <TEST INDEX="54" NAME="Type name correctness" DESCRIPTION="Only system types can be in the Windows namespace and no types can be in the global namespace." EXECUTIONTIME="00h:00m:00s.79ms" OPTIONAL="FALSE">
+        <MESSAGES />
+        <RESULT>PASS</RESULT>
+      </TEST>
+      <TEST INDEX="58" NAME="General metadata correctness" DESCRIPTION="Metadata files must meet various requirements in order to be valid and correct." EXECUTIONTIME="00h:00m:10s.71ms" OPTIONAL="TRUE">
+        <MESSAGES />
+        <RESULT>PASS</RESULT>
+      </TEST>
+      <TEST INDEX="53" NAME="Properties" DESCRIPTION="Write-only and indexer properties may not be used. Corresponding getter and setter methods must match in type." EXECUTIONTIME="00h:00m:00s.79ms" OPTIONAL="FALSE">
+        <MESSAGES />
+        <RESULT>PASS</RESULT>
+      </TEST>
+    </REQUIREMENT>
+    <REQUIREMENT NUMBER="25" TITLE="Package sanity test" RATIONALE="Validation of the app package contents to ensure correctness.">
+      <TEST INDEX="89" NAME="Archive files usage" DESCRIPTION="Packages should not contain PE files inside archive files." EXECUTIONTIME="00h:00m:02s.07ms" OPTIONAL="TRUE">
+        <MESSAGES />
+        <RESULT>PASS</RESULT>
+      </TEST>
+      <TEST INDEX="88" NAME="Blocked executables" DESCRIPTION="Detects if there are references to process launch APIs and blocked executables" EXECUTIONTIME="00h:02m:57s.23ms" OPTIONAL="TRUE">
+        <MESSAGES>
+          <MESSAGE TEXT="File app\resources\tools\libreoffice\program\python-core-3.12.14\lib\setuptools\cli-32.exe contains a reference to a &quot;Launch Process&quot; related API kernel32.dll!CreateProcessA" />
+          <MESSAGE TEXT="File app\resources\tools\libreoffice\program\python-core-3.12.14\lib\setuptools\cli.exe contains a reference to a &quot;Launch Process&quot; related API kernel32.dll!CreateProcessA" />
+          <MESSAGE TEXT="File app\resources\tools\libreoffice\program\quickstart.exe contains a reference to a &quot;Launch Process&quot; related API kernel32.dll!CreateProcessW" />
+          <MESSAGE TEXT="File app\resources\tools\libreoffice\program\python-core-3.12.14\lib\pip\_vendor\distlib\t64.exe contains a reference to a &quot;Launch Process&quot; related API kernel32.dll!CreateProcessW" />
+          <MESSAGE TEXT="File app\resources\tools\deno\bin\deno.exe contains a reference to a &quot;Launch Process&quot; related API kernel32.dll!CreateProcessW" />
+          <MESSAGE TEXT="File app\resources\tools\libreoffice\program\sweb.exe contains a reference to a &quot;Launch Process&quot; related API kernel32.dll!CreateProcessW" />
+          <MESSAGE TEXT="File app\resources\tools\libreoffice\program\unopkg.com contains a reference to a &quot;Launch Process&quot; related API kernel32.dll!CreateProcessW" />
+          <MESSAGE TEXT="File app\resources\tools\libreoffice\program\simpress.exe contains a reference to a &quot;Launch Process&quot; related API kernel32.dll!CreateProcessW" />
+          <MESSAGE TEXT="File app\resources\tools\libreoffice\program\python-core-3.12.14\lib\setuptools\cli-64.exe contains a reference to a &quot;Launch Process&quot; related API kernel32.dll!CreateProcessA" />
+          <MESSAGE TEXT="File app\resources\tools\libreoffice\program\unopkg.exe contains a reference to a &quot;Launch Process&quot; related API kernel32.dll!CreateProcessW" />
+          <MESSAGE TEXT="File app\resources\tools\libreoffice\program\python-core-3.12.14\lib\pip\_vendor\distlib\w64.exe contains a reference to a &quot;Launch Process&quot; related API kernel32.dll!CreateProcessW" />
+          <MESSAGE TEXT="File app\resources\tools\libreoffice\program\sdraw.exe contains a reference to a &quot;Launch Process&quot; related API kernel32.dll!CreateProcessW" />
+          <MESSAGE TEXT="File app\resources\tools\libreoffice\program\python-core-3.12.14\lib\pip\_vendor\distlib\w32.exe contains a reference to a &quot;Launch Process&quot; related API kernel32.dll!CreateProcessW" />
+          <MESSAGE TEXT="File app\resources\tools\libreoffice\program\spsupp_x64.dll contains a reference to a &quot;Launch Process&quot; related API kernel32.dll!CreateProcessW" />
+          <MESSAGE TEXT="File app\resources\tools\libreoffice\program\python-core-3.12.14\lib\setuptools\gui-32.exe contains a reference to a &quot;Launch Process&quot; related API kernel32.dll!CreateProcessA" />
+          <MESSAGE TEXT="File app\resources\tools\libreoffice\program\python-core-3.12.14\lib\setuptools\gui.exe contains a reference to a &quot;Launch Process&quot; related API kernel32.dll!CreateProcessA" />
+          <MESSAGE TEXT="File app\resources\tools\libreoffice\program\python-core-3.12.14\lib\setuptools\cli-arm64.exe contains a reference to a &quot;Launch Process&quot; related API kernel32.dll!CreateProcessA" />
+          <MESSAGE TEXT="File app\resources\tools\libreoffice\program\update_service.exe contains a reference to a &quot;Launch Process&quot; related API kernel32.dll!CreateProcessW" />
+          <MESSAGE TEXT="File app\resources\tools\libreoffice\program\scnlo.dll contains a reference to a &quot;Launch Process&quot; related API kernel32.dll!CreateProcessW" />
+          <MESSAGE TEXT="File app\resources\tools\libreoffice\program\sal3.dll contains a reference to a &quot;Launch Process&quot; related API kernel32.dll!CreateProcessW" />
+          <MESSAGE TEXT="File app\resources\tools\libreoffice\program\Engine12.dll contains a reference to a &quot;Launch Process&quot; related API kernel32.dll!CreateProcessA" />
+          <MESSAGE TEXT="File app\resources\tools\ffmpeg\bin\ffprobe.exe contains a reference to a &quot;Launch Process&quot; related API kernel32.dll!CreateProcessW" />
+          <MESSAGE TEXT="File app\resources\tools\ffmpeg\bin\ffmpeg.exe contains a reference to a &quot;Launch Process&quot; related API kernel32.dll!CreateProcessW" />
+          <MESSAGE TEXT="File app\resources\tools\libreoffice\program\scalc.exe contains a reference to a &quot;Launch Process&quot; related API kernel32.dll!CreateProcessW" />
+          <MESSAGE TEXT="File app\resources\tools\libreoffice\program\gpgmepp.dll contains a reference to a &quot;Launch Process&quot; related API kernel32.dll!CreateProcessW" />
+          <MESSAGE TEXT="File app\resources\tools\ffmpeg\bin\ffplay.exe contains a reference to a &quot;Launch Process&quot; related API kernel32.dll!CreateProcessW" />
+          <MESSAGE TEXT="File app\resources\tools\ffmpeg\bin\ffplay.exe contains a reference to a &quot;Launch Process&quot; related API shell32.dll!ShellExecuteW" />
+          <MESSAGE TEXT="File app\resources\tools\libreoffice\program\intl\fbintl.dll contains a reference to a &quot;Launch Process&quot; related API kernel32.dll!CreateProcessA" />
+          <MESSAGE TEXT="File app\SwiftLocal.exe contains a reference to a &quot;Launch Process&quot; related API kernel32.dll!CreateProcessW" />
+          <MESSAGE TEXT="File app\resources\tools\libreoffice\program\swriter.exe contains a reference to a &quot;Launch Process&quot; related API kernel32.dll!CreateProcessW" />
+          <MESSAGE TEXT="File app\resources\tools\libreoffice\program\soffice.exe contains a reference to a &quot;Launch Process&quot; related API kernel32.dll!CreateProcessW" />
+          <MESSAGE TEXT="File app\resources\tools\libreoffice\program\python-core-3.12.14\lib\setuptools\gui-arm64.exe contains a reference to a &quot;Launch Process&quot; related API kernel32.dll!CreateProcessA" />
+          <MESSAGE TEXT="File app\resources\tools\tesseract\libgio-2.0-0.dll contains a reference to a &quot;Launch Process&quot; related API kernel32.dll!CreateProcessW" />
+          <MESSAGE TEXT="File app\resources\tools\libreoffice\program\python-core-3.12.14\lib\setuptools\gui-64.exe contains a reference to a &quot;Launch Process&quot; related API kernel32.dll!CreateProcessA" />
+          <MESSAGE TEXT="File app\resources\tools\libreoffice\program\ifbclient.dll contains a reference to a &quot;Launch Process&quot; related API kernel32.dll!CreateProcessA" />
+          <MESSAGE TEXT="File app\resources\tools\libreoffice\program\python.exe contains a reference to a &quot;Launch Process&quot; related API kernel32.dll!CreateProcessW" />
+          <MESSAGE TEXT="File app\resources\tools\libreoffice\program\python-core-3.12.14\lib\pip\_vendor\distlib\t32.exe contains a reference to a &quot;Launch Process&quot; related API kernel32.dll!CreateProcessW" />
+          <MESSAGE TEXT="File app\resources\tools\libreoffice\program\python-core-3.12.14\lib\pip\_vendor\distlib\t64-arm.exe contains a reference to a &quot;Launch Process&quot; related API kernel32.dll!CreateProcessW" />
+          <MESSAGE TEXT="File app\resources\tools\libreoffice\program\python312.dll contains a reference to a &quot;Launch Process&quot; related API kernel32.dll!CreateProcessW" />
+          <MESSAGE TEXT="File app\resources\tools\libreoffice\program\python312.dll contains a reference to a &quot;Launch Process&quot; related API shell32.dll!ShellExecuteW" />
+          <MESSAGE TEXT="File app\resources\tools\libreoffice\program\spsupp_x86.dll contains a reference to a &quot;Launch Process&quot; related API kernel32.dll!CreateProcessW" />
+          <MESSAGE TEXT="File app\resources\tools\libreoffice\program\sbase.exe contains a reference to a &quot;Launch Process&quot; related API kernel32.dll!CreateProcessW" />
+          <MESSAGE TEXT="File app\resources\tools\libreoffice\program\mergedlo.dll contains a reference to a &quot;Launch Process&quot; related API kernel32.dll!CreateProcessW" />
+          <MESSAGE TEXT="File app\resources\tools\libreoffice\program\python-core-3.12.14\bin\venvlauncher.exe contains a reference to a &quot;Launch Process&quot; related API kernel32.dll!CreateProcessW" />
+          <MESSAGE TEXT="File app\resources\tools\libreoffice\program\updater.exe contains a reference to a &quot;Launch Process&quot; related API kernel32.dll!CreateProcessW" />
+          <MESSAGE TEXT="File app\resources\tools\libreoffice\program\updater.exe contains a reference to a &quot;Launch Process&quot; related API shell32.dll!ShellExecuteExW" />
+          <MESSAGE TEXT="File app\resources\tools\libreoffice\program\nspr4.dll contains a reference to a &quot;Launch Process&quot; related API kernel32.dll!CreateProcessA" />
+          <MESSAGE TEXT="File app\resources\tools\libreoffice\program\smath.exe contains a reference to a &quot;Launch Process&quot; related API kernel32.dll!CreateProcessW" />
+          <MESSAGE TEXT="File app\resources\tools\libreoffice\program\soffice_safe.exe contains a reference to a &quot;Launch Process&quot; related API kernel32.dll!CreateProcessW" />
+          <MESSAGE TEXT="File app\resources\tools\yt-dlp\bin\yt-dlp.exe contains a reference to a &quot;Launch Process&quot; related API kernel32.dll!CreateProcessW" />
+          <MESSAGE TEXT="File app\resources\tools\libreoffice\program\python-core-3.12.14\lib\pip\_vendor\distlib\w64-arm.exe contains a reference to a &quot;Launch Process&quot; related API kernel32.dll!CreateProcessW" />
+          <MESSAGE TEXT="File app\resources\tools\libreoffice\program\spsupp_helper.exe contains a reference to a &quot;Launch Process&quot; related API kernel32.dll!CreateProcessW" />
+          <MESSAGE TEXT="File app\resources\tools\libreoffice\program\gpgme-w32spawn.exe contains a reference to a &quot;Launch Process&quot; related API kernel32.dll!CreateProcessW" />
+          <MESSAGE TEXT="File app\resources\tools\tesseract\libglib-2.0-0.dll contains a reference to a &quot;Launch Process&quot; related API kernel32.dll!CreateProcessW" />
+          <MESSAGE TEXT="File app\resources\tools\libreoffice\program\soffice.com contains a reference to a &quot;Launch Process&quot; related API kernel32.dll!CreateProcessW" />
+          <MESSAGE TEXT="File app\resources\tools\tesseract\libtesseract-5.dll contains a reference to a &quot;Launch Process&quot; related API kernel32.dll!CreateProcessA" />
+          <MESSAGE TEXT="File app\resources\tools\tesseract\libarchive-13.dll contains a reference to a &quot;Launch Process&quot; related API kernel32.dll!CreateProcessA" />
+          <MESSAGE TEXT="File chrome_200_percent.pak contains a blocked executable reference to &quot;ReG&quot;." />
+          <MESSAGE TEXT="File chrome_200_percent.pak contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File d3dcompiler_47.dll contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File d3dcompiler_47.dll contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File dxcompiler.dll contains a blocked executable reference to &quot;BasH&quot;." />
+          <MESSAGE TEXT="File dxcompiler.dll contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File icudtl.dat contains a blocked executable reference to &quot;Reg&quot;." />
+          <MESSAGE TEXT="File resources.pak contains a blocked executable reference to &quot;CDB&quot;." />
+          <MESSAGE TEXT="File resources.pak contains a blocked executable reference to &quot;reG&quot;." />
+          <MESSAGE TEXT="File resources.pak contains a blocked executable reference to &quot;dnX&quot;." />
+          <MESSAGE TEXT="File resources.pak contains a blocked executable reference to &quot;CSi&quot;." />
+          <MESSAGE TEXT="File resources.pak contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File resources.pak contains a blocked executable reference to &quot;BASh&quot;." />
+          <MESSAGE TEXT="File SwiftLocal.exe contains a blocked executable reference to &quot;REG&quot;." />
+          <MESSAGE TEXT="File SwiftLocal.exe contains a blocked executable reference to &quot;cSI&quot;." />
+          <MESSAGE TEXT="File SwiftLocal.exe contains a blocked executable reference to &quot;CDB&quot;." />
+          <MESSAGE TEXT="File SwiftLocal.exe contains a blocked executable reference to &quot;DNx&quot;." />
+          <MESSAGE TEXT="File SwiftLocal.exe contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File SwiftLocal.exe contains a blocked executable reference to &quot;cmd.exe&quot;." />
+          <MESSAGE TEXT="File SwiftLocal.exe contains a blocked executable reference to &quot;bash&quot;." />
+          <MESSAGE TEXT="File vk_swiftshader.dll contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File af.pak contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File sv.pak contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File zh-CN.pak contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File app.asar contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File app.asar contains a blocked executable reference to &quot;cScript&quot;." />
+          <MESSAGE TEXT="File app.asar contains a blocked executable reference to &quot;CdB&quot;." />
+          <MESSAGE TEXT="File app.asar contains a blocked executable reference to &quot;PowerShell&quot;." />
+          <MESSAGE TEXT="File skia.win32-x64-msvc.node contains a blocked executable reference to &quot;DnX&quot;." />
+          <MESSAGE TEXT="File deno.exe contains a blocked executable reference to &quot;ReG&quot;." />
+          <MESSAGE TEXT="File deno.exe contains a blocked executable reference to &quot;dnx&quot;." />
+          <MESSAGE TEXT="File deno.exe contains a blocked executable reference to &quot;Csi&quot;." />
+          <MESSAGE TEXT="File deno.exe contains a blocked executable reference to &quot;bash&quot;." />
+          <MESSAGE TEXT="File deno.exe contains a blocked executable reference to &quot;powershell.exe&quot;." />
+          <MESSAGE TEXT="File deno.exe contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File deno.exe contains a blocked executable reference to &quot;cmd.exe&quot;." />
+          <MESSAGE TEXT="File deno.exe contains a blocked executable reference to &quot;\cmd.exe&quot;." />
+          <MESSAGE TEXT="File ffmpeg.exe contains a blocked executable reference to &quot;cmD&quot;." />
+          <MESSAGE TEXT="File ffmpeg.exe contains a blocked executable reference to &quot;rEG&quot;." />
+          <MESSAGE TEXT="File ffmpeg.exe contains a blocked executable reference to &quot;cdB&quot;." />
+          <MESSAGE TEXT="File ffmpeg.exe contains a blocked executable reference to &quot;Dnx&quot;." />
+          <MESSAGE TEXT="File ffmpeg.exe contains a blocked executable reference to &quot;BAsh&quot;." />
+          <MESSAGE TEXT="File ffmpeg.exe contains a blocked executable reference to &quot;csi&quot;." />
+          <MESSAGE TEXT="File ffplay.exe contains a blocked executable reference to &quot;CdB&quot;." />
+          <MESSAGE TEXT="File ffplay.exe contains a blocked executable reference to &quot;cmD&quot;." />
+          <MESSAGE TEXT="File ffplay.exe contains a blocked executable reference to &quot;csi&quot;." />
+          <MESSAGE TEXT="File ffplay.exe contains a blocked executable reference to &quot;rEG&quot;." />
+          <MESSAGE TEXT="File ffplay.exe contains a blocked executable reference to &quot;Dnx&quot;." />
+          <MESSAGE TEXT="File ffplay.exe contains a blocked executable reference to &quot;BAsh&quot;." />
+          <MESSAGE TEXT="File ffprobe.exe contains a blocked executable reference to &quot;cmD&quot;." />
+          <MESSAGE TEXT="File ffprobe.exe contains a blocked executable reference to &quot;rEG&quot;." />
+          <MESSAGE TEXT="File ffprobe.exe contains a blocked executable reference to &quot;cdB&quot;." />
+          <MESSAGE TEXT="File ffprobe.exe contains a blocked executable reference to &quot;Dnx&quot;." />
+          <MESSAGE TEXT="File ffprobe.exe contains a blocked executable reference to &quot;BAsh&quot;." />
+          <MESSAGE TEXT="File ffprobe.exe contains a blocked executable reference to &quot;csi&quot;." />
+          <MESSAGE TEXT="File CREDITS.fodt contains a blocked executable reference to &quot;Reg&quot;." />
+          <MESSAGE TEXT="File CREDITS.fodt contains a blocked executable reference to &quot;csi&quot;." />
+          <MESSAGE TEXT="File CoinMP.dll contains a blocked executable reference to &quot;CdB&quot;." />
+          <MESSAGE TEXT="File icudt78.dll contains a blocked executable reference to &quot;Reg&quot;." />
+          <MESSAGE TEXT="File icudt78.dll contains a blocked executable reference to &quot;CSI&quot;." />
+          <MESSAGE TEXT="File icuin78.dll contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File libcrypto-3.dll contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File libssl-3.dll contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File libxml2.dll contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File mergedlo.dll contains a blocked executable reference to &quot;Cdb&quot;." />
+          <MESSAGE TEXT="File mergedlo.dll contains a blocked executable reference to &quot;dNX&quot;." />
+          <MESSAGE TEXT="File mergedlo.dll contains a blocked executable reference to &quot;cmD&quot;." />
+          <MESSAGE TEXT="File mergedlo.dll contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File mergedlo.dll contains a blocked executable reference to &quot;cSI&quot;." />
+          <MESSAGE TEXT="File odfgen.dll contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File orcus.dll contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File pdfimportlo.dll contains a blocked executable reference to &quot;Reg&quot;." />
+          <MESSAGE TEXT="File pdfiumlo.dll contains a blocked executable reference to &quot;CDB&quot;." />
+          <MESSAGE TEXT="File pdfiumlo.dll contains a blocked executable reference to &quot;Reg&quot;." />
+          <MESSAGE TEXT="File python312.dll contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File sal3.dll contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File scfiltlo.dll contains a blocked executable reference to &quot;CSI&quot;." />
+          <MESSAGE TEXT="File sclo.dll contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File scuilo.dll contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File sdlo.dll contains a blocked executable reference to &quot;cSi&quot;." />
+          <MESSAGE TEXT="File sdlo.dll contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File sdlo.dll contains a blocked executable reference to &quot;cDb&quot;." />
+          <MESSAGE TEXT="File sduilo.dll contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File skialo.dll contains a blocked executable reference to &quot;CmD&quot;." />
+          <MESSAGE TEXT="File skialo.dll contains a blocked executable reference to &quot;cDb&quot;." />
+          <MESSAGE TEXT="File smlo.dll contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File staroffice.dll contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File swlo.dll contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File swlo.dll contains a blocked executable reference to &quot;CsI&quot;." />
+          <MESSAGE TEXT="File swuilo.dll contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File unohelper.py contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File vclplug_winlo.dll contains a blocked executable reference to &quot;CdB&quot;." />
+          <MESSAGE TEXT="File xpdfimport.exe contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File hsqldb.jar contains a blocked executable reference to &quot;CSI&quot;." />
+          <MESSAGE TEXT="File js.jar contains a blocked executable reference to &quot;CSi&quot;." />
+          <MESSAGE TEXT="File js.jar contains a blocked executable reference to &quot;CDb&quot;." />
+          <MESSAGE TEXT="File liblayout.jar contains a blocked executable reference to &quot;REG&quot;." />
+          <MESSAGE TEXT="File libreoffice.jar contains a blocked executable reference to &quot;CmD&quot;." />
+          <MESSAGE TEXT="File bdb.py contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File cmd.py contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File cProfile.py contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File ftplib.py contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File imaplib.py contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File nntplib.py contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File os.py contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File pdb.py contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File pipes.py contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File platform.py contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File poplib.py contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File profile.py contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File pstats.py contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File pydoc.py contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File shutil.py contains a blocked executable reference to &quot;CMD&quot;." />
+          <MESSAGE TEXT="File shutil.py contains a blocked executable reference to &quot;cmd.exe&quot;." />
+          <MESSAGE TEXT="File site.py contains a blocked executable reference to &quot;PowerShell&quot;." />
+          <MESSAGE TEXT="File smtplib.py contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File subprocess.py contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File subprocess.py contains a blocked executable reference to &quot;cmd.exe&quot;." />
+          <MESSAGE TEXT="File telnetlib.py contains a blocked executable reference to &quot;CMD&quot;." />
+          <MESSAGE TEXT="File trace.py contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File unicodedata.pyd contains a blocked executable reference to &quot;CSI&quot;." />
+          <MESSAGE TEXT="File unicodedata.pyd contains a blocked executable reference to &quot;BASH&quot;." />
+          <MESSAGE TEXT="File webbrowser.py contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File _aix_support.py contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File _osx_support.py contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File _socket.pyd contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File base_events.py contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File events.py contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File util.py contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File cp273.py contains a blocked executable reference to &quot;CSI&quot;." />
+          <MESSAGE TEXT="File __init__.py contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File entities.py contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File forkserver.py contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File popen_spawn_posix.py contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File popen_spawn_win32.py contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File resource_tracker.py contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File completion.py contains a blocked executable reference to &quot;bash&quot;." />
+          <MESSAGE TEXT="File completion.py contains a blocked executable reference to &quot;powershell&quot;." />
+          <MESSAGE TEXT="File auth.py contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File versioncontrol.py contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File compat.py contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File index.py contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File distro.py contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File _mapping.py contains a blocked executable reference to &quot;Bash&quot;." />
+          <MESSAGE TEXT="File _mapping.py contains a blocked executable reference to &quot;PowerShell&quot;." />
+          <MESSAGE TEXT="File _mapping.py contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File _impl.py contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File pyopenssl.py contains a blocked executable reference to &quot;bash&quot;." />
+          <MESSAGE TEXT="File topics.py contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File build_meta.py contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File dist.py contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File installer.py contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File msvc.py contains a blocked executable reference to &quot;MSBuild&quot;." />
+          <MESSAGE TEXT="File sandbox.py contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File bdist_egg.py contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File easy_install.py contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File editable_wheel.py contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File egg_info.py contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File install.py contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File install_scripts.py contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File saveopts.py contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File _requirestxt.py contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File setupcfg.py contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File _apply_pyprojecttoml.py contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File core.py contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File dir_util.py contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File spawn.py contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File _macos_compat.py contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File base.py contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File msvc.py contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File unix.py contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File context.py contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File macosx_libfile.py contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File request.py contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File __init__.py contains a blocked executable reference to &quot;PowerShell&quot;." />
+          <MESSAGE TEXT="File cui.mo contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File cnr.mo contains a blocked executable reference to &quot;Reg&quot;." />
+          <MESSAGE TEXT="File cui.mo contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File svx.mo contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File basctl.mo contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File chart.mo contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File dba.mo contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File fps.mo contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File pcr.mo contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File sc.mo contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File sd.mo contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File sfx.mo contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File sm.mo contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File svx.mo contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File sw.mo contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File sca.mo contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File pcr.mo contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File sc.mo contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File sd.mo contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File sw.mo contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File flt.mo contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File svt.mo contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File vcl.mo contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File acor_ro-RO.dat contains a blocked executable reference to &quot;Reg&quot;." />
+          <MESSAGE TEXT="File template.bau contains a blocked executable reference to &quot;dNx&quot;." />
+          <MESSAGE TEXT="File standard.bau contains a blocked executable reference to &quot;CDB&quot;." />
+          <MESSAGE TEXT="File template.bau contains a blocked executable reference to &quot;Cdb&quot;." />
+          <MESSAGE TEXT="File standard.bau contains a blocked executable reference to &quot;REG&quot;." />
+          <MESSAGE TEXT="File DialogModul.xba contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File dlgConsole.xdl contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File dlgProgress.xdl contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File SF_Menu.xba contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File SF_PopupMenu.xba contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File additionsfragment.ui contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File appearance.ui contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File bulletandposition.ui contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File colorpage.ui contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File hyperlinknewdocpage.ui contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File optlingupage.ui contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File objectbrowser.ui contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File conditionwin.ui contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File floatingfield.ui contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File floatingsort.ui contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File notebookbar.ui contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File notebookbar_compact.ui contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File notebookbar_groups.ui contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File notebookbar_online.ui contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File standardfilterdialog.ui contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File customanimationspanel.ui contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File commentwidget.ui contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File navigatorpanel.ui contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File notebookbar_single.ui contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File pagecolumncontrol.ui contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File pagesizecontrol.ui contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File sidebarquickfind.ui contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File developmenttool.ui contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File linewindow.ui contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File classificationdialog.ui contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File colorwindow.ui contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File paralinespacingcontrol.ui contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File redlinefilterpage.ui contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File sidebargallery.ui contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File sidebarparagraph.ui contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File af_ZA.dic contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File hyph_af_ZA.dic contains a blocked executable reference to &quot;bash&quot;." />
+          <MESSAGE TEXT="File hyph_af_ZA.dic contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File an_ES.dic contains a blocked executable reference to &quot;Reg&quot;." />
+          <MESSAGE TEXT="File br_FR.dic contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File ca-valencia.dic contains a blocked executable reference to &quot;Bash&quot;." />
+          <MESSAGE TEXT="File ca-valencia.dic contains a blocked executable reference to &quot;Reg&quot;." />
+          <MESSAGE TEXT="File ca-valencia.dic contains a blocked executable reference to &quot;csi&quot;." />
+          <MESSAGE TEXT="File ca.dic contains a blocked executable reference to &quot;Bash&quot;." />
+          <MESSAGE TEXT="File ca.dic contains a blocked executable reference to &quot;Reg&quot;." />
+          <MESSAGE TEXT="File ca.dic contains a blocked executable reference to &quot;csi&quot;." />
+          <MESSAGE TEXT="File th_ca_ES_v3.dat contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File th_ca_ES_v3.idx contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File cs_CZ.dic contains a blocked executable reference to &quot;csi&quot;." />
+          <MESSAGE TEXT="File cs_CZ.dic contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File thes_cs_CZ.dat contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File thes_cs_CZ.idx contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File da_DK.dic contains a blocked executable reference to &quot;bash&quot;." />
+          <MESSAGE TEXT="File de_AT_frami.dic contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File de_CH_frami.dic contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File de_DE_frami.dic contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File th_de_CH_v2.dat contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File th_de_CH_v2.idx contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File th_de_DE_v2.dat contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File th_de_DE_v2.idx contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File en_AU.dic contains a blocked executable reference to &quot;bash&quot;." />
+          <MESSAGE TEXT="File en_AU.dic contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File en_CA.dic contains a blocked executable reference to &quot;bash&quot;." />
+          <MESSAGE TEXT="File en_CA.dic contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File en_GB.dic contains a blocked executable reference to &quot;bash&quot;." />
+          <MESSAGE TEXT="File en_GB.dic contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File en_US.dic contains a blocked executable reference to &quot;bash&quot;." />
+          <MESSAGE TEXT="File en_US.dic contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File en_ZA.dic contains a blocked executable reference to &quot;bash&quot;." />
+          <MESSAGE TEXT="File en_ZA.dic contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File th_en_US_v2.dat contains a blocked executable reference to &quot;bash&quot;." />
+          <MESSAGE TEXT="File th_en_US_v2.idx contains a blocked executable reference to &quot;bash&quot;." />
+          <MESSAGE TEXT="File eo.dic contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File es_AR.dic contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File es_BO.dic contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File es_CL.dic contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File es_CO.dic contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File es_CR.dic contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File es_CU.dic contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File es_DO.dic contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File es_EC.dic contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File es_ES.dic contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File es_GQ.dic contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File es_GT.dic contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File es_HN.dic contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File es_MX.dic contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File es_NI.dic contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File es_PA.dic contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File es_PE.dic contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File es_PH.dic contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File es_PR.dic contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File es_PY.dic contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File es_SV.dic contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File es_US.dic contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File es_UY.dic contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File es_VE.dic contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File th_es_v2.dat contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File th_es_v2.idx contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File fr.dic contains a blocked executable reference to &quot;CsI&quot;." />
+          <MESSAGE TEXT="File fr.dic contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File gd_GB.dic contains a blocked executable reference to &quot;Reg&quot;." />
+          <MESSAGE TEXT="File gl_ES.aff contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File gl_ES.dic contains a blocked executable reference to &quot;Bash&quot;." />
+          <MESSAGE TEXT="File gl_ES.dic contains a blocked executable reference to &quot;CDB&quot;." />
+          <MESSAGE TEXT="File gl_ES.dic contains a blocked executable reference to &quot;csi&quot;." />
+          <MESSAGE TEXT="File gl_ES.dic contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File hu_HU.aff contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File hu_HU.aff contains a blocked executable reference to &quot;csi&quot;." />
+          <MESSAGE TEXT="File hu_HU.dic contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File hu_HU.dic contains a blocked executable reference to &quot;csi&quot;." />
+          <MESSAGE TEXT="File hu_HU.dic contains a blocked executable reference to &quot;rcsi&quot;." />
+          <MESSAGE TEXT="File hyph_hu_HU.dic contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File th_hu_HU_v2.dat contains a blocked executable reference to &quot;Reg&quot;." />
+          <MESSAGE TEXT="File th_hu_HU_v2.dat contains a blocked executable reference to &quot;csi&quot;." />
+          <MESSAGE TEXT="File th_hu_HU_v2.idx contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File th_hu_HU_v2.idx contains a blocked executable reference to &quot;csi&quot;." />
+          <MESSAGE TEXT="File is.dic contains a blocked executable reference to &quot;Reg&quot;." />
+          <MESSAGE TEXT="File lt.dic contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File lv_LV.dic contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File nl_NL.dic contains a blocked executable reference to &quot;bash&quot;." />
+          <MESSAGE TEXT="File nb_NO.dic contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File nn_NO.dic contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File oc_FR.dic contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File pl_PL.dic contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File pt_BR.dic contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File pt_BR.dic contains a blocked executable reference to &quot;csi&quot;." />
+          <MESSAGE TEXT="File th_pt_BR.dat contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File th_pt_BR.idx contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File lightproof_impl_pt_BR.py contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File pt_PT.dic contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File th_pt_PT.dat contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File th_pt_PT.idx contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File ro_RO.dic contains a blocked executable reference to &quot;bash&quot;." />
+          <MESSAGE TEXT="File ro_RO.dic contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File th_ro_RO_v2.dat contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File th_ro_RO_v2.dat contains a blocked executable reference to &quot;csi&quot;." />
+          <MESSAGE TEXT="File th_ro_RO_v2.idx contains a blocked executable reference to &quot;csi&quot;." />
+          <MESSAGE TEXT="File th_ro_RO_v2.idx contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File sk_SK.dic contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File th_sk_SK_v2.dat contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File th_sk_SK_v2.idx contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File sl_SI.dic contains a blocked executable reference to &quot;CDB&quot;." />
+          <MESSAGE TEXT="File sl_SI.dic contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File sl_SI.dic contains a blocked executable reference to &quot;CMD&quot;." />
+          <MESSAGE TEXT="File sq_AL.dic contains a blocked executable reference to &quot;bash&quot;." />
+          <MESSAGE TEXT="File sq_AL.dic contains a blocked executable reference to &quot;CDB&quot;." />
+          <MESSAGE TEXT="File sq_AL.dic contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File sr-Latn.aff contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File sv_FI.dic contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File sv_SE.dic contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File tr_TR.dic contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File help.jar contains a blocked executable reference to &quot;cMD&quot;." />
+          <MESSAGE TEXT="File help.ht_ contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File _0.cfs contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File help.jar contains a blocked executable reference to &quot;dNX&quot;." />
+          <MESSAGE TEXT="File arrows.sdv contains a blocked executable reference to &quot;Dnx&quot;." />
+          <MESSAGE TEXT="File bpmn.sdv contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File bullets.sdg contains a blocked executable reference to &quot;cMD&quot;." />
+          <MESSAGE TEXT="File diagrams.sdg contains a blocked executable reference to &quot;DNx&quot;." />
+          <MESSAGE TEXT="File flowchart.sdg contains a blocked executable reference to &quot;\Csi&quot;." />
+          <MESSAGE TEXT="File symbolshapes.sdv contains a blocked executable reference to &quot;Csi&quot;." />
+          <MESSAGE TEXT="File symbolshapes.sdv contains a blocked executable reference to &quot;DNx&quot;." />
+          <MESSAGE TEXT="File language-subtag-registry.xml contains a blocked executable reference to &quot;csi&quot;." />
+          <MESSAGE TEXT="File language-subtag-registry.xml contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File hu_Hung.sor contains a blocked executable reference to &quot;csi&quot;." />
+          <MESSAGE TEXT="File standard.sob contains a blocked executable reference to &quot;cDb&quot;." />
+          <MESSAGE TEXT="File standard.sob contains a blocked executable reference to &quot;dnX&quot;." />
+          <MESSAGE TEXT="File main.xcd contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File writer.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_ab.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_af.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_am.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_ar.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_as.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_ast.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_be.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_bg.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_bn-IN.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_bn.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_bo.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_br.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_brx.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_bs.xcd contains a blocked executable reference to &quot;Reg&quot;." />
+          <MESSAGE TEXT="File registry_bs.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_ckb.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_cs.xcd contains a blocked executable reference to &quot;Reg&quot;." />
+          <MESSAGE TEXT="File registry_cs.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_cy.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_da.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_dgo.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_dsb.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_dz.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_el.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_en-GB.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_en-ZA.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_et.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_eu.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_fa.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_fi.xcd contains a blocked executable reference to &quot;CMD&quot;." />
+          <MESSAGE TEXT="File registry_fr.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_fur.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_fy.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_ga.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_gd.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_gl.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_gu.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_gug.xcd contains a blocked executable reference to &quot;Reg&quot;." />
+          <MESSAGE TEXT="File registry_gug.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_he.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_hi.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_hr.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_hsb.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_hu.xcd contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File registry_hu.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_hy.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_id.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_is.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_it.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_ja.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_ka.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_kab.xcd contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File registry_kab.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_kk.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_km.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_kmr-Latn.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_kn.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_ko.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_kok.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_ks.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_lb.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_lo.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_lt.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_lv.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_mai.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_mk.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_ml.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_mni.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_mr.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_my.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_nb.xcd contains a blocked executable reference to &quot;Reg&quot;." />
+          <MESSAGE TEXT="File registry_nb.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_ne.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_nl.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_nn.xcd contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File registry_nn.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_nr.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_nso.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_oc.xcd contains a blocked executable reference to &quot;Reg&quot;." />
+          <MESSAGE TEXT="File registry_oc.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_om.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_or.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_pa-IN.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_pl.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_pt-BR.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_pt.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_qtz.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_ro.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_ru.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_rw.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_sa-IN.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_sat.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_sd.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_si.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_sid.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_sk.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_sl.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_sq.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_sr-Latn.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_sr.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_ss.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_st.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_sv.xcd contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File registry_sv.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_sw-TZ.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_szl.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_ta.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_te.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_tg.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_th.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_tl.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_tn.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_tr.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_ts.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_tt.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_ug.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_uk.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_uz.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_ve.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_vec.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_vi.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_xh.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_zh-CN.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_zh-TW.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File registry_zu.xcd contains a blocked executable reference to &quot;Cmd&quot;." />
+          <MESSAGE TEXT="File Resume1page.ott contains a blocked executable reference to &quot;cDB&quot;." />
+          <MESSAGE TEXT="File Candy.otp contains a blocked executable reference to &quot;Cdb&quot;." />
+          <MESSAGE TEXT="File Freshes.otp contains a blocked executable reference to &quot;rEg&quot;." />
+          <MESSAGE TEXT="File Freshes.otp contains a blocked executable reference to &quot;CsI&quot;." />
+          <MESSAGE TEXT="File Vintage.otp contains a blocked executable reference to &quot;CDb&quot;." />
+          <MESSAGE TEXT="File Vintage.otp contains a blocked executable reference to &quot;CMd&quot;." />
+          <MESSAGE TEXT="File Vintage.otp contains a blocked executable reference to &quot;DNX&quot;." />
+          <MESSAGE TEXT="File Vintage.otp contains a blocked executable reference to &quot;Csi&quot;." />
+          <MESSAGE TEXT="File cnt-011.ott contains a blocked executable reference to &quot;rEg&quot;." />
+          <MESSAGE TEXT="File stl-08.ott contains a blocked executable reference to &quot;cMd&quot;." />
+          <MESSAGE TEXT="File qpdf30.dll contains a blocked executable reference to &quot;bash&quot;." />
+          <MESSAGE TEXT="File qpdf30.dll contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File libarchive-13.dll contains a blocked executable reference to &quot;CMD&quot;." />
+          <MESSAGE TEXT="File libdeflate.dll contains a blocked executable reference to &quot;cmD&quot;." />
+          <MESSAGE TEXT="File libgcc_s_seh-1.dll contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File libiconv-2.dll contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File libicudt78.dll contains a blocked executable reference to &quot;Reg&quot;." />
+          <MESSAGE TEXT="File libicudt78.dll contains a blocked executable reference to &quot;CSI&quot;." />
+          <MESSAGE TEXT="File libicuin78.dll contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File libicuuc78.dll contains a blocked executable reference to &quot;CmD&quot;." />
+          <MESSAGE TEXT="File libidn2-0.dll contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File libleptonica-6.dll contains a blocked executable reference to &quot;cmd&quot;." />
+          <MESSAGE TEXT="File libstdc++-6.dll contains a blocked executable reference to &quot;reg&quot;." />
+          <MESSAGE TEXT="File libtesseract-5.dll contains a blocked executable reference to &quot;cMd&quot;." />
+          <MESSAGE TEXT="File libtesseract-5.dll contains a blocked executable reference to &quot;Dnx&quot;." />
+          <MESSAGE TEXT="File libtesseract-5.dll contains a blocked executable reference to &quot;cdB&quot;." />
+          <MESSAGE TEXT="File libunistring-5.dll contains a blocked executable reference to &quot;dnx&quot;." />
+          <MESSAGE TEXT="File libunistring-5.dll contains a blocked executable reference to &quot;cMD&quot;." />
+          <MESSAGE TEXT="File chi_tra.traineddata contains a blocked executable reference to &quot;CDB&quot;." />
+          <MESSAGE TEXT="File osd.traineddata contains a blocked executable reference to &quot;CMD&quot;." />
+          <MESSAGE TEXT="File osd.traineddata contains a blocked executable reference to &quot;reG&quot;." />
+          <MESSAGE TEXT="File osd.traineddata contains a blocked executable reference to &quot;CDb&quot;." />
+          <MESSAGE TEXT="File osd.traineddata contains a blocked executable reference to &quot;dnx&quot;." />
+          <MESSAGE TEXT="File yt-dlp.exe contains a blocked executable reference to &quot;CDb&quot;." />
+          <MESSAGE TEXT="File yt-dlp.exe contains a blocked executable reference to &quot;CMd&quot;." />
+          <MESSAGE TEXT="File yt-dlp.exe contains a blocked executable reference to &quot;rEg&quot;." />
+          <MESSAGE TEXT="File yt-dlp.exe contains a blocked executable reference to &quot;csI&quot;." />
+          <MESSAGE TEXT="File yt-dlp.exe contains a blocked executable reference to &quot;dNX&quot;." />
+          <MESSAGE TEXT="File yt-dlp.exe contains a blocked executable reference to &quot;a\CDB&quot;." />
+        </MESSAGES>
+        <RESULT>FAIL</RESULT>
+      </TEST>
+      <TEST INDEX="63" NAME="Platform appropriate files" DESCRIPTION="App should not install files that do not match the target processor architecture." EXECUTIONTIME="00h:00m:01s.78ms" OPTIONAL="TRUE">
+        <MESSAGES />
+        <RESULT>PASS</RESULT>
+      </TEST>
+    </REQUIREMENT>
+    <REQUIREMENT NUMBER="26" TITLE="High-DPI support" RATIONALE="The application needs to set DPI-aware to make the UI look consistently good across a wide variety of high-DPI display settings.">
+      <TEST INDEX="92" NAME="DPIAwarenessValidation" DESCRIPTION="Applications should set DPI-aware to make its UI look consistently good across a wide variety of high-DPI display settings." EXECUTIONTIME="00h:00m:01s.07ms" OPTIONAL="FALSE">
+        <MESSAGES />
+        <RESULT>PASS</RESULT>
+      </TEST>
+    </REQUIREMENT>
+  </REQUIREMENTS>
+  </REPORT>
