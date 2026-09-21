@@ -18,7 +18,7 @@ test("Store overlay preserves NSIS config and always includes Full tools", () =>
   assert.ok(store.win.extraResources[0].filter.includes("libreoffice/**/*"));
   assert.equal(store.publish, null);
   assert.equal(store.appx.publisher, "CN=SwiftLocal Store Spike TEST");
-  assert.equal(require("../../package.json").version, "0.4.1");
+  assert.equal(store.extraMetadata.version, undefined, "Store overlay must not change the product version");
 });
 test("Store paths are writable and independent of package install/CWD", () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "swiftlocal-store-test-"));

@@ -21,6 +21,9 @@ $report = [ordered]@{ commit = $env:GITHUB_SHA; os = (Get-CimInstance Win32_Oper
 $certificate = $null; $installed = $null
 $working = Join-Path $env:TEMP ('SwiftLocal Store 中文 ' + [Guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory $working | Out-Null
+$documents = Join-Path $env:USERPROFILE ('Downloads/SwiftLocal TEST 中文 ' + [Guid]::NewGuid().ToString('N').Substring(0,8))
+New-Item -ItemType Directory $documents | Out-Null
+$report.documentRoot = $documents
 try {
   # Non-exportable key stays in disposable Windows certificate store. No PFX/password.
   $certificate = New-SelfSignedCertificate -Type Custom -Subject 'CN=SwiftLocal Store Spike TEST' -FriendlyName 'SwiftLocal Store TEST' -KeyUsage DigitalSignature -KeyAlgorithm RSA -KeyLength 2048 -HashAlgorithm SHA256 -KeyExportPolicy NonExportable -CertStoreLocation 'Cert:/LocalMachine/My' -NotAfter (Get-Date).AddDays(3) -TextExtension @('2.5.29.37={text}1.3.6.1.5.5.7.3.3','2.5.29.19={text}')
@@ -48,25 +51,32 @@ try {
   $progIds = @($candidates | Where-Object { $pdfKey -and $_ -in $pdfKey.GetValueNames() })
   if ($progIds.Count -ne 1) { throw "Expected one package PDF Open With ProgID; found $($progIds -join ',')" }
   $report.pdfProgId = $progIds[0]
-  $fixtures = Join-Path $working '輸入 文件'; New-Item -ItemType Directory $fixtures | Out-Null
+  # Match real document usage: Unicode input/output in Downloads, outside virtualized AppData.
+  $fixtures = Join-Path $documents '輸入 文件'; New-Item -ItemType Directory $fixtures | Out-Null
   Copy-Item 'smoke-temp/release-queue-check/input/*' $fixtures
   $profile = Join-Path $env:APPDATA 'SwiftLocal Store TEST'
   # Desktop Bridge may virtualize AppData; choose the actual package profile after activation if needed.
-  $config = @{ exe = Join-Path $installed.InstallLocation 'app/SwiftLocal.exe'; evidence = $Evidence; output = (Join-Path $working '輸出 文件'); fixtures = $fixtures; powershell = "$env:SystemRoot/System32/WindowsPowerShell/v1.0/powershell.exe"; activate = (Join-Path $PSScriptRoot 'store-activate.ps1'); shellOpen = (Join-Path $PSScriptRoot 'store-shell-open-pdf.ps1'); aumid = $aumid; progId = $progIds[0]; profile = $profile }
+  $config = @{ exe = Join-Path $installed.InstallLocation 'app/SwiftLocal.exe'; evidence = $Evidence; output = (Join-Path $documents '輸出 文件'); fixtures = $fixtures; powershell = "$env:SystemRoot/System32/WindowsPowerShell/v1.0/powershell.exe"; activate = (Join-Path $PSScriptRoot 'store-activate.ps1'); shellOpen = (Join-Path $PSScriptRoot 'store-shell-open-pdf.ps1'); aumid = $aumid; progId = $progIds[0]; profile = $profile }
   $configPath = Join-Path $working 'config.json'; $config | ConvertTo-Json | Set-Content $configPath -Encoding UTF8
   $before = & node -e "const v=require('./scripts/verify-release-artifacts');const m=v.buildPayloadManifest(process.argv[1]);console.log(JSON.stringify(Object.fromEntries(Object.entries(m).map(([n,v])=>[n,{bytes:v.bytes,sha256:v.sha256}]))))" $installed.InstallLocation
   $before | Set-Content (Join-Path $Evidence 'installed-files-before.json')
   & node scripts/accept-store-windows.js $configPath store
-  if ($LASTEXITCODE -ne 0) { throw 'Installed Store conversion/activation acceptance failed' }
+  $report.smoke = $(if ($LASTEXITCODE -eq 0) { 'PASS' } else { 'FAIL' })
+  Get-WinEvent -FilterHashtable @{ LogName = 'Application'; Level = 2; StartTime = (Get-Date).AddMinutes(-15) } -ErrorAction SilentlyContinue | Where-Object { $_.Message -match 'soffice|LibreOffice|SwiftLocal' } | Select-Object TimeCreated, ProviderName, Id, Message | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $Evidence 'application-errors.json') -Encoding UTF8
   $after = & node -e "const v=require('./scripts/verify-release-artifacts');const m=v.buildPayloadManifest(process.argv[1]);console.log(JSON.stringify(Object.fromEntries(Object.entries(m).map(([n,v])=>[n,{bytes:v.bytes,sha256:v.sha256}]))))" $installed.InstallLocation
   if ($before -ne $after) { throw 'Installed package files changed during smoke' }
   $report.installedPayloadUnchanged = 'PASS'
   if ((Test-Path $wack) -and $RunWack) {
     & $wack reset
-    & $wack test -appxpackagepath $signed -reportoutputpath (Join-Path $Evidence 'wack.xml')
-    $report.wackExitCode = $LASTEXITCODE
-    $report.wack = 'EXECUTED — inspect wack.xml categories; execution is not PASS'
-    if (!(Test-Path (Join-Path $Evidence 'wack.xml'))) { throw 'WACK did not produce report' }
+    $wackReport = Join-Path $Evidence 'wack.xml'
+    $certification = Start-Process $wack -ArgumentList @('test', '-appxpackagepath', ('"' + $signed + '"'), '-reportoutputpath', ('"' + $wackReport + '"')) -PassThru
+    if (!$certification.WaitForExit(1200000)) {
+      Stop-Process -Id $certification.Id -Force -ErrorAction SilentlyContinue
+      $report.wack = 'UNVERIFIED — WACK exceeded 20-minute execution limit'
+    } else {
+      $report.wackExitCode = $certification.ExitCode
+      $report.wack = $(if (Test-Path $wackReport) { 'EXECUTED — inspect wack.xml categories; execution is not PASS' } else { 'UNVERIFIED — WACK ran without producing a report' })
+    }
   } elseif (Test-Path $wack) { $report.wack = 'UNVERIFIED — WACK present but not requested' }
 } catch {
   $report.error = $_.Exception.ToString()
@@ -88,4 +98,4 @@ try {
   }
   $report | ConvertTo-Json -Depth 8 | Set-Content (Join-Path $Evidence 'lifecycle.json') -Encoding UTF8
 }
-if ($report.uninstall -ne 'PASS' -or $report.pdfDefaultPreserved -ne 'PASS') { throw 'Uninstall/default-preservation verification failed' }
+if ($report.smoke -ne 'PASS' -or $report.uninstall -ne 'PASS' -or $report.pdfDefaultPreserved -ne 'PASS') { throw 'Installed Store acceptance failed; inspect lifecycle and conversion evidence' }

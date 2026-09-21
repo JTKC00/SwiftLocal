@@ -146,9 +146,9 @@ async function main(configFile, phase = "store") {
         if (["office-to-pdf", "pdf-to-searchable-pdf"].includes(type)) assert.equal(fs.readFileSync(outputPaths[0]).subarray(0, 5).toString(), "%PDF-");
         if (type === "pdf-to-searchable-pdf") {
           const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
-          const pdf = await getDocument({ data: new Uint8Array(fs.readFileSync(outputPaths[0])), useSystemFonts: true }).promise;
-          try { const page = await pdf.getPage(1); const text = (await page.getTextContent()).items.map(i => i.str || "").join(" "); assert.match(text, /SWIFTLOCAL|HONG\s*KONG/i); }
-          finally { await pdf.destroy(); }
+          const loading = getDocument({ data: new Uint8Array(fs.readFileSync(outputPaths[0])), useSystemFonts: true });
+          try { const pdf = await loading.promise; const page = await pdf.getPage(1); const text = (await page.getTextContent()).items.map(i => i.str || "").join(" "); assert.match(text, /SWIFTLOCAL|HONG\s*KONG/i); }
+          finally { await loading.destroy(); }
         }
         if (type === "pdf-to-office") {
           const sevenZip = await require("app-builder-lib/out/toolsets/7zip").getPath7za();
