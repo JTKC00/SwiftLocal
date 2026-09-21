@@ -76,6 +76,10 @@ try {
     } else {
       $report.wackExitCode = $certification.ExitCode
       $report.wack = $(if (Test-Path $wackReport) { 'EXECUTED — inspect wack.xml categories; execution is not PASS' } else { 'UNVERIFIED — WACK ran without producing a report' })
+      if (Test-Path $wackReport) {
+        & node scripts/read-store-wack.js $wackReport (Join-Path $Evidence 'wack-summary.json')
+        $report.wack = $(if ($LASTEXITCODE -eq 0) { 'PASS — review optional findings in wack-summary.json' } else { 'FAIL — report incomplete, invalid or required checks failed' })
+      }
     }
   } elseif (Test-Path $wack) { $report.wack = 'UNVERIFIED — WACK present but not requested' }
 } catch {
@@ -98,4 +102,4 @@ try {
   }
   $report | ConvertTo-Json -Depth 8 | Set-Content (Join-Path $Evidence 'lifecycle.json') -Encoding UTF8
 }
-if ($report.smoke -ne 'PASS' -or $report.uninstall -ne 'PASS' -or $report.pdfDefaultPreserved -ne 'PASS') { throw 'Installed Store acceptance failed; inspect lifecycle and conversion evidence' }
+if ($report.smoke -ne 'PASS' -or $report.uninstall -ne 'PASS' -or $report.pdfDefaultPreserved -ne 'PASS' -or $report.wack -like 'FAIL*') { throw 'Installed Store acceptance failed; inspect lifecycle and conversion evidence' }

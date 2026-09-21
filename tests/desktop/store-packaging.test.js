@@ -6,6 +6,15 @@ const path = require("node:path");
 const os = require("node:os");
 const { configureStorePaths } = require("../../build/store/runtime");
 const { validatePackagePath, verifyManifest } = require("../../scripts/verify-store-package");
+const { summarizeWack } = require("../../scripts/read-store-wack");
+test("WACK requires a complete matching report and passing required tests", () => {
+  const xml = '<REPORT APP_NAME="SwiftLocal.StoreSpike.TEST" APP_VERSION="1.0.0.0" OVERALL_RESULT="PASS" PARTIAL_RUN="FALSE"><TEST NAME="manifest" OPTIONAL="FALSE"><RESULT>PASS</RESULT></TEST><TEST NAME="process imports" OPTIONAL="TRUE"><RESULT>FAIL</RESULT></TEST></REPORT>';
+  assert.equal(summarizeWack(xml).status, "PASS");
+  assert.equal(summarizeWack(xml).optionalFailures, 1);
+  assert.equal(summarizeWack(xml.replace('PARTIAL_RUN="FALSE"', 'PARTIAL_RUN="TRUE"')).status, "FAIL");
+  assert.equal(summarizeWack(xml.replace('<RESULT>PASS</RESULT>', '<RESULT>FAIL</RESULT>')).status, "FAIL");
+  assert.throws(() => summarizeWack(xml.replace('SwiftLocal.StoreSpike.TEST', 'Another.Package')));
+});
 test("Store overlay preserves NSIS config and always includes Full tools", () => {
   const base = require("../../electron-builder.config");
   const before = JSON.stringify(base);
