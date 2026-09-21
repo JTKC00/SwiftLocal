@@ -15,7 +15,8 @@ if (process.argv.includes("--store-spike-probe")) {
     const exec = promisify(require("node:child_process").execFile);
     const { BackendService } = require("../../desktop/backend");
     const { resolveBundledMediaTool } = require("../../desktop/media-download");
-    const backend = new BackendService({ configPath: path.join(paths.userData, "probe-tools.json"), defaultOutputDir: paths.temp });
+    const backend = new BackendService({ configPath: path.join(paths.userData, "probe-tools.json"),
+      jobsStatePath: path.join(paths.userData, "probe-jobs.json"), defaultOutputDir: paths.temp });
     const tools = await backend.detectTools();
     const results = {};
     for (const [key, executable, args] of [
