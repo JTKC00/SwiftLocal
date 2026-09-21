@@ -61,13 +61,31 @@ jobs:
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
       - uses: actions/cache/restore@v4
+        id: native-cache
         with:
           path: ${{ runner.temp }}/swiftlocal-native-archives
           key: native-sources-ffmpeg9.0.1-qpdf12.4.1-tesseract5.5.3-lo26.2.6
+      - name: Fetch locked LibreOffice MSI with bounded download retries
+        shell: pwsh
+        run: |
+          $spec = (Get-Content tools/native-tools.lock.json -Raw | ConvertFrom-Json).tools.libreoffice
+          $cache = Join-Path '${{ runner.temp }}' 'swiftlocal-native-archives'
+          New-Item -ItemType Directory -Force $cache | Out-Null
+          $archive = Join-Path $cache $spec.archiveName
+          if (!(Test-Path $archive)) {
+            curl.exe --fail --location --retry 3 --retry-all-errors --connect-timeout 30 --max-time 600 --output $archive $spec.url
+            if ($LASTEXITCODE -ne 0) { throw 'Locked LibreOffice source download failed' }
+          }
+          if ((Get-FileHash $archive -Algorithm SHA256).Hash -ne $spec.sha256) { throw 'Locked LibreOffice source checksum mismatch' }
       - name: Provision locked Full payload
         env:
           SWIFTLOCAL_NATIVE_DIAGNOSTICS: store-evidence
         run: node scripts/ensure-native-tools.js --download --full --archive-cache "${{ runner.temp }}/swiftlocal-native-archives"
+      - uses: actions/cache/save@v4
+        if: steps.native-cache.outputs.cache-hit != 'true'
+        with:
+          path: ${{ runner.temp }}/swiftlocal-native-archives
+          key: native-sources-ffmpeg9.0.1-qpdf12.4.1-tesseract5.5.3-lo26.2.6
       - run: npm run tools:media-download
       - run: npm run tools:tessdata
       - name: Full native smoke and reproducible fixtures
