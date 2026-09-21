@@ -1,0 +1,99 @@
+name: Store Packaging Spike
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [store/msix-readiness]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: store-spike-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  regression:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-2025, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - run: npm ci
+      - run: python -m pip install -r backend/requirements.txt
+      - run: npm run typecheck
+      - run: npm run check:ci
+      - run: npm test
+      - run: git diff --check
+
+  package:
+    runs-on: windows-2025
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - name: Parse Store PowerShell and JavaScript
+        shell: pwsh
+        run: |
+          foreach ($file in Get-ChildItem scripts/*store*.ps1) {
+            $tokens = $null; $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile($file.FullName, [ref]$tokens, [ref]$errors) | Out-Null
+            if ($errors.Count) { throw ($errors | Out-String) }
+          }
+          foreach ($file in Get-ChildItem scripts/*store*.js,build/store/*.js,electron-builder.store.config.js) {
+            node --check $file.FullName
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+      - uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}/swiftlocal-native-archives
+          key: native-sources-ffmpeg9.0.1-qpdf12.4.1-tesseract5.5.3-lo26.2.6
+      - name: Provision locked Full payload
+        env:
+          SWIFTLOCAL_NATIVE_DIAGNOSTICS: store-evidence
+        run: node scripts/ensure-native-tools.js --download --full --archive-cache "${{ runner.temp }}/swiftlocal-native-archives"
+      - run: npm run tools:media-download
+      - run: npm run tools:tessdata
+      - name: Full native smoke and reproducible fixtures
+        run: node scripts/smoke-release.js --require-bundled --skip-tests
+      - name: Unicode OCR in real Electron runtime
+        run: node -e "const r=require('node:child_process').spawnSync(require('electron'),['scripts/smoke-windows-unicode-ocr.js'],{stdio:'inherit'});process.exit(r.status ?? 1)"
+      - name: Build and verify unchanged NSIS Full entrypoint
+        run: npm run pack:win:full:installer
+      - name: Build and extract-verify TEST AppX
+        run: npm run pack:win:store
+      - name: Install, activate, convert, certify and uninstall TEST package
+        shell: powershell
+        run: ./scripts/accept-store-package.ps1 -RunWack
+      - name: Retain Store evidence even on failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: store-spike-evidence
+          path: store-evidence/
+          retention-days: 14
+      - name: Retain unsigned AppX (no signing key or certificate)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: swiftlocal-appx-TEST
+          path: dist-store-test/*.appx
+          if-no-files-found: warn
+          compression-level: 0
+          retention-days: 14
