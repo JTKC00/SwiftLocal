@@ -153,8 +153,11 @@ async function main(configFile, phase = "store") {
         if (type === "pdf-to-office") {
           const sevenZip = await require("app-builder-lib/out/toolsets/7zip").getPath7za();
           const document = spawnSync(sevenZip, ["e", "-so", outputPaths[0], "word/document.xml"], { encoding: "utf8", windowsHide: true });
-          assert.equal(document.status, 0, document.stderr); assert.match(document.stdout, /<w:t[ >]/);
+          assert.equal(document.status, 0, document.stderr); assert.match(document.stdout, /SWIFTLOCAL STORE PDF/);
+          assert.match(document.stdout, /Invoice 12345/);
         }
+        const copies = path.join(config.evidence, "conversions"); fs.mkdirSync(copies, { recursive: true });
+        for (const file of outputPaths) fs.copyFileSync(file, path.join(copies, `${type}-${path.basename(file)}`));
         record(`installed-conversion-${type}`, { outputs: outputPaths, bytes: outputPaths.map(p => fs.statSync(p).size) });
       }
       for (const [type, files, options] of [

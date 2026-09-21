@@ -53,7 +53,7 @@ try {
   $report.pdfProgId = $progIds[0]
   # Match real document usage: Unicode input/output in Downloads, outside virtualized AppData.
   $fixtures = Join-Path $documents '輸入 文件'; New-Item -ItemType Directory $fixtures | Out-Null
-  Copy-Item 'smoke-temp/release-queue-check/input/*' $fixtures
+  Copy-Item 'smoke-temp/store-input/*' $fixtures
   $profile = Join-Path $env:APPDATA 'SwiftLocal Store TEST'
   # Desktop Bridge may virtualize AppData; choose the actual package profile after activation if needed.
   $config = @{ exe = Join-Path $installed.InstallLocation 'app/SwiftLocal.exe'; evidence = $Evidence; output = (Join-Path $documents '輸出 文件'); fixtures = $fixtures; powershell = "$env:SystemRoot/System32/WindowsPowerShell/v1.0/powershell.exe"; activate = (Join-Path $PSScriptRoot 'store-activate.ps1'); shellOpen = (Join-Path $PSScriptRoot 'store-shell-open-pdf.ps1'); aumid = $aumid; progId = $progIds[0]; profile = $profile }

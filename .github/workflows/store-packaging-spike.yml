@@ -3,6 +3,10 @@ name: Store Packaging Spike
 on:
   workflow_dispatch:
     inputs:
+      candidate_run:
+        description: 'Optional prior Store run whose exact AppX should receive smoke-only retesting (WACK evidence stays with that artifact)'
+        type: string
+        default: ''
       nsis_regression:
         description: 'Rebuild NSIS (disable only when unchanged NSIS already has recorded passing evidence)'
         type: boolean
@@ -22,6 +26,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: store-spike-${{ github.ref }}
@@ -54,6 +59,7 @@ jobs:
       - run: git diff --check
 
   package:
+    if: ${{ !inputs.candidate_run }}
     runs-on: windows-2025
     timeout-minutes: 60
     steps:
@@ -114,7 +120,10 @@ jobs:
         run: npm run pack:win:store
       - name: Install, activate, convert, certify and uninstall TEST package
         shell: powershell
-        run: ./scripts/accept-store-package.ps1 -RunWack
+        run: |
+          node scripts/create-store-fixtures.js
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ./scripts/accept-store-package.ps1 -RunWack
       - name: Retain Store evidence even on failure
         if: always()
         uses: actions/upload-artifact@v4
@@ -130,4 +139,49 @@ jobs:
           path: dist-store-test/*.appx
           if-no-files-found: warn
           compression-level: 0
+          retention-days: 14
+
+  retest:
+    if: ${{ inputs.candidate_run != '' }}
+    runs-on: windows-2025
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          name: swiftlocal-appx-TEST
+          path: candidate
+          run-id: ${{ inputs.candidate_run }}
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: store-spike-evidence
+          path: candidate-evidence
+          run-id: ${{ inputs.candidate_run }}
+          github-token: ${{ github.token }}
+      - name: Verify exact candidate and retained certification report
+        shell: powershell
+        run: |
+          $metadata = Get-Content candidate-evidence/package.json -Raw | ConvertFrom-Json
+          $package = Get-Item ('candidate/' + $metadata.artifact)
+          if ((Get-FileHash $package -Algorithm SHA256).Hash -ne $metadata.sha256) { throw 'Candidate checksum mismatch' }
+          New-Item -ItemType Directory -Force store-evidence | Out-Null
+          Copy-Item candidate-evidence/package.json store-evidence/package.json
+          node scripts/read-store-wack.js candidate-evidence/wack.xml store-evidence/candidate-wack-summary.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node scripts/create-store-fixtures.js
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Retest exact installed AppX with text-bearing documents
+        shell: powershell
+        run: ./scripts/accept-store-package.ps1 -Package (Get-ChildItem candidate/*.appx | Select-Object -ExpandProperty FullName)
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: store-spike-retest-evidence
+          path: store-evidence/
           retention-days: 14
