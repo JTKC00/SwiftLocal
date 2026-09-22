@@ -16,6 +16,12 @@ function arg(name) {
   return process.argv[index + 1];
 }
 
+function optionalArg(name) {
+  const index = process.argv.indexOf(name);
+  if (index < 0 || !process.argv[index + 1] || process.argv[index + 1].startsWith("--")) return "";
+  return process.argv[index + 1];
+}
+
 function shortPath(target) {
   const literal = String(target).replace(/'/g, "''");
   const command = `$p='${literal}'; $fs=New-Object -ComObject Scripting.FileSystemObject; if (Test-Path -LiteralPath $p -PathType Container) { $fs.GetFolder($p).ShortPath } elseif (Test-Path -LiteralPath $p) { $fs.GetFile($p).ShortPath } else { $p }`;
@@ -123,15 +129,31 @@ function runCase(soffice, spec) {
 
 function main() {
   if (process.platform !== "win32") throw new Error("LibreOffice path matrix requires Windows");
-  const soffice = path.resolve(arg("--soffice"));
-  const fixture = path.resolve(arg("--fixture"));
-  const evidence = path.resolve(arg("--evidence"));
+  const config = optionalArg("--config")
+    ? JSON.parse(fs.readFileSync(optionalArg("--config"), "utf8").replace(/^\uFEFF/, ""))
+    : {};
+  const soffice = path.resolve(config.soffice || arg("--soffice"));
+  const fixture = path.resolve(config.fixture || arg("--fixture"));
+  const evidence = path.resolve(config.evidence || arg("--evidence"));
+  const launchContext = config.launchContext || "unspecified";
   if (!fs.existsSync(soffice)) throw new Error(`soffice missing: ${soffice}`);
   if (!fs.existsSync(fixture)) throw new Error(`fixture missing: ${fixture}`);
+  let versionText = "";
   const version = spawnSync(soffice, ["--version"], { encoding: "utf8", timeout: 60000, windowsHide: true });
-  const versionText = `${version.stdout || ""}${version.stderr || ""}`.trim();
+  versionText = `${version.stdout || ""}${version.stderr || ""}`.trim();
   if (!versionText.includes("LibreOffice 26.2.6")) {
-    throw new Error(`Unexpected LibreOffice version: ${versionText || version.error}`);
+    const failure = {
+      soffice,
+      launchContext,
+      libreOfficeVersion: versionText,
+      fixture,
+      fatal: `Unexpected LibreOffice version: ${versionText || version.error}`,
+      spawnError: version.error ? { code: version.error.code || "", message: version.error.message } : null,
+      rows: []
+    };
+    fs.mkdirSync(path.dirname(evidence), { recursive: true });
+    fs.writeFileSync(evidence, JSON.stringify(failure, null, 2));
+    throw new Error(failure.fatal);
   }
   stopOffice();
   const token = crypto.randomBytes(16).toString("hex");
@@ -252,6 +274,7 @@ function main() {
     for (const directory of owned) fs.rmSync(directory, { recursive: true, force: true });
     const report = {
       soffice,
+      launchContext,
       libreOfficeVersion: versionText,
       fixture,
       fixtureBytes: fs.statSync(fixture).size,

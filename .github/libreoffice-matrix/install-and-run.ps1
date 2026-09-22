@@ -29,13 +29,26 @@ try {
   if ($installed.PackageFamilyName -cne $identity.packageFamilyName) { throw "Installed PFN $($installed.PackageFamilyName)" }
   $soffice = Join-Path $installed.InstallLocation 'app\resources\tools\libreoffice\program\soffice.com'
   if (!(Test-Path -LiteralPath $soffice)) { throw "Packaged soffice missing: $soffice" }
-  & node @(
-    (Join-Path $PSScriptRoot 'isolate.js'),
-    '--soffice', $soffice,
-    '--fixture', $Fixture,
-    '--evidence', $Evidence
-  )
-  if ($LASTEXITCODE -ne 0) { throw 'LibreOffice path matrix failed' }
+  $evidencePath = [IO.Path]::GetFullPath($Evidence)
+  $configPath = Join-Path (Split-Path $evidencePath -Parent) 'lo-matrix-config.json'
+  New-Item -ItemType Directory -Force (Split-Path $evidencePath -Parent) | Out-Null
+  $launchConfig = @{
+    soffice = $soffice
+    fixture = (Resolve-Path $Fixture).Path
+    evidence = $evidencePath
+    launchContext = 'package-identity'
+  } | ConvertTo-Json
+  [IO.File]::WriteAllText($configPath, $launchConfig, (New-Object Text.UTF8Encoding $false))
+  $node = (Get-Command node.exe).Source
+  $isolate = (Resolve-Path (Join-Path $PSScriptRoot 'isolate.js')).Path
+  # Unpackaged CreateProcess on WindowsApps\soffice.com returns EPERM. Run node inside
+  # the package identity and keep soffice children in that context.
+  Invoke-CommandInDesktopPackage -PackageFamilyName $identity.packageFamilyName -AppId $identity.applicationId -Command $node -Args "`"$isolate`" --config `"$configPath`"" -PreventBreakaway
+  if (!(Test-Path -LiteralPath $evidencePath)) { throw 'LibreOffice path matrix produced no evidence' }
+  $report = Get-Content -LiteralPath $evidencePath -Raw -Encoding UTF8 | ConvertFrom-Json
+  if ($report.fatal) { throw "LibreOffice path matrix failed: $($report.fatal)" }
+  $baseline = @($report.rows | Where-Object { $_.id -eq 'baseline-short-downloads-short-profile' })
+  if ($baseline.Count -ne 1 -or $baseline[0].status -ne 'PASS') { throw 'Baseline short conversion failed; matrix cannot isolate a path factor' }
 } finally {
   if ($installed) { Remove-AppxPackage -Package $installed.PackageFullName -ErrorAction SilentlyContinue }
   if ($certificate) {
