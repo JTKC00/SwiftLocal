@@ -1,0 +1,9 @@
+{
+  "ocrText": "SWIFTLOCAL OCR SMOKE\n香港特別行政區\nHONG KONG\n",
+  "docxContains": {
+    "SWIFTLOCAL STORE PDF": true,
+    "Invoice 12345": true
+  },
+  "officePdfHeader": true,
+  "searchableText": "SWIFTLOCAL OCR SMOKE 香港 特別行政區  HONG KONG"
+}

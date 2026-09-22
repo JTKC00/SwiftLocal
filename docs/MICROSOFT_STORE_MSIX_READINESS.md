@@ -4,7 +4,7 @@ Phase 1 used a TEST package identity. Phase 2A replaces that identity with the r
 
 ## Phase 2A — official Partner Center identity
 
-Date: 2026-09-22. Status: identity replacement is in source; Windows build, install, conversion, WACK and NSIS regression evidence is recorded below when the Store workflow for this commit finishes. Not submitted. Not a v0.4.2 release.
+Date: 2026-09-22. Status: production-identity AppX built, installed, converted and uninstalled on Windows Server 2025; WACK overall PASS with the same class of optional Blocked executables finding. Not submitted. Not ready for Windows 11 consumer acceptance. Not a v0.4.2 release.
 
 Jev (`jev-1.13.0`) was asked to choose among keeping the TEST identity, adding a second development identity, or making the reserved identity the only Store package identity. It selected the reserved identity only (confidence 1.0), a non-TEST profile folder distinct from NSIS (confidence 0.99), and package version `1.0.0.0` (confidence 0.82). Those judgments selected the implementation shape. They do not replace manifest, PFN, install or WACK evidence.
 
@@ -60,7 +60,21 @@ node scripts/create-store-fixtures.js
 
 ### Phase 2A evidence
 
-Pending the Windows workflow for the identity commit. Do not treat this section as a pass before it names the run, artifact bytes, SHA-256, installed PFN, six native probes, conversions, PDF default, WACK and NSIS regression.
+Run [35708405363](https://github.com/JTKC00/SwiftLocal/actions/runs/35708405363), commit `7e38c7c`, Windows Server 2025 Datacenter. Overall workflow success. Durable copies are in [docs/acceptance/2026-09-22-store](acceptance/2026-09-22-store/).
+
+- Artifact: [`SwiftLocal-0.4.1-store-x64.appx`](https://github.com/JTKC00/SwiftLocal/actions/runs/35708405363/artifacts/10686752345), unsigned, **1,115,697,028 bytes**.
+- SHA-256: `da8a8f08dc2d46522eaf1aeab99f9c5f02072737f991f75b1b73c7d77958b693`.
+- Extracted manifest: `Name="JTKC.SwiftLocal"`, `Publisher="CN=48CB75C0-3F50-44EF-87EB-8203F196B957"`, `<PublisherDisplayName>JTKC</PublisherDisplayName>`, `Version="1.0.0.0"`, display name `SwiftLocal`. Package family name and Store ID are not in the manifest. 19,695 package entries matched the verified Full `win-unpacked` tree.
+- Developer-signed temporary copy installed as `JTKC.SwiftLocal_1.0.0.0_x64__j44a9ewx73faj`. Installed package family name: `JTKC.SwiftLocal_j44a9ewx73faj`. Store ID recorded for verification: `9P6Z4M7VLWPD`. `process.windowsStore=true`. Profile: `%APPDATA%/SwiftLocal Store`. Install, normal exit and uninstall passed. The temporary certificate was not exported and is not in the repository.
+- PDF association ProgID `AppXnwtdh7rg4t5tbp7ewsmh9rcaxb3cgzrv` opened `a.pdf` through the registered shell verb. `MSEdgePDF` and UserChoice hash `GFzkaLZRrpI=` were identical before install, after install and after uninstall.
+- Six packaged native probes passed: FFmpeg 9.0.1, QPDF 12.4.1, Tesseract 5.5.3, LibreOffice 26.2.6.3, yt-dlp 2026.08.19, Deno 2.9.6.
+- Conversions passed: PDF compress, `chi_tra+eng` image OCR, searchable PDF, DOCX → PDF, PDF → DOCX, WAV → MP3. Retained OCR text is `SWIFTLOCAL OCR SMOKE`, `香港特別行政區` and `HONG KONG`. Searchable PDF text contains the same Chinese phrase with PDF item spacing. DOCX XML contains `SWIFTLOCAL STORE PDF` and `Invoice 12345`. Installed package files were unchanged after smoke.
+- WACK **10.0.26100.8249**: `OVERALL_RESULT=PASS`, `PARTIAL_RUN=FALSE`, `APP_NAME=JTKC.SwiftLocal`, `APP_VERSION=1.0.0.0`. All 13 required tests passed. Optional **Blocked executables** failed with 593 messages, the same category retained from Phase 1. This is not Store approval.
+- NSIS regression in the same run: `npm run pack:win:full:installer` passed, and the three regression jobs (Windows, macOS, Linux) passed `typecheck`, `check:ci`, `npm test` and `git diff --check`. That NSIS artifact is a new QA build, not a claim that the published v0.4.1 GitHub Release bytes changed.
+
+Jev (`jev-1.13.0`) judged this evidence `not_ready` for Windows 11 consumer acceptance (confidence 1.0) and gave probability 0.04 that the deep AppData LibreOffice case is proven fixed. Those judgments agree with the gates below; they do not replace them.
+
+The deep AppData LibreOffice `0xC0000409` case was not rerun. The passing DOCX → PDF conversion used the normal Downloads path. It remains an explicit submission blocker. Consumer Windows 11 standard-user GUI, Open With menu visibility, physical double-click, Store update/uninstall data retention and native licensing review also remain open. Do not submit this candidate.
 
 ## Phase 1 — TEST identity evidence
 
