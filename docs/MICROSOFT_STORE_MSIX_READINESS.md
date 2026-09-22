@@ -1,6 +1,6 @@
 # Microsoft Store / AppX readiness
 
-Phase 1 used a TEST package identity. Phase 2A replaces that identity with the reserved Partner Center identity and builds one unsigned production-identity candidate. Neither phase is submitted. The v0.4.1 GitHub Release is unchanged.
+Phase 1 used a TEST package identity. Phase 2A replaces that identity with the reserved Partner Center identity and builds one unsigned production-identity candidate. Phase 2B isolates the packaged LibreOffice deep-AppData `0xC0000409` crash and fixes the profile-URI cause on that same identity. None of these phases is submitted. Draft PR #13 is not merged. The v0.4.1 GitHub Release is unchanged.
 
 ## Phase 2A — official Partner Center identity
 
@@ -76,6 +76,136 @@ Jev (`jev-1.13.0`) judged this evidence `not_ready` for Windows 11 consumer acce
 
 The deep AppData LibreOffice `0xC0000409` case was not rerun. The passing DOCX → PDF conversion used the normal Downloads path. It remains an explicit submission blocker. Consumer Windows 11 standard-user GUI, Open With menu visibility, physical double-click, Store update/uninstall data retention and native licensing review also remain open. Do not submit this candidate.
 
+Those sentences describe Phase 2A. The Phase 2B section records the later reproduction and fix.
+
+## Phase 2B — LibreOffice deep-AppData crash
+
+Date: 2026-09-22. Status: **verdict A, BLOCKER FIXED**. The formerly rejected user path shape now passes on the official-identity package, and the single-factor matrix supports the profile file-URI cause. Windows 11 consumer acceptance has not been run. Not submitted. Not merged. Not a v0.4.2 release. The published v0.4.1 release is unchanged.
+
+Jev (`jev-1.13.0`) chose verdict A (confidence 0.46; probabilities A 0.64, B 0.34, C 0.02). It gave probability 0.81 that the profile file-URI length is the supported cause, 0.03 that the optional Blocked executables finding changed, and 0.02 that Windows 11 consumer acceptance was already done. The B probability comes from the missing URI-length ladder between the 187-character pass and the 211-character failure, and from the post-fix run avoiding that URI. The recorded matrix and the passing rejected path shape still meet verdict A. Jev does not replace those Windows results.
+
+### Reproduction matrix
+
+The matrix ran inside the official-identity package from Phase 2A, before this fix. Run [35756020077](https://github.com/JTKC00/SwiftLocal/actions/runs/35756020077). Launch context `packaged-electron-main`. Binary: `C:\Program Files\WindowsApps\JTKC.SwiftLocal_1.0.0.0_x64__j44a9ewx73faj\app\resources\tools\libreoffice\program\soffice.com`. LibreOffice `26.2.6.3 8221e31b3ac356a1623c672912a3d2b492f7e3d1`. Fixture: repository `office-smoke.docx` from `writeTextDocx("SWIFTLOCAL STORE DOCX\nInvoice 12345")`, 3,409 bytes, SHA-256 `0a1f0a615a4d86d887752a0eeae6e82ee9f449f4cd570637fa0838675e9d91c0`. The 2026-09-21 rejection recorded the same filename at 3,420 bytes; this zip is the current generator output, and the same file was used for every matrix row. Target: PDF. `PASS` means exit 0 and an output that starts with `%PDF-`.
+
+The packaged process had already set `TEMP`/`TMP` to `%APPDATA%\SwiftLocal Store\temp`. The TEMP row compares that directory with `%APPDATA%\SwiftLocal Store TEST\temp`. It does not compare an untouched machine temp directory. The baseline working directory is the short Downloads matrix directory.
+
+Causal rule, stored with the evidence: only a `causal: true` row may support a cause, and only by comparison with `baseline-short-downloads-short-profile`. `contrastWith` pairs isolate the single difference between those two rows. Combined rows are reproductions.
+
+Character lengths are UTF-16 code units of the absolute path. The profile URI length is the `file:///` string passed to `-env:UserInstallation`. Every absolute input, outdir, profile, cwd, TEMP, exact command, exit code and output byte count is in [lo-matrix.json](acceptance/2026-09-22-store-phase2b/lo-matrix.json).
+
+| Case | Role | Result | Exit | Input | Outdir | Profile | Profile URI |
+| --- | --- | ---: | --- | ---: | ---: | ---: | ---: |
+| baseline-short-downloads-short-profile | causal baseline | PASS | 0 | 142 | 125 | 129 | 137 |
+| input-deep-ascii-downloads | input depth only | PASS | 0 | 158 | 113 | 117 | 125 |
+| outdir-deep-ascii-downloads | outdir depth only | PASS | 0 | 131 | 159 | 118 | 126 |
+| profile-deep-ascii-downloads | profile depth only | FAIL | 0xC0000409 | 132 | 115 | 203 | 211 |
+| cwd-roaming-profile | cwd only | PASS | 0 | 123 | 106 | 110 | 118 |
+| temp-roaming-profile | TEMP only | PASS | 0 | 124 | 107 | 111 | 119 |
+| input-short-appdata | input under short AppData | PASS | 0 | 97 | 106 | 110 | 118 |
+| outdir-short-appdata | outdir under short AppData | PASS | 0 | 124 | 80 | 111 | 119 |
+| profile-short-appdata | profile under short AppData | PASS | 0 | 125 | 108 | 84 | 92 |
+| input-unicode-short | short Unicode input | PASS | 0 | 103 | 106 | 110 | 118 |
+| outdir-unicode-short | short Unicode outdir | PASS | 0 | 124 | 85 | 111 | 119 |
+| profile-unicode-short | short Unicode profile | PASS | 0 | 125 | 108 | 85 | 109 |
+| input-spaces-short | short spaced input | PASS | 0 | 112 | 105 | 109 | 117 |
+| short-appdata-short-profile | combined, short AppData | PASS | 0 | 107 | 90 | 94 | 102 |
+| deep-downloads-short-profile | deep Unicode input and outdir, short profile | PASS | 0 | 153 | 155 | 119 | 127 |
+| deep-appdata-short-profile | same shape under long Local Temp | PASS | 0 | 116 | 118 | 117 | 125 |
+| exact-rejected-shape | 8.3 temp root, Unicode scratch under the output, TEST cwd and TEMP | FAIL | 0xC0000409 | 113 | 141 | 159 | 225 |
+| exact-rejected-long-temp-root | same shape, long temp root | FAIL | 0xC0000409 | 116 | 144 | 162 | 226 |
+| ascii-equivalent-of-exact | same 8.3 shape and nesting, ASCII names | PASS | 0 | 122 | 151 | 169 | 187 |
+
+Passing outputs in this matrix are 24,657-byte PDFs. The three failures produced 0 bytes. Elapsed time for `profile-deep-ascii-downloads` was about 4.3 seconds.
+
+The only causal failure is `profile-deep-ascii-downloads`. Its input (132) and outdir (115) stayed short. Its profile path is 203 characters and its file URI is 211:
+
+`file:///C:/Users/runneradmin/Downloads/sl-lo-matrix-d8bca8897483422046f25993731c8de8/SwiftLocalStoreASCIId8bca8897483422046f25993731c8de8/outputfiles/store/officetopdf/.swiftlocal-office-0cfe82/lo-profile-0cfe82`
+
+`exact-rejected-shape` and `exact-rejected-long-temp-root` both crash, so the 8.3 prefix is not the difference. Their URIs are 225 and 226. `ascii-equivalent-of-exact` uses the same 8.3 root, cwd, TEMP and `.swiftlocal-office-*` / `lo-profile-*` nesting. Its profile path is 169 characters, longer than the failing Unicode profile path of 159, but its URI is 187 because the ASCII names are not percent-encoded. It passes.
+
+### Root cause
+
+LibreOffice 26.2.6.3 crashes with `0xC0000409` (`3221226505`, `STATUS_STACK_BUFFER_OVERRUN`) when the `-env:UserInstallation` file URI is long. The observed bounds are a 187-character URI of this shape passing and a 211-character URI failing. There is no finer ladder between those two lengths.
+
+The shared converter created `.swiftlocal-office-*` and `lo-profile-*` under the user-selected output directory. That coupling is what pushed the rejected deep Unicode output path to URI 225. A short profile with the same deep Unicode input and output passes, so the output directory is the publication target, and the profile URI is the crash trigger.
+
+### Rejected hypotheses
+
+These do not explain the crash on this matrix:
+
+- Input-path depth. The deep ASCII input row passed, and deep Unicode input with a short profile passed.
+- Output-directory depth by itself. The deep ASCII outdir row passed while its profile stayed short.
+- AppData versus Downloads by itself. Short AppData input, outdir and profile rows passed. Deep Unicode input and output passed under both Downloads and long `Local\Temp` when the profile stayed short.
+- Current working directory. Moving cwd to `%APPDATA%\SwiftLocal Store TEST` passed.
+- `TEMP`/`TMP`, within the two short roaming directories compared inside the packaged process.
+- Unicode or spaces at short depth.
+- The 8.3 `RUNNER~1` temp root versus the long temp root. Both rejected-shape rows crashed.
+- An earlier direct spawn of `soffice.com` returning `EPERM`. That was the WindowsApps ACL on an unpackaged process. It did not execute LibreOffice and does not falsify the crash. The matrix ran after the packaged Electron process could launch the same binary.
+
+An owned temporary copy of the input was not added. Deep input paths passed whenever the profile URI stayed short.
+
+### Fix
+
+`runLibreOfficeToUniqueOutput` now creates `.swiftlocal-office-*` and `lo-profile-*` under the first usable private parent: `os.tmpdir()`, then on Windows `%LOCALAPPDATA%\Temp`, then `~/.swiftlocal-private`. A parent inside `Program Files\WindowsApps` is skipped. The profile file URI must be at most 180 characters; a longer scratch is deleted and the next parent is tried. `--outdir` is that scratch. The user-selected directory receives the final file through `nextAvailablePath`. `renameSync` publishes it, and `EXDEV` falls back to a copy that removes a partial destination if the copy fails. The `finally` block deletes only that scratch. Aged `.swiftlocal-office-` directories under `os.tmpdir()` and `~/.swiftlocal-private` use the existing 24-hour owned-prefix sweeper. Cancellation still reaches `runProcess`, and the scratch cleanup still runs. Media scratch is unchanged. Path checks and exclusive publication are unchanged.
+
+The cap is below the shortest observed failure (211) and below the longest observed pass of this shape (187). The unit test `keeps LibreOffice scratch and profile outside the user output directory` checks the cap, the owned prefixes, and that the scratch is outside the user output directory and outside WindowsApps.
+
+This is shared with NSIS because both entrypoints call the same function. The Store workflow's unchanged NSIS Full build passed on this commit, so the change is not a Store-only mask.
+
+### Exact previously failing case
+
+The 2026-09-21 rejection remains [rejected-appdata-paths.json](acceptance/2026-09-21-store/rejected-appdata-paths.json): TEST identity, input under `C:\Users\RUNNER~1\AppData\Local\Temp\SwiftLocal Store 中文 <id>\輸入 文件\office-smoke.docx`, output under `輸出 文件\store\office-to-pdf`, exit `3221226505`.
+
+After the fix, run [35758117387](https://github.com/JTKC00/SwiftLocal/actions/runs/35758117387) executed `installed-conversion-office-to-pdf-deep-appdata` inside `JTKC.SwiftLocal_1.0.0.0_x64__j44a9ewx73faj`:
+
+- Temp root: `C:\Users\RUNNER~1\AppData\Local\Temp`
+- Input: `C:\Users\RUNNER~1\AppData\Local\Temp\SwiftLocal Store 中文 482a9ea41b3ecf3b06f70581523db102\輸入 文件\office-smoke.docx` (113 characters)
+- Output directory: `...\輸出 文件\store\office-to-pdf` (115 characters)
+- Published PDF: that directory plus `office-smoke.pdf`
+- Result: PASS. Retained file is `%PDF-1.7`, 24,657 bytes, SHA-256 `a599b97d1c50f0a662dbdb3d1a63304cc88bfdacebc49df3a216ee953b121512`
+- The output directory contained no leftover `.swiftlocal-office-` directory
+
+The token differs from `ca07ae647d514a7b8d2e6c6c55c64aca`. The path shape matches: 8.3 temp root, `SwiftLocal Store 中文`, `輸入 文件`, `輸出 文件\store\office-to-pdf`, `office-smoke.docx`, PDF target, official packaged LibreOffice 26.2.6.3. The regression does not resend the 225-character UserInstallation URI. The fix keeps that URI at or below 180 characters. The normal Downloads DOCX → PDF conversion also passed and is recorded separately; it is not this result.
+
+### New Store artifact
+
+Commit `5b0e2c2`. Windows Server 2025 Datacenter.
+
+- Filename: `SwiftLocal-0.4.1-store-x64.appx`
+- Unsigned bytes: **1,115,695,293**
+- SHA-256: `38a1ea9d89e956c1dbcdecb21f85bca673d7ab70301b16e66f68c819d7eed404`
+- Product 0.4.1, package version `1.0.0.0`, electron-builder 26.15.3, 19,695 entries, payload byte-identical to the verified Full `win-unpacked` tree
+- Identity unchanged: `JTKC.SwiftLocal`, publisher `CN=48CB75C0-3F50-44EF-87EB-8203F196B957`, publisher display name `JTKC`, package family name `JTKC.SwiftLocal_j44a9ewx73faj`, Store ID `9P6Z4M7VLWPD`
+- Installed full name: `JTKC.SwiftLocal_1.0.0.0_x64__j44a9ewx73faj`
+- Developer-signed temporary copy SHA-256, runner-local only: `2CAF143D25E562F6EB53398462B56A861EC6B9585A342ED005B5A8D10834539D`
+
+Install, activation, normal exit and uninstall passed. The temporary certificate was not exported.
+
+Installed checks that passed beside the deep AppData case: PDF compress, `chi_tra+eng` image OCR, searchable PDF, Downloads DOCX → PDF, PDF → DOCX, WAV → MP3, and the six probes FFmpeg 9.0.1, QPDF 12.4.1, Tesseract 5.5.3.20260724, LibreOffice 26.2.6.3, yt-dlp 2026.08.19, Deno 2.9.6. OCR text retained `SWIFTLOCAL OCR SMOKE`, `香港特別行政區` and `HONG KONG`. PDF ProgID `AppXnwtdh7rg4t5tbp7ewsmh9rcaxb3cgzrv`. `MSEdgePDF` hash `NgR2+xUd8r8=` was identical before install, after install and after uninstall. Installed payload unchanged: PASS.
+
+### WACK
+
+Kit `10.0.26100.8249`. `OVERALL_RESULT=PASS`, `PARTIAL_RUN=FALSE`, exit code 0. Report SHA-256 `0127e6251cdab18e36379f9352e808ad3aa445263217f4b049c3c0c40bc3b912`.
+
+Required, all PASS: App manifest, Enterprise Features, Resource Packages, Banned file analyzer, Private code signing, Branding, Special use capabilities, ExclusiveTo attribute, Type location, Type name case-sensitivity, Type name correctness, Properties, DPIAwarenessValidation.
+
+Optional PASS: Install signed driver and executable files, User account control run level, Application count, File association verbs, Registry checks, App resources, Debug configuration, General metadata correctness, Archive files usage, Platform appropriate files.
+
+Optional FAIL: **Blocked executables**, 593 messages. The count matches Phase 2A. This report does not show that finding fixed.
+
+### NSIS regression
+
+In the same run, `Build and verify unchanged NSIS Full entrypoint` succeeded. The `regression` jobs on `ubuntu-latest`, `windows-2025` and `macos-latest` succeeded (`typecheck`, `check:ci`, `npm test`, `git diff --check`). The `retest` job was skipped because this was a push build, not an acceptance-only rerun. The NSIS artifact is a new QA build. It is not a claim that the published v0.4.1 GitHub Release bytes changed.
+
+### Verdict
+
+**A. BLOCKER FIXED** — the exact rejected user path shape now passes, and the profile-URI cause is supported by the single-factor matrix.
+
+Windows 11 consumer standard-user GUI, Open With, physical double-click, Store update/uninstall data retention and native licensing review remain open. Verdict A allows that acceptance to start. Do not submit this candidate. Do not merge PR #13.
+
+Durable copies: [docs/acceptance/2026-09-22-store-phase2b](acceptance/2026-09-22-store-phase2b/).
+
 ## Phase 1 — TEST identity evidence
 
 Date: 2026-09-21. Status: TEST AppX build/install/native conversions and text-content retest PASS; WACK overall PASS with an optional finding. Not submitted. Manual acceptance gaps remain. This section is historical. Its TEST identity is not the Phase 2A candidate.
@@ -119,7 +249,7 @@ No v27 candidate was installed or chosen in this phase.
 | CWD | Backend `runProcess`, version probes and PDF compress inherit CWD; executable/resource and normal input/output paths are absolute. Store launch does not guarantee shortcut CWD. Store bootstrap moves CWD to its writable profile; OCR overrides CWD to its private scratch. |
 | FFmpeg / QPDF | `desktop/backend.js` resolves `process.resourcesPath/tools` before development paths and PATH; config/environment overrides exist. Clean-profile acceptance must assert `source=bundled` and exact installed resource prefix. EXEs stay outside ASAR. |
 | Tesseract | tessdata resolved beside native executable; `chi_tra`, `eng`, `osd` locked. Windows OCR copies only needed traineddata plus support files into private `os.tmpdir()` scratch, uses relative input/output names and deletes only owned copies. No junction back to installed data. |
-| LibreOffice | `runLibreOfficeToUniqueOutput` creates `.swiftlocal-office-*` under chosen output; `lo-profile-*` is passed as `-env:UserInstallation=file:///...`. It does not need installed Office, registry registration or a shared user profile. Native DLL/bootstrap loading still needs package execution proof. |
+| LibreOffice | `runLibreOfficeToUniqueOutput` publishes the final file into the chosen output directory. `.swiftlocal-office-*` and `lo-profile-*` are created under a private temporary parent, and the UserInstallation file URI is capped at 180 characters. Phase 2B records why the old output-directory coupling crashed. It does not need installed Office, registry registration or a shared user profile. |
 | yt-dlp / Deno | `resolveBundledMediaTool` resolves absolute paths in resources; no system fallback. Media working files go in `.swiftlocal-media-*` under selected output, diagnostics under userData. Store bootstrap explicitly sets DENO_DIR, TEMP/TMP and XDG_CACHE_HOME to writable profile locations. No runtime self-update feature added. |
 | output / PDF save | Default output is Downloads/SwiftLocal, or an absolute user selection. PDF save uses a temporary sibling of the user-selected destination. Selecting a protected directory must fail normally; no ACL workaround or writes back to WindowsApps. |
 | Python backend | `backend/main.py`, tools_service and job_service use source-relative temp/config. This is unsafe inside immutable packages **if launched**, but is not the desktop runtime. Exclude backend Python and start-backend scripts from Store payload; leave desktop/NSIS code unchanged. |
@@ -252,8 +382,7 @@ bundled native engines, without app elevation.
 The app uses a separate Store TEST profile under `%APPDATA%/SwiftLocal Store TEST`;
 Chromium sessions, settings/jobs, temp, caches, logs and crash data are routed below
 it. AppData can be virtualized by Windows. OCR uses a private copied tessdata scratch
-directory; LibreOffice profile/scratch and media work live in the chosen output
-directory. Unicode Downloads output passed. Every installed package file's size and
+directory. Phase 1 observed LibreOffice profile/scratch, and still observes media scratch, under the chosen output directory. Phase 2B moved the LibreOffice scratch and profile to a private temporary parent. Unicode Downloads output passed. Every installed package file's size and
 SHA-256 was unchanged after smoke, including OCR language/support files. This
 establishes the observed flows, not syscall tracing of every unused native helper.
 
@@ -270,6 +399,8 @@ changed two factors and does not isolate virtualization versus path length. No
 LibreOffice/runtime fix is claimed. Keep the rejected parameters in
 `rejected-appdata-paths.json`; compare short/deep AppData and Downloads paths on
 Windows 11 before broad acceptance. Do not change production NSIS to mask it.
+That is the Phase 1 conclusion. Phase 2B later ran that comparison, fixed the
+profile URI, and passed the same user path shape. The other gates below stayed open.
 
 Phase 2 preparation can start with the proven Route A candidate, with the following
 gates still open before a submission-ready release: exact Partner Center identity
@@ -349,7 +480,7 @@ Do not merge this branch automatically.
 - `build/store/main.js`, `build/store/runtime.js`: Store bootstrap, writable profile and opt-in native probes.
 - `scripts/pack-win-store.js`, `scripts/verify-store-package.js`: build/provision and MakeAppx payload verification.
 - `scripts/build-store-assets.js`: generate four PNGs and a source/output hash receipt.
-- `scripts/accept-store-package.ps1`, `scripts/accept-store-windows.js`: disposable signing, registration, real Electron smoke, certification and uninstall.
+- `scripts/accept-store-package.ps1`, `scripts/accept-store-windows.js`: disposable signing, registration, real Electron smoke, the deep-AppData DOCX → PDF regression, certification and uninstall.
 - `scripts/read-store-wack.js`, `scripts/create-store-fixtures.js`: require complete WACK results and create synthetic text-bearing acceptance documents.
 - `scripts/store-activate.ps1`, `scripts/store-shell-open-pdf.ps1`: Windows activation and registered PDF shell invocation.
 - `.github/workflows/store-packaging-spike.yml`: Windows packaging/acceptance and three-platform regressions.
@@ -357,7 +488,10 @@ Do not merge this branch automatically.
 - `desktop/main.js`: skip the unpackaged AUMID override only when `process.windowsStore` is true.
 - `package.json`: add `pack:win:store`; no dependency or product version change.
 - `.gitignore`: generated Store output/evidence and certificate exclusions.
-- This readiness document and `docs/acceptance/2026-09-21-store/`: durable acceptance evidence.
+- `desktop/backend.js`: LibreOffice scratch and profile use a private temporary parent and a 180-character profile URI cap.
+- `tests/desktop/backend.test.js`: scratch stays outside the user output directory.
+- `.github/libreoffice-matrix/`, `.github/workflows/libreoffice-path-matrix.yml`: packaged soffice path matrix.
+- This readiness document, `docs/acceptance/2026-09-21-store/`, `docs/acceptance/2026-09-22-store/` and `docs/acceptance/2026-09-22-store-phase2b/`: durable acceptance evidence.
 
 `package-lock.json`, `electron-builder.config.js`, `scripts/pack-win.js`,
 `scripts/build-win-full.js`, `build/windows-file-associations.nsh`, native lockfiles,
@@ -372,4 +506,4 @@ the existing CI/Native Tool Smoke workflows and release metadata are unchanged.
 - [WACK](https://learn.microsoft.com/en-us/windows/uwp/debug-test-perf/windows-app-certification-kit), [test signing certificate](https://learn.microsoft.com/en-us/windows/msix/package/create-certificate-package-signing), [Electron process.windowsStore](https://www.electronjs.org/docs/latest/api/process).
 - [Desktop Bridge required and optional certification tests](https://learn.microsoft.com/en-us/windows/uwp/debug-test-perf/windows-desktop-bridge-app-tests), [MakeAppx packaging and unpacking](https://learn.microsoft.com/en-us/windows/msix/package/create-app-package-with-makeappx-tool).
 
-Phase 1 read the TypeSafe skill and live [System One docs](https://docs.typesafe.ai/concepts/system-one) and made no API call. Phase 2A called Jev (`jev-1.13.0`) for the identity, profile and package-version disposition recorded above. Jev is not part of the application, and its answers are not certification evidence.
+Phase 1 read the TypeSafe skill and live [System One docs](https://docs.typesafe.ai/concepts/system-one) and made no API call. Phase 2A called Jev (`jev-1.13.0`) for the identity, profile and package-version disposition recorded above. Phase 2B called the same model for the crash verdict recorded in that section. Jev is not part of the application, and its answers are not certification evidence.

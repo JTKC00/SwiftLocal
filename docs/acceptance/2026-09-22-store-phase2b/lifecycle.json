@@ -1,0 +1,20 @@
+﻿{
+    "commit":  "5b0e2c2eb9150c2142a1057b61c4675832a61878",
+    "os":  "Microsoft Windows Server 2025 Datacenter",
+    "install":  "PASS",
+    "uninstall":  "PASS",
+    "defaultBefore":  "{\"userChoice\":\"MSEdgePDF\",\"userChoiceHash\":\"NgR2+xUd8r8=\",\"extensionDefault\":null}",
+    "wack":  "PASS — review optional findings in wack-summary.json",
+    "documentRoot":  "C:\\Users\\runneradmin\\Downloads\\SwiftLocal 中文 0293d4a6",
+    "signedSha256":  "2CAF143D25E562F6EB53398462B56A861EC6B9585A342ED005B5A8D10834539D",
+    "fullName":  "JTKC.SwiftLocal_1.0.0.0_x64__j44a9ewx73faj",
+    "family":  "JTKC.SwiftLocal_j44a9ewx73faj",
+    "installLocation":  "C:\\Program Files\\WindowsApps\\JTKC.SwiftLocal_1.0.0.0_x64__j44a9ewx73faj",
+    "defaultAfterInstall":  "{\"userChoice\":\"MSEdgePDF\",\"userChoiceHash\":\"NgR2+xUd8r8=\",\"extensionDefault\":null}",
+    "pdfProgId":  "AppXnwtdh7rg4t5tbp7ewsmh9rcaxb3cgzrv",
+    "smoke":  "PASS",
+    "installedPayloadUnchanged":  "PASS",
+    "wackExitCode":  0,
+    "defaultAfterUninstall":  "{\"userChoice\":\"MSEdgePDF\",\"userChoiceHash\":\"NgR2+xUd8r8=\",\"extensionDefault\":null}",
+    "pdfDefaultPreserved":  "PASS"
+}

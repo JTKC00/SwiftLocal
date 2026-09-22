@@ -1,0 +1,26 @@
+{
+  "source": "frontend/assets/brand/app-icon.svg",
+  "sourceSha256": "3351d3b12b494a96f41bc0215f60057a49600ddda573362cea3034a9043d5778",
+  "assets": {
+    "StoreLogo.png": {
+      "width": 50,
+      "height": 50,
+      "sha256": "21e242e1d47a7f3bede47ee51c1dbb6a703ad60e0f146b87c2077c831d95def9"
+    },
+    "Square150x150Logo.png": {
+      "width": 150,
+      "height": 150,
+      "sha256": "588b1fa1f5ca8b1d9deba62daeaf6c070c6c39819247b4c5fd287df82500caed"
+    },
+    "Square44x44Logo.png": {
+      "width": 44,
+      "height": 44,
+      "sha256": "d73b8924d7ef5e52f8b58d6092d4e45e3b4c395bca0a0ed97ed9d604165f283e"
+    },
+    "Wide310x150Logo.png": {
+      "width": 310,
+      "height": 150,
+      "sha256": "fd440d0f828a4458b5ad9834e86fa22f6d250b19ae49c97bb8f16ed3467e8055"
+    }
+  }
+}
