@@ -1,10 +1,11 @@
 "use strict";
 const fs = require("node:fs");
 const path = require("node:path");
+const { profileDirectoryName } = require("./identity");
 
 function configureStorePaths(app, proc = process) {
-  if (proc.platform !== "win32" || !proc.windowsStore) throw new Error("Store TEST entrypoint requires an installed Windows package identity");
-  const root = path.join(app.getPath("appData"), "SwiftLocal Store TEST");
+  if (proc.platform !== "win32" || !proc.windowsStore) throw new Error("Store entrypoint requires an installed Windows package identity");
+  const root = path.join(app.getPath("appData"), profileDirectoryName);
   const locations = {
     userData: root,
     sessionData: path.join(root, "session"),

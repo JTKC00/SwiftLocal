@@ -23,6 +23,7 @@ tools/*
 !tools/bundled-tools.lock.json
 .DS_Store
 dist-store-test/
+dist-store/
 store-evidence/
 build/store/appx/
 build/store/assets-receipt.json

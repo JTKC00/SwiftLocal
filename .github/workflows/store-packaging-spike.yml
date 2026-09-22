@@ -61,7 +61,7 @@ jobs:
   package:
     if: ${{ !inputs.candidate_run }}
     runs-on: windows-2025
-    timeout-minutes: 60
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -116,9 +116,9 @@ jobs:
       - name: Build and verify unchanged NSIS Full entrypoint
         if: github.event_name != 'workflow_dispatch' || inputs.nsis_regression
         run: npm run pack:win:full:installer
-      - name: Build and extract-verify TEST AppX
+      - name: Build and extract-verify production-identity AppX
         run: npm run pack:win:store
-      - name: Install, activate, convert, certify and uninstall TEST package
+      - name: Install, activate, convert, certify and uninstall production-identity package
         shell: powershell
         run: |
           node scripts/create-store-fixtures.js
@@ -135,8 +135,8 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: swiftlocal-appx-TEST
-          path: dist-store-test/*.appx
+          name: swiftlocal-appx
+          path: dist-store/*.appx
           if-no-files-found: warn
           compression-level: 0
           retention-days: 14
@@ -154,7 +154,7 @@ jobs:
       - run: npm ci
       - uses: actions/download-artifact@v4
         with:
-          name: swiftlocal-appx-TEST
+          name: swiftlocal-appx
           path: candidate
           run-id: ${{ inputs.candidate_run }}
           github-token: ${{ github.token }}

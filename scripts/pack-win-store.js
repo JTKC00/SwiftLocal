@@ -5,7 +5,9 @@ const root = path.resolve(__dirname, "..");
 function main() {
   if (process.platform !== "win32") throw new Error("Store AppX spike requires Windows x64 (LibreOffice MSI extraction, MakeAppx and package registration). Use Store Packaging Spike CI.");
   if (process.arch !== "x64") throw new Error("Store spike is x64 only");
-  if (process.argv.length > 2) throw new Error("Store TEST command accepts no overrides or publishing arguments");
+  if (process.argv.length > 2 || process.env.SWIFTLOCAL_STORE_MODE) {
+    throw new Error("Production Store candidate accepts no identity overrides or publishing arguments");
+  }
   if (require("electron-builder/package.json").version !== "26.15.3") throw new Error("Store spike requires pinned electron-builder 26.15.3");
   const env = { ...process.env, CSC_IDENTITY_AUTO_DISCOVERY: "false", SWIFTLOCAL_FULL_BUILD: "1" };
   for (const name of Object.keys(env)) if (/^(WIN_)?CSC_/.test(name) && name !== "CSC_IDENTITY_AUTO_DISCOVERY") delete env[name];

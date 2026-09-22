@@ -2,13 +2,14 @@
 const fs = require("node:fs");
 const crypto = require("node:crypto");
 const { DOMParser } = require("@xmldom/xmldom");
+const identity = require("../build/store/identity");
 
 function summarizeWack(xml) {
   const invalid = message => { throw new Error(`Invalid WACK report: ${message}`); };
   const document = new DOMParser({ errorHandler: { warning: invalid, error: invalid, fatalError: invalid } }).parseFromString(xml, "text/xml");
   const root = document.documentElement;
-  if (root?.tagName !== "REPORT" || root.getAttribute("APP_NAME") !== "SwiftLocal.StoreSpike.TEST"
-      || root.getAttribute("APP_VERSION") !== "1.0.0.0") invalid("unexpected package identity/version");
+  if (root?.tagName !== "REPORT" || root.getAttribute("APP_NAME") !== identity.identityName
+      || root.getAttribute("APP_VERSION") !== identity.packageVersion) invalid("unexpected package identity/version");
   const tests = Array.from(root.getElementsByTagName("TEST"), test => ({
     name: test.getAttribute("NAME"), optional: test.getAttribute("OPTIONAL") === "TRUE",
     result: test.getElementsByTagName("RESULT")[0]?.textContent.trim() || "UNKNOWN",

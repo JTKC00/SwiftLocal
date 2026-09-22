@@ -1,15 +1,17 @@
 "use strict";
 
-// Local TEST spike only. Do not infer Partner Center values from desktop appId.
-// This overlay never mutates the cached production config object.
+// Production-identity Store overlay. Partner Center values come from the identity record.
+// This overlay never mutates the cached production NSIS/Portable config object.
 const base = require("./electron-builder.config");
 const path = require("node:path");
+const identity = require("./build/store/identity");
 module.exports = {
   ...base,
-  directories: { ...base.directories, output: "dist-store-test", buildResources: "build/store" },
+  directories: { ...base.directories, output: identity.outputDirectory, buildResources: "build/store" },
   publish: null,
   extraMetadata: { main: "build/store/main.js" },
-  files: [...base.files, "!backend{,/**/*}", "!scripts/start-backend.*", "build/store/main.js", "build/store/runtime.js"],
+  files: [...base.files, "!backend{,/**/*}", "!scripts/start-backend.*",
+    "build/store/main.js", "build/store/runtime.js", "build/store/identity.js", "build/store/partner-center-identity.json"],
   beforePack: async () => {
     const { verifyNativeTool } = require("./scripts/native-tool-lock");
     for (const tool of ["ffmpeg", "qpdf", "tesseract", "libreoffice"]) {
@@ -33,12 +35,12 @@ module.exports = {
   nsis: undefined,
   portable: undefined,
   appx: {
-    identityName: "SwiftLocal.StoreSpike.TEST",
-    publisher: "CN=SwiftLocal Store Spike TEST",
-    publisherDisplayName: "SwiftLocal TEST - NOT FOR SUBMISSION",
-    applicationId: "SwiftLocal",
-    displayName: "SwiftLocal TEST",
-    artifactName: "SwiftLocal-${version}-store-TEST-${arch}.${ext}",
+    identityName: identity.identityName,
+    publisher: identity.publisher,
+    publisherDisplayName: identity.publisherDisplayName,
+    applicationId: identity.applicationId,
+    displayName: identity.reservedProductName,
+    artifactName: "SwiftLocal-${version}-store-${arch}.${ext}",
     customManifestPath: "AppxManifest.xml",
     languages: ["zh-TW", "en-US"],
     minVersion: "10.0.19041.0",

@@ -53,6 +53,9 @@ async function pageAt(endpoint, pattern, timeout = 60000) {
 async function main(configFile, phase = "store") {
   if (process.platform !== "win32") throw new Error("Installed acceptance requires Windows");
   const config = JSON.parse(fs.readFileSync(configFile, "utf8").replace(/^\uFEFF/, ""));
+  const identity = require("../build/store/identity");
+  assert.equal(config.profileDirectoryName, identity.profileDirectoryName);
+  assert.equal(config.expectedFamily, identity.packageFamilyName);
   const report = { phase, platform: process.platform, userProfile: process.env.USERPROFILE, path: process.env.PATH, tests: [] };
   const record = (name, evidence) => report.tests.push({ name, status: "PASS", evidence });
   const failures = [];
@@ -77,11 +80,12 @@ async function main(configFile, phase = "store") {
     const startup = await evaluate(client, `(async()=>{for(let i=0;i<100;i++){if(window.swiftLocalBackend && document.querySelector('#quick-actions [data-panel="pdf-reader-panel"]'))return {title:document.title,config:await window.swiftLocalBackend.getConfig()};await new Promise(r=>setTimeout(r,100));}throw new Error('preload/home not ready')})()`);
     assert.equal(startup.title, "快轉通 SwiftLocal");
     record("installed-startup-default-profile", startup);
-    const profileCandidates = [config.profile, path.join(process.env.LOCALAPPDATA, "Packages", config.aumid.split("!")[0], "LocalCache", "Roaming", "SwiftLocal Store TEST")];
+    const profileCandidates = [config.profile, path.join(process.env.LOCALAPPDATA, "Packages", config.aumid.split("!")[0], "LocalCache", "Roaming", config.profileDirectoryName)];
     const profile = profileCandidates.find(p => fs.existsSync(path.join(p, "store-runtime-paths.json")));
     assert.ok(profile, `Runtime diagnostic missing at ${profileCandidates.join(', ')}`);
     const runtime = JSON.parse(fs.readFileSync(path.join(profile, "store-runtime-paths.json"), "utf8"));
     assert.equal(runtime.windowsStore, true);
+    assert.equal(path.basename(runtime.userData), identity.profileDirectoryName);
     assert.equal(path.resolve(runtime.resourcesPath), path.resolve(path.dirname(config.exe), "resources"));
     for (const key of ["cwd", "userData", "sessionData", "temp", "crashDumps", "logs", "denoCache", "cache"]) {
       assert.ok(path.resolve(runtime[key]).startsWith(path.resolve(runtime.userData)), `${key} outside Store profile`);

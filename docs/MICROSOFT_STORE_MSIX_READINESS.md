@@ -1,6 +1,70 @@
-# Microsoft Store / AppX readiness — Phase 1
+# Microsoft Store / AppX readiness
 
-Date: 2026-09-21. Status: TEST AppX build/install/native conversions and text-content retest PASS; WACK overall PASS with an optional finding. Not submitted. Manual acceptance gaps remain.
+Phase 1 used a TEST package identity. Phase 2A replaces that identity with the reserved Partner Center identity and builds one unsigned production-identity candidate. Neither phase is submitted. The v0.4.1 GitHub Release is unchanged.
+
+## Phase 2A — official Partner Center identity
+
+Date: 2026-09-22. Status: identity replacement is in source; Windows build, install, conversion, WACK and NSIS regression evidence is recorded below when the Store workflow for this commit finishes. Not submitted. Not a v0.4.2 release.
+
+Jev (`jev-1.13.0`) was asked to choose among keeping the TEST identity, adding a second development identity, or making the reserved identity the only Store package identity. It selected the reserved identity only (confidence 1.0), a non-TEST profile folder distinct from NSIS (confidence 0.99), and package version `1.0.0.0` (confidence 0.82). Those judgments selected the implementation shape. They do not replace manifest, PFN, install or WACK evidence.
+
+### Official identity
+
+Copied exactly. No value below was inferred from the desktop `appId`.
+
+| Field | Value | Where it is used |
+| --- | --- | --- |
+| Package/Identity/Name | `JTKC.SwiftLocal` | manifest `Identity/@Name` |
+| Package/Identity/Publisher | `CN=48CB75C0-3F50-44EF-87EB-8203F196B957` | manifest `Identity/@Publisher` |
+| Package/Properties/PublisherDisplayName | `JTKC` | manifest `PublisherDisplayName` |
+| Reserved Store product name | `SwiftLocal` | manifest `DisplayName` |
+| Package family name | `JTKC.SwiftLocal_j44a9ewx73faj` | verification only; not a manifest Identity field |
+| Store ID | `9P6Z4M7VLWPD` | verification only; not a manifest Identity field |
+
+`Application Id` remains `SwiftLocal`, the same manifest choice as Phase 1 and the reserved product name. It is not a Partner Center identity field. The expected AUMID is `JTKC.SwiftLocal_j44a9ewx73faj!SwiftLocal`.
+
+The package family name is checked two ways: the Windows publisher-id algorithm (UTF-16LE SHA-256, first 8 bytes, one zero bit, Crockford Base32) must equal the reserved suffix `j44a9ewx73faj`, and the installed `PackageFamilyName` must equal `JTKC.SwiftLocal_j44a9ewx73faj`. The algorithm also reproduces Microsoft’s `8wekyb3d8bbwe` and the Phase 1 TEST suffix `t6bf8bs4kmxeg`, so the calculator is not a special case for this publisher.
+
+### Package-version mapping
+
+Windows Store AppX/MSIX package versions have four numeric components. The first component cannot be 0. For Windows 10/11 Store packages the fourth component must be 0. Each component is at most 65535.
+
+SwiftLocal’s product version remains **0.4.1**. That is `package.json`, the NSIS/Portable artifact name, and the manifest descriptions. electron-builder’s normal Windows form of 0.4.1 is `0.4.1.0`. That value is illegal for this Store package because its first component is 0, so the manifest does not use `${version}`.
+
+| Product version | Store package version | Meaning |
+| --- | --- | --- |
+| 0.4.1 | 1.0.0.0 | First production-identity candidate. Package version 1.0.0.0 is not product version 1.0. Not published. |
+
+Phase 1 also used package version 1.0.0.0, but only for the different identity `SwiftLocal.StoreSpike.TEST`. That does not consume a version slot for `JTKC.SwiftLocal`. The repository has no Partner Center submission and no earlier package for this identity, so this candidate keeps 1.0.0.0. A later product update must record the next unused package version before building. The same identity cannot reuse a package version. Do not publish this candidate.
+
+The unsigned artifact name is `SwiftLocal-0.4.1-store-x64.appx`. The `0.4.1` in that filename is the product version. The package Identity Version inside the file remains `1.0.0.0`.
+
+### What this phase changes
+
+The production NSIS/Portable config, commands, native locks, dependency lockfile and v0.4.1 release assets stay unchanged. Store output moves from `dist-store-test/` to `dist-store/`. Visible TEST naming is removed from the production candidate: display name `SwiftLocal`, publisher display name `JTKC`, PDF association `SwiftLocal PDF`, and descriptions `SwiftLocal 0.4.1`. The writable profile is `%APPDATA%/SwiftLocal Store`, still separate from the NSIS profile created under the product name `快轉通 SwiftLocal`. Automated tests assert the reserved identity directly. There is no second buildable TEST identity; `pack:win:store` rejects identity overrides. Local/CI installation still creates a three-day, non-exportable certificate in the machine store, trusts it only for that run, and deletes it. The certificate subject must remain exactly the reserved publisher. No certificate, key, PFX or password is committed.
+
+The deep AppData LibreOffice `0xC0000409` case is not reclassified. Passing the Downloads conversion does not prove that case fixed. It remains a submission blocker.
+
+### Reproduce the production-identity candidate
+
+On Windows x64, from this branch:
+
+```powershell
+npm ci
+npm run pack:win:store
+node scripts/create-store-fixtures.js
+./scripts/accept-store-package.ps1 -RunWack
+```
+
+`npm run pack:win:full:installer` remains the separate NSIS regression. The Store workflow runs both.
+
+### Phase 2A evidence
+
+Pending the Windows workflow for the identity commit. Do not treat this section as a pass before it names the run, artifact bytes, SHA-256, installed PFN, six native probes, conversions, PDF default, WACK and NSIS regression.
+
+## Phase 1 — TEST identity evidence
+
+Date: 2026-09-21. Status: TEST AppX build/install/native conversions and text-content retest PASS; WACK overall PASS with an optional finding. Not submitted. Manual acceptance gaps remain. This section is historical. Its TEST identity is not the Phase 2A candidate.
 Baseline: `c98b27fd01eac54710e291db205039e7ed41190d` (`origin/main`), product v0.4.1,
 Electron 44.2.0, electron-builder 26.15.3, Windows x64. Branch: `store/msix-readiness`.
 The original local checkout was v0.4.0; an isolated worktree was created from the
@@ -88,10 +152,11 @@ remain. Actual retention/cleanup must be measured; do not promise migration from
 NSIS profiles or remove user outputs. Coexistence and upgrade from TEST to a real
 Store identity are not automatic migrations. TEST identity is a separate application.
 
-Only TEST placeholders may be used now. Product version remains **0.4.1**; the
-spike manifest uses package version **1.0.0.0** because Store's package numbering
-requires a nonzero first component and a zero final component. This is not a
-v1.0 product release and is not a reserved production Store version.
+Phase 1 used only TEST placeholders. Product version remained **0.4.1**; the
+spike manifest used package version **1.0.0.0** because Store's package numbering
+requires a nonzero first component and a zero final component. That numbering was
+not a v1.0 product release. Phase 2A keeps the same package version for a different
+identity and documents the mapping above.
 
 PDF registration must add an Open With candidate; it must not set extension default,
 UserChoice or call SetAsDefault. Compare existing PDF default before/after install
@@ -114,7 +179,9 @@ Store re-signs submitted packages; test certificate trust is only local developm
 
 ## Verification and remaining gates
 
-### Reproduce the TEST spike
+### Reproduce the Phase 1 TEST spike
+
+Historical only. The current candidate is the Phase 2A procedure above.
 
 Use Windows x64 with Node 24, full 7-Zip, and Windows SDK signing tools. From a
 clean checkout of this branch:
@@ -262,7 +329,8 @@ Do not merge this branch automatically.
 
 ## Changed files
 
-- `electron-builder.store.config.js`: isolated Full AppX overlay; TEST identity only.
+- `electron-builder.store.config.js`: isolated Full AppX overlay. Phase 1 used a TEST identity; Phase 2A points it at the reserved Partner Center identity.
+- `build/store/identity.js`, `build/store/partner-center-identity.json`: exact reserved identity, package-version mapping, and PFN verification. PFN and Store ID are not manifest fields.
 - `build/store/AppxManifest.xml`: package version, desktop entrypoint, PDF declaration and assets.
 - `build/store/main.js`, `build/store/runtime.js`: Store bootstrap, writable profile and opt-in native probes.
 - `scripts/pack-win-store.js`, `scripts/verify-store-package.js`: build/provision and MakeAppx payload verification.
@@ -290,6 +358,4 @@ the existing CI/Native Tool Smoke workflows and release metadata are unchanged.
 - [WACK](https://learn.microsoft.com/en-us/windows/uwp/debug-test-perf/windows-app-certification-kit), [test signing certificate](https://learn.microsoft.com/en-us/windows/msix/package/create-certificate-package-signing), [Electron process.windowsStore](https://www.electronjs.org/docs/latest/api/process).
 - [Desktop Bridge required and optional certification tests](https://learn.microsoft.com/en-us/windows/uwp/debug-test-perf/windows-desktop-bridge-app-tests), [MakeAppx packaging and unpacking](https://learn.microsoft.com/en-us/windows/msix/package/create-app-package-with-makeappx-tool).
 
-The explicitly requested TypeSafe skill and live [System One docs](https://docs.typesafe.ai/concepts/system-one)
-were read. This deterministic packaging task needs no semantic AI integration,
-API calls or new product feature.
+Phase 1 read the TypeSafe skill and live [System One docs](https://docs.typesafe.ai/concepts/system-one) and made no API call. Phase 2A called Jev (`jev-1.13.0`) for the identity, profile and package-version disposition recorded above. Jev is not part of the application, and its answers are not certification evidence.
