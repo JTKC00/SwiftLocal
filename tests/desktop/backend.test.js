@@ -21,6 +21,9 @@ const {
   libreOfficeArgs,
   pathToLibreOfficeFileUri,
   createLibreOfficeProfileDir,
+  createLibreOfficeScratch,
+  LIBREOFFICE_PROFILE_URI_LIMIT,
+  isInsideWindowsApps,
   filterSuccessfulToolOutput,
   detectTesseractLanguageSupport,
   parseTesseractListLanguages,
@@ -534,6 +537,23 @@ describe("LibreOffice profile isolation", () => {
     assert.match(uri, /%E6%B8%AC%E8%A9%A6/);
     assert.match(uri, /%20/);
     assert.doesNotMatch(uri, /\\/);
+  });
+
+  test("keeps LibreOffice scratch and profile outside the user output directory", () => {
+    const output = tempDir("sl-user-output-");
+    const scratch = createLibreOfficeScratch();
+    try {
+      assert.ok(scratch.uri.length <= LIBREOFFICE_PROFILE_URI_LIMIT);
+      assert.equal(scratch.uri, pathToLibreOfficeFileUri(scratch.profile));
+      assert.equal(path.basename(scratch.scratch).startsWith(".swiftlocal-office-"), true);
+      assert.equal(path.basename(scratch.profile).startsWith("lo-profile-"), true);
+      const relative = path.relative(path.resolve(output), path.resolve(scratch.scratch));
+      assert.ok(relative.startsWith("..") || path.isAbsolute(relative));
+      assert.equal(isInsideWindowsApps(scratch.scratch), false);
+    } finally {
+      fs.rmSync(scratch.scratch, { recursive: true, force: true });
+      fs.rmSync(output, { recursive: true, force: true });
+    }
   });
 
   test("LibreOffice args use isolated profile URI and first-start suppression", () => {

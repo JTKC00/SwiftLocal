@@ -131,9 +131,9 @@ async function main(configFile, phase = "store") {
       }));
       const initialLanguages = languageState();
       report.languageSnapshots = [{ phase: "before-conversions", files: initialLanguages }];
-      async function job(type, files, options = {}) {
-        const outputDir = path.join(config.output, phase, type); fs.mkdirSync(outputDir, { recursive: true });
-        const payload = { type, inputPaths: files.map(name => path.join(inputs, name)), outputDir, options };
+      async function job(type, files, options = {}, paths = {}) {
+        const outputDir = paths.outputDir || path.join(config.output, phase, type); fs.mkdirSync(outputDir, { recursive: true });
+        const payload = { type, inputPaths: paths.inputPaths || files.map(name => path.join(inputs, name)), outputDir, options };
         const created = await evaluate(client, `window.swiftLocalBackend.enqueueJob(${JSON.stringify(payload)})`);
         const start = Date.now(); let finished;
         while (Date.now() - start < 240000) {
@@ -160,9 +160,16 @@ async function main(configFile, phase = "store") {
           assert.equal(document.status, 0, document.stderr); assert.match(document.stdout, /SWIFTLOCAL STORE PDF/);
           assert.match(document.stdout, /Invoice 12345/);
         }
+        const label = paths.label || type;
         const copies = path.join(config.evidence, "conversions"); fs.mkdirSync(copies, { recursive: true });
-        for (const file of outputPaths) fs.copyFileSync(file, path.join(copies, `${type}-${path.basename(file)}`));
-        record(`installed-conversion-${type}`, { outputs: outputPaths, bytes: outputPaths.map(p => fs.statSync(p).size) });
+        for (const file of outputPaths) fs.copyFileSync(file, path.join(copies, `${label}-${path.basename(file)}`));
+        if (paths.record !== false) record(`installed-conversion-${label}`, { outputs: outputPaths, bytes: outputPaths.map(p => fs.statSync(p).size) });
+        return outputPaths;
+      }
+      function windowsShortDirectory(target) {
+        const command = `$p='${String(target).replace(/'/g, "''")}'; $fs=New-Object -ComObject Scripting.FileSystemObject; if (Test-Path -LiteralPath $p -PathType Container) { $fs.GetFolder($p).ShortPath } else { $p }`;
+        const result = spawnSync("powershell.exe", ["-NoProfile", "-Command", command], { encoding: "utf8", windowsHide: true });
+        return String(result.stdout || "").trim() || target;
       }
       for (const [type, files, options] of [
         ["pdf-compress", ["a.pdf"]],
@@ -178,6 +185,36 @@ async function main(configFile, phase = "store") {
           assert.deepEqual(files, initialLanguages, "A conversion changed installed language resources");
         });
       }
+      await attempt("installed-conversion-office-to-pdf-deep-appdata", async () => {
+        const token = crypto.randomBytes(16).toString("hex");
+        const tempRoot = windowsShortDirectory(path.join(process.env.LOCALAPPDATA, "Temp"));
+        const root = path.join(tempRoot, `SwiftLocal Store 中文 ${token}`);
+        const inputPath = path.join(root, "輸入 文件", "office-smoke.docx");
+        const outputDir = path.join(root, "輸出 文件", "store", "office-to-pdf");
+        fs.mkdirSync(path.dirname(inputPath), { recursive: true });
+        fs.copyFileSync(path.join(inputs, "office-smoke.docx"), inputPath);
+        try {
+          const outputPaths = await job("office-to-pdf", [], {}, {
+            inputPaths: [inputPath],
+            outputDir,
+            label: "office-to-pdf-deep-appdata",
+            record: false
+          });
+          assert.equal(fs.readFileSync(outputPaths[0]).subarray(0, 5).toString(), "%PDF-");
+          assert.equal(path.resolve(outputPaths[0]).toLowerCase().startsWith(path.resolve(outputDir).toLowerCase()), true);
+          assert.equal(fs.readdirSync(outputDir).some((name) => name.startsWith(".swiftlocal-office-")), false);
+          record("installed-conversion-office-to-pdf-deep-appdata", {
+            tempRoot,
+            inputPath,
+            inputChars: path.resolve(inputPath).length,
+            outputDir,
+            outputChars: path.resolve(outputDir).length,
+            outputPath: outputPaths[0]
+          });
+        } finally {
+          fs.rmSync(root, { recursive: true, force: true });
+        }
+      });
       const screenshot = await client.send("Page.captureScreenshot", { format: "png" });
       fs.writeFileSync(path.join(config.evidence, `${phase}-installed-home.png`), Buffer.from(screenshot.data, "base64"));
       await attempt("registered-pdf-shell-verb-opens-document", async () => {
