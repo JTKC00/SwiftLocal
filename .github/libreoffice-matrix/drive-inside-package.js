@@ -98,9 +98,10 @@ async function main() {
     const websocketUrl = await waitForInspector(port, log);
     fs.appendFileSync(log, `inspector ${websocketUrl}\n`);
     const client = await connect(websocketUrl);
-    const expression = `process.env.SWIFTLOCAL_LO_MATRIX_CONFIG = ${JSON.stringify(configPath)}; require(${JSON.stringify(config.isolate)}); "completed";`;
+    const expression = `process.env.SWIFTLOCAL_LO_MATRIX_CONFIG = ${JSON.stringify(configPath)}; const load = process.getBuiltinModule("module").createRequire(process.execPath); load(${JSON.stringify(config.isolate)}); "completed";`;
     const evaluation = client.send("Runtime.evaluate", {
       expression,
+      includeCommandLineAPI: true,
       awaitPromise: true,
       returnByValue: true
     });
