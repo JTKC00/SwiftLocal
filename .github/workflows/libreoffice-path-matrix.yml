@@ -7,6 +7,10 @@ on:
         description: 'Run that produced the unsigned official-identity AppX'
         type: string
         default: '35708405363'
+  pull_request:
+    paths:
+      - '.github/libreoffice-matrix/**'
+      - '.github/workflows/libreoffice-path-matrix.yml'
 
 permissions:
   contents: read
@@ -28,7 +32,7 @@ jobs:
         with:
           name: swiftlocal-appx
           path: candidate
-          run-id: ${{ inputs.candidate_run }}
+          run-id: ${{ inputs.candidate_run || '35708405363' }}
           github-token: ${{ github.token }}
       - name: Install packaged LibreOffice and run one-factor path matrix
         shell: powershell
