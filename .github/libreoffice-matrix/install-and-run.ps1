@@ -1,0 +1,46 @@
+param(
+  [Parameter(Mandatory = $true)][string]$Package,
+  [Parameter(Mandatory = $true)][string]$Fixture,
+  [Parameter(Mandatory = $true)][string]$Evidence
+)
+$ErrorActionPreference = 'Stop'
+$root = Resolve-Path (Join-Path $PSScriptRoot '..\..')
+Set-Location $root
+$identity = Get-Content (Join-Path $root 'build/store/partner-center-identity.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+$Package = (Resolve-Path $Package).Path
+if (Get-AppxPackage -Name $identity.identityName) { throw "Existing $($identity.identityName) package found" }
+$sdk = Get-ChildItem "${env:ProgramFiles(x86)}/Windows Kits/10/bin/*/x64/signtool.exe" | Sort-Object FullName -Descending | Select-Object -First 1
+if (!$sdk) { throw 'Windows SDK signtool.exe unavailable' }
+$working = Join-Path $env:TEMP ('sl-lo-matrix-sign-' + [Guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory $working | Out-Null
+$certificate = $null
+$installed = $null
+try {
+  $certificate = New-SelfSignedCertificate -Type Custom -Subject $identity.publisher -FriendlyName 'SwiftLocal developer install' -KeyUsage DigitalSignature -KeyAlgorithm RSA -KeyLength 2048 -HashAlgorithm SHA256 -KeyExportPolicy NonExportable -CertStoreLocation 'Cert:/LocalMachine/My' -NotAfter (Get-Date).AddDays(1) -TextExtension @('2.5.29.37={text}1.3.6.1.5.5.7.3.3', '2.5.29.19={text}')
+  if ($certificate.Subject -cne $identity.publisher) { throw "Certificate subject drifted: $($certificate.Subject)" }
+  $trust = New-Object Security.Cryptography.X509Certificates.X509Store('TrustedPeople', 'LocalMachine')
+  $trust.Open('ReadWrite'); $trust.Add($certificate); $trust.Close()
+  $signed = Join-Path $working (Split-Path $Package -Leaf)
+  Copy-Item $Package $signed
+  & $sdk.FullName sign /fd SHA256 /sha1 $certificate.Thumbprint /sm /s My $signed
+  if ($LASTEXITCODE -ne 0) { throw 'Developer-only signing failed' }
+  Add-AppxPackage -Path $signed
+  $installed = Get-AppxPackage -Name $identity.identityName
+  if ($installed.PackageFamilyName -cne $identity.packageFamilyName) { throw "Installed PFN $($installed.PackageFamilyName)" }
+  $soffice = Join-Path $installed.InstallLocation 'app\resources\tools\libreoffice\program\soffice.com'
+  if (!(Test-Path -LiteralPath $soffice)) { throw "Packaged soffice missing: $soffice" }
+  & node @(
+    (Join-Path $PSScriptRoot 'isolate.js'),
+    '--soffice', $soffice,
+    '--fixture', $Fixture,
+    '--evidence', $Evidence
+  )
+  if ($LASTEXITCODE -ne 0) { throw 'LibreOffice path matrix failed' }
+} finally {
+  if ($installed) { Remove-AppxPackage -Package $installed.PackageFullName -ErrorAction SilentlyContinue }
+  if ($certificate) {
+    Remove-Item ('Cert:/LocalMachine/TrustedPeople/' + $certificate.Thumbprint) -ErrorAction SilentlyContinue
+    Remove-Item ('Cert:/LocalMachine/My/' + $certificate.Thumbprint) -ErrorAction SilentlyContinue
+  }
+  if (Test-Path $working) { Remove-Item $working -Recurse -Force -ErrorAction SilentlyContinue }
+}
