@@ -39,36 +39,17 @@ try {
     soffice = $soffice
     fixture = (Resolve-Path $Fixture).Path
     evidence = $evidencePath
-    launchContext = 'package-identity'
+    launchContext = 'packaged-electron-main'
+    isolate = (Resolve-Path (Join-Path $PSScriptRoot 'isolate.js')).Path
+    activate = (Resolve-Path (Join-Path $root 'scripts/store-activate.ps1')).Path
+    aumid = ($identity.packageFamilyName + '!SwiftLocal')
+    launchLog = $launchLog
   } | ConvertTo-Json
   [IO.File]::WriteAllText($configPath, $launchConfig, (New-Object Text.UTF8Encoding $false))
-  $node = (Get-Command node.exe).Source
-  $isolate = (Resolve-Path (Join-Path $PSScriptRoot 'isolate.js')).Path
-  $launcher = Join-Path $evidenceDir 'launch-matrix.ps1'
-  @(
-    '$ErrorActionPreference = ''Continue'''
-    "Set-Content -LiteralPath '$launchLog' -Value 'launcher-start'"
-    "try { & '$node' '$isolate' --config '$configPath' *>> '$launchLog'; Add-Content -LiteralPath '$launchLog' -Value ('exit=' + `$LASTEXITCODE) } catch { Add-Content -LiteralPath '$launchLog' -Value `$_.Exception.ToString(); Add-Content -LiteralPath '$launchLog' -Value 'exit=1'; exit 1 }"
-    'exit $LASTEXITCODE'
-  ) -join "`r`n" | Set-Content -LiteralPath $launcher -Encoding ASCII
-  "outer-start node=$node" | Set-Content -LiteralPath $outerLog
-  # Unpackaged CreateProcess on WindowsApps\soffice.com returns EPERM. Run node inside
-  # the package identity and keep soffice children in that context.
-  try {
-    Invoke-CommandInDesktopPackage -PackageFamilyName $identity.packageFamilyName -AppId $identity.applicationId -Command "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -Args "-NoProfile -ExecutionPolicy Bypass -File `"$launcher`"" -PreventBreakaway *>&1 | Tee-Object -FilePath $outerLog -Append
-    "cmdlet-returned exit=$LASTEXITCODE" | Add-Content -LiteralPath $outerLog
-  } catch {
-    $_.Exception.ToString() | Add-Content -LiteralPath $outerLog
-    throw
-  }
-  $deadline = (Get-Date).AddMinutes(40)
-  while ((Get-Date) -lt $deadline -and -not (Test-Path -LiteralPath $evidencePath)) {
-    if ((Test-Path -LiteralPath $launchLog) -and (Select-String -LiteralPath $launchLog -Pattern '^exit=' -Quiet)) { break }
-    if (-not (Test-Path -LiteralPath $launchLog)) { break }
-    Start-Sleep -Seconds 5
-  }
+  "outer-start" | Set-Content -LiteralPath $outerLog
+  & node (Join-Path $PSScriptRoot 'drive-inside-package.js') --config $configPath
   if (Test-Path -LiteralPath $launchLog) { Get-Content -LiteralPath $launchLog | Write-Host }
-  if (!(Test-Path -LiteralPath $evidencePath)) { throw 'LibreOffice path matrix produced no evidence' }
+  if ($LASTEXITCODE -ne 0) { throw 'LibreOffice path matrix driver failed' }
   $report = Get-Content -LiteralPath $evidencePath -Raw -Encoding UTF8 | ConvertFrom-Json
   if ($report.fatal) { throw "LibreOffice path matrix failed: $($report.fatal)" }
   $baseline = @($report.rows | Where-Object { $_.id -eq 'baseline-short-downloads-short-profile' })

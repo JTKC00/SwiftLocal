@@ -129,8 +129,9 @@ function runCase(soffice, spec) {
 
 function main() {
   if (process.platform !== "win32") throw new Error("LibreOffice path matrix requires Windows");
-  const config = optionalArg("--config")
-    ? JSON.parse(fs.readFileSync(optionalArg("--config"), "utf8").replace(/^\uFEFF/, ""))
+  const configPath = process.env.SWIFTLOCAL_LO_MATRIX_CONFIG || optionalArg("--config");
+  const config = configPath
+    ? JSON.parse(fs.readFileSync(configPath, "utf8").replace(/^\uFEFF/, ""))
     : {};
   const soffice = path.resolve(config.soffice || arg("--soffice"));
   const fixture = path.resolve(config.fixture || arg("--fixture"));
