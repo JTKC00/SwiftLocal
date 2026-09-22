@@ -136,6 +136,10 @@ function main() {
   const fixture = path.resolve(config.fixture || arg("--fixture"));
   const evidence = path.resolve(config.evidence || arg("--evidence"));
   const launchContext = config.launchContext || "unspecified";
+  fs.mkdirSync(path.dirname(evidence), { recursive: true });
+  fs.writeFileSync(path.join(path.dirname(evidence), "lo-matrix-started.json"), JSON.stringify({
+    phase: "started", soffice, fixture, launchContext
+  }, null, 2));
   if (!fs.existsSync(soffice)) throw new Error(`soffice missing: ${soffice}`);
   if (!fs.existsSync(fixture)) throw new Error(`fixture missing: ${fixture}`);
   let versionText = "";

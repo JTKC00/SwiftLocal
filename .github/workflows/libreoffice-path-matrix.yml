@@ -41,6 +41,6 @@ jobs:
         if: always()
         with:
           name: libreoffice-path-matrix
-          path: store-evidence/lo-matrix.json
+          path: store-evidence/*
           retention-days: 14
           if-no-files-found: error
