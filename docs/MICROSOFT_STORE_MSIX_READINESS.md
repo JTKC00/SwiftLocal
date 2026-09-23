@@ -1,6 +1,6 @@
 # Microsoft Store / AppX readiness
 
-Phase 1 used a TEST package identity. Phase 2A replaces that identity with the reserved Partner Center identity and builds one unsigned production-identity candidate. Phase 2B isolates the packaged LibreOffice deep-AppData `0xC0000409` crash and fixes the profile-URI cause on that same identity. None of these phases is submitted. Draft PR #13 is not merged. The v0.4.1 GitHub Release is unchanged.
+Phase 1 used a TEST package identity. Phase 2A replaces that identity with the reserved Partner Center identity and builds one unsigned production-identity candidate. Phase 2B isolates the packaged LibreOffice deep-AppData `0xC0000409` crash and fixes the profile-URI cause on that same identity. Phase 2C opens Windows 11 consumer GUI acceptance and stays incomplete until the project owner confirms each row. None of these phases is submitted. Draft PR #13 is not merged. The v0.4.1 GitHub Release is unchanged.
 
 ## Phase 2A — official Partner Center identity
 
@@ -205,6 +205,20 @@ In the same run, `Build and verify unchanged NSIS Full entrypoint` succeeded. Th
 Windows 11 consumer standard-user GUI, Open With, physical double-click, Store update/uninstall data retention and native licensing review remain open. Verdict A allows that acceptance to start. Do not submit this candidate. Do not merge PR #13.
 
 Durable copies: [docs/acceptance/2026-09-22-store-phase2b](acceptance/2026-09-22-store-phase2b/).
+
+## Phase 2C — Windows 11 consumer acceptance
+
+Date opened: 2026-09-23. Status: **PHASE 2C INCOMPLETE**. The frozen candidate is the Phase 2B unsigned AppX. No GUI row has an owner confirmation, so none is marked PASS. Windows Server CI remains the Phase 2B package evidence and is not a consumer GUI result.
+
+The candidate is `SwiftLocal-0.4.1-store-x64.appx`, 1,115,695,293 bytes, SHA-256 `38a1ea9d89e956c1dbcdecb21f85bca673d7ab70301b16e66f68c819d7eed404`, from [run 35758117387](https://github.com/JTKC00/SwiftLocal/actions/runs/35758117387), commit `5b0e2c2`. On 2026-09-23 the Actions artifact `swiftlocal-appx` was downloaded and matched that filename, byte size, SHA-256, manifest identity, and package version `1.0.0.0`. Commit `1c577b7` records the Phase 2B evidence and does not rebuild the package. A different hash stops this cycle. The acceptance machine still re-checks the file it signs.
+
+`docs/acceptance/2026-09-23-store-consumer/prepare-sideload.ps1` checks that frozen file, signs a temporary CurrentUser copy, and stops before installation. The project owner double-clicks that copy. `scripts/accept-store-package.ps1` must not substitute for that GUI install. The temporary certificate is non-exportable and is removed only by `remove-sideload-certificate.ps1` after the owner finishes. No certificate or signed package is committed.
+
+The checklist and the `UNVERIFIED` rows are in [docs/acceptance/2026-09-23-store-consumer](acceptance/2026-09-23-store-consumer/README.md). The Phase 2B deep-AppData PASS stays linked there and is not downgraded. Optional WACK Blocked executables, 593 messages, stays a later policy item and is not a Phase 2C UI blocker by itself.
+
+**C. PHASE 2C INCOMPLETE.** Phase 2D waits for an owner-confirmed consumer pass. Do not submit. Do not merge.
+
+Jev (`jev-1.13.0`) chose C (confidence 1.0). It gave probability 0.03 that a GUI row may pass without an owner observation, 0.03 that Store submission is allowed, and 0.61 that the described artifact is the frozen candidate. The downloaded file's SHA-256 matched the frozen digest on this check. Jev does not replace that comparison or supply a GUI confirmation.
 
 ## Phase 1 — TEST identity evidence
 
@@ -491,7 +505,8 @@ Do not merge this branch automatically.
 - `desktop/backend.js`: LibreOffice scratch and profile use a private temporary parent and a 180-character profile URI cap.
 - `tests/desktop/backend.test.js`: scratch stays outside the user output directory.
 - `.github/libreoffice-matrix/`, `.github/workflows/libreoffice-path-matrix.yml`: packaged soffice path matrix.
-- This readiness document, `docs/acceptance/2026-09-21-store/`, `docs/acceptance/2026-09-22-store/` and `docs/acceptance/2026-09-22-store-phase2b/`: durable acceptance evidence.
+- `docs/acceptance/2026-09-23-store-consumer/`: Phase 2C checklist and the sideload preparation that stops before installation.
+- This readiness document, `docs/acceptance/2026-09-21-store/`, `docs/acceptance/2026-09-22-store/`, `docs/acceptance/2026-09-22-store-phase2b/` and `docs/acceptance/2026-09-23-store-consumer/`: durable acceptance evidence.
 
 `package-lock.json`, `electron-builder.config.js`, `scripts/pack-win.js`,
 `scripts/build-win-full.js`, `build/windows-file-associations.nsh`, native lockfiles,
@@ -506,4 +521,4 @@ the existing CI/Native Tool Smoke workflows and release metadata are unchanged.
 - [WACK](https://learn.microsoft.com/en-us/windows/uwp/debug-test-perf/windows-app-certification-kit), [test signing certificate](https://learn.microsoft.com/en-us/windows/msix/package/create-certificate-package-signing), [Electron process.windowsStore](https://www.electronjs.org/docs/latest/api/process).
 - [Desktop Bridge required and optional certification tests](https://learn.microsoft.com/en-us/windows/uwp/debug-test-perf/windows-desktop-bridge-app-tests), [MakeAppx packaging and unpacking](https://learn.microsoft.com/en-us/windows/msix/package/create-app-package-with-makeappx-tool).
 
-Phase 1 read the TypeSafe skill and live [System One docs](https://docs.typesafe.ai/concepts/system-one) and made no API call. Phase 2A called Jev (`jev-1.13.0`) for the identity, profile and package-version disposition recorded above. Phase 2B called the same model for the crash verdict recorded in that section. Jev is not part of the application, and its answers are not certification evidence.
+Phase 1 read the TypeSafe skill and live [System One docs](https://docs.typesafe.ai/concepts/system-one) and made no API call. Phase 2A called Jev (`jev-1.13.0`) for the identity, profile and package-version disposition recorded above. Phase 2B called the same model for the crash verdict recorded in that section. Phase 2C calls it for the consumer-acceptance verdict. Jev is not part of the application, and its answers are not certification evidence.
