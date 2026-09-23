@@ -1,0 +1,21 @@
+{
+  "status": "PASS",
+  "commit": "7e38c7c961e327cd18beb661b1023aee1fa04881",
+  "version": "0.4.1",
+  "packageVersion": "1.0.0.0",
+  "builder": "26.15.3",
+  "artifact": "SwiftLocal-0.4.1-store-x64.appx",
+  "bytes": 1115697028,
+  "sha256": "da8a8f08dc2d46522eaf1aeab99f9c5f02072737f991f75b1b73c7d77958b693",
+  "files": 19695,
+  "payloadComparison": "all extracted app files byte-identical to verified Full win-unpacked",
+  "identity": {
+    "name": "JTKC.SwiftLocal",
+    "publisher": "CN=48CB75C0-3F50-44EF-87EB-8203F196B957",
+    "publisherDisplayName": "JTKC",
+    "packageFamilyName": "JTKC.SwiftLocal_j44a9ewx73faj",
+    "storeId": "9P6Z4M7VLWPD",
+    "note": "packageFamilyName and storeId are verification records, not manifest Identity fields. packageVersion 1.0.0.0 is not product version 1.0."
+  },
+  "wack": "NOT RUN"
+}

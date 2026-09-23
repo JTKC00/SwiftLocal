@@ -1,0 +1,46 @@
+name: LibreOffice path matrix
+
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_run:
+        description: 'Run that produced the unsigned official-identity AppX'
+        type: string
+        default: '35708405363'
+  pull_request:
+    paths:
+      - '.github/libreoffice-matrix/**'
+      - '.github/workflows/libreoffice-path-matrix.yml'
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  matrix:
+    runs-on: windows-2025
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: node scripts/create-store-fixtures.js
+      - uses: actions/download-artifact@v4
+        with:
+          name: swiftlocal-appx
+          path: candidate
+          run-id: ${{ inputs.candidate_run || '35708405363' }}
+          github-token: ${{ github.token }}
+      - name: Install packaged LibreOffice and run one-factor path matrix
+        shell: powershell
+        run: ./.github/libreoffice-matrix/install-and-run.ps1 -Package (Get-ChildItem candidate/*.appx | Select-Object -ExpandProperty FullName) -Fixture smoke-temp/store-input/office-smoke.docx -Evidence store-evidence/lo-matrix.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: libreoffice-path-matrix
+          path: store-evidence/*
+          retention-days: 14
+          if-no-files-found: error

@@ -1,0 +1,187 @@
+name: Store Packaging Spike
+
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_run:
+        description: 'Optional prior Store run whose exact AppX should receive smoke-only retesting (WACK evidence stays with that artifact)'
+        type: string
+        default: ''
+      nsis_regression:
+        description: 'Rebuild NSIS (disable only when unchanged NSIS already has recorded passing evidence)'
+        type: boolean
+        default: true
+  push:
+    branches: [store/msix-readiness]
+    paths:
+      - 'package*.json'
+      - 'electron-builder*.js'
+      - 'desktop/**'
+      - 'frontend/**'
+      - 'build/**'
+      - 'scripts/**'
+      - 'tools/*.lock.json'
+      - 'tests/**'
+      - '.github/workflows/store-packaging-spike.yml'
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: store-spike-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  regression:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-2025, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - run: npm ci
+      - run: python -m pip install -r backend/requirements.txt
+      - run: npm run typecheck
+      - run: npm run check:ci
+      - run: npm test
+      - run: git diff --check
+
+  package:
+    if: ${{ !inputs.candidate_run }}
+    runs-on: windows-2025
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - name: Parse Store PowerShell and JavaScript
+        shell: pwsh
+        run: |
+          foreach ($file in Get-ChildItem scripts/*store*.ps1) {
+            $tokens = $null; $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile($file.FullName, [ref]$tokens, [ref]$errors) | Out-Null
+            if ($errors.Count) { throw ($errors | Out-String) }
+          }
+          foreach ($file in Get-ChildItem scripts/*store*.js,build/store/*.js,electron-builder.store.config.js) {
+            node --check $file.FullName
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+      - uses: actions/cache/restore@v4
+        id: native-cache
+        with:
+          path: ${{ runner.temp }}/swiftlocal-native-archives
+          key: native-sources-ffmpeg9.0.1-qpdf12.4.1-tesseract5.5.3-lo26.2.6
+      - name: Fetch locked LibreOffice MSI with bounded download retries
+        shell: pwsh
+        run: |
+          $spec = (Get-Content tools/native-tools.lock.json -Raw | ConvertFrom-Json).tools.libreoffice
+          $cache = Join-Path '${{ runner.temp }}' 'swiftlocal-native-archives'
+          New-Item -ItemType Directory -Force $cache | Out-Null
+          $archive = Join-Path $cache $spec.archiveName
+          if (!(Test-Path $archive)) {
+            curl.exe --fail --location --retry 3 --retry-all-errors --connect-timeout 30 --max-time 600 --output $archive $spec.url
+            if ($LASTEXITCODE -ne 0) { throw 'Locked LibreOffice source download failed' }
+          }
+          if ((Get-FileHash $archive -Algorithm SHA256).Hash -ne $spec.sha256) { throw 'Locked LibreOffice source checksum mismatch' }
+      - name: Provision locked Full payload
+        env:
+          SWIFTLOCAL_NATIVE_DIAGNOSTICS: store-evidence
+        run: node scripts/ensure-native-tools.js --download --full --archive-cache "${{ runner.temp }}/swiftlocal-native-archives"
+      - uses: actions/cache/save@v4
+        if: steps.native-cache.outputs.cache-hit != 'true'
+        with:
+          path: ${{ runner.temp }}/swiftlocal-native-archives
+          key: native-sources-ffmpeg9.0.1-qpdf12.4.1-tesseract5.5.3-lo26.2.6
+      - run: npm run tools:media-download
+      - run: npm run tools:tessdata
+      - name: Full native smoke and reproducible fixtures
+        run: node scripts/smoke-release.js --require-bundled --skip-tests
+      - name: Unicode OCR in real Electron runtime
+        run: node -e "const r=require('node:child_process').spawnSync(require('electron'),['scripts/smoke-windows-unicode-ocr.js'],{stdio:'inherit'});process.exit(r.status ?? 1)"
+      - name: Build and verify unchanged NSIS Full entrypoint
+        if: github.event_name != 'workflow_dispatch' || inputs.nsis_regression
+        run: npm run pack:win:full:installer
+      - name: Build and extract-verify production-identity AppX
+        run: npm run pack:win:store
+      - name: Install, activate, convert, certify and uninstall production-identity package
+        shell: powershell
+        run: |
+          node scripts/create-store-fixtures.js
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ./scripts/accept-store-package.ps1 -RunWack
+      - name: Retain Store evidence even on failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: store-spike-evidence
+          path: store-evidence/
+          retention-days: 14
+      - name: Retain unsigned AppX (no signing key or certificate)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: swiftlocal-appx
+          path: dist-store/*.appx
+          if-no-files-found: warn
+          compression-level: 0
+          retention-days: 14
+
+  retest:
+    if: ${{ inputs.candidate_run != '' }}
+    runs-on: windows-2025
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          name: swiftlocal-appx
+          path: candidate
+          run-id: ${{ inputs.candidate_run }}
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: store-spike-evidence
+          path: candidate-evidence
+          run-id: ${{ inputs.candidate_run }}
+          github-token: ${{ github.token }}
+      - name: Verify exact candidate and retained certification report
+        shell: powershell
+        run: |
+          $metadata = Get-Content candidate-evidence/package.json -Raw | ConvertFrom-Json
+          $package = Get-Item ('candidate/' + $metadata.artifact)
+          if ((Get-FileHash $package -Algorithm SHA256).Hash -ne $metadata.sha256) { throw 'Candidate checksum mismatch' }
+          New-Item -ItemType Directory -Force store-evidence | Out-Null
+          Copy-Item candidate-evidence/package.json store-evidence/package.json
+          node scripts/read-store-wack.js candidate-evidence/wack.xml store-evidence/candidate-wack-summary.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node scripts/create-store-fixtures.js
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Retest exact installed AppX with text-bearing documents
+        shell: powershell
+        run: ./scripts/accept-store-package.ps1 -Package (Get-ChildItem candidate/*.appx | Select-Object -ExpandProperty FullName)
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: store-spike-retest-evidence
+          path: store-evidence/
+          retention-days: 14

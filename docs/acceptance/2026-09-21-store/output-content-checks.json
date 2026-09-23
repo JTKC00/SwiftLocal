@@ -1,0 +1,31 @@
+{
+  "candidateSha256": "9d94ccaaf4c6ea851ac0d0d10269014efb26d4343dc547be0a33ee756f1cec5f",
+  "checks": [
+    {
+      "name": "pdf-compress-a_compressed.pdf",
+      "status": "PASS",
+      "pages": 1,
+      "text": "SWIFTLOCAL STORE PDF Invoice 12345",
+      "sha256": "7103c158a65febe7b7bb017d9127712887d5da3cf5dadc9ec192b7f4f9ca1023"
+    },
+    {
+      "name": "office-to-pdf-office-smoke.pdf",
+      "status": "PASS",
+      "pages": 1,
+      "text": "SWIFTLOCAL STORE DOCX  Invoice 12345",
+      "sha256": "a2ee2fc7d8743cdea9e03f6397dd4565ad0897d8ee3e1ce45da2a6f9f5fdc065"
+    },
+    {
+      "name": "pdf-to-searchable-pdf-ocr-scan_ocr_searchable.pdf",
+      "status": "PASS",
+      "pages": 1,
+      "text": "SWIFTLOCAL OCR SMOKE 香港 特別行政區  HONG KONG",
+      "sha256": "a5cd503b244fb336780b7788dfe9fc42670a10b652a790eacb727058b9715f4f"
+    },
+    {
+      "name": "image OCR Chinese text",
+      "status": "PASS",
+      "text": "SWIFTLOCAL OCR SMOKE\n香港特別行政區\nHONG KONG\n"
+    }
+  ]
+}
