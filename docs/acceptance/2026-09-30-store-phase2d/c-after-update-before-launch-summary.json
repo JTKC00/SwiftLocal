@@ -1,0 +1,1013 @@
+{
+  "status": "PARTIAL",
+  "scope": "Step 4A in-place update and durable retention measured; required BEFORE-FIRST-LAUNCH control FAIL, so Step 4A is not PASS",
+  "resumedFrom": "d9262c5f186976f75b37a8f671b061316ea41d83",
+  "requestedStage": "c-after-update-before-launch",
+  "actualScope": "closed-app snapshot AFTER an unplanned observed launch of Store 1.0.1.0",
+  "beforeLaunchRequirement": {
+    "status": "FAIL",
+    "reason": "Process sampling observed SwiftLocal immediately after deployment; runtime resourcesPath and jobs savedAt independently confirm updated application startup",
+    "automaticOrManualCause": "Owner-confirmed manual launch",
+    "ownerExactReply": "我手動開啟",
+    "noNativeProbesOrConversionSmokeRun": true,
+    "helperNeverActivatedApp": true
+  },
+  "capturedAt": "2026-09-30T17:12:55.8990709+08:00",
+  "inventoryStartedAt": "2026-09-30T17:10:22.8946938+08:00",
+  "inventoryCompletedAt": "2026-09-30T17:12:59.8194852+08:00",
+  "ownerObservation": {
+    "status": "PASS",
+    "observer": "project owner",
+    "exactReply": "更新了，完全沒問題",
+    "question": "Personally double-click the retained signed 1.0.1.0 AppX; confirm App Installer clearly offers an update of existing SwiftLocal 1.0.0.0 -> 1.0.1.0; disable Launch when ready; update; do not uninstall or launch either channel; report update offer/success/no uninstall/no launch or stop on ambiguity/error",
+    "screenshot": "not provided; explicit owner reply retained",
+    "launchClarification": {
+      "observer": "project owner",
+      "recordedAt": "2026-09-30T17:21:29.0546274+08:00",
+      "question": "After the process observation, clarify whether App Installer automatically started SwiftLocal or the owner opened it manually",
+      "exactReply": "我手動開啟",
+      "cause": "owner manual launch",
+      "noLaunchRequirement": "FAIL; cannot label the current inventory before-first-launch",
+      "nextAction": "Stop; preserve both installed channels and test signing material"
+    }
+  },
+  "package": {
+    "before": {
+      "name": "JTKC.SwiftLocal",
+      "publisher": "CN=48CB75C0-3F50-44EF-87EB-8203F196B957",
+      "version": "1.0.0.0",
+      "architecture": "x64",
+      "fullName": "JTKC.SwiftLocal_1.0.0.0_x64__j44a9ewx73faj",
+      "pfn": "JTKC.SwiftLocal_j44a9ewx73faj",
+      "applicationId": "SwiftLocal",
+      "aumid": "JTKC.SwiftLocal_j44a9ewx73faj!SwiftLocal"
+    },
+    "after": {
+      "name": "JTKC.SwiftLocal",
+      "publisher": "CN=48CB75C0-3F50-44EF-87EB-8203F196B957",
+      "version": "1.0.1.0",
+      "fullName": "JTKC.SwiftLocal_1.0.1.0_x64__j44a9ewx73faj",
+      "pfn": "JTKC.SwiftLocal_j44a9ewx73faj",
+      "applicationId": "SwiftLocal",
+      "aumid": "JTKC.SwiftLocal_j44a9ewx73faj!SwiftLocal",
+      "architecture": "x64"
+    }
+  },
+  "inPlaceUpdate": {
+    "status": "PASS",
+    "activityId": "{277e35e4-5078-0000-e855-36287850dd01}",
+    "actionListEvent": {
+      "id": 855,
+      "recordId": 426801,
+      "at": "2026-09-30T17:07:32.0359584+08:00",
+      "message": "Finished resolving action lists. DeploymentRequest action lists: updateList: JTKC.SwiftLocal_1.0.0.0_x64__j44a9ewx73faj is updating to JTKC.SwiftLocal_1.0.1.0_x64__j44a9ewx73faj."
+    },
+    "successEvent": {
+      "id": 400,
+      "recordId": 426817,
+      "at": "2026-09-30T17:08:37.6111401+08:00",
+      "message": "Deployment Add operation with target volume C: on Package JTKC.SwiftLocal_1.0.1.0_x64__j44a9ewx73faj from:  (SwiftLocal-0.4.1-store-1.0.1.0.developer-signed-test.appx)  finished successfully."
+    },
+    "interveningUninstall": "PASS: no separate Remove/DeRegister deployment operation in captured interval; owner replied to explicit no-uninstall question",
+    "oldInstalledVersionAbsent": "PASS: exactly one current user package, version 1.0.1.0",
+    "oldFolderDeStaging": "Event 472 moves the superseded 1.0.0.0 payload to WindowsApps/Deleted within the same update activity; this is preserved and not represented as a user uninstall"
+  },
+  "processObservation": {
+    "status": "FAIL",
+    "scope": "read-only 250ms process samples; owner no-launch confirmation remains required",
+    "startedAt": "2026-09-30T17:06:18.3129355+08:00",
+    "endedAt": "2026-09-30T17:13:55.2680870+08:00",
+    "samples": 1660,
+    "maximumObservedSwiftLocalProcesses": 4,
+    "observedProcesses": [
+      {
+        "id": 28564,
+        "name": "SwiftLocal",
+        "observedAt": "2026-09-30T17:08:38.8642501+08:00"
+      },
+      {
+        "id": 7240,
+        "name": "SwiftLocal",
+        "observedAt": "2026-09-30T17:08:41.6807475+08:00"
+      },
+      {
+        "id": 23920,
+        "name": "SwiftLocal",
+        "observedAt": "2026-09-30T17:08:43.0490214+08:00"
+      },
+      {
+        "id": 25732,
+        "name": "SwiftLocal",
+        "observedAt": "2026-09-30T17:08:41.6807475+08:00"
+      }
+    ],
+    "stoppedByReceiptFlag": true
+  },
+  "retention": {
+    "status": "PASS for durable state observed after the unplanned launch; not a prelaunch claim",
+    "physicalProfile": "%LOCALAPPDATA%/Packages/JTKC.SwiftLocal_j44a9ewx73faj/LocalCache/Roaming/SwiftLocal Store",
+    "theme": "dark",
+    "savedPreset": {
+      "id": "preset-1790754970948-0847f3",
+      "name": "Phase 2D Store media preset",
+      "description": "從「影音轉換」保存的自訂選項。",
+      "category": "media",
+      "badge": "影音",
+      "panelId": "media-panel",
+      "settings": {
+        "#media-output-extension": "mp3",
+        "#media-gif-fps": "10"
+      },
+      "actions": [],
+      "custom": true,
+      "createdAt": "2026-09-30T07:56:10.948Z"
+    },
+    "outputPreference": "%USERPROFILE%/Downloads/SwiftLocal-Phase2D-output",
+    "job": {
+      "id": "1790754980124-5d1059f7e28d4",
+      "type": "pdf-compress",
+      "status": "done",
+      "semanticRecordRetained": "PASS"
+    },
+    "localStorage": {
+      "swiftlocal-theme": "dark",
+      "swiftlocal-presets": "[{\"id\":\"preset-1790754970948-0847f3\",\"name\":\"Phase 2D Store media preset\",\"description\":\"從「影音轉換」保存的自訂選項。\",\"category\":\"media\",\"badge\":\"影音\",\"panelId\":\"media-panel\",\"settings\":{\"#media-output-extension\":\"mp3\",\"#media-gif-fps\":\"10\"},\"actions\":[],\"custom\":true,\"createdAt\":\"2026-09-30T07:56:10.948Z\"}]",
+      "swiftlocal-workflows": "[]",
+      "swiftlocal.recentPdfs": null,
+      "swiftlocal-accessibility": null
+    },
+    "localStorageMethod": "read-only CRC32C-checked WAL/write-batch replay, file:// origin, Chromium string decoding; database never opened",
+    "localStorageFiles": [
+      {
+        "name": "000003.log",
+        "bytes": 1001,
+        "sha256": "173e83a9073a1e970ad3f1857a829fa331c898a7b724814765c1faa44566c23c"
+      }
+    ],
+    "localStorageSemanticRetention": "PASS",
+    "durableSettingsRetention": "PASS",
+    "jobRetention": "PASS",
+    "output": {
+      "path": "%USERPROFILE%/Downloads/SwiftLocal-Phase2D-output/retention-marker/a_compressed.pdf",
+      "bytes": 893,
+      "sha256": "d6ae46c6185fcdf639f1d68a8b195b29ec09545268f70ba33fdbff89a76287a1",
+      "structuralCheck": "PASS",
+      "fixtureContentCheck": "PASS",
+      "extractedText": "SWIFTLOCAL STORE PDF Invoice 12345",
+      "inspectionTool": {
+        "scope": "read-only output check with already extracted byte-identical frozen QPDF payload; not an installed-update native probe",
+        "sha256": "57c003e868fb66cd343fd5afb91be8c2277f56434eea8635762499731bf9f60d",
+        "dependencyFilesMatched": 13
+      },
+      "directWindowsAppsInspectorAttempt": {
+        "status": "PARTIAL",
+        "errorCode": "EPERM",
+        "scope": "unpackaged inspector direct execution; the actual installed Store compression job succeeded through product IPC"
+      },
+      "unchanged": "PASS"
+    }
+  },
+  "durableFiles": {
+    "tools.json": {
+      "before": {
+        "bytes": 101,
+        "sha256": "b1f2cfa7310f6864f516561b8f706030f014edf9d632272e9cd52c9c3458aa1a"
+      },
+      "after": {
+        "bytes": 101,
+        "sha256": "b1f2cfa7310f6864f516561b8f706030f014edf9d632272e9cd52c9c3458aa1a"
+      },
+      "byteIdentical": "PASS"
+    },
+    "jobs-state.json": {
+      "before": {
+        "bytes": 886,
+        "sha256": "1a42d9d177fa0468d2175d5d50cda04785daae9734a8b8f06965ee9bb30d08b0"
+      },
+      "after": {
+        "bytes": 886,
+        "sha256": "0be476222efe052bc5bc5cccf98f907cdb4970ef13f62cb655f14722d880a4cb"
+      },
+      "byteIdentical": "PARTIAL; semantic/classification review above"
+    },
+    "session/Preferences": {
+      "before": {
+        "bytes": 57,
+        "sha256": "be4b8924ab38e8acf350e6e3b9f1f63a1a94952d8002759acd6946c4d5d0b5de"
+      },
+      "after": {
+        "bytes": 57,
+        "sha256": "be4b8924ab38e8acf350e6e3b9f1f63a1a94952d8002759acd6946c4d5d0b5de"
+      },
+      "byteIdentical": "PASS"
+    }
+  },
+  "jobsFileDifference": {
+    "classification": "A: application-owned durable jobs record retained; only serializer savedAt timestamp changed",
+    "beforeSavedAt": "2026-09-30T08:02:15.533Z",
+    "afterSavedAt": "2026-09-30T09:08:41.491Z",
+    "versionAndAllJobsSemanticEquality": "PASS",
+    "rawHashEquality": "FAIL; accurately recorded, not a durable job loss"
+  },
+  "runtimeDiagnosticDifference": {
+    "classification": "A: application-owned non-user diagnostic metadata",
+    "changedField": "resourcesPath",
+    "beforeVersion": "1.0.0.0",
+    "afterVersion": "1.0.1.0",
+    "allOtherRuntimeFieldsUnchanged": "PASS",
+    "meaning": "Evidence of observed updated application startup"
+  },
+  "physicalProfileComparison": {
+    "beforeFiles": 28,
+    "afterFiles": 28,
+    "before": [
+      {
+        "relativePath": "jobs-state.json",
+        "bytes": 886,
+        "sha256": "1a42d9d177fa0468d2175d5d50cda04785daae9734a8b8f06965ee9bb30d08b0"
+      },
+      {
+        "relativePath": "store-runtime-paths.json",
+        "bytes": 738,
+        "sha256": "30d6b2af7751e1221734861ae8361442bb7c0f412bcf1754035fa5d6e03640b8"
+      },
+      {
+        "relativePath": "tools.json",
+        "bytes": 101,
+        "sha256": "b1f2cfa7310f6864f516561b8f706030f014edf9d632272e9cd52c9c3458aa1a"
+      },
+      {
+        "relativePath": "session/declarative_performance_observer.db",
+        "bytes": 32768,
+        "sha256": "6b77b54313df8d759334819fdad7d879f15dce045017bd11bb557dd94ce52f66"
+      },
+      {
+        "relativePath": "session/declarative_performance_observer.db-journal",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "relativePath": "session/DevToolsActivePort",
+        "bytes": 60,
+        "sha256": "5669d686a7f0139c8cc86a1d3ca377ac25985a5de9da86e06d5f4b4e09871baa"
+      },
+      {
+        "relativePath": "session/DIPS",
+        "bytes": 36864,
+        "sha256": "a3a553c269d765fd9af46a2fc10489d371dddbe5da6b1a420b40a3b0d82e808b"
+      },
+      {
+        "relativePath": "session/Local State",
+        "bytes": 490,
+        "sha256": "11ee127da37fc8c5d26d2f1a0c65df3079f3b77eb4d0b5ab7a01be1f511a0752"
+      },
+      {
+        "relativePath": "session/Preferences",
+        "bytes": 57,
+        "sha256": "be4b8924ab38e8acf350e6e3b9f1f63a1a94952d8002759acd6946c4d5d0b5de"
+      },
+      {
+        "relativePath": "session/Dictionaries/en-US-10-1.bdic",
+        "bytes": 451968,
+        "sha256": "a075b01d9b015c616511a9e87da77da3d9881621db32f584e4606ddabf1c1100"
+      },
+      {
+        "relativePath": "session/Network/Network Persistent State",
+        "bytes": 463,
+        "sha256": "609ff18fe2dd8b4df55f33dd8b56d576fb3b31f77a5c8b8cebb4dcf958ac513a"
+      },
+      {
+        "relativePath": "session/Network/NetworkDataMigrated",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "relativePath": "session/Network/Trust Tokens",
+        "bytes": 36864,
+        "sha256": "48dc8b9acbedb0b7de6579f89e873e9434ca389b8c6ed986f705c86fd2819599"
+      },
+      {
+        "relativePath": "session/Network/Trust Tokens-journal",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "relativePath": "session/Session Storage/000003.log",
+        "bytes": 491,
+        "sha256": "886ef726f2cc3db513f502d3467450e33f62af022540d481734340d7319e4263"
+      },
+      {
+        "relativePath": "session/Session Storage/CURRENT",
+        "bytes": 16,
+        "sha256": "0f1bad70c7bd1e0a69562853ec529355462fcd0423263a3d39d6d0d70b780443"
+      },
+      {
+        "relativePath": "session/Session Storage/LOCK",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "relativePath": "session/Session Storage/LOG",
+        "bytes": 310,
+        "sha256": "175e2ca8ce367eaf4468567605fa4b64141984b107c379891bb8e743b406d3b1"
+      },
+      {
+        "relativePath": "session/Session Storage/LOG.old",
+        "bytes": 310,
+        "sha256": "cb56e9fd24382733e151dfff7af854d46903ad2d21e177b1ccf28210e69b063f"
+      },
+      {
+        "relativePath": "session/Session Storage/MANIFEST-000001",
+        "bytes": 41,
+        "sha256": "f9d31b278e215eb0d0e9cd709edfa037e828f36214ab7906f612160fead4b2b4"
+      },
+      {
+        "relativePath": "session/Shared Dictionary/db",
+        "bytes": 45056,
+        "sha256": "db9734c1e3001f7abd08bcc472a7b4f5daf8076eaee708f04ba98b11bd70131d"
+      },
+      {
+        "relativePath": "session/Shared Dictionary/db-journal",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "relativePath": "session/Local Storage/leveldb/000003.log",
+        "bytes": 952,
+        "sha256": "1469a0d5ed84afdb89b781496900a7cf01048a6eaa80b698040a9c7647e7faf9"
+      },
+      {
+        "relativePath": "session/Local Storage/leveldb/CURRENT",
+        "bytes": 16,
+        "sha256": "0f1bad70c7bd1e0a69562853ec529355462fcd0423263a3d39d6d0d70b780443"
+      },
+      {
+        "relativePath": "session/Local Storage/leveldb/LOCK",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "relativePath": "session/Local Storage/leveldb/LOG",
+        "bytes": 322,
+        "sha256": "f4a82ec7945f67a9345a684d862913317cffd058fcfa96fc09667cb73b1f6a95"
+      },
+      {
+        "relativePath": "session/Local Storage/leveldb/LOG.old",
+        "bytes": 322,
+        "sha256": "e3a31a4698d5a2c746ed3e45e988b0468065f33a3d18c8d44c36f7ce473d733f"
+      },
+      {
+        "relativePath": "session/Local Storage/leveldb/MANIFEST-000001",
+        "bytes": 41,
+        "sha256": "f9d31b278e215eb0d0e9cd709edfa037e828f36214ab7906f612160fead4b2b4"
+      }
+    ],
+    "after": [
+      {
+        "relativePath": "jobs-state.json",
+        "bytes": 886,
+        "sha256": "0be476222efe052bc5bc5cccf98f907cdb4970ef13f62cb655f14722d880a4cb"
+      },
+      {
+        "relativePath": "session/declarative_performance_observer.db",
+        "bytes": 32768,
+        "sha256": "6b77b54313df8d759334819fdad7d879f15dce045017bd11bb557dd94ce52f66"
+      },
+      {
+        "relativePath": "session/declarative_performance_observer.db-journal",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "relativePath": "session/DevToolsActivePort",
+        "bytes": 60,
+        "sha256": "5669d686a7f0139c8cc86a1d3ca377ac25985a5de9da86e06d5f4b4e09871baa"
+      },
+      {
+        "relativePath": "session/Dictionaries/en-US-10-1.bdic",
+        "bytes": 451968,
+        "sha256": "a075b01d9b015c616511a9e87da77da3d9881621db32f584e4606ddabf1c1100"
+      },
+      {
+        "relativePath": "session/DIPS",
+        "bytes": 36864,
+        "sha256": "f910e4b57f2f4e901749eb0ae615088839dee6c8bc59261831e9e00808e6bad7"
+      },
+      {
+        "relativePath": "session/Local State",
+        "bytes": 490,
+        "sha256": "11ee127da37fc8c5d26d2f1a0c65df3079f3b77eb4d0b5ab7a01be1f511a0752"
+      },
+      {
+        "relativePath": "session/Local Storage/leveldb/000003.log",
+        "bytes": 1001,
+        "sha256": "173e83a9073a1e970ad3f1857a829fa331c898a7b724814765c1faa44566c23c"
+      },
+      {
+        "relativePath": "session/Local Storage/leveldb/CURRENT",
+        "bytes": 16,
+        "sha256": "0f1bad70c7bd1e0a69562853ec529355462fcd0423263a3d39d6d0d70b780443"
+      },
+      {
+        "relativePath": "session/Local Storage/leveldb/LOCK",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "relativePath": "session/Local Storage/leveldb/LOG",
+        "bytes": 322,
+        "sha256": "3b003ee2aca240cc375fcc238daa74bae677b348d7926f227484a4b6da4f9a5a"
+      },
+      {
+        "relativePath": "session/Local Storage/leveldb/LOG.old",
+        "bytes": 322,
+        "sha256": "f4a82ec7945f67a9345a684d862913317cffd058fcfa96fc09667cb73b1f6a95"
+      },
+      {
+        "relativePath": "session/Local Storage/leveldb/MANIFEST-000001",
+        "bytes": 41,
+        "sha256": "f9d31b278e215eb0d0e9cd709edfa037e828f36214ab7906f612160fead4b2b4"
+      },
+      {
+        "relativePath": "session/Network/Network Persistent State",
+        "bytes": 463,
+        "sha256": "609ff18fe2dd8b4df55f33dd8b56d576fb3b31f77a5c8b8cebb4dcf958ac513a"
+      },
+      {
+        "relativePath": "session/Network/NetworkDataMigrated",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "relativePath": "session/Network/Trust Tokens",
+        "bytes": 36864,
+        "sha256": "48dc8b9acbedb0b7de6579f89e873e9434ca389b8c6ed986f705c86fd2819599"
+      },
+      {
+        "relativePath": "session/Network/Trust Tokens-journal",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "relativePath": "session/Preferences",
+        "bytes": 57,
+        "sha256": "be4b8924ab38e8acf350e6e3b9f1f63a1a94952d8002759acd6946c4d5d0b5de"
+      },
+      {
+        "relativePath": "session/Session Storage/000003.log",
+        "bytes": 510,
+        "sha256": "4a4c2e56a320bea2d9770272b1c1a7c68feaf4ca6c9091c1ab494dcd40ae858c"
+      },
+      {
+        "relativePath": "session/Session Storage/CURRENT",
+        "bytes": 16,
+        "sha256": "0f1bad70c7bd1e0a69562853ec529355462fcd0423263a3d39d6d0d70b780443"
+      },
+      {
+        "relativePath": "session/Session Storage/LOCK",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "relativePath": "session/Session Storage/LOG",
+        "bytes": 310,
+        "sha256": "3f6a672f7a7264e353e102bf8d76b943b324d362de4e88e2b4553f91df874689"
+      },
+      {
+        "relativePath": "session/Session Storage/LOG.old",
+        "bytes": 310,
+        "sha256": "175e2ca8ce367eaf4468567605fa4b64141984b107c379891bb8e743b406d3b1"
+      },
+      {
+        "relativePath": "session/Session Storage/MANIFEST-000001",
+        "bytes": 41,
+        "sha256": "f9d31b278e215eb0d0e9cd709edfa037e828f36214ab7906f612160fead4b2b4"
+      },
+      {
+        "relativePath": "session/Shared Dictionary/db",
+        "bytes": 45056,
+        "sha256": "db9734c1e3001f7abd08bcc472a7b4f5daf8076eaee708f04ba98b11bd70131d"
+      },
+      {
+        "relativePath": "session/Shared Dictionary/db-journal",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "relativePath": "store-runtime-paths.json",
+        "bytes": 738,
+        "sha256": "f65ca26f028a695f7fa0822dacef10b2677b1e2a23cc48b1fb26ef745e12f219"
+      },
+      {
+        "relativePath": "tools.json",
+        "bytes": 101,
+        "sha256": "b1f2cfa7310f6864f516561b8f706030f014edf9d632272e9cd52c9c3458aa1a"
+      }
+    ],
+    "differences": [
+      {
+        "path": "jobs-state.json",
+        "category": "A: application-owned state",
+        "before": {
+          "relativePath": "jobs-state.json",
+          "bytes": 886,
+          "sha256": "1a42d9d177fa0468d2175d5d50cda04785daae9734a8b8f06965ee9bb30d08b0"
+        },
+        "after": {
+          "relativePath": "jobs-state.json",
+          "bytes": 886,
+          "sha256": "0be476222efe052bc5bc5cccf98f907cdb4970ef13f62cb655f14722d880a4cb"
+        }
+      },
+      {
+        "path": "session/DIPS",
+        "category": "B: browser/session/cache metadata",
+        "before": {
+          "relativePath": "session/DIPS",
+          "bytes": 36864,
+          "sha256": "a3a553c269d765fd9af46a2fc10489d371dddbe5da6b1a420b40a3b0d82e808b"
+        },
+        "after": {
+          "relativePath": "session/DIPS",
+          "bytes": 36864,
+          "sha256": "f910e4b57f2f4e901749eb0ae615088839dee6c8bc59261831e9e00808e6bad7"
+        }
+      },
+      {
+        "path": "session/Local Storage/leveldb/000003.log",
+        "category": "A: localStorage backing bytes; app values compared separately from LevelDB metadata",
+        "before": {
+          "relativePath": "session/Local Storage/leveldb/000003.log",
+          "bytes": 952,
+          "sha256": "1469a0d5ed84afdb89b781496900a7cf01048a6eaa80b698040a9c7647e7faf9"
+        },
+        "after": {
+          "relativePath": "session/Local Storage/leveldb/000003.log",
+          "bytes": 1001,
+          "sha256": "173e83a9073a1e970ad3f1857a829fa331c898a7b724814765c1faa44566c23c"
+        }
+      },
+      {
+        "path": "session/Local Storage/leveldb/LOG",
+        "category": "A: localStorage backing bytes; app values compared separately from LevelDB metadata",
+        "before": {
+          "relativePath": "session/Local Storage/leveldb/LOG",
+          "bytes": 322,
+          "sha256": "f4a82ec7945f67a9345a684d862913317cffd058fcfa96fc09667cb73b1f6a95"
+        },
+        "after": {
+          "relativePath": "session/Local Storage/leveldb/LOG",
+          "bytes": 322,
+          "sha256": "3b003ee2aca240cc375fcc238daa74bae677b348d7926f227484a4b6da4f9a5a"
+        }
+      },
+      {
+        "path": "session/Local Storage/leveldb/LOG.old",
+        "category": "A: localStorage backing bytes; app values compared separately from LevelDB metadata",
+        "before": {
+          "relativePath": "session/Local Storage/leveldb/LOG.old",
+          "bytes": 322,
+          "sha256": "e3a31a4698d5a2c746ed3e45e988b0468065f33a3d18c8d44c36f7ce473d733f"
+        },
+        "after": {
+          "relativePath": "session/Local Storage/leveldb/LOG.old",
+          "bytes": 322,
+          "sha256": "f4a82ec7945f67a9345a684d862913317cffd058fcfa96fc09667cb73b1f6a95"
+        }
+      },
+      {
+        "path": "session/Session Storage/000003.log",
+        "category": "B: browser/session/cache metadata",
+        "before": {
+          "relativePath": "session/Session Storage/000003.log",
+          "bytes": 491,
+          "sha256": "886ef726f2cc3db513f502d3467450e33f62af022540d481734340d7319e4263"
+        },
+        "after": {
+          "relativePath": "session/Session Storage/000003.log",
+          "bytes": 510,
+          "sha256": "4a4c2e56a320bea2d9770272b1c1a7c68feaf4ca6c9091c1ab494dcd40ae858c"
+        }
+      },
+      {
+        "path": "session/Session Storage/LOG",
+        "category": "B: browser/session/cache metadata",
+        "before": {
+          "relativePath": "session/Session Storage/LOG",
+          "bytes": 310,
+          "sha256": "175e2ca8ce367eaf4468567605fa4b64141984b107c379891bb8e743b406d3b1"
+        },
+        "after": {
+          "relativePath": "session/Session Storage/LOG",
+          "bytes": 310,
+          "sha256": "3f6a672f7a7264e353e102bf8d76b943b324d362de4e88e2b4553f91df874689"
+        }
+      },
+      {
+        "path": "session/Session Storage/LOG.old",
+        "category": "B: browser/session/cache metadata",
+        "before": {
+          "relativePath": "session/Session Storage/LOG.old",
+          "bytes": 310,
+          "sha256": "cb56e9fd24382733e151dfff7af854d46903ad2d21e177b1ccf28210e69b063f"
+        },
+        "after": {
+          "relativePath": "session/Session Storage/LOG.old",
+          "bytes": 310,
+          "sha256": "175e2ca8ce367eaf4468567605fa4b64141984b107c379891bb8e743b406d3b1"
+        }
+      },
+      {
+        "path": "store-runtime-paths.json",
+        "category": "A: application-owned state",
+        "before": {
+          "relativePath": "store-runtime-paths.json",
+          "bytes": 738,
+          "sha256": "30d6b2af7751e1221734861ae8361442bb7c0f412bcf1754035fa5d6e03640b8"
+        },
+        "after": {
+          "relativePath": "store-runtime-paths.json",
+          "bytes": 738,
+          "sha256": "f65ca26f028a695f7fa0822dacef10b2677b1e2a23cc48b1fb26ef745e12f219"
+        }
+      }
+    ],
+    "trackedBaselineScope": "28 files from the existing StateOnly baseline; cache-directory contents were excluded there",
+    "completeCurrentInventory": {
+      "files": 59,
+      "directories": 28,
+      "excludedDirectories": 0,
+      "inventory": [
+        {
+          "relativePath": "jobs-state.json",
+          "bytes": 886,
+          "sha256": "0be476222efe052bc5bc5cccf98f907cdb4970ef13f62cb655f14722d880a4cb"
+        },
+        {
+          "relativePath": "session/Cache/Cache_Data/data_0",
+          "bytes": 45056,
+          "sha256": "5612e16443bcce880049ac48b7f8abe93f1ac463e21391737a2891f2d277ec3b"
+        },
+        {
+          "relativePath": "session/Cache/Cache_Data/data_1",
+          "bytes": 270336,
+          "sha256": "a7a6a613115e1baaa51889ca63fee4e5f4800518de3a7792c7600377e4e32293"
+        },
+        {
+          "relativePath": "session/Cache/Cache_Data/data_2",
+          "bytes": 1056768,
+          "sha256": "c01455bb00abe24e04e566c6a658d0a9a67d44427e2699094964827f89d42079"
+        },
+        {
+          "relativePath": "session/Cache/Cache_Data/data_3",
+          "bytes": 4202496,
+          "sha256": "b511235f12eab72cbbb17686198e331247d2ae37abfb615c691e82c8c03a24f1"
+        },
+        {
+          "relativePath": "session/Cache/Cache_Data/f_000001",
+          "bytes": 451968,
+          "sha256": "a075b01d9b015c616511a9e87da77da3d9881621db32f584e4606ddabf1c1100"
+        },
+        {
+          "relativePath": "session/Cache/Cache_Data/index",
+          "bytes": 524656,
+          "sha256": "d6808801f6aa7a4e06c5a9daaab23b3a5aa9724f08bb500f2836b674bfd0b2b4"
+        },
+        {
+          "relativePath": "session/Cache/No_Vary_Search/journal.baj",
+          "bytes": 4,
+          "sha256": "9c169428d852e25bd59b27652ed533d2a1f09f96e4c329fa5e06f47e16731543"
+        },
+        {
+          "relativePath": "session/Cache/No_Vary_Search/snapshot.baf",
+          "bytes": 20,
+          "sha256": "0c2dd377ed0cc66161e9db8f89f7d8bcb3ad8c06c4a054bdcba214ab05f58c9a"
+        },
+        {
+          "relativePath": "session/Code Cache/electron-preload/0E095D0FDC647DDAFBEFBA8A0E6E3F5B44157048B6A95C0F9A781078CA234E7A-046EE14B76106E2E39DCF4D74A8AEE393DEDA01000D21673491EB8D652BB29D2.cache",
+          "bytes": 8108,
+          "sha256": "262198e43d3dcb516f97165489504ebd67b3d2ea5e64725a9c7396e0530833ac"
+        },
+        {
+          "relativePath": "session/Code Cache/electron-preload/EE2FA66AE3B8F5F03329CC1E524C083BE62BFA05F341F18F7A8BECAB85548D96-046EE14B76106E2E39DCF4D74A8AEE393DEDA01000D21673491EB8D652BB29D2.cache",
+          "bytes": 8108,
+          "sha256": "7adbe85052d2e420e7e440b8ea46b89abccf75e986d277c0da9b8d17db0d8fd0"
+        },
+        {
+          "relativePath": "session/Code Cache/js/index",
+          "bytes": 24,
+          "sha256": "fbcfe23a2ecb82b7100c50811691dde0a33aa3da8d176be9882a9db485dc0f2d"
+        },
+        {
+          "relativePath": "session/Code Cache/js/index-dir/the-real-index",
+          "bytes": 48,
+          "sha256": "c2a5a8eb015a8aac3d57ca5af4624750ff716e5f56e0cd10191330414c5d225d"
+        },
+        {
+          "relativePath": "session/Code Cache/wasm/index",
+          "bytes": 24,
+          "sha256": "fbcfe23a2ecb82b7100c50811691dde0a33aa3da8d176be9882a9db485dc0f2d"
+        },
+        {
+          "relativePath": "session/Code Cache/wasm/index-dir/the-real-index",
+          "bytes": 48,
+          "sha256": "0934fc2e8a51b4953926d57821b22a7fcb0066d37d10fb169a204788e721ad58"
+        },
+        {
+          "relativePath": "session/DawnGraphiteCache/data_0",
+          "bytes": 8192,
+          "sha256": "d6a5fe39cd672781b256e0e3102f7022635f1d4bb7cfcc90a80fffe4d0f3877e"
+        },
+        {
+          "relativePath": "session/DawnGraphiteCache/data_1",
+          "bytes": 270336,
+          "sha256": "67dd5d5bb38adc36e5ca5c0306faef5bd8fe6e6c558eabab4bf4c472eb46759d"
+        },
+        {
+          "relativePath": "session/DawnGraphiteCache/data_2",
+          "bytes": 8192,
+          "sha256": "ec1702806f4cc7c42a82fc2b38e89835fde7c64bb32060e0823c9077ca92efb7"
+        },
+        {
+          "relativePath": "session/DawnGraphiteCache/data_3",
+          "bytes": 8192,
+          "sha256": "e09f42c398d688dce168570291f1f92d079987deda3099a34adb9e8c0522b30c"
+        },
+        {
+          "relativePath": "session/DawnGraphiteCache/index",
+          "bytes": 262512,
+          "sha256": "e8cb45095a235fecfecc0c95b5fde9856c23b0dc4737812de4abe2e30a17c767"
+        },
+        {
+          "relativePath": "session/DawnWebGPUCache/data_0",
+          "bytes": 8192,
+          "sha256": "d6a5fe39cd672781b256e0e3102f7022635f1d4bb7cfcc90a80fffe4d0f3877e"
+        },
+        {
+          "relativePath": "session/DawnWebGPUCache/data_1",
+          "bytes": 270336,
+          "sha256": "d179d6bc0c86b0afd1c8002c5d9f0c6d3f31d27a243cdd6724dc77df97c60fb4"
+        },
+        {
+          "relativePath": "session/DawnWebGPUCache/data_2",
+          "bytes": 8192,
+          "sha256": "ec1702806f4cc7c42a82fc2b38e89835fde7c64bb32060e0823c9077ca92efb7"
+        },
+        {
+          "relativePath": "session/DawnWebGPUCache/data_3",
+          "bytes": 8192,
+          "sha256": "e09f42c398d688dce168570291f1f92d079987deda3099a34adb9e8c0522b30c"
+        },
+        {
+          "relativePath": "session/DawnWebGPUCache/index",
+          "bytes": 262512,
+          "sha256": "7df7f80900c3f92a39769ee20248ec74b34a5bc1ce711f11e3287ab33c5acc64"
+        },
+        {
+          "relativePath": "session/declarative_performance_observer.db",
+          "bytes": 32768,
+          "sha256": "6b77b54313df8d759334819fdad7d879f15dce045017bd11bb557dd94ce52f66"
+        },
+        {
+          "relativePath": "session/declarative_performance_observer.db-journal",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "relativePath": "session/DevToolsActivePort",
+          "bytes": 60,
+          "sha256": "5669d686a7f0139c8cc86a1d3ca377ac25985a5de9da86e06d5f4b4e09871baa"
+        },
+        {
+          "relativePath": "session/Dictionaries/en-US-10-1.bdic",
+          "bytes": 451968,
+          "sha256": "a075b01d9b015c616511a9e87da77da3d9881621db32f584e4606ddabf1c1100"
+        },
+        {
+          "relativePath": "session/DIPS",
+          "bytes": 36864,
+          "sha256": "f910e4b57f2f4e901749eb0ae615088839dee6c8bc59261831e9e00808e6bad7"
+        },
+        {
+          "relativePath": "session/GPUCache/data_0",
+          "bytes": 45056,
+          "sha256": "303ece91ed9ae7c72336537a4521ff94e2cfdd22c9481666954d50930efb5024"
+        },
+        {
+          "relativePath": "session/GPUCache/data_1",
+          "bytes": 270336,
+          "sha256": "484d86edcd522e2941bcda79ec6a4818b0b3c33282a5a98d26ad35633c7e9d41"
+        },
+        {
+          "relativePath": "session/GPUCache/data_2",
+          "bytes": 1056768,
+          "sha256": "9dc49a3bc783e4f5fb0f11b5189bb8e2e2129cf6f6d6e025eafd16f8dc14a21a"
+        },
+        {
+          "relativePath": "session/GPUCache/data_3",
+          "bytes": 8192,
+          "sha256": "e09f42c398d688dce168570291f1f92d079987deda3099a34adb9e8c0522b30c"
+        },
+        {
+          "relativePath": "session/GPUCache/index",
+          "bytes": 262512,
+          "sha256": "b80ed0cd6a966550cfda74d2298c75c4b8f2dadd9a68428a5600f79c50af1f51"
+        },
+        {
+          "relativePath": "session/Local State",
+          "bytes": 490,
+          "sha256": "11ee127da37fc8c5d26d2f1a0c65df3079f3b77eb4d0b5ab7a01be1f511a0752"
+        },
+        {
+          "relativePath": "session/Local Storage/leveldb/000003.log",
+          "bytes": 1001,
+          "sha256": "173e83a9073a1e970ad3f1857a829fa331c898a7b724814765c1faa44566c23c"
+        },
+        {
+          "relativePath": "session/Local Storage/leveldb/CURRENT",
+          "bytes": 16,
+          "sha256": "0f1bad70c7bd1e0a69562853ec529355462fcd0423263a3d39d6d0d70b780443"
+        },
+        {
+          "relativePath": "session/Local Storage/leveldb/LOCK",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "relativePath": "session/Local Storage/leveldb/LOG",
+          "bytes": 322,
+          "sha256": "3b003ee2aca240cc375fcc238daa74bae677b348d7926f227484a4b6da4f9a5a"
+        },
+        {
+          "relativePath": "session/Local Storage/leveldb/LOG.old",
+          "bytes": 322,
+          "sha256": "f4a82ec7945f67a9345a684d862913317cffd058fcfa96fc09667cb73b1f6a95"
+        },
+        {
+          "relativePath": "session/Local Storage/leveldb/MANIFEST-000001",
+          "bytes": 41,
+          "sha256": "f9d31b278e215eb0d0e9cd709edfa037e828f36214ab7906f612160fead4b2b4"
+        },
+        {
+          "relativePath": "session/Network/Network Persistent State",
+          "bytes": 463,
+          "sha256": "609ff18fe2dd8b4df55f33dd8b56d576fb3b31f77a5c8b8cebb4dcf958ac513a"
+        },
+        {
+          "relativePath": "session/Network/NetworkDataMigrated",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "relativePath": "session/Network/Trust Tokens",
+          "bytes": 36864,
+          "sha256": "48dc8b9acbedb0b7de6579f89e873e9434ca389b8c6ed986f705c86fd2819599"
+        },
+        {
+          "relativePath": "session/Network/Trust Tokens-journal",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "relativePath": "session/Preferences",
+          "bytes": 57,
+          "sha256": "be4b8924ab38e8acf350e6e3b9f1f63a1a94952d8002759acd6946c4d5d0b5de"
+        },
+        {
+          "relativePath": "session/Session Storage/000003.log",
+          "bytes": 510,
+          "sha256": "4a4c2e56a320bea2d9770272b1c1a7c68feaf4ca6c9091c1ab494dcd40ae858c"
+        },
+        {
+          "relativePath": "session/Session Storage/CURRENT",
+          "bytes": 16,
+          "sha256": "0f1bad70c7bd1e0a69562853ec529355462fcd0423263a3d39d6d0d70b780443"
+        },
+        {
+          "relativePath": "session/Session Storage/LOCK",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "relativePath": "session/Session Storage/LOG",
+          "bytes": 310,
+          "sha256": "3f6a672f7a7264e353e102bf8d76b943b324d362de4e88e2b4553f91df874689"
+        },
+        {
+          "relativePath": "session/Session Storage/LOG.old",
+          "bytes": 310,
+          "sha256": "175e2ca8ce367eaf4468567605fa4b64141984b107c379891bb8e743b406d3b1"
+        },
+        {
+          "relativePath": "session/Session Storage/MANIFEST-000001",
+          "bytes": 41,
+          "sha256": "f9d31b278e215eb0d0e9cd709edfa037e828f36214ab7906f612160fead4b2b4"
+        },
+        {
+          "relativePath": "session/Shared Dictionary/cache/index",
+          "bytes": 24,
+          "sha256": "fbcfe23a2ecb82b7100c50811691dde0a33aa3da8d176be9882a9db485dc0f2d"
+        },
+        {
+          "relativePath": "session/Shared Dictionary/cache/index-dir/the-real-index",
+          "bytes": 48,
+          "sha256": "41119466780909addcf8ac770e826ba5926e77d74bed468e7194f3550534fec4"
+        },
+        {
+          "relativePath": "session/Shared Dictionary/db",
+          "bytes": 45056,
+          "sha256": "db9734c1e3001f7abd08bcc472a7b4f5daf8076eaee708f04ba98b11bd70131d"
+        },
+        {
+          "relativePath": "session/Shared Dictionary/db-journal",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "relativePath": "store-runtime-paths.json",
+          "bytes": 738,
+          "sha256": "f65ca26f028a695f7fa0822dacef10b2677b1e2a23cc48b1fb26ef745e12f219"
+        },
+        {
+          "relativePath": "tools.json",
+          "bytes": 101,
+          "sha256": "b1f2cfa7310f6864f516561b8f706030f014edf9d632272e9cd52c9c3458aa1a"
+        }
+      ]
+    },
+    "cacheContentsBeforeUpdate": "UNVERIFIED; no full-cache pre-update snapshot exists, never infer hashes or recreate the baseline",
+    "differencesReviewed": "One jobs savedAt timestamp, one app runtime diagnostic resourcesPath, and seven browser/LevelDB/session metadata files; durable localStorage values are exactly retained"
+  },
+  "packageManagedMetadata": {
+    "classification": "C: OS/package-managed metadata",
+    "differences": [
+      {
+        "category": "C: OS/package-managed metadata",
+        "relativePath": "Settings/settings.dat",
+        "bytes": 8192,
+        "sha256": "56d321e1e8a32e82ef1347ee405681281c2fe1bd7bec3c788bdbad6742a865f0"
+      },
+      {
+        "category": "C: OS/package-managed metadata",
+        "relativePath": "Settings/settings.dat.LOG1",
+        "bytes": 8192,
+        "sha256": "23fd428de2c1a3ff8025c19beed83c9dd37818113f42dd821185d168e097cb13"
+      },
+      {
+        "category": "C: OS/package-managed metadata",
+        "relativePath": "Settings/settings.dat.LOG2",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    ]
+  },
+  "nsis": {
+    "installFiles": 19730,
+    "installByteIntegrity": "PASS",
+    "durableProfileIntegrity": "PASS",
+    "uninstallRegistration": "PASS",
+    "priorUserOutputs": "PASS"
+  },
+  "pdf": {
+    "default": {
+      "ProgId": "FoxitReader.Document",
+      "Hash": "lNCw115bAok="
+    },
+    "defaultUnchanged": "PASS",
+    "nsisProgId": "SwiftLocal.PDF",
+    "storeProgId": "AppXnwtdh7rg4t5tbp7ewsmh9rcaxb3cgzrv",
+    "bothRegistered": "PASS",
+    "explorerGui": "UNVERIFIED; no new GUI observation"
+  },
+  "outputPdf": {
+    "sha256": "d6ae46c6185fcdf639f1d68a8b195b29ec09545268f70ba33fdbff89a76287a1",
+    "bytes": 893,
+    "unchanged": "PASS"
+  },
+  "stopBoundary": "Both applications are closed; no further launch, probes, smoke, deep-path test, reinstall, rebuild, uninstall or certificate cleanup performed",
+  "finalState": {
+    "status": "PASS",
+    "scope": "final read-only state, no activation or cleanup",
+    "at": "2026-09-30T17:29:11.9319039+08:00",
+    "packageFullName": "JTKC.SwiftLocal_1.0.1.0_x64__j44a9ewx73faj",
+    "pfn": "JTKC.SwiftLocal_j44a9ewx73faj",
+    "swiftLocalProcessCount": 0,
+    "temporaryTrustRetained": true,
+    "temporaryPrivateKeyRetained": true
+  },
+  "phase2dVerdict": "C. PHASE 2D INCOMPLETE",
+  "productDefect": "No durable setting/job/output loss or cross-channel damage observed; test execution no-launch control failed",
+  "rawComparisonAudit": "Original helper receipt says PASS for state/cross-channel checks and describes before-launch scope; preserve it, but the process/runtime audit rejects any prelaunch inference. Helper now gates its verdict on the separate monitor receipt.",
+  "preparationHistory": "Initial optional event-channel name lookup failed after successful artifact checks; original receipt preserved; corrected channel preflight PASS. A later optional full-cache baseline attempt stopped on its version/process guard without launching or modifying anything.",
+  "materialRetained": "Both unsigned packages, both signed test copies, same temporary private key and machine trust retained; no re-sign or cleanup",
+  "evidenceReceiptSha256": {
+    "b-step4a-preflight-inventory.json": "104a7d27ad7c3f457521d00f3d7d5d9b2fa719e18c324fcf26a0fad560095d52",
+    "c-after-update-before-launch-inventory.json": "34974a45b33353cd243e5886a44108953bdfca4e193532df6805106241cf8d15",
+    "c-after-update-before-launch-deployment-events.json": "bd59d431945174639574144d04e388a767fa4296f90bdfa490745152959d8ac6",
+    "step4a-process-monitor.json": "ac6d4ede4f77520feeaba3f0fc90eeffb4978bcc8b82578c7b9a32559820699d",
+    "step4a-preflight-completed.json": "cbcc34117527ba8b56d08cd073d3b5997b9d7dc3612ee32430c675f158f63ef0",
+    "step4a-owner-update.json": "748f22408a296c502b061cf4abcad9a69b6ba5f2c8f172539dcca303027d2aef",
+    "step4a-owner-launch-clarification.json": "a25cfac1eb6775d6f0562c2b7524fd06325d9a5c35e81d6ab4269d558f0f45b8",
+    "step4a-final-closed-state.json": "3b679f49efa7d124cc5993a662415b26e4db5c8f4b62fd80484d6fa8e56a24ac"
+  }
+}

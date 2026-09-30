@@ -1,0 +1,31 @@
+{
+  "status": "FAIL",
+  "scope": "read-only 250ms process samples; owner no-launch confirmation remains required",
+  "startedAt": "2026-09-30T17:06:18.3129355+08:00",
+  "endedAt": "2026-09-30T17:13:55.2680870+08:00",
+  "samples": 1660,
+  "maximumObservedSwiftLocalProcesses": 4,
+  "observedProcesses": [
+    {
+      "id": 28564,
+      "name": "SwiftLocal",
+      "observedAt": "2026-09-30T17:08:38.8642501+08:00"
+    },
+    {
+      "id": 7240,
+      "name": "SwiftLocal",
+      "observedAt": "2026-09-30T17:08:41.6807475+08:00"
+    },
+    {
+      "id": 23920,
+      "name": "SwiftLocal",
+      "observedAt": "2026-09-30T17:08:43.0490214+08:00"
+    },
+    {
+      "id": 25732,
+      "name": "SwiftLocal",
+      "observedAt": "2026-09-30T17:08:41.6807475+08:00"
+    }
+  ],
+  "stoppedByReceiptFlag": true
+}

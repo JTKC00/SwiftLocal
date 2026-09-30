@@ -1,0 +1,202 @@
+[
+  {
+    "channel": "Microsoft-Windows-AppxPackaging/Operational",
+    "recordId": 49004,
+    "id": 171,
+    "at": "2026-09-30T17:07:26.3032965+08:00",
+    "activityId": null,
+    "message": "The reader was created successfully for app package JTKC.SwiftLocal_1.0.1.0_x64__j44a9ewx73faj.",
+    "xml": "<Event xmlns='http://schemas.microsoft.com/win/2004/08/events/event'><System><Provider Name='Microsoft-Windows-AppxPackagingOM' Guid='{ba723d81-0d0c-4f1e-80c8-54740f508ddf}'/><EventID>171</EventID><Version>0</Version><Level>4</Level><Task>2</Task><Opcode>0</Opcode><Keywords>0x8000000000000000</Keywords><TimeCreated SystemTime='2026-09-30T09:07:26.3032965Z'/><EventRecordID>49004</EventRecordID><Correlation/><Execution ProcessID='28916' ThreadID='18712'/><Channel>Microsoft-Windows-AppxPackaging/Operational</Channel><Computer>SGE01PC014</Computer><Security UserID='<test-user-SID>'/></System><EventData><Data Name='packageFullName'>JTKC.SwiftLocal_1.0.1.0_x64__j44a9ewx73faj</Data></EventData></Event>",
+    "involvesSwiftLocal": true
+  },
+  {
+    "channel": "Microsoft-Windows-AppxPackaging/Operational",
+    "recordId": 49006,
+    "id": 170,
+    "at": "2026-09-30T17:07:30.4930966+08:00",
+    "activityId": "{277e35e4-5078-0000-e855-36287850dd01}",
+    "message": "The streaming reader was created successfully for app package JTKC.SwiftLocal_1.0.1.0_x64__j44a9ewx73faj.",
+    "xml": "<Event xmlns='http://schemas.microsoft.com/win/2004/08/events/event'><System><Provider Name='Microsoft-Windows-AppxPackagingOM' Guid='{ba723d81-0d0c-4f1e-80c8-54740f508ddf}'/><EventID>170</EventID><Version>0</Version><Level>4</Level><Task>3</Task><Opcode>0</Opcode><Keywords>0x8000000000000000</Keywords><TimeCreated SystemTime='2026-09-30T09:07:30.4930966Z'/><EventRecordID>49006</EventRecordID><Correlation ActivityID='{277e35e4-5078-0000-e855-36287850dd01}'/><Execution ProcessID='26432' ThreadID='29680'/><Channel>Microsoft-Windows-AppxPackaging/Operational</Channel><Computer>SGE01PC014</Computer><Security UserID='<test-user-SID>'/></System><EventData><Data Name='packageFullName'>JTKC.SwiftLocal_1.0.1.0_x64__j44a9ewx73faj</Data></EventData></Event>",
+    "involvesSwiftLocal": true
+  },
+  {
+    "channel": "Microsoft-Windows-AppXDeploymentServer/Operational",
+    "recordId": 426797,
+    "id": 10002,
+    "at": "2026-09-30T17:07:30.5122366+08:00",
+    "activityId": "{277e35e4-5078-0000-e855-36287850dd01}",
+    "message": "Creating Resiliency File C:\\ProgramData\\Microsoft\\Windows\\AppRepository\\1ff578a5-c038-4851-9247-a79bd2500168_<test-user-SID>_1.rslc for Add Operation on Package JTKC.SwiftLocal_1.0.1.0_x64__j44a9ewx73faj.",
+    "xml": "<Event xmlns='http://schemas.microsoft.com/win/2004/08/events/event'><System><Provider Name='Microsoft-Windows-AppXDeployment-Server' Guid='{3f471139-acb7-4a01-b7a7-ff5da4ba2d43}'/><EventID>10002</EventID><Version>0</Version><Level>5</Level><Task>3</Task><Opcode>0</Opcode><Keywords>0x4000000000000001</Keywords><TimeCreated SystemTime='2026-09-30T09:07:30.5122366Z'/><EventRecordID>426797</EventRecordID><Correlation ActivityID='{277e35e4-5078-0000-e855-36287850dd01}'/><Execution ProcessID='26432' ThreadID='4752'/><Channel>Microsoft-Windows-AppXDeploymentServer/Operational</Channel><Computer>SGE01PC014</Computer><Security UserID='S-1-5-18'/></System><EventData><Data Name='DeploymentOperation'>1</Data><Data Name='MainPackageMoniker'>JTKC.SwiftLocal_1.0.1.0_x64__j44a9ewx73faj</Data><Data Name='ResiliencyFilePath'>C:\\ProgramData\\Microsoft\\Windows\\AppRepository\\1ff578a5-c038-4851-9247-a79bd2500168_<test-user-SID>_1.rslc</Data></EventData></Event>",
+    "involvesSwiftLocal": true
+  },
+  {
+    "channel": "Microsoft-Windows-AppXDeploymentServer/Operational",
+    "recordId": 426798,
+    "id": 607,
+    "at": "2026-09-30T17:07:30.5171004+08:00",
+    "activityId": "{277e35e4-5078-0000-e855-36287850dd01}",
+    "message": "Deployment Add operation on package JTKC.SwiftLocal_1.0.1.0_x64__j44a9ewx73faj has been de-queued and is running for user SID <test-user-SID>.",
+    "xml": "<Event xmlns='http://schemas.microsoft.com/win/2004/08/events/event'><System><Provider Name='Microsoft-Windows-AppXDeployment-Server' Guid='{3f471139-acb7-4a01-b7a7-ff5da4ba2d43}'/><EventID>607</EventID><Version>0</Version><Level>4</Level><Task>0</Task><Opcode>0</Opcode><Keywords>0x4000000000000001</Keywords><TimeCreated SystemTime='2026-09-30T09:07:30.5171004Z'/><EventRecordID>426798</EventRecordID><Correlation ActivityID='{277e35e4-5078-0000-e855-36287850dd01}'/><Execution ProcessID='26432' ThreadID='4752'/><Channel>Microsoft-Windows-AppXDeploymentServer/Operational</Channel><Computer>SGE01PC014</Computer><Security UserID='<test-user-SID>'/></System><EventData><Data Name='DeploymentOperation'>1</Data><Data Name='PackageFullName'>JTKC.SwiftLocal_1.0.1.0_x64__j44a9ewx73faj</Data><Data Name='UserSid'><test-user-SID></Data><Data Name='CallingProcess'>AppInstaller.exe</Data></EventData></Event>",
+    "involvesSwiftLocal": true
+  },
+  {
+    "channel": "Microsoft-Windows-AppXDeploymentServer/Operational",
+    "recordId": 426800,
+    "id": 574,
+    "at": "2026-09-30T17:07:30.5765269+08:00",
+    "activityId": "{277e35e4-5078-0000-e855-36287850dd01}",
+    "message": "Preferred package version for package family is changing. Current preferred version is: JTKC.SwiftLocal_1.0.0.0_x64__j44a9ewx73faj. New preferred version will be: JTKC.SwiftLocal_1.0.1.0_x64__j44a9ewx73faj.",
+    "xml": "<Event xmlns='http://schemas.microsoft.com/win/2004/08/events/event'><System><Provider Name='Microsoft-Windows-AppXDeployment-Server' Guid='{3f471139-acb7-4a01-b7a7-ff5da4ba2d43}'/><EventID>574</EventID><Version>0</Version><Level>4</Level><Task>3</Task><Opcode>0</Opcode><Keywords>0x4000000000000001</Keywords><TimeCreated SystemTime='2026-09-30T09:07:30.5765269Z'/><EventRecordID>426800</EventRecordID><Correlation ActivityID='{277e35e4-5078-0000-e855-36287850dd01}'/><Execution ProcessID='26432' ThreadID='4752'/><Channel>Microsoft-Windows-AppXDeploymentServer/Operational</Channel><Computer>SGE01PC014</Computer><Security UserID='<test-user-SID>'/></System><EventData><Data Name='PackageMoniker'>JTKC.SwiftLocal_1.0.1.0_x64__j44a9ewx73faj</Data><Data Name='PackageMoniker2'>JTKC.SwiftLocal_1.0.0.0_x64__j44a9ewx73faj</Data></EventData></Event>",
+    "involvesSwiftLocal": true
+  },
+  {
+    "channel": "Microsoft-Windows-AppXDeploymentServer/Operational",
+    "recordId": 426801,
+    "id": 855,
+    "at": "2026-09-30T17:07:32.0359584+08:00",
+    "activityId": "{277e35e4-5078-0000-e855-36287850dd01}",
+    "message": "Finished resolving action lists. DeploymentRequest action lists: updateList: JTKC.SwiftLocal_1.0.0.0_x64__j44a9ewx73faj is updating to JTKC.SwiftLocal_1.0.1.0_x64__j44a9ewx73faj.",
+    "xml": "<Event xmlns='http://schemas.microsoft.com/win/2004/08/events/event'><System><Provider Name='Microsoft-Windows-AppXDeployment-Server' Guid='{3f471139-acb7-4a01-b7a7-ff5da4ba2d43}'/><EventID>855</EventID><Version>0</Version><Level>4</Level><Task>4</Task><Opcode>0</Opcode><Keywords>0x4000000000000001</Keywords><TimeCreated SystemTime='2026-09-30T09:07:32.0359584Z'/><EventRecordID>426801</EventRecordID><Correlation ActivityID='{277e35e4-5078-0000-e855-36287850dd01}'/><Execution ProcessID='26432' ThreadID='4752'/><Channel>Microsoft-Windows-AppXDeploymentServer/Operational</Channel><Computer>SGE01PC014</Computer><Security UserID='<test-user-SID>'/></System><EventData><Data Name='PackageMoniker'> updateList: JTKC.SwiftLocal_1.0.0.0_x64__j44a9ewx73faj is updating to JTKC.SwiftLocal_1.0.1.0_x64__j44a9ewx73faj</Data></EventData></Event>",
+    "involvesSwiftLocal": true
+  },
+  {
+    "channel": "Microsoft-Windows-AppXDeploymentServer/Operational",
+    "recordId": 426804,
+    "id": 617,
+    "at": "2026-09-30T17:08:31.5962694+08:00",
+    "activityId": "{277e35e4-5078-0000-e855-36287850dd01}",
+    "message": "Successfully updated the status for package JTKC.SwiftLocal_1.0.0.0_x64__j44a9ewx73faj and user <test-user-SID> (Clear=0x0, Set=0x20).",
+    "xml": "<Event xmlns='http://schemas.microsoft.com/win/2004/08/events/event'><System><Provider Name='Microsoft-Windows-AppXDeployment-Server' Guid='{3f471139-acb7-4a01-b7a7-ff5da4ba2d43}'/><EventID>617</EventID><Version>0</Version><Level>5</Level><Task>3</Task><Opcode>0</Opcode><Keywords>0x4000000000000001</Keywords><TimeCreated SystemTime='2026-09-30T09:08:31.5962694Z'/><EventRecordID>426804</EventRecordID><Correlation ActivityID='{277e35e4-5078-0000-e855-36287850dd01}'/><Execution ProcessID='26432' ThreadID='4752'/><Channel>Microsoft-Windows-AppXDeploymentServer/Operational</Channel><Computer>SGE01PC014</Computer><Security UserID='S-1-5-18'/></System><EventData><Data Name='ErrorCode'>0x0</Data><Data Name='PackageFullName'>JTKC.SwiftLocal_1.0.0.0_x64__j44a9ewx73faj</Data><Data Name='userSid'><test-user-SID></Data><Data Name='StatusToClear'>0x0</Data><Data Name='StatusToSet'>0x20</Data><Data Name='CallOrigin'>0</Data></EventData></Event>",
+    "involvesSwiftLocal": true
+  },
+  {
+    "channel": "Microsoft-Windows-AppXDeploymentServer/Operational",
+    "recordId": 426805,
+    "id": 617,
+    "at": "2026-09-30T17:08:31.6080859+08:00",
+    "activityId": "{277e35e4-5078-0000-e855-36287850dd01}",
+    "message": "Successfully updated the status for package JTKC.SwiftLocal_1.0.1.0_x64__j44a9ewx73faj and user <test-user-SID> (Clear=0x0, Set=0x20).",
+    "xml": "<Event xmlns='http://schemas.microsoft.com/win/2004/08/events/event'><System><Provider Name='Microsoft-Windows-AppXDeployment-Server' Guid='{3f471139-acb7-4a01-b7a7-ff5da4ba2d43}'/><EventID>617</EventID><Version>0</Version><Level>5</Level><Task>3</Task><Opcode>0</Opcode><Keywords>0x4000000000000001</Keywords><TimeCreated SystemTime='2026-09-30T09:08:31.6080859Z'/><EventRecordID>426805</EventRecordID><Correlation ActivityID='{277e35e4-5078-0000-e855-36287850dd01}'/><Execution ProcessID='26432' ThreadID='4752'/><Channel>Microsoft-Windows-AppXDeploymentServer/Operational</Channel><Computer>SGE01PC014</Computer><Security UserID='S-1-5-18'/></System><EventData><Data Name='ErrorCode'>0x0</Data><Data Name='PackageFullName'>JTKC.SwiftLocal_1.0.1.0_x64__j44a9ewx73faj</Data><Data Name='userSid'><test-user-SID></Data><Data Name='StatusToClear'>0x0</Data><Data Name='StatusToSet'>0x20</Data><Data Name='CallOrigin'>0</Data></EventData></Event>",
+    "involvesSwiftLocal": true
+  },
+  {
+    "channel": "Microsoft-Windows-AppXDeploymentServer/Operational",
+    "recordId": 426808,
+    "id": 617,
+    "at": "2026-09-30T17:08:32.8086508+08:00",
+    "activityId": "{277e35e4-5078-0000-e855-36287850dd01}",
+    "message": "Successfully updated the status for package JTKC.SwiftLocal_1.0.1.0_x64__j44a9ewx73faj and user <test-user-SID> (Clear=0x0, Set=0x20).",
+    "xml": "<Event xmlns='http://schemas.microsoft.com/win/2004/08/events/event'><System><Provider Name='Microsoft-Windows-AppXDeployment-Server' Guid='{3f471139-acb7-4a01-b7a7-ff5da4ba2d43}'/><EventID>617</EventID><Version>0</Version><Level>5</Level><Task>3</Task><Opcode>0</Opcode><Keywords>0x4000000000000001</Keywords><TimeCreated SystemTime='2026-09-30T09:08:32.8086508Z'/><EventRecordID>426808</EventRecordID><Correlation ActivityID='{277e35e4-5078-0000-e855-36287850dd01}'/><Execution ProcessID='26432' ThreadID='4752'/><Channel>Microsoft-Windows-AppXDeploymentServer/Operational</Channel><Computer>SGE01PC014</Computer><Security UserID='S-1-5-18'/></System><EventData><Data Name='ErrorCode'>0x0</Data><Data Name='PackageFullName'>JTKC.SwiftLocal_1.0.1.0_x64__j44a9ewx73faj</Data><Data Name='userSid'><test-user-SID></Data><Data Name='StatusToClear'>0x0</Data><Data Name='StatusToSet'>0x20</Data><Data Name='CallOrigin'>0</Data></EventData></Event>",
+    "involvesSwiftLocal": true
+  },
+  {
+    "channel": "Microsoft-Windows-AppXDeploymentServer/Operational",
+    "recordId": 426809,
+    "id": 617,
+    "at": "2026-09-30T17:08:33.0071663+08:00",
+    "activityId": "{277e35e4-5078-0000-e855-36287850dd01}",
+    "message": "Successfully updated the status for package JTKC.SwiftLocal_1.0.0.0_x64__j44a9ewx73faj and user <test-user-SID> (Clear=0xFFFFFFFF, Set=0x0).",
+    "xml": "<Event xmlns='http://schemas.microsoft.com/win/2004/08/events/event'><System><Provider Name='Microsoft-Windows-AppXDeployment-Server' Guid='{3f471139-acb7-4a01-b7a7-ff5da4ba2d43}'/><EventID>617</EventID><Version>0</Version><Level>5</Level><Task>3</Task><Opcode>0</Opcode><Keywords>0x4000000000000001</Keywords><TimeCreated SystemTime='2026-09-30T09:08:33.0071663Z'/><EventRecordID>426809</EventRecordID><Correlation ActivityID='{277e35e4-5078-0000-e855-36287850dd01}'/><Execution ProcessID='26432' ThreadID='4752'/><Channel>Microsoft-Windows-AppXDeploymentServer/Operational</Channel><Computer>SGE01PC014</Computer><Security UserID='S-1-5-18'/></System><EventData><Data Name='ErrorCode'>0x0</Data><Data Name='PackageFullName'>JTKC.SwiftLocal_1.0.0.0_x64__j44a9ewx73faj</Data><Data Name='userSid'><test-user-SID></Data><Data Name='StatusToClear'>0xffffffff</Data><Data Name='StatusToSet'>0x0</Data><Data Name='CallOrigin'>0</Data></EventData></Event>",
+    "involvesSwiftLocal": true
+  },
+  {
+    "channel": "Microsoft-Windows-AppXDeploymentServer/Operational",
+    "recordId": 426810,
+    "id": 5507,
+    "at": "2026-09-30T17:08:33.0179818+08:00",
+    "activityId": "{277e35e4-5078-0000-e855-36287850dd01}",
+    "message": "JTKC.SwiftLocal_1.0.1.0_x64__j44a9ewx73faj : C:\\Program Files\\WindowsApps\\JTKC.SwiftLocal_1.0.1.0_x64__j44a9ewx73faj\\microsoft.system.package.metadata\\<test-user-SID>MergedResources-*.pri : No user-specific merged files found",
+    "xml": "<Event xmlns='http://schemas.microsoft.com/win/2004/08/events/event'><System><Provider Name='Microsoft-Windows-AppXDeployment-Server' Guid='{3f471139-acb7-4a01-b7a7-ff5da4ba2d43}'/><EventID>5507</EventID><Version>0</Version><Level>5</Level><Task>0</Task><Opcode>0</Opcode><Keywords>0x4000000000100000</Keywords><TimeCreated SystemTime='2026-09-30T09:08:33.0179818Z'/><EventRecordID>426810</EventRecordID><Correlation ActivityID='{277e35e4-5078-0000-e855-36287850dd01}'/><Execution ProcessID='26432' ThreadID='4752'/><Channel>Microsoft-Windows-AppXDeploymentServer/Operational</Channel><Computer>SGE01PC014</Computer><Security UserID='<test-user-SID>'/></System><EventData><Data Name='PackageName'>JTKC.SwiftLocal_1.0.1.0_x64__j44a9ewx73faj</Data><Data Name='FilePath'>C:\\Program Files\\WindowsApps\\JTKC.SwiftLocal_1.0.1.0_x64__j44a9ewx73faj\\microsoft.system.package.metadata\\<test-user-SID>MergedResources-*.pri</Data><Data Name='Message'>No user-specific merged files found</Data></EventData></Event>",
+    "involvesSwiftLocal": true
+  },
+  {
+    "channel": "Microsoft-Windows-AppXDeploymentServer/Operational",
+    "recordId": 426811,
+    "id": 5507,
+    "at": "2026-09-30T17:08:33.0182835+08:00",
+    "activityId": "{277e35e4-5078-0000-e855-36287850dd01}",
+    "message": "JTKC.SwiftLocal_1.0.1.0_x64__j44a9ewx73faj : C:\\Program Files\\WindowsApps\\JTKC.SwiftLocal_1.0.1.0_x64__j44a9ewx73faj\\microsoft.system.package.metadata\\Resources.????????.pri : No shared merged files found",
+    "xml": "<Event xmlns='http://schemas.microsoft.com/win/2004/08/events/event'><System><Provider Name='Microsoft-Windows-AppXDeployment-Server' Guid='{3f471139-acb7-4a01-b7a7-ff5da4ba2d43}'/><EventID>5507</EventID><Version>0</Version><Level>5</Level><Task>0</Task><Opcode>0</Opcode><Keywords>0x4000000000100000</Keywords><TimeCreated SystemTime='2026-09-30T09:08:33.0182835Z'/><EventRecordID>426811</EventRecordID><Correlation ActivityID='{277e35e4-5078-0000-e855-36287850dd01}'/><Execution ProcessID='26432' ThreadID='4752'/><Channel>Microsoft-Windows-AppXDeploymentServer/Operational</Channel><Computer>SGE01PC014</Computer><Security UserID='<test-user-SID>'/></System><EventData><Data Name='PackageName'>JTKC.SwiftLocal_1.0.1.0_x64__j44a9ewx73faj</Data><Data Name='FilePath'>C:\\Program Files\\WindowsApps\\JTKC.SwiftLocal_1.0.1.0_x64__j44a9ewx73faj\\microsoft.system.package.metadata\\Resources.????????.pri</Data><Data Name='Message'>No shared merged files found</Data></EventData></Event>",
+    "involvesSwiftLocal": true
+  },
+  {
+    "channel": "Microsoft-Windows-AppXDeploymentServer/Operational",
+    "recordId": 426812,
+    "id": 5507,
+    "at": "2026-09-30T17:08:33.0184414+08:00",
+    "activityId": "{277e35e4-5078-0000-e855-36287850dd01}",
+    "message": "JTKC.SwiftLocal_1.0.1.0_x64__j44a9ewx73faj : C:\\Program Files\\WindowsApps\\JTKC.SwiftLocal_1.0.1.0_x64__j44a9ewx73faj\\microsoft.system.package.metadata\\<test-user-SID>MergedResources-*.pri : No user-specific merged files found",
+    "xml": "<Event xmlns='http://schemas.microsoft.com/win/2004/08/events/event'><System><Provider Name='Microsoft-Windows-AppXDeployment-Server' Guid='{3f471139-acb7-4a01-b7a7-ff5da4ba2d43}'/><EventID>5507</EventID><Version>0</Version><Level>5</Level><Task>0</Task><Opcode>0</Opcode><Keywords>0x4000000000100000</Keywords><TimeCreated SystemTime='2026-09-30T09:08:33.0184414Z'/><EventRecordID>426812</EventRecordID><Correlation ActivityID='{277e35e4-5078-0000-e855-36287850dd01}'/><Execution ProcessID='26432' ThreadID='4752'/><Channel>Microsoft-Windows-AppXDeploymentServer/Operational</Channel><Computer>SGE01PC014</Computer><Security UserID='<test-user-SID>'/></System><EventData><Data Name='PackageName'>JTKC.SwiftLocal_1.0.1.0_x64__j44a9ewx73faj</Data><Data Name='FilePath'>C:\\Program Files\\WindowsApps\\JTKC.SwiftLocal_1.0.1.0_x64__j44a9ewx73faj\\microsoft.system.package.metadata\\<test-user-SID>MergedResources-*.pri</Data><Data Name='Message'>No user-specific merged files found</Data></EventData></Event>",
+    "involvesSwiftLocal": true
+  },
+  {
+    "channel": "Microsoft-Windows-AppXDeploymentServer/Operational",
+    "recordId": 426813,
+    "id": 5507,
+    "at": "2026-09-30T17:08:33.0188493+08:00",
+    "activityId": "{277e35e4-5078-0000-e855-36287850dd01}",
+    "message": "JTKC.SwiftLocal_1.0.1.0_x64__j44a9ewx73faj : C:\\Program Files\\WindowsApps\\JTKC.SwiftLocal_1.0.1.0_x64__j44a9ewx73faj\\microsoft.system.package.metadata\\Resources.????????.pri : No shared merged files found",
+    "xml": "<Event xmlns='http://schemas.microsoft.com/win/2004/08/events/event'><System><Provider Name='Microsoft-Windows-AppXDeployment-Server' Guid='{3f471139-acb7-4a01-b7a7-ff5da4ba2d43}'/><EventID>5507</EventID><Version>0</Version><Level>5</Level><Task>0</Task><Opcode>0</Opcode><Keywords>0x4000000000100000</Keywords><TimeCreated SystemTime='2026-09-30T09:08:33.0188493Z'/><EventRecordID>426813</EventRecordID><Correlation ActivityID='{277e35e4-5078-0000-e855-36287850dd01}'/><Execution ProcessID='26432' ThreadID='4752'/><Channel>Microsoft-Windows-AppXDeploymentServer/Operational</Channel><Computer>SGE01PC014</Computer><Security UserID='<test-user-SID>'/></System><EventData><Data Name='PackageName'>JTKC.SwiftLocal_1.0.1.0_x64__j44a9ewx73faj</Data><Data Name='FilePath'>C:\\Program Files\\WindowsApps\\JTKC.SwiftLocal_1.0.1.0_x64__j44a9ewx73faj\\microsoft.system.package.metadata\\Resources.????????.pri</Data><Data Name='Message'>No shared merged files found</Data></EventData></Event>",
+    "involvesSwiftLocal": true
+  },
+  {
+    "channel": "Microsoft-Windows-AppXDeploymentServer/Operational",
+    "recordId": 426814,
+    "id": 617,
+    "at": "2026-09-30T17:08:37.4189514+08:00",
+    "activityId": "{277e35e4-5078-0000-e855-36287850dd01}",
+    "message": "Successfully updated the status for package JTKC.SwiftLocal_1.0.1.0_x64__j44a9ewx73faj and user <test-user-SID> (Clear=0x20, Set=0x0).",
+    "xml": "<Event xmlns='http://schemas.microsoft.com/win/2004/08/events/event'><System><Provider Name='Microsoft-Windows-AppXDeployment-Server' Guid='{3f471139-acb7-4a01-b7a7-ff5da4ba2d43}'/><EventID>617</EventID><Version>0</Version><Level>5</Level><Task>3</Task><Opcode>0</Opcode><Keywords>0x4000000000000001</Keywords><TimeCreated SystemTime='2026-09-30T09:08:37.4189514Z'/><EventRecordID>426814</EventRecordID><Correlation ActivityID='{277e35e4-5078-0000-e855-36287850dd01}'/><Execution ProcessID='26432' ThreadID='4752'/><Channel>Microsoft-Windows-AppXDeploymentServer/Operational</Channel><Computer>SGE01PC014</Computer><Security UserID='S-1-5-18'/></System><EventData><Data Name='ErrorCode'>0x0</Data><Data Name='PackageFullName'>JTKC.SwiftLocal_1.0.1.0_x64__j44a9ewx73faj</Data><Data Name='userSid'><test-user-SID></Data><Data Name='StatusToClear'>0x20</Data><Data Name='StatusToSet'>0x0</Data><Data Name='CallOrigin'>0</Data></EventData></Event>",
+    "involvesSwiftLocal": true
+  },
+  {
+    "channel": "Microsoft-Windows-AppXDeploymentServer/Operational",
+    "recordId": 426815,
+    "id": 617,
+    "at": "2026-09-30T17:08:37.4190009+08:00",
+    "activityId": "{277e35e4-5078-0000-e855-36287850dd01}",
+    "message": "Successfully updated the status for package JTKC.SwiftLocal_1.0.1.0_x64__j44a9ewx73faj and user <test-user-SID> (Clear=0x20, Set=0x0).",
+    "xml": "<Event xmlns='http://schemas.microsoft.com/win/2004/08/events/event'><System><Provider Name='Microsoft-Windows-AppXDeployment-Server' Guid='{3f471139-acb7-4a01-b7a7-ff5da4ba2d43}'/><EventID>617</EventID><Version>0</Version><Level>5</Level><Task>3</Task><Opcode>0</Opcode><Keywords>0x4000000000000001</Keywords><TimeCreated SystemTime='2026-09-30T09:08:37.4190009Z'/><EventRecordID>426815</EventRecordID><Correlation ActivityID='{277e35e4-5078-0000-e855-36287850dd01}'/><Execution ProcessID='26432' ThreadID='4752'/><Channel>Microsoft-Windows-AppXDeploymentServer/Operational</Channel><Computer>SGE01PC014</Computer><Security UserID='S-1-5-18'/></System><EventData><Data Name='ErrorCode'>0x0</Data><Data Name='PackageFullName'>JTKC.SwiftLocal_1.0.1.0_x64__j44a9ewx73faj</Data><Data Name='userSid'><test-user-SID></Data><Data Name='StatusToClear'>0x20</Data><Data Name='StatusToSet'>0x0</Data><Data Name='CallOrigin'>0</Data></EventData></Event>",
+    "involvesSwiftLocal": true
+  },
+  {
+    "channel": "Microsoft-Windows-AppXDeploymentServer/Operational",
+    "recordId": 426816,
+    "id": 617,
+    "at": "2026-09-30T17:08:37.4313586+08:00",
+    "activityId": "{277e35e4-5078-0000-e855-36287850dd01}",
+    "message": "Successfully updated the status for package JTKC.SwiftLocal_1.0.1.0_x64__j44a9ewx73faj and user <test-user-SID> (Clear=0x10000C00, Set=0x0).",
+    "xml": "<Event xmlns='http://schemas.microsoft.com/win/2004/08/events/event'><System><Provider Name='Microsoft-Windows-AppXDeployment-Server' Guid='{3f471139-acb7-4a01-b7a7-ff5da4ba2d43}'/><EventID>617</EventID><Version>0</Version><Level>5</Level><Task>3</Task><Opcode>0</Opcode><Keywords>0x4000000000000001</Keywords><TimeCreated SystemTime='2026-09-30T09:08:37.4313586Z'/><EventRecordID>426816</EventRecordID><Correlation ActivityID='{277e35e4-5078-0000-e855-36287850dd01}'/><Execution ProcessID='26432' ThreadID='4752'/><Channel>Microsoft-Windows-AppXDeploymentServer/Operational</Channel><Computer>SGE01PC014</Computer><Security UserID='S-1-5-18'/></System><EventData><Data Name='ErrorCode'>0x0</Data><Data Name='PackageFullName'>JTKC.SwiftLocal_1.0.1.0_x64__j44a9ewx73faj</Data><Data Name='userSid'><test-user-SID></Data><Data Name='StatusToClear'>0x10000c00</Data><Data Name='StatusToSet'>0x0</Data><Data Name='CallOrigin'>0</Data></EventData></Event>",
+    "involvesSwiftLocal": true
+  },
+  {
+    "channel": "Microsoft-Windows-AppXDeploymentServer/Operational",
+    "recordId": 426817,
+    "id": 400,
+    "at": "2026-09-30T17:08:37.6111401+08:00",
+    "activityId": "{277e35e4-5078-0000-e855-36287850dd01}",
+    "message": "Deployment Add operation with target volume C: on Package JTKC.SwiftLocal_1.0.1.0_x64__j44a9ewx73faj from:  (SwiftLocal-0.4.1-store-1.0.1.0.developer-signed-test.appx)  finished successfully.",
+    "xml": "<Event xmlns='http://schemas.microsoft.com/win/2004/08/events/event'><System><Provider Name='Microsoft-Windows-AppXDeployment-Server' Guid='{3f471139-acb7-4a01-b7a7-ff5da4ba2d43}'/><EventID>400</EventID><Version>0</Version><Level>4</Level><Task>3</Task><Opcode>2</Opcode><Keywords>0x4000000000000001</Keywords><TimeCreated SystemTime='2026-09-30T09:08:37.6111401Z'/><EventRecordID>426817</EventRecordID><Correlation ActivityID='{277e35e4-5078-0000-e855-36287850dd01}'/><Execution ProcessID='26432' ThreadID='4752'/><Channel>Microsoft-Windows-AppXDeploymentServer/Operational</Channel><Computer>SGE01PC014</Computer><Security UserID='<test-user-SID>'/></System><EventData><Data Name='DeploymentOperation'>1</Data><Data Name='PackageFullName'>JTKC.SwiftLocal_1.0.1.0_x64__j44a9ewx73faj</Data><Data Name='Path'> (SwiftLocal-0.4.1-store-1.0.1.0.developer-signed-test.appx) </Data><Data Name='MountPoint'>C:</Data><Data Name='TargetPlatform'>0x3</Data><Data Name='SystemVolume'>true</Data><Data Name='StorageId'>\\\\?\\Volume{dafa5272-2c3f-4599-a55c-346d3f1a35d3}</Data><Data Name='IsCentennial'>true</Data><Data Name='PackageType'>0x1</Data><Data Name='IsPackageEncrypted'>false</Data><Data Name='DeploymentOptions'>0x40000002040041</Data><Data Name='IsStreamingPackage'>false</Data><Data Name='IsInRelatedSet'>false</Data><Data Name='IsPackageUsingBDC'>false</Data><Data Name='MainPackageFamilyName'>NULL</Data><Data Name='CallingProcess'>AppInstaller.exe</Data><Data Name='IsOptional'>false</Data><Data Name='PackageFlags'>0x80004c</Data><Data Name='PackageFlags2'>0x0</Data><Data Name='HasWin32alacarte'>false</Data><Data Name='HasFullTrust'>true</Data><Data Name='ExternalLocation'></Data><Data Name='PackageSourceUri'>file:///C:/~/Development/SwiftLocal/store-evidence/phase2d/signing/SwiftLocal-0.4.1-store-1.0.1.0.developer-signed-test.appx</Data><Data Name='PackageDisplayName'>SwiftLocal</Data></EventData></Event>",
+    "involvesSwiftLocal": true
+  },
+  {
+    "channel": "Microsoft-Windows-AppXDeploymentServer/Operational",
+    "recordId": 426818,
+    "id": 472,
+    "at": "2026-09-30T17:08:37.8234971+08:00",
+    "activityId": "{277e35e4-5078-0000-e855-36287850dd01}",
+    "message": "Moving package folder \\\\?\\C:\\Program Files\\WindowsApps\\JTKC.SwiftLocal_1.0.0.0_x64__j44a9ewx73faj to \\\\?\\C:\\Program Files\\WindowsApps\\Deleted\\JTKC.SwiftLocal_1.0.0.0_x64__j44a9ewx73faj26db6f9a-3de1-487b-845f-b8c428c2e8f4. Result: 0x0.",
+    "xml": "<Event xmlns='http://schemas.microsoft.com/win/2004/08/events/event'><System><Provider Name='Microsoft-Windows-AppXDeployment-Server' Guid='{3f471139-acb7-4a01-b7a7-ff5da4ba2d43}'/><EventID>472</EventID><Version>0</Version><Level>5</Level><Task>5</Task><Opcode>0</Opcode><Keywords>0x4000000000000001</Keywords><TimeCreated SystemTime='2026-09-30T09:08:37.8234971Z'/><EventRecordID>426818</EventRecordID><Correlation ActivityID='{277e35e4-5078-0000-e855-36287850dd01}'/><Execution ProcessID='26432' ThreadID='4752'/><Channel>Microsoft-Windows-AppXDeploymentServer/Operational</Channel><Computer>SGE01PC014</Computer><Security UserID='S-1-5-18'/></System><EventData><Data Name='SourceFolderPath'>\\\\?\\C:\\Program Files\\WindowsApps\\JTKC.SwiftLocal_1.0.0.0_x64__j44a9ewx73faj</Data><Data Name='DestinationFolderPath'>\\\\?\\C:\\Program Files\\WindowsApps\\Deleted\\JTKC.SwiftLocal_1.0.0.0_x64__j44a9ewx73faj26db6f9a-3de1-487b-845f-b8c428c2e8f4</Data><Data Name='ErrorCode'>0x0</Data></EventData></Event>",
+    "involvesSwiftLocal": true
+  },
+  {
+    "channel": "Microsoft-Windows-AppXDeploymentServer/Operational",
+    "recordId": 426819,
+    "id": 613,
+    "at": "2026-09-30T17:08:37.9017135+08:00",
+    "activityId": "{277e35e4-5078-0000-e855-36287850dd01}",
+    "message": "Performance summary of Deployment Add operation on Package JTKC.SwiftLocal_1.0.1.0_x64__j44a9ewx73faj: \r\nOverall time: 69609 ms (Active time: 69609 ms)\r\nEnqueue cost: 2219 ms\r\nDequeue delay: 0 ms\r\nGap: 15 ms\r\nBundle processing cost: 0 ms\r\nIndexing cost: 1485 ms\r\nResolve dependency cost: 31 ms\r\nCheck approval cost: 15 ms\r\nEvaluation cost: 36032 ms\r\nHardlinking evaluation cost: 1516 ms\r\nGap: 15 ms\r\nStage required cost: 23360 ms\r\nFlushing and closing files cost: 0 ms\r\nGap: 203 ms\r\nMachine register cost: 469 ms\r\nStage user data cost: 0 ms\r\nRegistration cost: 906 ms\r\nGap: 94 ms\r\nRepository commit transaction cost: 4281 ms\r\nGap: 422 ms\r\nData flush cost: 15 ms\r\nPost DeStage repository commit transaction cost: 32 ms\r\nRemaining cost: 15 ms\r\n",
+    "xml": "<Event xmlns='http://schemas.microsoft.com/win/2004/08/events/event'><System><Provider Name='Microsoft-Windows-AppXDeployment-Server' Guid='{3f471139-acb7-4a01-b7a7-ff5da4ba2d43}'/><EventID>613</EventID><Version>0</Version><Level>4</Level><Task>3</Task><Opcode>0</Opcode><Keywords>0x4000000000000001</Keywords><TimeCreated SystemTime='2026-09-30T09:08:37.9017135Z'/><EventRecordID>426819</EventRecordID><Correlation ActivityID='{277e35e4-5078-0000-e855-36287850dd01}'/><Execution ProcessID='26432' ThreadID='4752'/><Channel>Microsoft-Windows-AppXDeploymentServer/Operational</Channel><Computer>SGE01PC014</Computer><Security UserID='<test-user-SID>'/></System><EventData><Data Name='DeploymentOperation'>1</Data><Data Name='PackageFullName'>JTKC.SwiftLocal_1.0.1.0_x64__j44a9ewx73faj</Data><Data Name='Summary'>\r\nOverall time: 69609 ms (Active time: 69609 ms)\r\nEnqueue cost: 2219 ms\r\nDequeue delay: 0 ms\r\nGap: 15 ms\r\nBundle processing cost: 0 ms\r\nIndexing cost: 1485 ms\r\nResolve dependency cost: 31 ms\r\nCheck approval cost: 15 ms\r\nEvaluation cost: 36032 ms\r\nHardlinking evaluation cost: 1516 ms\r\nGap: 15 ms\r\nStage required cost: 23360 ms\r\nFlushing and closing files cost: 0 ms\r\nGap: 203 ms\r\nMachine register cost: 469 ms\r\nStage user data cost: 0 ms\r\nRegistration cost: 906 ms\r\nGap: 94 ms\r\nRepository commit transaction cost: 4281 ms\r\nGap: 422 ms\r\nData flush cost: 15 ms\r\nPost DeStage repository commit transaction cost: 32 ms\r\nRemaining cost: 15 ms\r\n</Data></EventData></Event>",
+    "involvesSwiftLocal": true
+  }
+]

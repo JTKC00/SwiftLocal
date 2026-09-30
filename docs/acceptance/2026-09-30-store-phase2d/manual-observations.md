@@ -15,8 +15,9 @@ Every row starts UNVERIFIED. Only explicit owner observations may change these G
 | B4 | Select each entry once and confirm the correct channel opens the PDF | UNVERIFIED | Pending |
 | B5 | Normal PDF double-click still uses the recorded default reader | UNVERIFIED | Pending |
 | B6 | Store theme, saved media preset and configured Downloads output are visible; open real seeded PDF output | UNVERIFIED | [Automated real-product seed and output validation PASS](b-before-update.md); owner observation has not been supplied |
-| C1 | App Installer offers/completes 1.0.0.0 -> 1.0.1.0 UPDATE, with no intervening uninstall | UNVERIFIED | Preserve error text/activity ID if rejected |
-| C2 | Updated Store launches normally and previous theme/preset/output preference remain | UNVERIFIED | Read-only retention measurement precedes smoke |
+| C1 | App Installer offers/completes 1.0.0.0 -> 1.0.1.0 UPDATE, with no intervening uninstall | PASS | 2026-09-30 owner reply to the explicit GUI update/no-uninstall question: “更新了，完全沒問題”; event 855 update list and event 400 success corroborate in-place update |
+| C1a | Step 4A: do not launch either app before the immediate update snapshot | FAIL | Owner subsequently confirms “我手動開啟”; process sampling observes updated SwiftLocal at 17:08:38 +08:00. [Audit](step4a.md) preserves the control failure; no data loss observed |
+| C2 | Updated Store launches normally and previous theme/preset/output preference remain | PARTIAL | Owner confirms manual launch, but does not separately confirm the complete UI/preference row. Offline durable preferences are retained; required prelaunch timing was missed |
 | C3 | The pre-update user output still opens and has real content | UNVERIFIED | Also compare exact hashes |
 | C4 | Representative PDF, chi_tra+eng OCR, searchable PDF, DOCX->PDF, PDF->DOCX and media outputs work | UNVERIFIED | Inspect/open/play outputs; automated smoke separately |
 | C5 | NSIS still launches normally after the Store update | UNVERIFIED | Pending |
