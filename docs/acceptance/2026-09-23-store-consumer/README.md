@@ -1,6 +1,6 @@
 # Windows 11 consumer acceptance — Phase 2C
 
-Date opened: 2026-09-23. Continued: 2026-09-30. Status: **PHASE 2C INCOMPLETE**. All human rows started `UNVERIFIED`; A, B, C and D now have explicit owner confirmation. E, G and H remain unverified. Windows Server CI is not a consumer GUI pass. No Microsoft Store submission. Draft PR #13 is not merged. No v0.4.2. The published v0.4.1 GitHub Release is unchanged.
+Date opened: 2026-09-23. Completed: 2026-09-30. Status: **A. PHASE 2C PASS**. All 34 required human rows started `UNVERIFIED` and now have explicit project-owner confirmation. Windows Server CI is not the basis for any consumer GUI PASS. No Microsoft Store submission. Draft PR #13 is not merged. No v0.4.2. The published v0.4.1 GitHub Release is unchanged.
 
 A human row may become `PASS` only after explicit project-owner confirmation of personally observing it. Record the date and confirmation in the row; a natural-language confirmation in this chat is sufficient when it clearly identifies the observation. `FAIL`, `PARTIAL`, and `UNVERIFIED` are the other allowed results. Screenshots belong next to the row that they show. Use synthetic fixtures. Do not attach private documents.
 
@@ -61,11 +61,11 @@ Then return to the **original signing user's normal PowerShell** and run:
 
 That removes the exact receipt's machine trust, CurrentUser certificate and private key, public `.cer`, and signed test copy. It does not uninstall SwiftLocal or remove user outputs. Preserve `prepare.json` until cleanup; use a new evidence directory for any later preparation cycle.
 
-`store-evidence/` is gitignored. Do not commit `prepare.json` (it contains local paths and a user SID), the signed AppX, a certificate, or a password. Publish only the sanitized machine/candidate receipt and reviewed evidence. Temporary trust cleanup remains pending until acceptance or abandonment finishes.
+`store-evidence/` is gitignored. Do not commit `prepare.json` (it contains local paths and a user SID), the signed AppX, a certificate, or a password. Publish only the sanitized machine/candidate receipt and reviewed evidence. Temporary trust, certificate, key and test-copy cleanup completed on 2026-09-30 after the owner's Settings uninstall.
 
 ### Preparation evidence — 2026-09-30
 
-The sanitized receipt is [preparation-2026-09-30.json](preparation-2026-09-30.json). The temporary certificate's subject exactly matches the official publisher. Its private key is non-exportable. Trust is limited to this test machine's LocalMachine TrustedPeople store; the certificate expires **2026-10-03 12:13:02 Asia/Hong_Kong**, and explicit cleanup is still required after acceptance or abandonment.
+The sanitized receipt is [preparation-2026-09-30.json](preparation-2026-09-30.json). The temporary certificate's subject exactly matched the official publisher. Its private key was non-exportable, verified without export in [non-exportable-key-check-2026-09-30.json](non-exportable-key-check-2026-09-30.json). Trust was limited to this test machine's LocalMachine TrustedPeople store. Its scheduled expiry was 2026-10-03 12:13:02 Asia/Hong_Kong; trust, certificate and key were explicitly removed earlier, on 2026-09-30, rather than waiting for expiry.
 
 | Check | Result | Evidence |
 | --- | --- | --- |
@@ -76,7 +76,7 @@ The sanitized receipt is [preparation-2026-09-30.json](preparation-2026-09-30.js
 | Public-only temporary machine trust and valid AppX signature | PASS | Elevated trust helper; SignTool `/pa` and matching Authenticode signer thumbprint |
 | Product payload preserved through signing | PASS | All 19,696 original entries compared by SHA-256; only `[Content_Types].xml` changes. Signature and CodeIntegrity catalog are added; all application payload bytes are identical. |
 | GUI installation | PASS | Owner explicitly confirmed A1–A5: personal double-click, acceptable App Installer identity/display, GUI completion, and no command-line installation. |
-| Temporary trust, certificate and key cleanup | UNVERIFIED | Run cleanup after the owner's Settings uninstall or abandonment |
+| Temporary trust, certificate and key cleanup | PASS | [certificate-removed-2026-09-30.json](certificate-removed-2026-09-30.json); exact machine/user certificate paths and test files checked absent; unsigned candidate hash still unchanged |
 
 Preparation failure history is retained: the first Windows PowerShell 5.1 invocation rejected the old UTF-8 source without a BOM, before creating a certificate. After that was corrected, cached legacy SignTool failed with “A required function is not present”; failure cleanup removed the temporary certificate/key and failed signed copy. Microsoft SDK BuildTools `10.0.26100.9169` then signed the unchanged frozen candidate successfully. These were preparation failures, not product or consumer GUI findings.
 
@@ -99,6 +99,12 @@ Fill these from `store-evidence/consumer-2026-09-23/machine.json` and `prepare.j
 The machine-record PASS entries above are automated facts, not human GUI verdicts. The process was not elevated during signing; that does not establish whether the normal account is standard or administrator. A hypervisor flag does not establish physical PC versus VM.
 
 The automated [post-install snapshot](after-install-2026-09-30.json) records the official installed package `JTKC.SwiftLocal_1.0.0.0_x64__j44a9ewx73faj` and Start registration `JTKC.SwiftLocal_j44a9ewx73faj!SwiftLocal`. PDF UserChoice `FoxitReader.Document` and its hash were unchanged from the automated pre-install snapshot. This supports the registry record but does not replace the owner's launch, Explorer-menu or normal double-click observations.
+
+The automated [process identity snapshot](process-identity-2026-09-30.json), collected while the owner performed representative operations, records four running SwiftLocal processes from the official Store package's WindowsApps executable. This corroborates use of this installed candidate rather than the pre-existing NSIS entry; it does not independently confirm any GUI flow or output inspection.
+
+After the owner confirmed G1–G2, [after-exit-2026-09-30.json](after-exit-2026-09-30.json) recorded zero SwiftLocal processes. After the owner confirmed H1–H6, [after-uninstall-2026-09-30.json](after-uninstall-2026-09-30.json) recorded no Store package, Start registration, SwiftLocal processes or Store PDF ProgID. The automated PDF UserChoice and hash were unchanged before installation, after installation and after uninstall. The owner independently confirmed Adobe still opened PDFs and the synthetic user outputs remained.
+
+The cleanup receipt intentionally labels GUI acceptance `UNVERIFIED` within that script's limited scope: cleanup cannot certify human observations. The owner-confirmed checklist below supplies those observations; the receipt confirms only certificate/key/trust/test-file removal.
 
 Synthetic inputs are ready in `smoke-temp/store-input/`, produced by the existing `scripts/create-store-fixtures.js`. `fixtures.json` records their sizes and hashes. The generated silent WAV was populated with a one-second 440 Hz tone so playback is audible. Use `a.pdf` for Explorer/default-reader/PDF checks, `ocr-text.png` for `chi_tra+eng`, `ocr-scan.pdf` for searchable PDF, `office-smoke.docx` for DOCX → PDF, and `tone.wav` for media conversion. Inspect OCR for `SWIFTLOCAL OCR SMOKE`, `香港特別行政區`, and `HONG KONG`; inspect documents for `Invoice 12345`. Choose a normal user output directory outside the installed package and preserve these outputs through the uninstall check.
 
@@ -154,12 +160,12 @@ Open or inspect each output enough to see that it is a real file. A job-complete
 
 | Row | Required observation | Result | Owner confirmation | Evidence |
 | --- | --- | --- | --- | --- |
-| E1 | A PDF operation, with the output inspected | UNVERIFIED | | |
-| E2 | `chi_tra+eng` OCR, with the recognized text inspected | UNVERIFIED | | |
-| E3 | A searchable PDF, with selectable text inspected | UNVERIFIED | | |
-| E4 | DOCX → PDF, with the PDF opened | UNVERIFIED | | |
-| E5 | PDF → DOCX, with the document opened | UNVERIFIED | | |
-| E6 | A media conversion, with the output played or inspected | UNVERIFIED | | |
+| E1 | A PDF operation, with the output inspected | PASS | 2026-09-30, owner answered the specific E1–E3 output-inspection checklist: “全都可以” | Owner confirmed PDF content, chi_tra+eng OCR text and selectable/copyable searchable-PDF text |
+| E2 | `chi_tra+eng` OCR, with the recognized text inspected | PASS | 2026-09-30, owner answered the specific E1–E3 output-inspection checklist: “全都可以” | Owner confirmed PDF content, chi_tra+eng OCR text and selectable/copyable searchable-PDF text |
+| E3 | A searchable PDF, with selectable text inspected | PASS | 2026-09-30, owner answered the specific E1–E3 output-inspection checklist: “全都可以” | Owner confirmed PDF content, chi_tra+eng OCR text and selectable/copyable searchable-PDF text |
+| E4 | DOCX → PDF, with the PDF opened | PASS | 2026-09-30, owner answered the specific E4–E5 output-opening checklist: “沒問題” | Owner confirmed the DOCX→PDF output content and opened PDF→DOCX output with real content |
+| E5 | PDF → DOCX, with the document opened | PASS | 2026-09-30, owner answered the specific E4–E5 output-opening checklist: “沒問題” | Owner confirmed the DOCX→PDF output content and opened PDF→DOCX output with real content |
+| E6 | A media conversion, with the output played or inspected | PASS | 2026-09-30, owner answered the specific WAV→MP3 conversion/playback checklist: “都沒問題” | Owner confirmed opening/playing the MP3 and hearing the synthetic one-second tone |
 
 ### F. Phase 2B deep-path regression
 
@@ -174,8 +180,8 @@ The automated result stays linked and is not downgraded. It is not a new GUI obs
 
 | Row | Required observation | Result | Owner confirmation | Evidence |
 | --- | --- | --- | --- | --- |
-| G1 | SwiftLocal closes normally | UNVERIFIED | | |
-| G2 | No orphan visible SwiftLocal window remains | UNVERIFIED | | |
+| G1 | SwiftLocal closes normally | PASS | 2026-09-30, owner: “應用程式正常關閉，而且沒有殘留可見的 SwiftLocal 視窗／實例” | Explicit owner confirmation in this chat |
+| G2 | No orphan visible SwiftLocal window remains | PASS | 2026-09-30, owner: “應用程式正常關閉，而且沒有殘留可見的 SwiftLocal 視窗／實例” | Explicit owner confirmation in this chat |
 
 ### H. GUI uninstall
 
@@ -183,12 +189,12 @@ Use Settings → Apps → Installed apps, or the equivalent consumer UI.
 
 | Row | Required observation | Result | Owner confirmation | Evidence |
 | --- | --- | --- | --- | --- |
-| H1 | Uninstall starts from that Windows UI | UNVERIFIED | | |
-| H2 | SwiftLocal disappears from installed apps | UNVERIFIED | | |
-| H3 | The Start menu entry disappears | UNVERIFIED | | |
-| H4 | The Store package's Open with registration disappears as expected; record any pre-existing NSIS entry separately | UNVERIFIED | | |
-| H5 | The original PDF default is unchanged | UNVERIFIED | | |
-| H6 | Normal user output files remain | UNVERIFIED | | |
+| H1 | Uninstall starts from that Windows UI | PASS | 2026-09-30, owner answered the specific Settings uninstall/Start/Open With/default/output-preservation checklist: “都沒問題” | Explicit owner response in this chat; synthetic user outputs remain |
+| H2 | SwiftLocal disappears from installed apps | PASS | 2026-09-30, owner answered the specific Settings uninstall/Start/Open With/default/output-preservation checklist: “都沒問題” | Explicit owner response in this chat; synthetic user outputs remain |
+| H3 | The Start menu entry disappears | PASS | 2026-09-30, owner answered the specific Settings uninstall/Start/Open With/default/output-preservation checklist: “都沒問題” | Explicit owner response in this chat; synthetic user outputs remain |
+| H4 | The Store package's Open with registration disappears as expected; record any pre-existing NSIS entry separately | PASS | 2026-09-30, owner answered the specific Settings uninstall/Start/Open With/default/output-preservation checklist: “都沒問題” | Explicit owner response in this chat; synthetic user outputs remain |
+| H5 | The original PDF default is unchanged | PASS | 2026-09-30, owner answered the specific Settings uninstall/Start/Open With/default/output-preservation checklist: “都沒問題” | Explicit owner response in this chat; synthetic user outputs remain |
+| H6 | Normal user output files remain | PASS | 2026-09-30, owner answered the specific Settings uninstall/Start/Open With/default/output-preservation checklist: “都沒問題” | Explicit owner response in this chat; synthetic user outputs remain |
 
 ## Screenshots to collect
 
@@ -198,7 +204,7 @@ App Installer, Start or first launch, Explorer Open with, the PDF workspace, and
 
 If any required product behavior fails, record `FAIL`, retain the observation/output/screenshot, stop the acceptance verdict, and propose the smallest fix. Do not fix product code and continue under this candidate's hash. A product-code change requires a new candidate and fresh acceptance cycle. A preparation-tool failure leaves GUI rows `UNVERIFIED`; resolve and record the preparation issue without changing the AppX.
 
-All required rows in A, B, C, D, E, G, and H must have explicit owner confirmation for **PHASE 2C PASS**. F1 is retained automated Phase 2B evidence; F2 is optional. A required product failure means **PHASE 2C FAIL**. Otherwise any unverified required row means **PHASE 2C INCOMPLETE**. Record observations by row ID, the date, which synthetic fixture/output was inspected, and any evidence link. On 2026-09-30 the owner confirmed A1–A5, B1–B8, C1–C4 and D1–D3 in replies to the specific installation, Start/workspaces, Explorer integration and PDF-default questions. E, G and H remain pending.
+All required rows in A, B, C, D, E, G, and H must have explicit owner confirmation for **PHASE 2C PASS**. F1 is retained automated Phase 2B evidence; F2 is optional. A required product failure means **PHASE 2C FAIL**. Otherwise any unverified required row means **PHASE 2C INCOMPLETE**. Record observations by row ID, the date, which synthetic fixture/output was inspected, and any evidence link. On 2026-09-30 the owner confirmed all 34 required rows in replies to the specific GUI and output-inspection/playback questions. No product behavior was reported FAIL. Temporary trust/key/test-copy cleanup also completed.
 
 ## Retained policy item
 
@@ -206,8 +212,8 @@ Optional WACK **Blocked executables** still fails with 593 messages in the Phase
 
 ## Verdict
 
-**C. PHASE 2C INCOMPLETE.** A, B, C and D are owner-confirmed PASS. Representative operations, normal exit, GUI uninstall and certificate cleanup remain pending.
+**A. PHASE 2C PASS.** All required consumer Windows 11 GUI rows are explicitly owner-confirmed PASS on a physical Windows 11 Home 25H2 x64 PC using a standard user account. Outputs were opened/inspected and media played. Normal exit and Settings uninstall passed, the previous PDF reader and user output files remained, and temporary certificate trust/key/test-copy cleanup completed. The exact frozen unsigned AppX remains unchanged.
 
 Historical 2026-09-23 review: Jev (`jev-1.13.0`) chose C (confidence 1.0; probabilities A 0.0, B 0.0, C 1.0). The probability that a GUI row may pass from the hash or Server CI alone was 0.03. The probability that Store submission is allowed was 0.03. The probability that the described file is the frozen candidate was 0.61; the local SHA-256 comparison of the downloaded artifact matched the frozen digest exactly, and that comparison is the artifact check. Jev does not replace it and does not confirm any GUI row. No new Jev review was run for this continuation.
 
-Phase 2D, Store update / data retention / uninstall semantics and coexistence with the NSIS release, waits until this verdict is A. Do not submit to the Microsoft Store.
+The next gate is **Phase 2D**: Store update / data retention / uninstall semantics and coexistence with the NSIS release. Those semantics are not proven by this consumer UI pass. Do not submit to the Microsoft Store or merge PR #13.

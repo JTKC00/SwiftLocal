@@ -1,0 +1,12 @@
+﻿{
+    "status":  "PASS",
+    "removedAt":  "2026-09-30T12:48:36.2424833+08:00",
+    "thumbprint":  "AD0DD853656C50991102EB224E247C4DB5ABFF69",
+    "certificateRemoved":  true,
+    "machineTrustRemoved":  true,
+    "privateKeyRemoved":  true,
+    "signedCopyRemoved":  true,
+    "publicCertificateFileRemoved":  true,
+    "packageUninstall":  "UNVERIFIED — owner uses Windows Settings",
+    "guiAcceptance":  "UNVERIFIED"
+}

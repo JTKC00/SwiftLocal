@@ -1,0 +1,8 @@
+{
+  "status": "PASS",
+  "subject": "CN=48CB75C0-3F50-44EF-87EB-8203F196B957",
+  "thumbprint": "AD0DD853656C50991102EB224E247C4DB5ABFF69",
+  "privateKeyExportPolicy": "None",
+  "keyExportAttempted": false,
+  "guiAcceptance": "not inferred"
+}
