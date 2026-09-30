@@ -1,11 +1,16 @@
 # Read-only Step 4A preflight. Never activates, installs, signs, trusts or removes anything.
+param([string]$Evidence = 'store-evidence/phase2d')
 $ErrorActionPreference = 'Stop'
 $root = Split-Path (Split-Path (Split-Path $PSScriptRoot -Parent) -Parent) -Parent
-$evidence = Join-Path $root 'store-evidence/phase2d'
+if (-not [IO.Path]::IsPathRooted($Evidence)) { $Evidence = Join-Path $root $Evidence }
+$evidence = [IO.Path]::GetFullPath($Evidence)
 $receiptPath = Join-Path $evidence 'step4a-preflight-completed.json'
 if (Test-Path -LiteralPath $receiptPath) { throw 'Preserve the existing preflight; do not overwrite it.' }
 $signing = Get-Content -LiteralPath (Join-Path $evidence 'signing/signing.json') -Raw -Encoding UTF8 | ConvertFrom-Json
-$thumb = '30E81230B7C3CCB8D19D5D6A67F975DDB8D93450'
+$thumb = [string]$signing.certificateThumbprint
+if ($thumb -notmatch '^[A-Fa-f0-9]{40}$') { throw 'Invalid receipt-bound certificate thumbprint. STOP.' }
+$fixture = Get-Content -LiteralPath (Join-Path $evidence 'update-fixture.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+if ($fixture.status -cne 'PASS' -or $fixture.baseline.sha256 -cne '38a1ea9d89e956c1dbcdecb21f85bca673d7ab70301b16e66f68c819d7eed404' -or $fixture.update.identity.Version -cne '1.0.1.0' -or $fixture.update.sha256 -notmatch '^[a-f0-9]{64}$') { throw 'Verified frozen-baseline update fixture missing or changed. STOP.' }
 $subject = 'CN=48CB75C0-3F50-44EF-87EB-8203F196B957'
 $family = 'JTKC.SwiftLocal_j44a9ewx73faj'
 $report = [ordered]@{status='UNVERIFIED';scope='read-only preflight; no app launch or package/certificate mutation';startedAt=(Get-Date).ToString('o')}
@@ -38,10 +43,11 @@ try {
     $verifyText | Set-Content -LiteralPath (Join-Path $evidence "step4a-signature-$($record.version).log") -Encoding UTF8
     $unsignedHash = Hash $record.unsignedPath
     if ($unsignedHash -cne $record.unsignedSha256 -or (Get-Item -LiteralPath $record.unsignedPath).Length -ne $record.unsignedBytes) { throw 'Retained unsigned package changed. STOP.' }
-    if ($record.version -ceq '1.0.1.0' -and $unsignedHash -cne 'd737b781d16e0b9b6dd23e876626df1095756816c6527a11945ff30c96fc4e4a') { throw 'Unsigned update fixture differs. STOP.' }
+    if ($record.version -ceq '1.0.0.0' -and ($unsignedHash -cne $fixture.baseline.sha256 -or $record.unsignedBytes -ne $fixture.baseline.bytes)) { throw 'Frozen baseline differs. STOP.' }
+    if ($record.version -ceq '1.0.1.0' -and ($unsignedHash -cne $fixture.update.sha256 -or $record.unsignedBytes -ne $fixture.update.bytes)) { throw 'Receipt-bound unsigned update fixture differs. STOP.' }
     $results += [ordered]@{version=$record.version;unsignedSha256=$unsignedHash;unsignedBytes=$record.unsignedBytes;signedSha256=$signedHash;signedBytes=$record.signedBytes;signature='PASS';signerThumbprint=$signature.SignerCertificate.Thumbprint}
   }
-  if ($results.Count -ne 2) { throw 'Two-version receipt missing. STOP.' }
+  if ($results.Count -ne 2 -or @($results | Where-Object {$_.version -ceq '1.0.0.0'}).Count -ne 1 -or @($results | Where-Object {$_.version -ceq '1.0.1.0'}).Count -ne 1) { throw 'Two-version receipt missing. STOP.' }
   $report.packages = $results
   $bookmarks = @()
   foreach ($channel in @('Microsoft-Windows-AppXDeploymentServer/Operational','Microsoft-Windows-AppxPackaging/Operational')) {

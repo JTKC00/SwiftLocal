@@ -1,47 +1,55 @@
-# Phase 2D 家中電腦接續紀錄 — 準備完成，安裝驗收尚未開始
+# Phase 2D 家中電腦接續紀錄 — 已轉為本機驗收
 
-2026-09-30 接續 `store/msix-readiness`，來源提交 `3dac8e7a3e22fccfda0dcc18f06ea56e31201f06`，Draft PR [#13](https://github.com/JTKC00/SwiftLocal/pull/13)。本紀錄是家中電腦的新週期；[公司交接](../2026-09-30-store-phase2d/HOME-PC-HANDOFF.md)與 [Step 4A PARTIAL](../2026-09-30-store-phase2d/step4a.md)維持原結論。
+2026-09-30，James 指示「直接轉為本機做」。已在本機建立獨立 Phase 2D 週期，從提交 `e702838fde0c366f6ae453274f4c90851abf41a3` 接續 [Draft PR #13](https://github.com/JTKC00/SwiftLocal/pull/13)。產品版本仍為 **0.4.1**。
 
-**Phase 2D 仍未完成。** 雲端備份缺少必要的原始安裝包，目前不能開始家中的安裝、更新與移除驗收。
+**NSIS 本機驗收 PASS；Store 兩版本測試包已備妥，待管理員啟用公用測試憑證信任。Phase 2D 仍未完成。** [公司交接](../2026-09-30-store-phase2d/HOME-PC-HANDOFF.md)及 [Step 4A PARTIAL](../2026-09-30-store-phase2d/step4a.md)保留原結論。新週期的結果見 [local-cycle.json](local-cycle.json)。
 
-## 已完成的準備
+## 本機安裝包
 
-- 已切換到公司最後推送的分支並核對 GitHub PR head；PR 仍為 Draft、未合併。
-- 已用現有唯讀 inventory helper 保存本機基線：Windows 11 Home 25H2、26200.9550、x64；未找到 SwiftLocal Store package 或 NSIS 卸載註冊，亦沒有 SwiftLocal 執行程序。
-- PDF 預設 ProgID 為 `Acrobat.Document.DC`。既有 NSIS 個人設定保留；Store profile/package state 不存在。實機／VM及標準使用者身分仍欠擁有者確認，不能用程序非管理員狀態代替。
-- 準備前後快照比對通過：48個既有NSIS durable profile檔案的路徑、大小及SHA-256完全一致，無hash讀取錯誤；PDF UserChoice／Open With／classes、安裝及Start註冊亦相同。
-- 已讀取公司原始 `handoff-manifest.json`，遍歷所有可存取的雲端子資料夾；208 個清單項目中，198 個路徑和大小吻合，10 個缺失，沒有已觀察到的大小差異。這只是雲端 metadata 比對，不等於198個檔案的完整SHA-256驗證。
-- 已取回12個原始合成測試檔、公用測試憑證及簽署收據，共14個檔案；每個檔案的大小和SHA-256均與公司清單一致。檔案另存私人備份目錄，沒有匯入憑證或複製公司個人設定。
+原始未簽署 baseline 直接從 [公司凍結 build 的 Actions run](https://github.com/JTKC00/SwiftLocal/actions/runs/35758117387) 下載。大小 **1,115,695,293 bytes**，SHA-256 **38a1ea9d89e956c1dbcdecb21f85bca673d7ab70301b16e66f68c819d7eed404**，與公司凍結 candidate 完全一致；程式內容沒有重建。
 
-## 缺檔與接續條件
+在新的隔離目錄用官方 Microsoft.Windows.SDK.BuildTools **10.0.26100.1742** 重新封裝更新 fixture。僅將 manifest Identity Version 改為 **1.0.1.0**，19,693 個其餘 payload entries 逐檔 SHA-256 相同。Name、Publisher、Application Id、x64、PFN 及內附 Partner Center 首次提交版本 **1.0.0.0** 都維持原值。
 
-完整相對路徑、大小與公司記錄的 SHA-256 見 [missing-backup-files.json](missing-backup-files.json)。其中四個必要安裝包為：
+本機 unsigned update 為 **1,115,795,156 bytes**，SHA-256 **510387594f07159928b8c8e56b552b5751420c26abe0cb9eb79a2d16f6c4b4fe**。它與公司 update 的 SHA-256 不同，明確記為新本機封裝週期，不能充當公司原始檔的恢復證據。SDK MakeAppx／SignTool 的 Microsoft 簽章均有效，工具及下載包雜湊已記錄。
 
-| 原始檔案 | 大小（bytes） |
-| --- | ---: |
-| `SwiftLocal-0.4.1-full-installer-x64.exe` | 684101265 |
-| `SwiftLocal-0.4.1-store-1.0.0.0.developer-signed-test.appx` | 1115166892 |
-| `SwiftLocal-0.4.1-store-1.0.1.0.developer-signed-test.appx` | 1115266759 |
-| `SwiftLocal-0.4.1-store-update-fixture-1.0.1.0-x64.appx` | 1115795156 |
+兩個簽署副本使用同一把本機新建的五天測試金鑰，實測 CNG export policy 為 **None**。金鑰不曾匯出；公司金鑰也未轉移。憑證到期為 **2026-10-05 20:59:32 +08:00**。兩包各有 **19,694 個原始非生成 entries**（包括各自 manifest）與 unsigned 原件完全相同。簽署 hash／大小另載於 JSON；尚未建立機器信任，不能把這項 payload PASS 當成已安裝 Store 驗收。
 
-其餘缺失為 `update-fixture-payload-hashes.json` 和五個 SDK 檔：`appxpackaging.dll`、`midlc.exe`、`midlrt.exe`、`mt.exe`、`opcservices.dll`。Chrome 的簽署資料夾清單亦沒有顯示上述兩個已簽署 APPX；本機 Downloads 的 SwiftLocal 目錄沒有找到可用的 APPX／EXE 備份。
+## 實際 NSIS 0.4.1 驗收
 
-連接器下載上限為單檔268435456 bytes；原版未簽署 APPX 存在雲端，但其1115695293 bytes超過上限。已接通登入中的Chrome，可以在原始檔補齊後走網頁下載；本次沒有重建、重新簽署或用其他候選包取代缺檔。
+從 [正式 v0.4.1 Release](https://github.com/JTKC00/SwiftLocal/releases/tag/v0.4.1) 取回 Full Installer，大小 **684,101,265 bytes**、SHA-256 **3e930e523f3746e92bc9a05277a208491186c1563dabffd1e07d3c973bc30a40** 與發布記錄一致。實際以每位使用者的 silent 模式安裝，exit code **0**。這是代理執行的原生安裝，擁有者 GUI 觀察另列 UNVERIFIED。
 
-需要補齊原始檔後，先核對雜湊、identity及保留簽章，再建立家中的獨立NSIS／Store基線。更新後須先完成關閉狀態、首次啟動前的快照及離線比較，之後才啟動驗證。公司缺少首次啟動前快照的歷史不會被覆寫。
+安裝前先將兩個既有 NSIS profile 的 **106 個檔案**備份到全域 backups 目錄，逐檔 hash 核驗。實跑既有 installed-app harness 的 10 項檢查全數 PASS，包括：正常啟動、選用已安裝 Full 的工具、五種真實轉換、登錄 PDF shell verb 開啟工作區、正常結束。已讀取並檢視實際首頁與合成 PDF 的畫面。
 
-## 回歸驗證與修正
+| 實際輸出／工具驗證 | 結果 |
+| --- | --- |
+| PDF 壓縮及 DOCX → PDF | 各一頁，保留合成 Invoice 12345 文字 |
+| chi_tra+eng OCR 圖片 | 含 Latin 及繁體中文 fixture 文字 |
+| 可搜尋 PDF | 實際文字層含 SWIFTLOCAL |
+| WAV → MP3 | FFmpeg 完整解碼 PASS |
+| FFmpeg、QPDF、Tesseract、LibreOffice、yt-dlp、Deno | 已安裝包內六個執行檔的版本探測 PASS |
 
-家中現有 `node_modules` 版本落後於鎖檔，最初的原生測試出現缺少打包依賴及PDF.js版本不符。另一次沙箱執行在程序樹逾時案例失敗後停滯，已停止，原始log保留。
+驗收後已關閉 SwiftLocal；Store package 仍不存在。閉合基線保存 **19,730 個 NSIS 安裝檔**和五份正常 Downloads 輸出，沒有 hash 讀取錯誤。PDF UserChoice 及其 hash 與安裝前完全相同，ProgID 仍為 **Acrobat.Document.DC**。
 
-使用本次新建的隔離原始碼副本、按鎖檔安裝依賴後，只剩既有ARM64 archive測試失敗：發行驗證 helper 對直接 `.7z` 也選用了本機完整7-Zip，而本機版本不支援該filter。已修正工具選擇：Windows `.exe` 安裝檔保留完整7-Zip處理NSIS；直接archive及巢狀payload改用packager提供的校驗工具組。沒有變更產品runtime或凍結candidate。
+舊 Roaming/SwiftLocal profile 的24個 durable files保持 byte-identical。實際使用的 Roaming/快轉通 SwiftLocal profile 因本次正常使用由24個增至27個 durable files；這是 NSIS 自身驗收後的新基線，沒有把正常寫入當作 Store 影響或恢復整個 profile。Store-only 後續比較應使用此新基線。
 
-修正後完整測試通過：JavaScript 313個測試，309 PASS、4既有條件skip；Python 102個測試，99 PASS、3既有條件skip。JS skip是Windows `.cmd` test shim不由 `shell:false` 執行；Python skip是Windows程序樹案例及隔離副本未內附Tesseract的兩項檢查。它們不構成已安裝Full引擎驗收。
+## Helper 與回歸
 
-`npm run typecheck`、`npm run check:ci`、修正helper的 `node --check` 及 `git diff --check` 通過。隔離副本與工作分支的修正helper SHA-256一致：`baa3117a82427e7c6d57d6181ca657d21752f8ba0bf95da9d9d0dc2e82b89c80`。詳見 [verification.json](verification.json)。
+Step 4A preflight 改為依本週期已驗證 fixture 和 signing receipt 綁定 hash／憑證，並仍嚴格要求原始凍結 baseline 及兩個不同版本。首次啟動前快照 helper 可明確指定獨立 Evidence／OutputRoot，避免寫入公司舊週期。
 
-## 私人證據位置與尚未完成項目
+五個新增拒絕／接受測試及五個既有 Store identity/runtime/packaging 測試，共 **10 PASS、0 FAIL、0 skip**；PowerShell AST 解析及 diff whitespace 檢查 PASS。使用先前按鎖檔安裝的隔離依賴環境。最初誤用 root 的舊依賴導致 toolsets/7zip module 缺失，轉用已備妥的隔離環境後通過。私人六工具 probe 最初遺漏 yt-dlp／Deno 的 bin 子目錄，依程式實際 resolver 修正後全數通過。
 
-原始inventory、雲端清單、Chrome截圖、下載引用、逐檔hash收據、歷次測試log及隔離依賴均位於ignored的 `store-evidence/home-2026-09-30/`，不得推送Git。公司backup另存在其中的 `work-pc-backup/`；沒有恢復到家中的AppData。
+先前完整原始碼回歸的 **408 PASS、7 條件 skip**及驗證 archive 工具選擇修正，保留在 [verification.json](verification.json)。該 JSON 的 machine preservation 指初次準備前後，並非宣稱目前沒有 NSIS 安裝或 profile 正常寫入。
 
-家中GUI安裝／啟動、原始兩版本更新、native及轉換smoke、deep-path、NSIS共存／反向移除、Store移除及憑證清理全部UNVERIFIED。公司電腦的原始key／trust及副本清理仍須另外處理。本次未匯入trust、未安裝或移除應用程式、未修改PDF預設，亦未合併PR、提交Microsoft Store、變更0.4.1產品版本或公開Release。
+## 管理員步驟與尚未完成
+
+Trust helper 實際在目前權限下停止，原因為 **Machine certificate trust requires an administrator**。機器 TrustedPeople 尚無本週期憑證。[Microsoft 的包簽署文件](https://learn.microsoft.com/en-us/windows/msix/package/create-certificate-package-signing)要求此公用憑證的機器信任，才可安裝自簽測試包。
+
+本機已備妥 `store-evidence/home-2026-09-30/enable-test-trust.cmd`。以系統管理員執行後，它只啟用本週期收據綁定的公用憑證信任並核驗兩包簽章，顯示 **SwiftLocal local test trust is ready** 即成功；此步驟不安裝 Store package。
+
+後續仍需本機 Store baseline 安裝、真實偏好／任務／輸出 seeding、更新前 preflight 與程序觀察、更新後首次啟動前快照及離線比較，接著才啟動 retention／native／deep-path smoke。Store 移除、NSIS 共存與反向移除、殘留資料和輸出保留，以及本機測試 trust/key/copy 清理仍 UNVERIFIED。公司的原始 key/trust/copy 清理另行保留 pending。GUI 擁有者確認不由本次原生自動驗收替代。
+
+## 初次雲端準備與私人證據
+
+初次 Drive backup 的208個清單項目中，198個路徑／大小吻合、10個缺失、零觀察到的大小差異；這不是198個檔案的完整 SHA 驗證。14個已取回小檔的 hash 與公司清單相同。[missing-backup-files.json](missing-backup-files.json)保留該次雲端缺檔，原始公司 backup 仍不完整；James 改為本機接續後，已從 GitHub 取回 baseline／正式 NSIS，並另建 update／signed copies，無需等待公司缺檔才進行本機準備。
+
+所有私人 inventory、備份位置、簽署收據、測試包、金鑰收據、原始 log 和畫面位於 ignored 的 `store-evidence/home-2026-09-30/`；新週期在其中的 `local-cycle/`。沒有將個人路徑、SID、雲端下載 token、憑證檔或 signed packages 提交 Git。PR保持Draft；Store提交、PR合併及公開Release變更都未執行。

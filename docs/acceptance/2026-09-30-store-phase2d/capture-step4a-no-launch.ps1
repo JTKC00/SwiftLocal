@@ -1,8 +1,14 @@
 # Read-only lifecycle evidence. No activation, native probes or installation.
-param([Parameter(Mandatory=$true)][ValidateSet('b-step4a-preflight','c-after-update-before-launch')][string]$Stage)
+param(
+  [Parameter(Mandatory=$true)][ValidateSet('b-step4a-preflight','c-after-update-before-launch')][string]$Stage,
+  [string]$Evidence = 'store-evidence/phase2d',
+  [string]$OutputRoot
+)
 $ErrorActionPreference = 'Stop'
 $root = Split-Path (Split-Path (Split-Path $PSScriptRoot -Parent) -Parent) -Parent
-$evidence = Join-Path $root 'store-evidence/phase2d'
+if (-not [IO.Path]::IsPathRooted($Evidence)) { $Evidence = Join-Path $root $Evidence }
+$evidence = [IO.Path]::GetFullPath($Evidence)
+if (-not $OutputRoot) { $OutputRoot = Join-Path $env:USERPROFILE 'Downloads/SwiftLocal-Phase2D-output' }
 $receipt = Join-Path $evidence "$Stage-no-launch.json"
 if (Test-Path -LiteralPath $receipt) { throw 'Preserve the existing lifecycle receipt.' }
 $expectedVersion = if ($Stage -eq 'b-step4a-preflight') { '1.0.0.0' } else { '1.0.1.0' }
@@ -18,7 +24,7 @@ try {
   $report.applicationIds = @($manifest.Package.Applications.Application | ForEach-Object {[string]$_.Id})
   if ($report.package.Name -cne 'JTKC.SwiftLocal' -or $report.package.Publisher -cne 'CN=48CB75C0-3F50-44EF-87EB-8203F196B957' -or $report.applicationIds.Count -ne 1 -or $report.applicationIds[0] -cne 'SwiftLocal') { throw 'Package/Application identity changed. STOP.' }
   $report.aumid = "$($package[0].PackageFamilyName)!$($report.applicationIds[0])"
-  & (Join-Path $PSScriptRoot 'capture-inventory.ps1') -Stage $Stage -OutputRoot (Join-Path $env:USERPROFILE 'Downloads/SwiftLocal-Phase2D-output')
+  & (Join-Path $PSScriptRoot 'capture-inventory.ps1') -Stage $Stage -Evidence $evidence -OutputRoot $OutputRoot
   if ($Stage -eq 'c-after-update-before-launch') {
     $preflight = Get-Content -LiteralPath (Join-Path $evidence 'step4a-preflight-completed.json') -Raw -Encoding UTF8 | ConvertFrom-Json
     $events = @()
