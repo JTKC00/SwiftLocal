@@ -1,5 +1,5 @@
 {
-  "status": "PARTIAL; LOCAL PACKAGES READY, ADMINISTRATOR TRUST REQUIRED",
+  "status": "PARTIAL; LOCAL NATIVE LIFECYCLE MEASURED, PUBLISHED NSIS REVERSE COEXISTENCE FAIL, ADMIN CLEANUP AND OWNER GUI PENDING",
   "scope": "new local Phase 2D cycle authorized by owner on 2026-09-30; original company Step 4A remains PARTIAL",
   "sourceCheckpoint": "e702838fde0c366f6ae453274f4c90851abf41a3",
   "productVersion": "0.4.1",
@@ -25,7 +25,7 @@
   "companyUpdateFixtureSha256": "d737b781d16e0b9b6dd23e876626df1095756816c6527a11945ff30c96fc4e4a",
   "repackagedLocally": true,
   "signing": {
-    "status": "PARTIAL",
+    "status": "PASS; TRUST AND BOTH SIGNATURES VERIFIED BY OWNER ADMINISTRATOR ACTION",
     "payloadComparison": {
       "status": "PASS",
       "scope": "signed payload identity; machine trust and installation separate",
@@ -49,8 +49,9 @@
     "certificateThumbprint": "7B078F0B464817DA0723C04ACC5B3E3DF5E9744C",
     "nonExportableKeyPolicy": "None",
     "expires": "2026-10-05T20:59:32.0000000+08:00",
-    "machineTrustPresent": false,
-    "privateKeyExported": false
+    "machineTrustPresent": true,
+    "privateKeyExported": false,
+    "cleanup": "PENDING ADMINISTRATOR"
   },
   "sdk": {
     "package": "Microsoft.Windows.SDK.BuildTools",
@@ -256,6 +257,11 @@
       "profiles": 2,
       "files": 106,
       "allHashVerified": true
+    },
+    "preUninstallProfileBackups": {
+      "profiles": 2,
+      "files": 110,
+      "allHashVerified": true
     }
   },
   "regression": {
@@ -268,14 +274,8 @@
     "oldDependencyFailure": "root node_modules lacks app-builder-lib/out/toolsets/7zip; rerouted to pre-existing locked clean-source environment",
     "probePreparationFailure": "first private probe used media tools without bin directory; corrected to actual installed paths, six probes PASS"
   },
-  "trustGate": {
-    "status": "BLOCKED",
-    "scope": "local trust gate; stop before package installation",
-    "attemptedAt": "2026-09-30T21:12:20.2042562+08:00",
-    "reason": "Machine certificate trust requires an administrator."
-  },
-  "storeInstallation": "UNVERIFIED; not attempted",
-  "storeUpdateAndUninstall": "UNVERIFIED",
+  "storeInstallation": "PASS; native current-user 1.0.0.0 install; owner GUI UNVERIFIED",
+  "storeUpdateAndUninstall": "Native update and preservation PASS; normal removal measured with manual repair value residue separately removed; see storeLifecycle",
   "guiOwnerConfirmation": "UNVERIFIED",
   "privateEvidence": "store-evidence/home-2026-09-30/local-cycle/ (ignored)",
   "workPcStep4A": "PARTIAL; pre-first-launch execution control remains FAIL",
@@ -284,5 +284,261 @@
     "draft": true,
     "merged": false,
     "storeSubmission": "NOT PERFORMED"
+  },
+  "trustGateHistorical": {
+    "status": "BLOCKED",
+    "scope": "historical failed non-administrator preparation; resolved by owner administrator action",
+    "attemptedAt": "2026-09-30T21:12:20.2042562+08:00",
+    "reason": "Machine certificate trust requires an administrator."
+  },
+  "storeLifecycle": {
+    "scope": "independent home native cycle; original company Step 4A PARTIAL preserved",
+    "installedVersions": [
+      "1.0.0.0",
+      "1.0.1.0"
+    ],
+    "inPlaceUpdate": "PASS; no separate uninstall or app activation before offline snapshot",
+    "preFirstLaunchControl": {
+      "status": "PASS; native process observation",
+      "samples": 593,
+      "intervalMs": 250,
+      "maximumObservedSwiftLocalProcesses": 0,
+      "ownerManualConfirmation": "UNVERIFIED"
+    },
+    "preFirstLaunchRetention": {
+      "status": "PASS",
+      "durableStoreFiles": 26,
+      "allBytesIdentical": true,
+      "settings": "PASS",
+      "rendererValuesAndRealPreset": "PASS",
+      "completeJobs": "PASS",
+      "userOutputs": "PASS",
+      "nsisInstalledFilesUnchanged": 19730,
+      "pdfDefaultUnchanged": "Acrobat.Document.DC"
+    },
+    "updatedLaunchRetention": {
+      "status": "PASS",
+      "settings": "PASS",
+      "realPreset": "PASS",
+      "jobs": "PASS",
+      "outputs": "PASS"
+    },
+    "updatedSmoke": {
+      "tests": [
+        {
+          "name": "installed-startup-default-profile",
+          "status": "PASS"
+        },
+        {
+          "name": "installed-package-identity-and-writable-paths",
+          "status": "PASS"
+        },
+        {
+          "name": "retained-output-preference-not-reseeded",
+          "status": "PASS"
+        },
+        {
+          "name": "six-native-executables-spawned-by-packaged-electron",
+          "status": "PASS"
+        },
+        {
+          "name": "installed-startup",
+          "status": "PASS"
+        },
+        {
+          "name": "all-tools-from-installed-full-package",
+          "status": "PASS"
+        },
+        {
+          "name": "installed-conversion-pdf-compress",
+          "status": "PASS"
+        },
+        {
+          "name": "installed-conversion-ocr-image",
+          "status": "PASS"
+        },
+        {
+          "name": "installed-conversion-pdf-to-searchable-pdf",
+          "status": "PASS"
+        },
+        {
+          "name": "installed-conversion-office-to-pdf",
+          "status": "PASS"
+        },
+        {
+          "name": "installed-conversion-pdf-to-office",
+          "status": "PASS"
+        },
+        {
+          "name": "installed-conversion-media-convert",
+          "status": "PASS"
+        },
+        {
+          "name": "installed-conversion-office-to-pdf-deep-appdata",
+          "status": "PASS"
+        },
+        {
+          "name": "registered-pdf-shell-verb-opens-document",
+          "status": "PASS"
+        },
+        {
+          "name": "normal-exit-process-terminated",
+          "status": "PASS"
+        }
+      ],
+      "freshBundledNativeVersionProbes": 6,
+      "normalConversions": 6,
+      "exactDeepAppDataOfficeConversion": "PASS",
+      "outputContentVerification": {
+        "status": "PASS",
+        "scope": "actual updated Store synthetic output content; MP3 decoded using previously verified NSIS FFmpeg observer",
+        "outputs": [
+          {
+            "operation": "installed-conversion-pdf-compress",
+            "filename": "a_compressed.pdf",
+            "bytes": 896,
+            "sha256": "d455c58126a4b2ab4b69fbf1bf7bf4af9ea5caea901c431ce3ee32526a3000d0",
+            "pages": 1,
+            "textVerified": true,
+            "status": "PASS"
+          },
+          {
+            "operation": "installed-conversion-ocr-image",
+            "filename": "ocr-text_ocr.txt",
+            "bytes": 53,
+            "sha256": "6713ff5accb9b85a2040d0427561a45b16b5976aeca5777be4b91aa333775e2a",
+            "latinAndTraditionalChineseTextVerified": true,
+            "status": "PASS"
+          },
+          {
+            "operation": "installed-conversion-pdf-to-searchable-pdf",
+            "filename": "ocr-scan_ocr_searchable.pdf",
+            "bytes": 38767,
+            "sha256": "b280f5acfe3291d3054391c61daad8280c7e9db21775775dd28db0a228b1d321",
+            "pages": 1,
+            "textVerified": true,
+            "status": "PASS"
+          },
+          {
+            "operation": "installed-conversion-office-to-pdf",
+            "filename": "office-smoke.pdf",
+            "bytes": 24900,
+            "sha256": "06e646ae90c3e3d7a2eafa78220d5db01ef54c32995d2101f69f764caf54a48f",
+            "pages": 1,
+            "textVerified": true,
+            "status": "PASS"
+          },
+          {
+            "operation": "installed-conversion-pdf-to-office",
+            "filename": "a.docx",
+            "bytes": 3468,
+            "sha256": "f5bc2128ff38baa84c6deaa09827a1a1f8d8eb460488d33cbd18f529ee4f38bb",
+            "syntheticInvoiceWordContentVerified": true,
+            "status": "PASS"
+          },
+          {
+            "operation": "installed-conversion-media-convert",
+            "filename": "tone.mp3",
+            "bytes": 10412,
+            "sha256": "d001f5281339f199f905e4c5f2c5be6b057307086cc80cfbe37fa97adfbf429d",
+            "mediaDecode": "PASS",
+            "status": "PASS"
+          }
+        ]
+      }
+    },
+    "reverseCoexistence": {
+      "publishedNsisVerdict": "FAIL; shared OpenWithProgids key removed peer values",
+      "dataAndOutputRetention": "PASS",
+      "peerChoiceRestoration": "PASS; original values and types read back before further tests",
+      "sourceFix": "PASS; isolated compiled native macro test",
+      "rebuiltFullInstallerLifecycle": "UNVERIFIED",
+      "storeOnlyRetention": "PASS",
+      "storeOnlySmoke": {
+        "pass": 15,
+        "fail": 0,
+        "freshNativeVersionProbes": 6
+      }
+    },
+    "storeRemoval": {
+      "package": "PASS; current-user normal Remove-AppxPackage, no preserve flag",
+      "start": "PASS",
+      "osGeneratedPdfClass": "PASS",
+      "nsisPayload": "PASS; 19688 files byte-identical before and after removal",
+      "nsisProfiles": "PASS",
+      "normalOutputHashes": "PASS; 18 files retained before final NSIS smoke",
+      "pdfDefault": "PASS; Acrobat.Document.DC and UserChoice hash unchanged",
+      "actualUnmodifiedResidue": [
+        {
+          "category": "A: application-owned logical Roaming profile",
+          "exists": false,
+          "durableFiles": 0,
+          "errors": 0
+        },
+        {
+          "category": "A: application-owned Local profile if present",
+          "exists": false,
+          "durableFiles": 0,
+          "errors": 0
+        },
+        {
+          "category": "B: package-managed and redirected state",
+          "exists": false,
+          "durableFiles": 0,
+          "errors": 0
+        },
+        {
+          "category": "A: shared SwiftLocal private scratch fallback, not a migration/profile",
+          "exists": false,
+          "durableFiles": 0,
+          "errors": 0
+        }
+      ],
+      "manualRepairResidue": "Previously restored Store Open With value persisted after normal removal; recorded before separately deleting only that session-introduced value"
+    },
+    "finalNsisSmoke": {
+      "pass": 10,
+      "fail": 0,
+      "contentVerified": 5,
+      "originalStateRetention": {
+        "status": "PASS",
+        "scope": "Native observer read-back: all original NSIS job records and startup preferences after reinstall, Store removal and final smoke",
+        "originalJobCount": 5,
+        "currentJobCount": 10,
+        "settings": "PASS; original default config retained; tools.json absent both before and after",
+        "originalJobs": "PASS",
+        "preexistingNormalOutputsRetained": 18,
+        "totalNormalOutputs": 23
+      }
+    },
+    "finalState": {
+      "storePackages": 0,
+      "swiftLocalProcesses": 0,
+      "nsisVersion": "0.4.1",
+      "nsisInstalledFiles": 19730,
+      "normalOutputFiles": 23,
+      "nsisPdfChoice": true,
+      "cometPdfChoice": true,
+      "storePdfChoice": false,
+      "pdfDefault": "Acrobat.Document.DC unchanged",
+      "frozenUnsignedBaselineHash": "PASS"
+    },
+    "cleanup": {
+      "status": "PENDING ADMINISTRATOR",
+      "machineTrustPresent": true,
+      "originalUserNonExportableKeyPresent": true,
+      "signedTestCopiesPresent": 2,
+      "helper": "store-evidence/home-2026-09-30/cleanup-local-test.cmd",
+      "originalCompanyMaterial": "PENDING SEPARATELY"
+    },
+    "ownerGui": "UNVERIFIED; native/renderer screenshots do not establish owner GUI rows"
+  },
+  "sourceFixRegression": {
+    "tests": 21,
+    "pass": 21,
+    "fail": 0,
+    "skipped": 0,
+    "nativeMacro": "PASS",
+    "receipt": "nsis-openwith-regression.json"
   }
 }
