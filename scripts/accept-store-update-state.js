@@ -6,7 +6,7 @@ const path = require("node:path");
 const crypto = require("node:crypto");
 const assert = require("node:assert/strict");
 const { spawnSync } = require("node:child_process");
-const { port, connect, evaluate, pageAt } = require("./accept-store-windows");
+const { port, connect, evaluate, pageAt, readWhenReady } = require("./accept-store-windows");
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 const hash = file => crypto.createHash("sha256").update(fs.readFileSync(file)).digest("hex");
 const presetName = "Phase 2D Store media preset";
@@ -28,7 +28,8 @@ async function main(configFile, mode) {
     pid = Number(activation.stdout.trim()); assert.ok(pid > 0);
     const page = await pageAt(`http://127.0.0.1:${debugPort}/json`, /frontend\/index\.html$/);
     client = await connect(page.webSocketDebuggerUrl);
-    await evaluate(client, `(async()=>{for(let i=0;i<100;i++){if(window.swiftLocalBackend&&document.querySelector('#theme-toggle'))return true;await new Promise(r=>setTimeout(r,100))}throw new Error('home not ready')})()`);
+    report.startupTransportRetries = [];
+    await readWhenReady(client, `(async()=>{for(let i=0;i<100;i++){if(window.swiftLocalBackend&&document.querySelector('#theme-toggle'))return true;await new Promise(r=>setTimeout(r,100))}throw new Error('home not ready')})()`, error => report.startupTransportRetries.push(error));
     const candidates = [config.profile, path.join(process.env.LOCALAPPDATA, "Packages", config.expectedFamily, "LocalCache", "Roaming", config.profileDirectoryName)];
     const profile = candidates.find(p => fs.existsSync(path.join(p, "store-runtime-paths.json")));
     assert.ok(profile, "Actual Store runtime profile not found");

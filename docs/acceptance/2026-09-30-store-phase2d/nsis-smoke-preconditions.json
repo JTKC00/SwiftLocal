@@ -1,0 +1,33 @@
+{
+  "status": "PASS",
+  "scope": "published NSIS Full smoke preparation resolved; original failed attempts retained, no confirmed product defect",
+  "firstAttempt": {
+    "status": "FAIL",
+    "error": "Execution context was destroyed",
+    "scope": "CDP startup transport read, no conversions executed",
+    "resolution": "bounded retry only for read-only startup evaluation; retained original logs"
+  },
+  "secondAttempt": {
+    "status": "FAIL",
+    "error": "qpdf escaped bundled tools: C:\\Program Files\\qpdf 12.3.2\\bin\\qpdf.exe",
+    "cause": "existing saved NSIS toolPaths.qpdf intentionally selects system qpdf before bundled candidates",
+    "startup": "PASS",
+    "ownerNormalGui": "can open/use; Start observation corrected",
+    "conversionChecks": "UNVERIFIED; none executed"
+  },
+  "settingsFileBeforeAndAfterSha256": "70dbbb9a7a7faa7c90bdc3258aefdf9bb1bcfb2f537929dcdcc73327f086613d",
+  "originalSettingsUnchanged": true,
+  "productCodeChanged": false,
+  "publishedPackageChanged": false,
+  "resolution": {
+    "temporaryPublicApiQpdfOverrideRemoval": "PASS",
+    "publishedInstalledFullSmoke": "PASS",
+    "sixActualInstalledNativeVersionProbes": "PASS",
+    "originalQpdfPreferenceRestoredThroughPublicApi": "PASS",
+    "settingsSerializationDifference": "Existing loadConfig supplies an empty defaultOutputDir when absent. Saving the temporarily changed tool setting persisted that field; the effective Downloads/SwiftLocal default stayed the same.",
+    "originalSettingsBytesRestoredWhileAppClosed": "PASS",
+    "restoredSettingsSha256": "70dbbb9a7a7faa7c90bdc3258aefdf9bb1bcfb2f537929dcdcc73327f086613d",
+    "evidence": "nsis-full-regression.json and a-nsis-alone-summary.json",
+    "storeLifecycleEvidence": "UNVERIFIED"
+  }
+}

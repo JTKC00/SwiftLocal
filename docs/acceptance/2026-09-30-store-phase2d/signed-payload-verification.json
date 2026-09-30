@@ -31,6 +31,8 @@
   "certificateSubject": "CN=48CB75C0-3F50-44EF-87EB-8203F196B957",
   "sameCertificate": true,
   "privateKeyExport": "not performed",
-  "trust": "UNVERIFIED",
-  "guiAcceptance": "UNVERIFIED"
+  "trust": "PASS",
+  "guiAcceptance": "UNVERIFIED",
+  "trustEvidence": "signing-preparation.json",
+  "signatureVerification": "PASS for both copies after public-only machine trust"
 }

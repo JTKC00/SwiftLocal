@@ -1,0 +1,31 @@
+{
+  "status": "PASS",
+  "scope": "one temporary non-exportable signing certificate; both exact local test copies valid after public-only machine trust; installation not run",
+  "certificateThumbprint": "30E81230B7C3CCB8D19D5D6A67F975DDB8D93450",
+  "certificateSubject": "CN=48CB75C0-3F50-44EF-87EB-8203F196B957",
+  "nonExportable": true,
+  "expires": "2026-10-05T13:31:23+08:00",
+  "machineTrustStore": "LocalMachine\\TrustedPeople",
+  "machineCertificateHasPrivateKey": false,
+  "privateKeyStore": "CurrentUser\\My (original signing user)",
+  "privateKeyExport": "not performed",
+  "packages": [
+    {
+      "version": "1.0.0.0",
+      "unsignedBytes": 1115695293,
+      "unsignedSha256": "38a1ea9d89e956c1dbcdecb21f85bca673d7ab70301b16e66f68c819d7eed404",
+      "signedBytes": 1115166892,
+      "signedSha256": "a83caad0fff5465af1ec56ce22b15538e9470ad5d8654fb2062e56772fb7653c",
+      "signatureVerification": "PASS"
+    },
+    {
+      "version": "1.0.1.0",
+      "unsignedBytes": 1115795156,
+      "unsignedSha256": "d737b781d16e0b9b6dd23e876626df1095756816c6527a11945ff30c96fc4e4a",
+      "signedBytes": 1115266759,
+      "signedSha256": "84ac4bc3bba6cd2d0f83fc9d8b8678b0b766f55d45e0ffe69d4c044f8a117fc1",
+      "signatureVerification": "PASS"
+    }
+  ],
+  "cleanup": "UNVERIFIED"
+}

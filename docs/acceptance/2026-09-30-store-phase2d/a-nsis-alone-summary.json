@@ -1,0 +1,377 @@
+{
+  "status": "PASS",
+  "scope": "read-only closed-app NSIS-only baseline; Store lifecycle and owner PDF observations remain UNVERIFIED",
+  "capturedAt": "2026-09-30T15:11:17.6612037+08:00",
+  "windows": {
+    "edition": "Core",
+    "version": "25H2",
+    "build": "26200.9550",
+    "architecture": "AMD64"
+  },
+  "storePackageCount": 0,
+  "nsis": {
+    "version": "0.4.1",
+    "installPath": "<LOCALAPPDATA>/Programs/swiftlocal",
+    "uninstallScope": "HKCU/currentuser",
+    "installFiles": 19730,
+    "installInventorySha256": "0f71c70112ef6b0a84a1c6d43534d54d73f516e44d328aaf45d2ec899d295630",
+    "installHashErrors": 0,
+    "originalPublishedInstallFilesUnchangedByOwnSmoke": "PASS",
+    "startAppId": "com.swiftlocal.converter",
+    "runtimeAdditionsBeforeStoreInstall": {
+      "count": 42,
+      "scope": "NSIS own LibreOffice/Python operation generated __pycache__ files in its writable installation; all 19,688 prior files unchanged. Retained and included in the Store coexistence baseline; not deleted or ignored in later comparisons.",
+      "files": [
+        {
+          "relativePath": "resources\\tools\\libreoffice\\program\\__pycache__\\pythonloader.cpython-312.pyc",
+          "bytes": 8472,
+          "sha256": "0337042394636250b01b7292da58811c713710d3d991494dbfa44debce360722"
+        },
+        {
+          "relativePath": "resources\\tools\\libreoffice\\program\\__pycache__\\uno.cpython-312.pyc",
+          "bytes": 21259,
+          "sha256": "af434421d0906d1095313cebd528b9ee039669058d7606c7c297f390ed937f09"
+        },
+        {
+          "relativePath": "resources\\tools\\libreoffice\\program\\__pycache__\\unohelper.cpython-312.pyc",
+          "bytes": 15174,
+          "sha256": "727dd41dab42142ed6ee97253ecd94ebd4fa8f4d8a61bb63e9d57ba4389fba50"
+        },
+        {
+          "relativePath": "resources\\tools\\libreoffice\\program\\python-core-3.12.14\\lib\\__pycache__\\contextlib.cpython-312.pyc",
+          "bytes": 30439,
+          "sha256": "ca2847c5f91e8669dfbd2b7b02554fccbd35cd30c93cc211f1790d058c0e2122"
+        },
+        {
+          "relativePath": "resources\\tools\\libreoffice\\program\\python-core-3.12.14\\lib\\__pycache__\\copyreg.cpython-312.pyc",
+          "bytes": 7488,
+          "sha256": "83cd6e1b9fe18a49990f2093f28982dd01a1353a562073f337c03495f600401d"
+        },
+        {
+          "relativePath": "resources\\tools\\libreoffice\\program\\python-core-3.12.14\\lib\\__pycache__\\enum.cpython-312.pyc",
+          "bytes": 80433,
+          "sha256": "64a870d2b240ebd812153ada4a0086da19bb5e24ecb1ed6c3f2bcf089a183f02"
+        },
+        {
+          "relativePath": "resources\\tools\\libreoffice\\program\\python-core-3.12.14\\lib\\__pycache__\\functools.cpython-312.pyc",
+          "bytes": 40431,
+          "sha256": "739fbf1d95d72780c6ba3c73387fd918255608f7e8ca4fc3395f46a59afbaa21"
+        },
+        {
+          "relativePath": "resources\\tools\\libreoffice\\program\\python-core-3.12.14\\lib\\__pycache__\\keyword.cpython-312.pyc",
+          "bytes": 1130,
+          "sha256": "bef4f322c6a4a5a620be02858793a12e1777bd56b2adffd8b3bc939c7f42f511"
+        },
+        {
+          "relativePath": "resources\\tools\\libreoffice\\program\\python-core-3.12.14\\lib\\__pycache__\\linecache.cpython-312.pyc",
+          "bytes": 6638,
+          "sha256": "0160bf48ec505c2dc3ecbf3fa00980276cba12ac0d814c800e97709b5a63fe53"
+        },
+        {
+          "relativePath": "resources\\tools\\libreoffice\\program\\python-core-3.12.14\\lib\\__pycache__\\operator.cpython-312.pyc",
+          "bytes": 17441,
+          "sha256": "eb9a9940a2d02da6cefd5364f91cde14ecfa03e38f930d5632f67662f83ba63d"
+        },
+        {
+          "relativePath": "resources\\tools\\libreoffice\\program\\python-core-3.12.14\\lib\\__pycache__\\reprlib.cpython-312.pyc",
+          "bytes": 10315,
+          "sha256": "a4f078d02f555996d541307d24c54e39c46b719579bfd06ec1d0a0fe055217d6"
+        },
+        {
+          "relativePath": "resources\\tools\\libreoffice\\program\\python-core-3.12.14\\lib\\__pycache__\\selectors.cpython-312.pyc",
+          "bytes": 26192,
+          "sha256": "c467e32f2359c2519fc02e9e0d54789a18072d82e180f437951f907bf72af124"
+        },
+        {
+          "relativePath": "resources\\tools\\libreoffice\\program\\python-core-3.12.14\\lib\\__pycache__\\socket.cpython-312.pyc",
+          "bytes": 42034,
+          "sha256": "2416701e92ebedee207b3e167cffc3c707ee56fc3033aa65375d42010c8e10c5"
+        },
+        {
+          "relativePath": "resources\\tools\\libreoffice\\program\\python-core-3.12.14\\lib\\__pycache__\\textwrap.cpython-312.pyc",
+          "bytes": 18369,
+          "sha256": "0c5080e3796bce5f8dbabac2345f7c2a9a416c5b777e5cccb63c80eff6670c68"
+        },
+        {
+          "relativePath": "resources\\tools\\libreoffice\\program\\python-core-3.12.14\\lib\\__pycache__\\token.cpython-312.pyc",
+          "bytes": 3658,
+          "sha256": "fd33736cfdd5a090ee5da8ff624ed36f33dd13052be99ddfecae54687b0e1550"
+        },
+        {
+          "relativePath": "resources\\tools\\libreoffice\\program\\python-core-3.12.14\\lib\\__pycache__\\tokenize.cpython-312.pyc",
+          "bytes": 25465,
+          "sha256": "e1bcf7ed54b4027635f2df22ff5a9991b24a4851007ce1a1322f0778a98e0403"
+        },
+        {
+          "relativePath": "resources\\tools\\libreoffice\\program\\python-core-3.12.14\\lib\\__pycache__\\traceback.cpython-312.pyc",
+          "bytes": 51556,
+          "sha256": "9562be5b8b7e8d098b9532b873d9339c76a589d08f4eed4d3634e43fa9c3b10a"
+        },
+        {
+          "relativePath": "resources\\tools\\libreoffice\\program\\python-core-3.12.14\\lib\\__pycache__\\types.cpython-312.pyc",
+          "bytes": 15034,
+          "sha256": "97190119b3cc9f767d8899c9fa96715a9703116be329ccd7f85f2fa280094982"
+        },
+        {
+          "relativePath": "resources\\tools\\libreoffice\\program\\python-core-3.12.14\\lib\\__pycache__\\warnings.cpython-312.pyc",
+          "bytes": 23916,
+          "sha256": "21f77c2b63b5e52308acd7f92eef3f7a5f01fa9faa2ce281fe097a4bcba32f98"
+        },
+        {
+          "relativePath": "resources\\tools\\libreoffice\\program\\python-core-3.12.14\\lib\\__pycache__\\__future__.cpython-312.pyc",
+          "bytes": 4793,
+          "sha256": "f63000bbefe1716242fdfe8620bb36890ae3cf5772d0dfbb8c8854701729843a"
+        },
+        {
+          "relativePath": "resources\\tools\\libreoffice\\program\\python-core-3.12.14\\lib\\collections\\__pycache__\\abc.cpython-312.pyc",
+          "bytes": 338,
+          "sha256": "0677dab42f05fcba15f0a892abf36ce9e2e6a22a85afa9d847c814011919d571"
+        },
+        {
+          "relativePath": "resources\\tools\\libreoffice\\program\\python-core-3.12.14\\lib\\collections\\__pycache__\\__init__.cpython-312.pyc",
+          "bytes": 73026,
+          "sha256": "ae1354aab388a9cab122b71fee555d9d423e06e0bcd1b607add7ae257623387b"
+        },
+        {
+          "relativePath": "resources\\tools\\libreoffice\\program\\python-core-3.12.14\\lib\\encodings\\__pycache__\\aliases.cpython-312.pyc",
+          "bytes": 12497,
+          "sha256": "c25ee1d83f4be32283e1c8c384d47fdf4fcc1094b54dae50bc3d93ed6f2c9607"
+        },
+        {
+          "relativePath": "resources\\tools\\libreoffice\\program\\python-core-3.12.14\\lib\\encodings\\__pycache__\\cp950.cpython-312.pyc",
+          "bytes": 2081,
+          "sha256": "892b127b26ce4cea9c0600a0a70a93959d87b288241ebceadcd4e3c3b3cfb465"
+        },
+        {
+          "relativePath": "resources\\tools\\libreoffice\\program\\python-core-3.12.14\\lib\\encodings\\__pycache__\\utf_8.cpython-312.pyc",
+          "bytes": 2236,
+          "sha256": "8319098d77b513486c459d7bc48f1ad7ef03e3d32f8471cb5b248e3f0c0b2048"
+        },
+        {
+          "relativePath": "resources\\tools\\libreoffice\\program\\python-core-3.12.14\\lib\\encodings\\__pycache__\\__init__.cpython-312.pyc",
+          "bytes": 5864,
+          "sha256": "1876ba04ac2dd9cd322c548eed995b1daf86b92538948e82c96d824a4a4fefe1"
+        },
+        {
+          "relativePath": "resources\\tools\\libreoffice\\program\\python-core-3.12.14\\lib\\re\\__pycache__\\_casefix.cpython-312.pyc",
+          "bytes": 1905,
+          "sha256": "6d1ae7ba136e8512a9905f6d054852409ae8f5da32eff5e228b75298ab0d8eef"
+        },
+        {
+          "relativePath": "resources\\tools\\libreoffice\\program\\python-core-3.12.14\\lib\\re\\__pycache__\\_compiler.cpython-312.pyc",
+          "bytes": 26583,
+          "sha256": "c51227b5b9ce742067704b74f665c0c53599912b3626389dc4495c9c43e48800"
+        },
+        {
+          "relativePath": "resources\\tools\\libreoffice\\program\\python-core-3.12.14\\lib\\re\\__pycache__\\_constants.cpython-312.pyc",
+          "bytes": 5392,
+          "sha256": "4cb3f773a39e063c6db8dda6ec479f9918633d64c6a64475e265f83f9ccb1e32"
+        },
+        {
+          "relativePath": "resources\\tools\\libreoffice\\program\\python-core-3.12.14\\lib\\re\\__pycache__\\_parser.cpython-312.pyc",
+          "bytes": 42036,
+          "sha256": "045d7c4b8927308bf0ceb80ede8f1fadfe3c6798ccff7a230056f718c4c5b64d"
+        },
+        {
+          "relativePath": "resources\\tools\\libreoffice\\program\\python-core-3.12.14\\lib\\re\\__pycache__\\__init__.cpython-312.pyc",
+          "bytes": 18019,
+          "sha256": "74611f3b386ccef68a45561d5a6736c8a37235186fa44b5d3663e06169c2f488"
+        },
+        {
+          "relativePath": "resources\\tools\\libreoffice\\share\\extensions\\dict-en\\pythonpath\\__pycache__\\lightproof_handler_en.cpython-312.pyc",
+          "bytes": 6737,
+          "sha256": "55b5a14f7a8dea7aac7a00b719979523a93eae3a95c07af6d2c36aa707c0ecc0"
+        },
+        {
+          "relativePath": "resources\\tools\\libreoffice\\share\\extensions\\dict-en\\pythonpath\\__pycache__\\lightproof_impl_en.cpython-312.pyc",
+          "bytes": 18285,
+          "sha256": "be77e2a086ca517dabb95d7111e3757392942a8cf17cdb3bbe937ad33bda417d"
+        },
+        {
+          "relativePath": "resources\\tools\\libreoffice\\share\\extensions\\dict-en\\pythonpath\\__pycache__\\lightproof_opts_en.cpython-312.pyc",
+          "bytes": 478,
+          "sha256": "9da7b47e18887f969f5e06d32e8192a0a93d9dabe3d4d2e13134a7d10902776f"
+        },
+        {
+          "relativePath": "resources\\tools\\libreoffice\\share\\extensions\\dict-hu\\pythonpath\\__pycache__\\lightproof_handler_hu_HU.cpython-312.pyc",
+          "bytes": 6746,
+          "sha256": "9b544770a530bf3611d6aaa0d30aff7be2ec3cdfa96e9ec946c90a9f83e7c187"
+        },
+        {
+          "relativePath": "resources\\tools\\libreoffice\\share\\extensions\\dict-hu\\pythonpath\\__pycache__\\lightproof_impl_hu_HU.cpython-312.pyc",
+          "bytes": 14830,
+          "sha256": "c1d8712f2e9c8bc49748afa84b1db8fd31a349ef29822b410aa9cfb2a75a63ef"
+        },
+        {
+          "relativePath": "resources\\tools\\libreoffice\\share\\extensions\\dict-hu\\pythonpath\\__pycache__\\lightproof_opts_hu_HU.cpython-312.pyc",
+          "bytes": 562,
+          "sha256": "83c71a2b44cc0a71a8e974e0bd76c699d3188f25d5d1820f15c3ebe2b459ce86"
+        },
+        {
+          "relativePath": "resources\\tools\\libreoffice\\share\\extensions\\dict-pt-BR\\pythonpath\\__pycache__\\lightproof_handler_pt_BR.cpython-312.pyc",
+          "bytes": 6720,
+          "sha256": "1a581c756c51b8a79a4e980d39016ac479ffd6dd5088530ad982012310fbd0be"
+        },
+        {
+          "relativePath": "resources\\tools\\libreoffice\\share\\extensions\\dict-pt-BR\\pythonpath\\__pycache__\\lightproof_opts_pt_BR.cpython-312.pyc",
+          "bytes": 676,
+          "sha256": "a5b0bc58cca331d3e1a2c05fd2839e879eed8e120e1a9d6f863c11bf0d39be99"
+        },
+        {
+          "relativePath": "resources\\tools\\libreoffice\\share\\extensions\\dict-ru\\pythonpath\\__pycache__\\lightproof_handler_ru_RU.cpython-312.pyc",
+          "bytes": 6746,
+          "sha256": "557ec0e0874cecc2a0e600e75f298f9e772714a66c9009af9af672c6ffa7e261"
+        },
+        {
+          "relativePath": "resources\\tools\\libreoffice\\share\\extensions\\dict-ru\\pythonpath\\__pycache__\\lightproof_impl_ru_RU.cpython-312.pyc",
+          "bytes": 10942,
+          "sha256": "710f99dc0f659221093243d5f172935e339a7fa632687c9c5b65cca68aa9e63a"
+        },
+        {
+          "relativePath": "resources\\tools\\libreoffice\\share\\extensions\\dict-ru\\pythonpath\\__pycache__\\lightproof_opts_ru_RU.cpython-312.pyc",
+          "bytes": 480,
+          "sha256": "eb827dddfaa74e2751cd2c2612d925a6a250ad501af1f631a472f99629dfa26d"
+        }
+      ]
+    },
+    "exe": {
+      "relativePath": "SwiftLocal.exe",
+      "bytes": 246201856,
+      "sha256": "9ee9b321d7a3db9119ef764f44270f25ce1c2b11c7a87828e0796826395d4c82"
+    },
+    "asar": {
+      "relativePath": "resources\\app.asar",
+      "bytes": 62411683,
+      "sha256": "81913a79e8a39fbed781a2039729524a5bb5deb2ce2709c8a9ee4aabe0a8ee76"
+    },
+    "state": [
+      {
+        "role": "<ROAMING>/快轉通 SwiftLocal",
+        "exists": true,
+        "files": 29,
+        "directories": 14,
+        "sha256OfSortedRelativeFileInventory": "77decbd334c3ccbb68aae4e9568beda8555ecd81e055859e537ca00125fe8d56",
+        "errors": 0,
+        "durableFileHashes": {
+          "jobs-state.json": "854c0dffed773030e1f79bfca5e8e67c94f9c2a6f87d012fac34f7590a8205c9",
+          "Local State": "d3470edcbe8c5d2ace4920992b077de512f52c2f7d1314da042e03a0c769365b",
+          "Preferences": "529b6595a4727a6b2d6cc154ae51f426216c01fc7fda02de2460abfb3de118a4",
+          "tools.json": "70dbbb9a7a7faa7c90bdc3258aefdf9bb1bcfb2f537929dcdcc73327f086613d"
+        }
+      },
+      {
+        "role": "<ROAMING>/SwiftLocal",
+        "exists": true,
+        "files": 24,
+        "directories": 14,
+        "sha256OfSortedRelativeFileInventory": "b358936cba698b909eff80701e2a0871bf5be6f31be657ce6698e5e5e0f062f7",
+        "errors": 0,
+        "durableFileHashes": {
+          "jobs-state.json": "bd841581f6046f0913f0e3f3d885a1155531223e87338e6ce793615c710bd0db",
+          "Local State": "11b4c321e579ca862ff01ed943bd2f25e228711231f8d6f3ccd2f944ead5a631",
+          "Preferences": "529b6595a4727a6b2d6cc154ae51f426216c01fc7fda02de2460abfb3de118a4"
+        }
+      },
+      {
+        "role": "<LOCALAPPDATA>/快轉通 SwiftLocal",
+        "exists": false,
+        "files": 0,
+        "directories": 0,
+        "sha256OfSortedRelativeFileInventory": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "errors": 0,
+        "durableFileHashes": {}
+      }
+    ],
+    "activityBeforeThisSnapshot": "NSIS owner launch and successful published Full smoke created normal own-channel job/session state; qpdf preference restored through existing API and original tools.json bytes restored before this baseline"
+  },
+  "storeState": [
+    {
+      "category": "A: application-owned logical Roaming profile",
+      "role": "A: application-owned logical Roaming profile",
+      "exists": false,
+      "files": 0,
+      "directories": 0,
+      "sha256OfSortedRelativeFileInventory": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "errors": 0,
+      "durableFileHashes": {}
+    },
+    {
+      "category": "A: application-owned Local profile if present",
+      "role": "A: application-owned Local profile if present",
+      "exists": false,
+      "files": 0,
+      "directories": 0,
+      "sha256OfSortedRelativeFileInventory": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "errors": 0,
+      "durableFileHashes": {}
+    },
+    {
+      "category": "B: package-managed and redirected state",
+      "role": "B: package-managed and redirected state",
+      "exists": false,
+      "files": 0,
+      "directories": 0,
+      "sha256OfSortedRelativeFileInventory": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "errors": 0,
+      "durableFileHashes": {}
+    }
+  ],
+  "sharedScratchState": [
+    {
+      "category": "A: shared SwiftLocal private scratch fallback, not a migration/profile",
+      "role": "A: shared SwiftLocal private scratch fallback, not a migration/profile",
+      "exists": false,
+      "files": 0,
+      "directories": 0,
+      "sha256OfSortedRelativeFileInventory": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "errors": 0,
+      "durableFileHashes": {}
+    }
+  ],
+  "pdfUserChoice": {
+    "ProgId": "FoxitReader.Document",
+    "Hash": "lNCw115bAok=",
+    "unchangedFromBeforeNSISInstall": "PASS",
+    "ownerObservedReader": "UNVERIFIED"
+  },
+  "nsisPdfRegistration": [
+    {
+      "progId": "SwiftLocal.PDF",
+      "label": "PDF Document - SwiftLocal",
+      "applicationName": null
+    }
+  ],
+  "output": {
+    "category": "C: user-created synthetic output retained in Downloads",
+    "exists": true,
+    "files": [
+      {
+        "relativePath": "phase2d/media-convert/tone.mp3",
+        "bytes": 10412,
+        "sha256": "d001f5281339f199f905e4c5f2c5be6b057307086cc80cfbe37fa97adfbf429d"
+      },
+      {
+        "relativePath": "phase2d/ocr-image/ocr-text_ocr.txt",
+        "bytes": 53,
+        "sha256": "6713ff5accb9b85a2040d0427561a45b16b5976aeca5777be4b91aa333775e2a"
+      },
+      {
+        "relativePath": "phase2d/office-to-pdf/office-smoke.pdf",
+        "bytes": 24900,
+        "sha256": "aa25e4bbfae44d3935cb8f28218ac64fd3ad7c776a29210e4176e808e4000fa4"
+      },
+      {
+        "relativePath": "phase2d/pdf-compress/a_compressed.pdf",
+        "bytes": 893,
+        "sha256": "f40d69bf8abf3655dfe63c226939ce2daff99c21e706882f0d5257bd33a27ba7"
+      },
+      {
+        "relativePath": "phase2d/pdf-to-searchable-pdf/ocr-scan_ocr_searchable.pdf",
+        "bytes": 38765,
+        "sha256": "2f0ef900261d05e82eaab688f2b4a85e1c1ae98031705188d146ed1c5a9308c6"
+      }
+    ],
+    "errors": 0
+  },
+  "personalPaths": "retained only in ignored local inventories; no profile or output deleted"
+}

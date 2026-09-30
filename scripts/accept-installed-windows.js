@@ -7,6 +7,7 @@ const crypto = require("node:crypto");
 const { spawn, spawnSync } = require("node:child_process");
 const { once } = require("node:events");
 const assert = require("node:assert/strict");
+const { readWhenReady } = require("./accept-store-windows");
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 async function port() {
   const server = net.createServer();
@@ -62,6 +63,21 @@ async function main(configFile, phase) {
     }
   };
   let app, client, appLog;
+  let originalToolPaths;
+  const changedTools = [];
+  const restoreToolPreferences = async () => {
+    if (!changedTools.length) return;
+    while (changedTools.length) {
+      const key = changedTools[changedTools.length - 1];
+      await evaluate(client, `window.swiftLocalBackend.setToolPath(${JSON.stringify(key)}, ${JSON.stringify(originalToolPaths[key] || "")})`);
+      changedTools.pop();
+    }
+    const restored = await evaluate(client, `window.swiftLocalBackend.getConfig()`);
+    assert.deepEqual(restored.toolPaths, originalToolPaths, "Temporary NSIS tool preferences were not restored");
+    report.temporaryToolPreferences.restored = "PASS";
+    fs.writeFileSync(path.join(config.evidence, `${phase}-tool-preference-journal.json`), JSON.stringify(report.temporaryToolPreferences, null, 2));
+    record("temporary-configured-tool-preferences-restored", { toolPaths: restored.toolPaths });
+  };
   const debugPort = await port(); const endpoint = `http://127.0.0.1:${debugPort}/json`;
   try {
     appLog = fs.openSync(path.join(config.evidence, `${phase}-electron.log`), "w");
@@ -70,9 +86,24 @@ async function main(configFile, phase) {
     const page = await pageAt(endpoint, /frontend\/index\.html$/);
     if (launchError) throw launchError;
     client = await connect(page.webSocketDebuggerUrl);
-    const startup = await evaluate(client, `(async()=>{for(let i=0;i<100;i++){if(window.swiftLocalBackend && document.querySelector('#quick-actions [data-panel="pdf-reader-panel"]'))return {title:document.title,config:await window.swiftLocalBackend.getConfig()};await new Promise(r=>setTimeout(r,100));}throw new Error('preload/home not ready')})()`);
+    report.startupTransportRetries = [];
+    const startup = await readWhenReady(client, `(async()=>{for(let i=0;i<100;i++){if(window.swiftLocalBackend && document.querySelector('#quick-actions [data-panel="pdf-reader-panel"]'))return {title:document.title,config:await window.swiftLocalBackend.getConfig()};await new Promise(r=>setTimeout(r,100));}throw new Error('preload/home not ready')})()`, error => report.startupTransportRetries.push(error));
     assert.equal(startup.title, "快轉通 SwiftLocal");
     record("installed-startup-default-profile", startup);
+    if (config.temporarilyClearConfiguredTools?.length) {
+      originalToolPaths = { ...startup.config.toolPaths };
+      const jobs = await evaluate(client, `window.swiftLocalBackend.getJobs()`);
+      assert.ok(!jobs.some(job => ["queued", "running"].includes(job.status)), "Do not change tool preferences while pre-existing jobs are active");
+      report.temporaryToolPreferences = { scope: "NSIS-only Full smoke preparation through existing public API; original preferences restored before Store lifecycle", originalToolPaths, cleared: [], restored: "UNVERIFIED" };
+      fs.writeFileSync(path.join(config.evidence, `${phase}-tool-preference-journal.json`), JSON.stringify(report.temporaryToolPreferences, null, 2));
+      for (const key of config.temporarilyClearConfiguredTools) {
+        assert.equal(key, "qpdf", "Only the observed pre-existing qpdf override is permitted in this cycle");
+        changedTools.push(key);
+        await evaluate(client, `window.swiftLocalBackend.setToolPath(${JSON.stringify(key)}, '')`);
+        report.temporaryToolPreferences.cleared.push(key);
+      }
+      fs.writeFileSync(path.join(config.evidence, `${phase}-tool-preference-journal.json`), JSON.stringify(report.temporaryToolPreferences, null, 2));
+    }
     const firstLaunch = await client.send("Page.captureScreenshot", { format: "png" });
     fs.writeFileSync(path.join(config.evidence, `${phase}-first-launch.png`), Buffer.from(firstLaunch.data, "base64"));
     if (phase === "baseline") {
@@ -85,7 +116,7 @@ async function main(configFile, phase) {
         assert.equal(await evaluate(client, `localStorage.getItem('swiftlocal-acceptance-upgrade')`), "preserve-me");
         assert.equal(startup.config.defaultOutputDir, path.join(config.output, "保留的輸出設定"));
       }
-      record(phase === "upgrade" ? "upgrade-retains-user-data" : "fresh-user-startup", true);
+      record(phase === "upgrade" ? "upgrade-retains-user-data" : "installed-startup-ready", true);
       const tools = await evaluate(client, `window.swiftLocalBackend.detectTools()`);
       const bundledRoot = path.join(path.dirname(config.exe), "resources", "tools");
       for (const key of ["qpdf", "tesseract", "ffmpeg", "libreOffice"]) {
@@ -155,6 +186,7 @@ async function main(configFile, phase) {
       } finally { pdfClient.close(); }
       });
     }
+    await restoreToolPreferences();
     void evaluate(client, `window.close(); true`).catch(() => {});
     for (let i = 0; i < 120 && app.exitCode === null; i++) await delay(250);
     assert.equal(app.exitCode, 0, "Installed app did not exit normally");
@@ -162,6 +194,9 @@ async function main(configFile, phase) {
     client.close(); client = null;
     if (failures.length) throw new AggregateError(failures, `${failures.length} installed-app acceptance checks failed`);
   } catch (error) {
+    try { await restoreToolPreferences(); } catch (restoreError) {
+      report.tests.push({ name: "temporary-configured-tool-preferences-restored", status: "FAIL", error: restoreError.stack });
+    }
     report.tests.push({ name: "acceptance", status: "FAIL", error: error.stack }); throw error;
   } finally {
     client?.close();

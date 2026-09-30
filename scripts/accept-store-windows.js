@@ -42,6 +42,19 @@ async function evaluate(client, expression) {
   if (result.exceptionDetails) throw new Error(result.exceptionDetails.exception?.description || result.exceptionDetails.text);
   return result.result.value;
 }
+// Startup read only: Chromium may replace its initial execution context during
+// navigation. Never retry mutating IPC/job expressions through this helper.
+async function readWhenReady(client, expression, onRetry = () => {}, timeout = 60000) {
+  const started = Date.now();
+  let lastError;
+  while (Date.now() - started < timeout) {
+    try { return await evaluate(client, expression); } catch (error) {
+      if (!/Execution context was destroyed|Cannot find context with specified id/.test(error.message)) throw error;
+      lastError = error; onRetry(error.message); await delay(200);
+    }
+  }
+  throw new Error("Renderer startup read did not settle", { cause: lastError });
+}
 async function pageAt(endpoint, pattern, timeout = 60000) {
   const start = Date.now();
   while (Date.now() - start < timeout) {
@@ -78,7 +91,8 @@ async function main(configFile, phase = "store") {
     const page = await pageAt(endpoint, /frontend\/index\.html$/);
     if (launchError) throw launchError;
     client = await connect(page.webSocketDebuggerUrl);
-    const startup = await evaluate(client, `(async()=>{for(let i=0;i<100;i++){if(window.swiftLocalBackend && document.querySelector('#quick-actions [data-panel="pdf-reader-panel"]'))return {title:document.title,config:await window.swiftLocalBackend.getConfig()};await new Promise(r=>setTimeout(r,100));}throw new Error('preload/home not ready')})()`);
+    report.startupTransportRetries = [];
+    const startup = await readWhenReady(client, `(async()=>{for(let i=0;i<100;i++){if(window.swiftLocalBackend && document.querySelector('#quick-actions [data-panel="pdf-reader-panel"]'))return {title:document.title,config:await window.swiftLocalBackend.getConfig()};await new Promise(r=>setTimeout(r,100));}throw new Error('preload/home not ready')})()`, error => report.startupTransportRetries.push(error));
     assert.equal(startup.title, "快轉通 SwiftLocal");
     record("installed-startup-default-profile", startup);
     const profileCandidates = [config.profile, path.join(process.env.LOCALAPPDATA, "Packages", config.aumid.split("!")[0], "LocalCache", "Roaming", config.profileDirectoryName)];
@@ -267,4 +281,4 @@ async function main(configFile, phase = "store") {
 }
 if (require.main === module) main(process.argv[2], process.argv[3]).catch(error => { console.error(error); process.exitCode = 1; });
 // Reuse the installed-app transport in Phase 2D without duplicating persistence logic.
-module.exports = { main, port, connect, evaluate, pageAt };
+module.exports = { main, port, connect, evaluate, pageAt, readWhenReady };

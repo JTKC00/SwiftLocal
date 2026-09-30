@@ -14,28 +14,33 @@ if (Test-Path -LiteralPath $receipt) { throw 'Inventory exists; preserve it and 
 New-Item -ItemType Directory -Force $Evidence | Out-Null
 $family = 'JTKC.SwiftLocal_j44a9ewx73faj'
 function Get-Tree([string]$Path, [switch]$StateOnly) {
-  $result = [ordered]@{ path = $Path; exists = (Test-Path -LiteralPath $Path); files = @(); directories = @(); errors = @() }
+  $result = [ordered]@{
+    path = $Path; exists = (Test-Path -LiteralPath $Path)
+    files = (New-Object 'System.Collections.Generic.List[object]')
+    directories = (New-Object 'System.Collections.Generic.List[string]')
+    errors = (New-Object 'System.Collections.Generic.List[string]')
+  }
   if (-not $result.exists) { return $result }
   $queue = New-Object 'System.Collections.Generic.Queue[string]'
   $queue.Enqueue($Path)
   while ($queue.Count -gt 0) {
     $dir = $queue.Dequeue()
     try { $children = @(Get-ChildItem -LiteralPath $dir -Force -ErrorAction Stop) }
-    catch { $result.errors += [string]$_.Exception.Message; continue }
+    catch { $result.errors.Add([string]$_.Exception.Message); continue }
     foreach ($item in $children) {
       $relative = $item.FullName.Substring($Path.TrimEnd('\').Length).TrimStart('\')
       if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) {
-        $result.errors += "Reparse point skipped: $relative"; continue
+        $result.errors.Add("Reparse point skipped: $relative"); continue
       }
       if ($item.PSIsContainer) {
-        $result.directories += $relative
+        $result.directories.Add($relative)
         # Caches/logs are recorded as directories but are not durable state markers.
         if ($StateOnly -and $item.Name -match '^(Cache|Code Cache|GPUCache|Dawn.*Cache|logs|crashes|temp|deno-cache|cache)$') { continue }
         $queue.Enqueue($item.FullName)
       } else {
         try { $hash = (Get-FileHash -LiteralPath $item.FullName -Algorithm SHA256 -ErrorAction Stop).Hash.ToLowerInvariant() }
-        catch { $hash = $null; $result.errors += "$relative : $($_.Exception.Message)" }
-        $result.files += [ordered]@{ relativePath = $relative; bytes = $item.Length; sha256 = $hash }
+        catch { $hash = $null; $result.errors.Add("$relative : $($_.Exception.Message)") }
+        $result.files.Add([ordered]@{ relativePath = $relative; bytes = $item.Length; sha256 = $hash })
       }
     }
   }
