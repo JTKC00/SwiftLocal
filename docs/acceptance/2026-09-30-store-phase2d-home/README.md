@@ -44,9 +44,9 @@
 
 ## 收尾與未完成條件
 
-本機測試 trust、不可匯出金鑰及兩個 signed copies 目前仍在，等待管理員清理。已建立並讀回私人入口 **store-evidence/home-2026-09-30/cleanup-local-test.cmd**；它依本週期精確收據先移除機器信任，再由原 signing user 移除金鑰、憑證、signed copies 及衍生更新封裝副本。原始 unsigned baseline、NSIS、使用者 profiles 與正常輸出都保留。顯示 **SwiftLocal local test cleanup complete.** 才表示入口成功；仍需讀回 cleanup receipt。
+**本機管理員清理 PASS。** James 已以管理員執行私人入口 store-evidence/home-2026-09-30/cleanup-local-test.cmd。機器信任於 **23:16:23 +08:00** 移除；原 signing user 的不可匯出金鑰、憑證、兩個 signed copies 及衍生更新封裝／payload 副本於 **23:26:35 +08:00** 清理完成，cleanup receipt 為 PASS。此階段花約十分鐘處理封裝副本及大量檔案；獨立 read-back 確認清理 worker 已結束、三個精確憑證位置與所有測試副本／衍生 payload 目錄均不存在。原始 unsigned baseline SHA-256 仍吻合，23 個正常輸出逐檔 hash 保留，兩個 NSIS profiles 仍在，傳統版 0.4.1 保留，Store package 與 SwiftLocal 程序均為零。
 
-擁有者本輪 GUI 手動驗收、physical／standard-account 確認仍 **UNVERIFIED**；原生測試及代理檢視 renderer 畫面不替代這些條件。修正後 Full Installer 重測、本機管理員清理、公司原 key／trust／copy 的另行清理尚未完成。公司的 [Step 4A PARTIAL](../2026-09-30-store-phase2d/step4a.md)與 Phase 2C owner GUI PASS 均保留原結論。
+擁有者本輪 GUI 手動驗收、physical／standard-account 確認仍 **UNVERIFIED**；原生測試及代理檢視 renderer 畫面不替代這些條件。修正後 Full Installer 重測與公司原 key／trust／copy 的另行清理尚未完成，本機清理不代表公司機器已清理。公司的 [Step 4A PARTIAL](../2026-09-30-store-phase2d/step4a.md)與 Phase 2C owner GUI PASS 均保留原結論。
 
 ## 歷史準備及私人證據
 

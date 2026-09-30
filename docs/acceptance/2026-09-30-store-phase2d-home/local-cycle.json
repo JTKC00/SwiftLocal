@@ -1,5 +1,5 @@
 {
-  "status": "PARTIAL; LOCAL NATIVE LIFECYCLE MEASURED, PUBLISHED NSIS REVERSE COEXISTENCE FAIL, ADMIN CLEANUP AND OWNER GUI PENDING",
+  "status": "PARTIAL; LOCAL NATIVE LIFECYCLE AND HOME CLEANUP VERIFIED, PUBLISHED NSIS REVERSE COEXISTENCE FAIL, OWNER GUI AND REBUILT INSTALLER PENDING",
   "scope": "new local Phase 2D cycle authorized by owner on 2026-09-30; original company Step 4A remains PARTIAL",
   "sourceCheckpoint": "e702838fde0c366f6ae453274f4c90851abf41a3",
   "productVersion": "0.4.1",
@@ -49,9 +49,9 @@
     "certificateThumbprint": "7B078F0B464817DA0723C04ACC5B3E3DF5E9744C",
     "nonExportableKeyPolicy": "None",
     "expires": "2026-10-05T20:59:32.0000000+08:00",
-    "machineTrustPresent": true,
+    "machineTrustPresent": false,
     "privateKeyExported": false,
-    "cleanup": "PENDING ADMINISTRATOR"
+    "cleanup": "PASS; owner administrator action and independent read-back"
   },
   "sdk": {
     "package": "Microsoft.Windows.SDK.BuildTools",
@@ -524,12 +524,38 @@
       "frozenUnsignedBaselineHash": "PASS"
     },
     "cleanup": {
-      "status": "PENDING ADMINISTRATOR",
-      "machineTrustPresent": true,
-      "originalUserNonExportableKeyPresent": true,
-      "signedTestCopiesPresent": 2,
+      "status": "PASS",
+      "machineTrustPresent": false,
+      "originalUserNonExportableKeyPresent": false,
+      "signedTestCopiesPresent": 0,
       "helper": "store-evidence/home-2026-09-30/cleanup-local-test.cmd",
-      "originalCompanyMaterial": "PENDING SEPARATELY"
+      "originalCompanyMaterial": "PENDING SEPARATELY",
+      "publicCertificatePresent": false,
+      "derivedUpdateAndPayloadPresent": false,
+      "completedAt": "2026-09-30T23:26:35.7857286+08:00",
+      "readBack": {
+        "signedTestCopiesAbsent": true,
+        "publicCertificateAbsent": true,
+        "derivedUpdateAndPayloadAbsent": true,
+        "testCertificatesAbsent": true,
+        "nsisVersion": "0.4.1",
+        "status": "PASS",
+        "profiles": {
+          "chineseProfileExists": true,
+          "legacyProfileExists": true
+        },
+        "cleanupWorkerCount": 0,
+        "storePackageCount": 0,
+        "scope": "independent read-back after owner administrator cleanup",
+        "cleanupCompletedAt": "2026-09-30T23:26:35.7857286+08:00",
+        "frozenBaselineHash": "PASS",
+        "normalOutputs": {
+          "hashRetention": "PASS",
+          "files": 23
+        },
+        "at": "2026-09-30T23:28:42.5068412+08:00",
+        "swiftLocalProcesses": 0
+      }
     },
     "ownerGui": "UNVERIFIED; native/renderer screenshots do not establish owner GUI rows"
   },
