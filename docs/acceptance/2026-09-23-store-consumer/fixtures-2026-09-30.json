@@ -1,0 +1,31 @@
+{
+  "source": "scripts/create-store-fixtures.js from existing PR branch; tone.wav populated with a synthetic 440 Hz tone",
+  "files": [
+    {
+      "name": "a.pdf",
+      "bytes": 889,
+      "sha256": "a14d160a755babad2e3f0f6a16381679a8d0f2de06f3e769e87aa36281fd1433"
+    },
+    {
+      "name": "ocr-scan.pdf",
+      "bytes": 35736,
+      "sha256": "78441ce525536f37f21f6d58fcb409b6ceb970173f05cb6719f5197d61025861"
+    },
+    {
+      "name": "ocr-text.png",
+      "bytes": 49284,
+      "sha256": "ff9b61ea27cb7c6844daefc970159195754c389c89902dfec722d058b64af857"
+    },
+    {
+      "name": "office-smoke.docx",
+      "bytes": 3409,
+      "sha256": "0dc545328cd876b377277a813388cc158c3907abed18cea660be6bfe8f20041e"
+    },
+    {
+      "name": "tone.wav",
+      "bytes": 16044,
+      "sha256": "edfdbd36a8301a85c984026c4d27d31f5c86a83dce18b90cbe6c490067cb6c6d"
+    }
+  ],
+  "guiAcceptance": "UNVERIFIED"
+}

@@ -1,0 +1,38 @@
+{
+  "status": "PASS",
+  "unsignedFilename": "SwiftLocal-0.4.1-store-x64.appx",
+  "unsignedBytes": 1115695293,
+  "unsignedSha256": "38a1ea9d89e956c1dbcdecb21f85bca673d7ab70301b16e66f68c819d7eed404",
+  "signedBytes": 1115166890,
+  "signedSha256": "6487e87e0d9d563f4eee31a1733ce441e1434836510308d36384ba155e807b59",
+  "certificateSubject": "CN=48CB75C0-3F50-44EF-87EB-8203F196B957",
+  "certificateThumbprint": "AD0DD853656C50991102EB224E247C4DB5ABFF69",
+  "certificateStore": "CurrentUser\\My; public-only LocalMachine\\TrustedPeople",
+  "certificateExpires": "2026-10-03T12:13:02+08:00",
+  "privateKeyExportable": false,
+  "trustStatus": "PASS",
+  "signatureVerification": "PASS",
+  "sourceWorkflow": ".github/workflows/store-packaging-spike.yml / Store Packaging Spike",
+  "sourceRun": "https://github.com/JTKC00/SwiftLocal/actions/runs/35758117387",
+  "sourceCommit": "5b0e2c2eb9150c2142a1057b61c4675832a61878",
+  "sourceArtifactId": "10710269389",
+  "windowsEdition": "Microsoft Windows 11 Home",
+  "windowsDisplayVersion": "25H2",
+  "windowsBuild": "26200.9550",
+  "architecture": "AMD64",
+  "physicalOrVm": "physical PC - owner confirmed 2026-09-30",
+  "userTypeConfirmation": "standard user account - owner confirmed 2026-09-30",
+  "pdfUserChoiceBeforeInstall": "FoxitReader.Document",
+  "ownerObservedPdfReaderBeforeInstall": "Adobe - owner confirmed 2026-09-30",
+  "pdfRegistryObservationDiscrepancy": "Retained: registry reports FoxitReader.Document; owner reports Adobe",
+  "nsisSwiftLocal": [
+    {
+      "displayName": "快轉通 SwiftLocal",
+      "displayVersion": "0.4.0",
+      "publisher": "SwiftLocal"
+    }
+  ],
+  "productPayloadComparison": "PASS - all original entries hashed; all application payload byte-identical; only Content_Types metadata changes, signature and CodeIntegrity catalog added",
+  "guiInstallation": "PASS - owner explicitly confirmed GUI completion and no command-line installation on 2026-09-30; A1-A3 confirmation pending",
+  "temporaryCertificateCleanup": "UNVERIFIED"
+}

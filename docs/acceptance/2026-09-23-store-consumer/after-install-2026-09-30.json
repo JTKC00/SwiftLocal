@@ -1,0 +1,25 @@
+{
+  "recordedAt": "2026-09-30T12:29:49.6352697+08:00",
+  "kind": "automated post-install snapshot; no GUI PASS inferred",
+  "package": [
+    {
+      "Name": "JTKC.SwiftLocal",
+      "Version": "1.0.0.0",
+      "PackageFamilyName": "JTKC.SwiftLocal_j44a9ewx73faj",
+      "PackageFullName": "JTKC.SwiftLocal_1.0.0.0_x64__j44a9ewx73faj",
+      "Publisher": "CN=48CB75C0-3F50-44EF-87EB-8203F196B957",
+      "Architecture": 9,
+      "SignatureKind": 1,
+      "Status": 0
+    }
+  ],
+  "startRegistration": [
+    {
+      "Name": "SwiftLocal",
+      "AppID": "JTKC.SwiftLocal_j44a9ewx73faj!SwiftLocal"
+    }
+  ],
+  "pdfUserChoice": "FoxitReader.Document",
+  "pdfUserChoiceHash": "lNCw115bAok=",
+  "guiConfirmation": "UNVERIFIED for launch, Open With and defaults"
+}

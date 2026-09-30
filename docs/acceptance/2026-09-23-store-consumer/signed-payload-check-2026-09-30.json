@@ -1,0 +1,15 @@
+{
+  "status": "PASS",
+  "purpose": "signed-copy payload preservation; no GUI verdict",
+  "comparedEntries": 19696,
+  "addedEntries": [
+    "AppxMetadata/CodeIntegrity.cat",
+    "AppxSignature.p7x"
+  ],
+  "removedEntries": [],
+  "changedEntries": [
+    "[Content_Types].xml"
+  ],
+  "productPayload": "all original application payload entries byte-identical",
+  "guiAcceptance": "UNVERIFIED"
+}
