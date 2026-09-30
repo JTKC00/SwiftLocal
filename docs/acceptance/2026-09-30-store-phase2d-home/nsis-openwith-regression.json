@@ -64,5 +64,6 @@
     "fail": 0,
     "skipped": 0
   },
-  "fullInstallerRetest": "UNVERIFIED; published artifact unchanged; source repair requires a rebuilt installer lifecycle test"
+  "fullInstallerRetest": "PASS; private fixed Full normal installed lifecycle with real Comet peer; actual Store coexistence still UNVERIFIED",
+  "fullInstallerRetestReceipt": "fixed-nsis-retest.json"
 }

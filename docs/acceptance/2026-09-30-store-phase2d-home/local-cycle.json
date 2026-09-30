@@ -1,5 +1,5 @@
 {
-  "status": "PARTIAL; LOCAL NATIVE LIFECYCLE AND HOME CLEANUP VERIFIED, PUBLISHED NSIS REVERSE COEXISTENCE FAIL, OWNER GUI AND REBUILT INSTALLER PENDING",
+  "status": "PARTIAL; LOCAL STORE LIFECYCLE AND PREVIOUS CLEANUP VERIFIED; FIXED FULL NORMAL LIFECYCLE PASS; ACTUAL FIXED STORE COEXISTENCE AND OWNER GUI PENDING",
   "scope": "new local Phase 2D cycle authorized by owner on 2026-09-30; original company Step 4A remains PARTIAL",
   "sourceCheckpoint": "e702838fde0c366f6ae453274f4c90851abf41a3",
   "productVersion": "0.4.1",
@@ -452,7 +452,7 @@
       "dataAndOutputRetention": "PASS",
       "peerChoiceRestoration": "PASS; original values and types read back before further tests",
       "sourceFix": "PASS; isolated compiled native macro test",
-      "rebuiltFullInstallerLifecycle": "UNVERIFIED",
+      "rebuiltFullInstallerLifecycle": "PASS; actual private candidate normal installation/conversions/uninstall; actual Store coexistence still UNVERIFIED",
       "storeOnlyRetention": "PASS",
       "storeOnlySmoke": {
         "pass": 15,
@@ -566,5 +566,12 @@
     "skipped": 0,
     "nativeMacro": "PASS",
     "receipt": "nsis-openwith-regression.json"
+  },
+  "fixedNsisRetest": {
+    "receipt": "fixed-nsis-retest.json",
+    "normalLifecycle": "PASS",
+    "actualStoreCoexistence": "UNVERIFIED; new administrator trust pending",
+    "previousCycleCleanup": "PASS retained",
+    "newRetestMaterialCleanup": "PENDING"
   }
 }

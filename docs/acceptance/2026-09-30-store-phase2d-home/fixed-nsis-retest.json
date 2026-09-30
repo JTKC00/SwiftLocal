@@ -1,0 +1,263 @@
+{
+  "status": "PARTIAL; FIXED FULL NORMAL LIFECYCLE PASS; ACTUAL STORE COEXISTENCE AWAITS NEW ADMINISTRATOR TRUST",
+  "scope": "private Full installer rebuilt from unchanged published payload; normal installed lifecycle observed on home Windows 11; owner GUI remains separate",
+  "date": "2026-10-01",
+  "sourceCheckpoint": "5f1ec096b36f9558dcb5db02bd90761b253ae0b8",
+  "productVersion": "0.4.1",
+  "packageVersion": "1.0.0.0",
+  "publishedRelease": "unchanged",
+  "sourceInstaller": {
+    "bytes": 684101265,
+    "sha256": "3e930e523f3746e92bc9a05277a208491186c1563dabffd1e07d3c973bc30a40"
+  },
+  "candidate": {
+    "filename": "SwiftLocal-0.4.1-full-installer-x64.local-nsis-openwith-fixed.exe",
+    "bytes": 776869475,
+    "sha256": "b6809f2fa34087d89858ccd19336748d3c5e56f670b117749c8da4b414171e94",
+    "macroSha256": "86e9d9c3bc4c622f8ce27cdccd88c7cc1b06a50455464736deabdc3a309c3261",
+    "electronBuilder": "26.15.3",
+    "nsisToolset": "0.0.0 / legacy nsis-3.0.4.1",
+    "publish": "never",
+    "nsisPinnedArchiveSha256": "9877df902530f96357d13a7a31ae2b9df67f48b11ffc9a1700a7c961574ec5fa"
+  },
+  "payload": {
+    "status": "PASS",
+    "byteIdenticalPackagedFiles": 19691,
+    "bytes": 2972547146,
+    "applicationRebuilt": false,
+    "installed": {
+      "status": "PASS",
+      "scope": "complete actual fixed installation before first launch compared with published closed installation baseline",
+      "installedFiles": 19688,
+      "unchangedPublishedApplicationFiles": 19687,
+      "onlyChangedFile": "Uninstall SwiftLocal.exe",
+      "uninstallerSha256": "b9dcb2908f1f96e78add03a572b4279e950858fd5ac9c98b54aea67ef733fa3b",
+      "payloadFilesNotInstalledByEitherNsis": [
+        "resources/tools/libreoffice/program/python-core-3.12.14/lib/setuptools/cli-arm64.exe",
+        "resources/tools/libreoffice/program/python-core-3.12.14/lib/setuptools/gui-arm64.exe",
+        "resources/tools/libreoffice/program/python-core-3.12.14/lib/pip/_vendor/distlib/t64-arm.exe",
+        "resources/tools/libreoffice/program/python-core-3.12.14/lib/pip/_vendor/distlib/w64-arm.exe"
+      ],
+      "byteIdentity": "PASS"
+    }
+  },
+  "profileBackups": {
+    "status": "PASS",
+    "profiles": 2,
+    "files": 110,
+    "allHashes": "PASS"
+  },
+  "legacyTransition": {
+    "status": "PASS; CONTROLLED TRANSITION ONLY",
+    "temporaryOwnedSubkeyProtection": true,
+    "guardRemovedBeforeFixedTests": true,
+    "fullProfiles": "byte-identical",
+    "typedPeerValues": "unchanged",
+    "originalPublishedVerdict": "FAIL retained"
+  },
+  "fixedInstall": {
+    "status": "PASS",
+    "exitCode": 0,
+    "fullProfileFiles": 110,
+    "fullProfiles": "byte-identical before first launch",
+    "typedPeerValues": "unchanged",
+    "pdfDefault": "Acrobat.Document.DC unchanged"
+  },
+  "installedSmoke": {
+    "status": "PASS",
+    "pass": 10,
+    "fail": 0,
+    "checks": [
+      {
+        "name": "installed-startup-default-profile",
+        "status": "PASS"
+      },
+      {
+        "name": "installed-startup-ready",
+        "status": "PASS"
+      },
+      {
+        "name": "all-tools-from-installed-full-package",
+        "status": "PASS"
+      },
+      {
+        "name": "installed-conversion-pdf-compress",
+        "status": "PASS"
+      },
+      {
+        "name": "installed-conversion-ocr-image",
+        "status": "PASS"
+      },
+      {
+        "name": "installed-conversion-pdf-to-searchable-pdf",
+        "status": "PASS"
+      },
+      {
+        "name": "installed-conversion-office-to-pdf",
+        "status": "PASS"
+      },
+      {
+        "name": "installed-conversion-media-convert",
+        "status": "PASS"
+      },
+      {
+        "name": "registered-pdf-shell-verb-opens-document",
+        "status": "PASS"
+      },
+      {
+        "name": "normal-exit",
+        "status": "PASS"
+      }
+    ],
+    "languageResourceHashComparisons": 5,
+    "content": {
+      "status": "PASS",
+      "scope": "actual installed NSIS synthetic output content and media decode",
+      "outputs": [
+        {
+          "operation": "installed-conversion-pdf-compress",
+          "filename": "a_compressed.pdf",
+          "bytes": 895,
+          "sha256": "e2f3cb0d05eab05f16f5f6549b8f9a543480c2e7cbfb5d6a8c4d1ccee3aef896",
+          "pages": 1,
+          "textVerified": true,
+          "status": "PASS"
+        },
+        {
+          "operation": "installed-conversion-ocr-image",
+          "filename": "ocr-text_ocr.txt",
+          "bytes": 53,
+          "sha256": "6713ff5accb9b85a2040d0427561a45b16b5976aeca5777be4b91aa333775e2a",
+          "latinAndTraditionalChineseTextVerified": true,
+          "status": "PASS"
+        },
+        {
+          "operation": "installed-conversion-pdf-to-searchable-pdf",
+          "filename": "ocr-scan_ocr_searchable.pdf",
+          "bytes": 38767,
+          "sha256": "d341f408747e412da8db7102f29971f87dc0753a03119f70d65af91966c25021",
+          "pages": 1,
+          "textVerified": true,
+          "status": "PASS"
+        },
+        {
+          "operation": "installed-conversion-office-to-pdf",
+          "filename": "office-smoke.pdf",
+          "bytes": 24900,
+          "sha256": "d85c034694ec513fec8347bc5a8b32c0e934225941427e5fcca6fe1887a2a663",
+          "pages": 1,
+          "textVerified": true,
+          "status": "PASS"
+        },
+        {
+          "operation": "installed-conversion-media-convert",
+          "filename": "tone.mp3",
+          "bytes": 10412,
+          "sha256": "d001f5281339f199f905e4c5f2c5be6b057307086cc80cfbe37fa97adfbf429d",
+          "mediaDecode": "PASS",
+          "status": "PASS"
+        }
+      ]
+    }
+  },
+  "normalUninstall": {
+    "status": "PASS",
+    "scope": "actual rebuilt Full uninstaller with live Comet PDF peer and value-only shared registry key; no Store package",
+    "exitCode": 0,
+    "temporaryProtection": "absent",
+    "manualRegistryRepair": "none",
+    "fullProfiles": "byte-identical",
+    "profileFiles": 110,
+    "normalOutputFiles": 28,
+    "normalOutputHashes": "unchanged",
+    "pdfDefault": "unchanged",
+    "typedPdfPeers": "unchanged",
+    "ownProgIdRemoved": true,
+    "storeCoexistence": "UNVERIFIED; actual Store retest awaits new administrator trust",
+    "originalPublishedVerdict": "FAIL retained"
+  },
+  "reinstallation": {
+    "status": "PASS",
+    "scope": "actual fixed Full per-user installation before first launch",
+    "exitCode": 0,
+    "installerSha256": "b6809f2fa34087d89858ccd19336748d3c5e56f670b117749c8da4b414171e94",
+    "uninstallerSha256": "b9dcb2908f1f96e78add03a572b4279e950858fd5ac9c98b54aea67ef733fa3b",
+    "fullProfiles": "byte-identical",
+    "pdfDefault": "unchanged",
+    "typedPdfPeers": "unchanged",
+    "temporaryProtection": "absent",
+    "storeCoexistence": "UNVERIFIED; Store absent"
+  },
+  "newStoreBaseline": {
+    "status": "PARTIAL; STOPPED BEFORE TRUST AND INSTALL",
+    "frozenUnsignedSha256": "38a1ea9d89e956c1dbcdecb21f85bca673d7ab70301b16e66f68c819d7eed404",
+    "payloadComparison": {
+      "status": "PASS",
+      "scope": "signed payload identity; machine trust and installation separate",
+      "packages": [
+        {
+          "version": "1.0.0.0",
+          "unchangedEntriesIncludingManifest": 19694,
+          "signedBytes": 1115166781,
+          "signedSha256": "3f99328ad16fda435ffef6342eb7aaa4baf353747d810bc3df4c7c50c17966ec",
+          "status": "PASS"
+        }
+      ]
+    },
+    "keyExportPolicy": "None",
+    "expires": "2026-10-06T00:02:57.0000000+08:00",
+    "previousCycleCleanup": "PASS; prior exact certificate and copies stay absent",
+    "newMachineTrust": "UNVERIFIED; absent",
+    "newSigningKeyAndSingleSignedCopy": "present privately, separate from cleaned previous cycle",
+    "cleanup": "PENDING after actual Store coexistence retest",
+    "adminReadback": {
+      "status": "PASS; READY FOR OWNER ADMINISTRATOR TRUST",
+      "at": "2026-10-01T00:26:32.6358260+08:00",
+      "scope": "native read-back of new single-baseline material; previous cycle stays cleaned",
+      "newSigningKeyPresent": true,
+      "keyExportPolicy": "None",
+      "publicCertificateOnly": true,
+      "newMachineTrustPresent": false,
+      "newUserTrustPresent": false,
+      "previousCycleCertificatesAbsent": true,
+      "signedBaselineHash": "PASS",
+      "frozenBaselineHash": "PASS",
+      "storePackages": 0,
+      "swiftLocalProcesses": 0,
+      "currentProcessIsAdministrator": false,
+      "expires": "2026-10-06T00:02:57.0000000+08:00"
+    }
+  },
+  "ownerGui": "UNVERIFIED",
+  "companyCleanup": "PENDING SEPARATELY",
+  "remaining": [
+    "New owner administrator trust for exact single frozen baseline copy",
+    "Actual Store installation and two-way coexistence with fixed candidate",
+    "New retest certificate/key/signed-copy cleanup",
+    "Owner GUI and physical/standard-account confirmation",
+    "Separate company material cleanup"
+  ],
+  "finalReadback": {
+    "status": "PASS",
+    "scope": "independent final native read-back after fixed installer lifecycle and reinstallation; Store coexistence still pending",
+    "at": "2026-09-30T16:33:02.847Z",
+    "priorJobs": 10,
+    "currentJobs": 15,
+    "priorJobRecords": "unchanged",
+    "originalPreferences": "unchanged",
+    "toolsJson": "absent before and after",
+    "normalOutputFiles": 28,
+    "normalOutputHashRetention": "PASS",
+    "fullProfiles": "unchanged after reinstall",
+    "profileFiles": 110,
+    "pdfDefault": "Acrobat.Document.DC unchanged",
+    "typedPdfPeers": "Comet and NSIS retained",
+    "temporaryProtection": "absent",
+    "storePackageCount": 0,
+    "swiftLocalProcesses": 0,
+    "installedCandidateSha256": "b6809f2fa34087d89858ccd19336748d3c5e56f670b117749c8da4b414171e94",
+    "installedVersion": "0.4.1",
+    "newMachineTrust": "UNVERIFIED; absent",
+    "ownerGui": "UNVERIFIED"
+  }
+}
