@@ -1,0 +1,10 @@
+{
+  "status": "PASS",
+  "privateKeyExport": "not attempted",
+  "scope": "actual key export-policy check",
+  "hasPrivateKey": true,
+  "thumbprint": "30E81230B7C3CCB8D19D5D6A67F975DDB8D93450",
+  "exportPolicy": "None",
+  "provider": "Microsoft Software Key Storage Provider",
+  "subject": "CN=48CB75C0-3F50-44EF-87EB-8203F196B957"
+}

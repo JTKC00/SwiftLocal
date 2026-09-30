@@ -1,6 +1,6 @@
 # Microsoft Store / AppX readiness
 
-Phase 1 used a TEST package identity. Phase 2A replaces that identity with the reserved Partner Center identity and builds one unsigned production-identity candidate. Phase 2B isolates the packaged LibreOffice deep-AppData `0xC0000409` crash and fixes the profile-URI cause on that same identity. Phase 2C opens Windows 11 consumer GUI acceptance and stays incomplete until the project owner confirms each row. None of these phases is submitted. Draft PR #13 is not merged. The v0.4.1 GitHub Release is unchanged.
+Phase 1 used a TEST package identity. Phase 2A replaced it with the reserved Partner Center identity and built one unsigned production-identity candidate. Phase 2B is **BLOCKER FIXED**: the exact rejected packaged LibreOffice deep-AppData case now passes after bounding the internal profile URI. Phase 2C is **PASS**, with every required Windows 11 consumer GUI row explicitly confirmed by the project owner; see [consumer acceptance](acceptance/2026-09-23-store-consumer/README.md). Phase 2D is the active gate for same-identity package updates, data retention, measured uninstall semantics and coexistence with the published NSIS v0.4.1 Full Installer; see [Phase 2D evidence](acceptance/2026-09-30-store-phase2d/README.md). None of these phases is submitted. Draft PR #13 is not merged. Product version 0.4.1, the intended first Store package version 1.0.0.0 and the v0.4.1 GitHub Release remain unchanged.
 
 ## Phase 2A — official Partner Center identity
 
@@ -524,3 +524,15 @@ the existing CI/Native Tool Smoke workflows and release metadata are unchanged.
 - [Desktop Bridge required and optional certification tests](https://learn.microsoft.com/en-us/windows/uwp/debug-test-perf/windows-desktop-bridge-app-tests), [MakeAppx packaging and unpacking](https://learn.microsoft.com/en-us/windows/msix/package/create-app-package-with-makeappx-tool).
 
 Phase 1 read the TypeSafe skill and live [System One docs](https://docs.typesafe.ai/concepts/system-one) and made no API call. Phase 2A called Jev (`jev-1.13.0`) for the identity, profile and package-version disposition recorded above. Phase 2B called the same model for the crash verdict recorded in that section. Phase 2C calls it for the consumer-acceptance verdict. Jev is not part of the application, and its answers are not certification evidence.
+
+## Phase 2D — active update/retention/coexistence gate (2026-09-30)
+
+**C. PHASE 2D INCOMPLETE.** [Phase 2D evidence and execution order](acceptance/2026-09-30-store-phase2d/README.md) and [owner-observation template](acceptance/2026-09-30-store-phase2d/manual-observations.md) separate preparation PASS from unverified lifecycle/GUI behavior. Phase 2B stays BLOCKER FIXED and Phase 2C stays PASS; historical failures remain intact.
+
+The frozen unsigned 1.0.0.0 remains 1,115,695,293 bytes / `38a1ea9d89e956c1dbcdecb21f85bca673d7ab70301b16e66f68c819d7eed404`. An explicit Phase-2D-only repackage creates unsigned 1.0.1.0: 1,115,795,156 bytes / `d737b781d16e0b9b6dd23e876626df1095756816c6527a11945ff30c96fc4e4a`. Only Identity Version changes intentionally; all 19,693 other original payload entries match. Product 0.4.1, normal `pack:win:store`, intended first-submission package 1.0.0.0 and production NSIS/Portable packaging are unchanged.
+
+Both local test copies use one non-exportable developer certificate with the exact official Publisher. Signed SHA-256 values are `a83caad0fff5465af1ec56ce22b15538e9470ad5d8654fb2062e56772fb7653c` (1.0.0.0) and `84ac4bc3bba6cd2d0f83fc9d8b8678b0b766f55d45e0ffe69d4c044f8a117fc1` (1.0.1.0). Every original manifest/application entry stays identical after signing. Temporary machine trust, installed signature verification and end-of-cycle cleanup remain pending; no private key was exported or committed.
+
+The actual published NSIS v0.4.1 Full Installer matches the published SHA256SUMS (`3e930e523f3746e92bc9a05277a208491186c1563dabffd1e07d3c973bc30a40`, 684,101,265 bytes). Required local unit, typecheck and CI metadata checks pass, with conditional skips disclosed. Strict Store manifest/native/tessdata payload checks and six extracted-native version probes pass; actual installed update/native/conversion/deep-path/NSIS Full checks remain UNVERIFIED. No Phase 2D installation, update or uninstall has been confirmed. Existing profiles/defaults have only been inventoried read-only.
+
+PR #13 remains Draft: no merge, no Store submission, no v0.4.2, no published v0.4.1 release modification or automatic NSIS-state migration. A later PASS still requires Phase 2E licensing/policy/WACK/runFullTrust/listing review. The optional WACK Blocked executables finding remains preserved for that policy gate.

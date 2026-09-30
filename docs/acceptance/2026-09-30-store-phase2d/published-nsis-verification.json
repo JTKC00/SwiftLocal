@@ -1,0 +1,15 @@
+{
+  "status": "PASS",
+  "scope": "published Full Installer checksum verification; installation not yet performed",
+  "tag": "v0.4.1",
+  "filename": "SwiftLocal-0.4.1-full-installer-x64.exe",
+  "bytes": 684101265,
+  "sha256": "3e930e523f3746e92bc9a05277a208491186c1563dabffd1e07d3c973bc30a40",
+  "checksumFile": "SHA256SUMS.txt",
+  "checksumFileSha256": "93dcd272fe8030ce0da6d58e5b0e4833e9a1ab39bb5b59dfb4bd52984587d907",
+  "release": "https://github.com/JTKC00/SwiftLocal/releases/tag/v0.4.1",
+  "installerAssetId": 567504357,
+  "checksumAssetId": 567504360,
+  "releaseMutation": "not performed",
+  "guiInstall": "UNVERIFIED"
+}

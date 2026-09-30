@@ -1,0 +1,45 @@
+{
+  "status": "PASS",
+  "scope": "read-only snapshot before Phase 2D installation; no lifecycle/GUI verdict",
+  "windows": {
+    "edition": "Core",
+    "version": "25H2",
+    "build": "26200.9550",
+    "architecture": "AMD64"
+  },
+  "registeredStorePackageCount": 0,
+  "nsisUninstallRegistrationCount": 0,
+  "storeState": [
+    {
+      "category": "A: application-owned logical Roaming profile",
+      "exists": false,
+      "files": 0,
+      "errors": 0
+    },
+    {
+      "category": "A: application-owned Local profile if present",
+      "exists": false,
+      "files": 0,
+      "errors": 0
+    },
+    {
+      "category": "B: package-managed and redirected state",
+      "exists": false,
+      "files": 0,
+      "errors": 0
+    }
+  ],
+  "sharedScratchState": [
+    {
+      "category": "A: shared SwiftLocal private scratch fallback, not a migration/profile",
+      "exists": false,
+      "files": 0,
+      "errors": 0
+    }
+  ],
+  "pdfUserChoice": {
+    "ProgId": "FoxitReader.Document",
+    "Hash": "lNCw115bAok="
+  },
+  "personalPaths": "kept in ignored local evidence"
+}

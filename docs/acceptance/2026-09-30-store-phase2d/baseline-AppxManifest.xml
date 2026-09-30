@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Identity Version 1.0.0.0 is the Windows Store package version for SwiftLocal product 0.4.1.
+     It is not product version 1.0. Package family name and Store ID are not Identity fields. -->
+<Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+ xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+ xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+ IgnorableNamespaces="uap rescap">
+  <Identity Name="JTKC.SwiftLocal" Publisher="CN=48CB75C0-3F50-44EF-87EB-8203F196B957" ProcessorArchitecture="x64" Version="1.0.0.0" />
+  <Properties>
+    <DisplayName>SwiftLocal</DisplayName>
+    <PublisherDisplayName>JTKC</PublisherDisplayName>
+    <Description>SwiftLocal 0.4.1</Description>
+    <Logo>assets\StoreLogo.png</Logo>
+  </Properties>
+  <Resources><Resource Language="zh-TW" />
+<Resource Language="en-US" /></Resources>
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.19041.0" MaxVersionTested="10.0.26100.0" />
+  </Dependencies>
+  <Applications>
+    <Application Id="SwiftLocal" Executable="app\SwiftLocal.exe" EntryPoint="Windows.FullTrustApplication">
+      <uap:VisualElements DisplayName="SwiftLocal" Description="SwiftLocal 0.4.1"
+       BackgroundColor="#1f7a68" Square150x150Logo="assets\Square150x150Logo.png" Square44x44Logo="assets\Square44x44Logo.png">
+        <uap:DefaultTile Wide310x150Logo="assets\Wide310x150Logo.png" />
+      </uap:VisualElements>
+      <Extensions>
+        <uap:Extension Category="windows.fileTypeAssociation">
+          <uap:FileTypeAssociation Name="pdf">
+            <uap:DisplayName>SwiftLocal PDF</uap:DisplayName>
+            <uap:SupportedFileTypes><uap:FileType>.pdf</uap:FileType></uap:SupportedFileTypes>
+          </uap:FileTypeAssociation>
+        </uap:Extension>
+      </Extensions>
+    </Application>
+  </Applications>
+  <Capabilities><rescap:Capability Name="runFullTrust" /></Capabilities>
+</Package>

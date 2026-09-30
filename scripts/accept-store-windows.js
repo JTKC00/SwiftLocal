@@ -68,6 +68,7 @@ async function main(configFile, phase = "store") {
   let app, client, appLog;
   const debugPort = await port(); const endpoint = `http://127.0.0.1:${debugPort}/json`;
   try {
+    const launchedAt = Date.now();
     appLog = fs.openSync(path.join(config.evidence, `${phase}-electron.log`), "w");
     const activation = spawnSync(config.powershell, ["-NoProfile", "-File", config.activate, "-Aumid", config.aumid, "-Arguments", `--remote-debugging-port=${debugPort} --store-spike-probe`], { encoding: "utf8", windowsHide: true });
     assert.equal(activation.status, 0, activation.stderr || activation.stdout);
@@ -91,15 +92,29 @@ async function main(configFile, phase = "store") {
       assert.ok(path.resolve(runtime[key]).startsWith(path.resolve(runtime.userData)), `${key} outside Store profile`);
     }
     record("installed-package-identity-and-writable-paths", runtime);
-    await evaluate(client, `localStorage.setItem('swiftlocal-store-test', 'saved'); true`);
-    assert.equal(await evaluate(client, `localStorage.getItem('swiftlocal-store-test')`), "saved");
-    record("localStorage-write-read", true);
-    await evaluate(client, `window.swiftLocalBackend.setDefaultOutputDir(${JSON.stringify(config.output)})`);
-    assert.equal((await evaluate(client, `window.swiftLocalBackend.getConfig()`)).defaultOutputDir, config.output);
-    record("settings-write-read", config.output);
-    for (let i = 0; i < 240 && !fs.existsSync(path.join(profile, "store-native-probe.json")); i++) await delay(500);
-    const probes = JSON.parse(fs.readFileSync(path.join(profile, "store-native-probe.json"), "utf8"));
-    for (const key of ["ffmpeg", "qpdf", "tesseract", "libreoffice", "yt-dlp", "deno"]) assert.equal(probes[key]?.status, "PASS", JSON.stringify(probes));
+    if (!config.preservePreferences) {
+      await evaluate(client, `localStorage.setItem('swiftlocal-store-test', 'saved'); true`);
+      assert.equal(await evaluate(client, `localStorage.getItem('swiftlocal-store-test')`), "saved");
+      record("localStorage-write-read", true);
+      await evaluate(client, `window.swiftLocalBackend.setDefaultOutputDir(${JSON.stringify(config.output)})`);
+      assert.equal((await evaluate(client, `window.swiftLocalBackend.getConfig()`)).defaultOutputDir, config.output);
+      record("settings-write-read", config.output);
+    } else {
+      assert.equal(startup.config.defaultOutputDir, config.output, "Smoke must use the retained output preference without reseeding it");
+      record("retained-output-preference-not-reseeded", config.output);
+    }
+    const probeFile = path.join(profile, "store-native-probe.json");
+    for (let i = 0; i < 240; i++) {
+      if (fs.existsSync(probeFile) && (!config.requireFreshNativeProbe || fs.statSync(probeFile).mtimeMs >= launchedAt)) break;
+      await delay(500);
+    }
+    if (config.requireFreshNativeProbe) assert.ok(fs.statSync(probeFile).mtimeMs >= launchedAt, "Old native-probe receipt cannot prove the updated package ran its tools");
+    const probes = JSON.parse(fs.readFileSync(probeFile, "utf8"));
+    for (const key of ["ffmpeg", "qpdf", "tesseract", "libreoffice", "yt-dlp", "deno"]) {
+      assert.equal(probes[key]?.status, "PASS", JSON.stringify(probes));
+      const relative = path.relative(path.join(path.dirname(config.exe), "resources", "tools"), probes[key].executable);
+      assert.ok(relative && !relative.startsWith("..") && !path.isAbsolute(relative), `${key} probe used another installation: ${probes[key].executable}`);
+    }
     record("six-native-executables-spawned-by-packaged-electron", probes);
     const firstLaunch = await client.send("Page.captureScreenshot", { format: "png" });
     fs.writeFileSync(path.join(config.evidence, `${phase}-first-launch.png`), Buffer.from(firstLaunch.data, "base64"));
@@ -113,7 +128,7 @@ async function main(configFile, phase = "store") {
         assert.equal(await evaluate(client, `localStorage.getItem('swiftlocal-acceptance-upgrade')`), "preserve-me");
         assert.equal(startup.config.defaultOutputDir, path.join(config.output, "保留的輸出設定"));
       }
-      record(phase === "upgrade" ? "upgrade-retains-user-data" : "fresh-user-startup", true);
+      record(phase === "upgrade" ? "upgrade-retains-user-data" : "installed-startup", true);
       const tools = await evaluate(client, `window.swiftLocalBackend.detectTools()`);
       const bundledRoot = path.join(path.dirname(config.exe), "resources", "tools");
       for (const key of ["qpdf", "tesseract", "ffmpeg", "libreOffice"]) {
@@ -251,3 +266,5 @@ async function main(configFile, phase = "store") {
   }
 }
 if (require.main === module) main(process.argv[2], process.argv[3]).catch(error => { console.error(error); process.exitCode = 1; });
+// Reuse the installed-app transport in Phase 2D without duplicating persistence logic.
+module.exports = { main, port, connect, evaluate, pageAt };

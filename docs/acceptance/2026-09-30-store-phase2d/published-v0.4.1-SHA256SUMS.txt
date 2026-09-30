@@ -1,0 +1,2 @@
+3e930e523f3746e92bc9a05277a208491186c1563dabffd1e07d3c973bc30a40  SwiftLocal-0.4.1-full-installer-x64.exe
+49eadb23e4114d8ff1e9cf328b68761ab6b13a9e1b6e5a70ddce75e4be3bb70e  SwiftLocal-0.4.1-full-portable-x64.exe
