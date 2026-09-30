@@ -33,6 +33,6 @@
     }
   ],
   "productPayloadComparison": "PASS - all original entries hashed; all application payload byte-identical; only Content_Types metadata changes, signature and CodeIntegrity catalog added",
-  "guiInstallation": "PASS - owner explicitly confirmed GUI completion and no command-line installation on 2026-09-30; A1-A3 confirmation pending",
+  "guiInstallation": "PASS - all A1-A5 explicitly owner-confirmed on 2026-09-30",
   "temporaryCertificateCleanup": "UNVERIFIED"
 }

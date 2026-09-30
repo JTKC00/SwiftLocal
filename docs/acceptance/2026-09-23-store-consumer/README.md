@@ -1,6 +1,6 @@
 # Windows 11 consumer acceptance — Phase 2C
 
-Date opened: 2026-09-23. Continued: 2026-09-30. Status: **PHASE 2C INCOMPLETE**. All human rows started `UNVERIFIED`; D1 now has explicit owner confirmation. Windows Server CI is not a consumer GUI pass. No Microsoft Store submission. Draft PR #13 is not merged. No v0.4.2. The published v0.4.1 GitHub Release is unchanged.
+Date opened: 2026-09-23. Continued: 2026-09-30. Status: **PHASE 2C INCOMPLETE**. All human rows started `UNVERIFIED`; A, B, C and D now have explicit owner confirmation. E, G and H remain unverified. Windows Server CI is not a consumer GUI pass. No Microsoft Store submission. Draft PR #13 is not merged. No v0.4.2. The published v0.4.1 GitHub Release is unchanged.
 
 A human row may become `PASS` only after explicit project-owner confirmation of personally observing it. Record the date and confirmation in the row; a natural-language confirmation in this chat is sufficient when it clearly identifies the observation. `FAIL`, `PARTIAL`, and `UNVERIFIED` are the other allowed results. Screenshots belong next to the row that they show. Use synthetic fixtures. Do not attach private documents.
 
@@ -75,7 +75,7 @@ The sanitized receipt is [preparation-2026-09-30.json](preparation-2026-09-30.js
 | Separate signed-copy hash | PASS | `6487e87e0d9d563f4eee31a1733ce441e1434836510308d36384ba155e807b59` |
 | Public-only temporary machine trust and valid AppX signature | PASS | Elevated trust helper; SignTool `/pa` and matching Authenticode signer thumbprint |
 | Product payload preserved through signing | PASS | All 19,696 original entries compared by SHA-256; only `[Content_Types].xml` changes. Signature and CodeIntegrity catalog are added; all application payload bytes are identical. |
-| GUI installation | PASS | Owner explicitly confirmed GUI installation completed and no command-line installation was used; A4/A5 only. A1–A3 confirmation pending. |
+| GUI installation | PASS | Owner explicitly confirmed A1–A5: personal double-click, acceptable App Installer identity/display, GUI completion, and no command-line installation. |
 | Temporary trust, certificate and key cleanup | UNVERIFIED | Run cleanup after the owner's Settings uninstall or abandonment |
 
 Preparation failure history is retained: the first Windows PowerShell 5.1 invocation rejected the old UTF-8 source without a BOM, before creating a certificate. After that was corrected, cached legacy SignTool failed with “A required function is not present”; failure cleanup removed the temporary certificate/key and failed signed copy. Microsoft SDK BuildTools `10.0.26100.9169` then signed the unchanged frozen candidate successfully. These were preparation failures, not product or consumer GUI findings.
@@ -108,9 +108,9 @@ Synthetic inputs are ready in `smoke-temp/store-input/`, produced by the existin
 
 | Row | Required observation | Result | Owner confirmation | Evidence |
 | --- | --- | --- | --- | --- |
-| A1 | Double-click the developer-signed AppX | UNVERIFIED | | |
-| A2 | Windows App Installer GUI appears | PARTIAL | Owner supplied the pre-install screenshot on 2026-09-30; explicit row confirmation pending | [app-installer-before-install-2026-09-30.png](app-installer-before-install-2026-09-30.png) |
-| A3 | SwiftLocal identity and display look sensible | PARTIAL | Screenshot shows SwiftLocal, version 1.0.0.0 and the official Publisher CN GUID; owner acceptance of display pending | [app-installer-before-install-2026-09-30.png](app-installer-before-install-2026-09-30.png) |
+| A1 | Double-click the developer-signed AppX | PASS | 2026-09-30, owner explicitly confirmed: “是，親自雙擊開啟，顯示可接受” | Explicit owner response in this chat |
+| A2 | Windows App Installer GUI appears | PASS | 2026-09-30, owner explicitly confirmed: “是，親自雙擊開啟，顯示可接受” | [app-installer-before-install-2026-09-30.png](app-installer-before-install-2026-09-30.png) |
+| A3 | SwiftLocal identity and display look sensible | PASS | 2026-09-30, owner explicitly confirmed: “是，親自雙擊開啟，顯示可接受” | [app-installer-before-install-2026-09-30.png](app-installer-before-install-2026-09-30.png) |
 | A4 | Install completes in that GUI | PASS | 2026-09-30, owner: “安裝也是成功的” and “GUI 安裝完成” | Prior [2% progress screenshot](app-installer-progress-2026-09-30.png) retained; completion explicitly confirmed in this chat |
 | A5 | No command-line or `Add-AppxPackage` install was used for this row | PASS | 2026-09-30, owner: “而且沒有使用命令列安裝” | Owner confirmation in this chat |
 
@@ -120,14 +120,14 @@ Launch from the normal Windows UI, such as Start. The five core workspaces are P
 
 | Row | Required observation | Result | Owner confirmation | Evidence |
 | --- | --- | --- | --- | --- |
-| B1 | SwiftLocal launches from Start or the normal Windows UI | UNVERIFIED | | |
-| B2 | The main window appears | UNVERIFIED | | |
-| B3 | Home opens | UNVERIFIED | | |
-| B4 | PDF workspace opens | UNVERIFIED | | |
-| B5 | OCR workspace opens | UNVERIFIED | | |
-| B6 | Office workspace opens | UNVERIFIED | | |
-| B7 | 圖片 workspace opens | UNVERIFIED | | |
-| B8 | 影音 workspace opens | UNVERIFIED | | |
+| B1 | SwiftLocal launches from Start or the normal Windows UI | PASS | 2026-09-30, owner answered the Start/main/Home/five-workspace checklist: “正常開啟” | Explicit owner response in this chat |
+| B2 | The main window appears | PASS | 2026-09-30, owner answered the Start/main/Home/five-workspace checklist: “正常開啟” | Explicit owner response in this chat |
+| B3 | Home opens | PASS | 2026-09-30, owner answered the Start/main/Home/five-workspace checklist: “正常開啟” | Explicit owner response in this chat |
+| B4 | PDF workspace opens | PASS | 2026-09-30, owner answered the Start/main/Home/five-workspace checklist: “正常開啟” | Explicit owner response in this chat |
+| B5 | OCR workspace opens | PASS | 2026-09-30, owner answered the Start/main/Home/five-workspace checklist: “正常開啟” | Explicit owner response in this chat |
+| B6 | Office workspace opens | PASS | 2026-09-30, owner answered the Start/main/Home/five-workspace checklist: “正常開啟” | Explicit owner response in this chat |
+| B7 | 圖片 workspace opens | PASS | 2026-09-30, owner answered the Start/main/Home/five-workspace checklist: “正常開啟” | Explicit owner response in this chat |
+| B8 | 影音 workspace opens | PASS | 2026-09-30, owner answered the Start/main/Home/five-workspace checklist: “正常開啟” | Explicit owner response in this chat |
 
 ### C. Explorer PDF integration
 
@@ -135,18 +135,18 @@ Use a synthetic PDF.
 
 | Row | Required observation | Result | Owner confirmation | Evidence |
 | --- | --- | --- | --- | --- |
-| C1 | Right-click a real PDF in Explorer | UNVERIFIED | | |
-| C2 | Open with shows SwiftLocal | UNVERIFIED | | |
-| C3 | SwiftLocal is chosen from that menu | UNVERIFIED | | |
-| C4 | The PDF opens in the SwiftLocal PDF workspace | UNVERIFIED | | |
+| C1 | Right-click a real PDF in Explorer | PASS | 2026-09-30, owner answered the post-install Adobe double-click and Explorer Open With checklist: “這也沒問題” | Explicit owner response in this chat |
+| C2 | Open with shows SwiftLocal | PASS | 2026-09-30, owner answered the post-install Adobe double-click and Explorer Open With checklist: “這也沒問題” | Explicit owner response in this chat |
+| C3 | SwiftLocal is chosen from that menu | PASS | 2026-09-30, owner answered the post-install Adobe double-click and Explorer Open With checklist: “這也沒問題” | Explicit owner response in this chat |
+| C4 | The PDF opens in the SwiftLocal PDF workspace | PASS | 2026-09-30, owner answered the post-install Adobe double-click and Explorer Open With checklist: “這也沒問題” | Explicit owner response in this chat |
 
 ### D. Default PDF reader
 
 | Row | Required observation | Result | Owner confirmation | Evidence |
 | --- | --- | --- | --- | --- |
 | D1 | The default reader was recorded before installation | PASS | 2026-09-30, owner: “是用Adobe打開的”; synthetic PDF content explicitly observed | Owner confirmation in this chat; Adobe is the human baseline. Registry snapshot separately records FoxitReader.Document. |
-| D2 | A normal PDF double-click after install still uses that previous reader | UNVERIFIED | | |
-| D3 | Installation did not force SwiftLocal to become the default | UNVERIFIED | | |
+| D2 | A normal PDF double-click after install still uses that previous reader | PASS | 2026-09-30, owner answered the post-install Adobe double-click and Explorer Open With checklist: “這也沒問題” | Explicit owner response in this chat |
+| D3 | Installation did not force SwiftLocal to become the default | PASS | 2026-09-30, owner answered the post-install Adobe double-click and Explorer Open With checklist: “這也沒問題” | Explicit owner response in this chat |
 
 ### E. Representative operations
 
@@ -198,7 +198,7 @@ App Installer, Start or first launch, Explorer Open with, the PDF workspace, and
 
 If any required product behavior fails, record `FAIL`, retain the observation/output/screenshot, stop the acceptance verdict, and propose the smallest fix. Do not fix product code and continue under this candidate's hash. A product-code change requires a new candidate and fresh acceptance cycle. A preparation-tool failure leaves GUI rows `UNVERIFIED`; resolve and record the preparation issue without changing the AppX.
 
-All required rows in A, B, C, D, E, G, and H must have explicit owner confirmation for **PHASE 2C PASS**. F1 is retained automated Phase 2B evidence; F2 is optional. A required product failure means **PHASE 2C FAIL**. Otherwise any unverified required row means **PHASE 2C INCOMPLETE**. Record observations by row ID, the date, which synthetic fixture/output was inspected, and any evidence link. On 2026-09-30 the owner confirmed the pre-install PDF baseline (D1), physical PC, standard user account, GUI install completion (A4), and absence of command-line installation (A5). Other required GUI results are pending.
+All required rows in A, B, C, D, E, G, and H must have explicit owner confirmation for **PHASE 2C PASS**. F1 is retained automated Phase 2B evidence; F2 is optional. A required product failure means **PHASE 2C FAIL**. Otherwise any unverified required row means **PHASE 2C INCOMPLETE**. Record observations by row ID, the date, which synthetic fixture/output was inspected, and any evidence link. On 2026-09-30 the owner confirmed A1–A5, B1–B8, C1–C4 and D1–D3 in replies to the specific installation, Start/workspaces, Explorer integration and PDF-default questions. E, G and H remain pending.
 
 ## Retained policy item
 
@@ -206,7 +206,7 @@ Optional WACK **Blocked executables** still fails with 593 messages in the Phase
 
 ## Verdict
 
-**C. PHASE 2C INCOMPLETE.** A4, A5 and D1 are owner-confirmed PASS. Other required consumer GUI rows remain PARTIAL or UNVERIFIED.
+**C. PHASE 2C INCOMPLETE.** A, B, C and D are owner-confirmed PASS. Representative operations, normal exit, GUI uninstall and certificate cleanup remain pending.
 
 Historical 2026-09-23 review: Jev (`jev-1.13.0`) chose C (confidence 1.0; probabilities A 0.0, B 0.0, C 1.0). The probability that a GUI row may pass from the hash or Server CI alone was 0.03. The probability that Store submission is allowed was 0.03. The probability that the described file is the frozen candidate was 0.61; the local SHA-256 comparison of the downloaded artifact matched the frozen digest exactly, and that comparison is the artifact check. Jev does not replace it and does not confirm any GUI row. No new Jev review was run for this continuation.
 
