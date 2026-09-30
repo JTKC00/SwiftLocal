@@ -14,7 +14,7 @@ Every row starts UNVERIFIED. Only explicit owner observations may change these G
 | B3 | Explorer Open With shows both registrations; record exact visible labels | UNVERIFIED | Do not hide two indistinguishable SwiftLocal labels |
 | B4 | Select each entry once and confirm the correct channel opens the PDF | UNVERIFIED | Pending |
 | B5 | Normal PDF double-click still uses the recorded default reader | UNVERIFIED | Pending |
-| B6 | Store theme, saved media preset and configured Downloads output are visible; open real seeded PDF output | UNVERIFIED | Automated real-product seed is not an owner observation |
+| B6 | Store theme, saved media preset and configured Downloads output are visible; open real seeded PDF output | UNVERIFIED | [Automated real-product seed and output validation PASS](b-before-update.md); owner observation has not been supplied |
 | C1 | App Installer offers/completes 1.0.0.0 -> 1.0.1.0 UPDATE, with no intervening uninstall | UNVERIFIED | Preserve error text/activity ID if rejected |
 | C2 | Updated Store launches normally and previous theme/preset/output preference remain | UNVERIFIED | Read-only retention measurement precedes smoke |
 | C3 | The pre-update user output still opens and has real content | UNVERIFIED | Also compare exact hashes |

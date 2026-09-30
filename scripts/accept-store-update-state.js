@@ -29,7 +29,7 @@ async function main(configFile, mode) {
     const page = await pageAt(`http://127.0.0.1:${debugPort}/json`, /frontend\/index\.html$/);
     client = await connect(page.webSocketDebuggerUrl);
     report.startupTransportRetries = [];
-    await readWhenReady(client, `(async()=>{for(let i=0;i<100;i++){if(window.swiftLocalBackend&&document.querySelector('#theme-toggle'))return true;await new Promise(r=>setTimeout(r,100))}throw new Error('home not ready')})()`, error => report.startupTransportRetries.push(error));
+    await readWhenReady(client, `(async()=>{for(let i=0;i<100;i++){const button=document.querySelector('#theme-toggle');if(window.swiftLocalBackend&&button?.hasAttribute('aria-pressed')&&['light','dark'].includes(document.documentElement.getAttribute('data-theme')))return true;await new Promise(r=>setTimeout(r,100))}throw new Error('home/theme handler not ready')})()`, error => report.startupTransportRetries.push(error));
     const candidates = [config.profile, path.join(process.env.LOCALAPPDATA, "Packages", config.expectedFamily, "LocalCache", "Roaming", config.profileDirectoryName)];
     const profile = candidates.find(p => fs.existsSync(path.join(p, "store-runtime-paths.json")));
     assert.ok(profile, "Actual Store runtime profile not found");
@@ -57,6 +57,7 @@ async function main(configFile, mode) {
       assert.equal(done?.status, "done", JSON.stringify(done));
       report.seeded = await read();
       assert.equal(report.seeded.config.defaultOutputDir, config.output);
+      assert.ok(["light", "dark"].includes(report.seeded.storage["swiftlocal-theme"]), "Real theme preference was not persisted");
       assert.ok(JSON.parse(report.seeded.storage["swiftlocal-presets"]).some(p => p.name === presetName));
       report.jobId = done.id;
       report.outputs = done.outputPaths.map(o => ({ path: o.path, bytes: fs.statSync(o.path).size, sha256: hash(o.path) }));
