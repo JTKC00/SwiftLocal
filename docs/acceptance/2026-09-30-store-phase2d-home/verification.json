@@ -1,0 +1,20 @@
+{
+  "status": "PREPARATION VERIFIED; PHASE 2D INCOMPLETE",
+  "sourceCheckpoint": "3dac8e7a3e22fccfda0dcc18f06ea56e31201f06",
+  "machine": {"os": "Windows 11 Home 25H2", "build": "26200.9550", "architecture": "x64", "physicalOrVmOwnerConfirmation": "UNVERIFIED", "standardAccountOwnerConfirmation": "UNVERIFIED"},
+  "backup": {"expectedFiles": 208, "matchingPathAndSizeFiles": 198, "missingFiles": 10, "observedSizeMismatches": 0, "downloadedAndHashVerifiedFiles": 14, "overall": "INCOMPLETE"},
+  "tests": {
+    "scope": "isolated tracked-source copy with lockfile dependencies and matching patched verifier; not installed package acceptance",
+    "javascript": {"tests": 313, "pass": 309, "fail": 0, "skipped": 4},
+    "python": {"tests": 102, "pass": 99, "fail": 0, "skipped": 3},
+    "typecheck": "PASS", "checkCi": "PASS", "verifierSyntax": "PASS", "diffWhitespace": "PASS",
+    "patchedVerifierSha256": "baa3117a82427e7c6d57d6181ca657d21752f8ba0bf95da9d9d0dc2e82b89c80"
+  },
+  "historicalFailuresPreserved": ["sandbox process-tree test failed and stalled; stopped", "existing home dependencies stale: five native test failures", "clean locked dependencies: direct ARM64 archive incorrectly opened with old full 7-Zip; one failure fixed"],
+  "installedLifecycleAcceptance": "UNVERIFIED",
+  "machinePreservation": {"status": "PASS", "nsisDurableFiles": 48, "hashErrors": 0, "nsisState": "byte-identical", "storeState": "absent at both checkpoints", "pdfDefaultAndRegistrations": "unchanged", "installAndStartRegistrations": "unchanged; absent"},
+  "workPcStep4A": "PARTIAL; pre-first-launch execution control remains FAIL",
+  "privateEvidence": "store-evidence/home-2026-09-30/ (ignored)",
+  "productVersion": "0.4.1",
+  "pr": {"number": 13, "draft": true, "merged": false, "storeSubmission": "NOT PERFORMED"}
+}
