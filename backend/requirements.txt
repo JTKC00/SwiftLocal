@@ -3,10 +3,10 @@
 # Transitive deps (pydantic, starlette, PyMuPDF, …) resolve from these pins.
 
 fastapi==0.141.1
-uvicorn[standard]==0.52.4
+uvicorn[standard]==0.54.0
 python-multipart==0.0.32
 pdf2docx==0.5.13
-pypdf==6.17.0
+pypdf==6.19.0
 Pillow==12.3.0
 zhconv==1.4.3
 pypdfium2==5.13.0
