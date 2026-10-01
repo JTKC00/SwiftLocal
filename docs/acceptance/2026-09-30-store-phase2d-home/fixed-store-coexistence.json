@@ -1,5 +1,5 @@
 {
-  "status": "PARTIAL; NATIVE FUNCTIONAL/DATA COEXISTENCE AND NEW MATERIAL CLEANUP PASS; DISTINCT PDF CHOICES AND OWNER ACCEPTANCE PENDING",
+  "status": "PARTIAL; NATIVE FUNCTIONAL/DATA COEXISTENCE AND MATERIAL CLEANUP PASS; OWNER HOME PASS; DESKTOP PDF CHOICE FAIL",
   "date": "2026-10-01",
   "scope": "private fixed Full candidate with actual frozen Store baseline 1.0.0.0 on home Windows 11; owner confirmation separate",
   "productVersion": "0.4.1",
@@ -751,7 +751,8 @@
   "originalPublishedReverseCoexistence": "FAIL retained",
   "previousHomeCycleCleanup": "PASS retained; different certificate and copies",
   "newRetestMaterialCleanup": "PASS; exact machine/user trust, original signing-user key and single signed copy removed",
-  "ownerGui": "UNVERIFIED",
+  "ownerGui": "PARTIAL; owner desktop home PASS, desktop PDF Open With choice FAIL, remaining GUI UNVERIFIED",
+  "ownerDesktopFollowupReceipt": "owner-desktop-pdf.json",
   "physicalStandardAccountConfirmation": "UNVERIFIED",
   "companyCleanup": "PENDING SEPARATELY",
   "publishedRelease": "unchanged",

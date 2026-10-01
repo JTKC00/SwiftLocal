@@ -1,8 +1,18 @@
 # Phase 2D 家中電腦接續紀錄
 
-2026-09-30–2026-10-01，依 James「直接轉為本機做」接續 [Draft PR #13](https://github.com/JTKC00/SwiftLocal/pull/13)。**修正版 Full 與真正 Store 的雙向原生移除、資料保留、50 項功能測試及本輪測試材料清理均通過。PDF「開啟方式」的兩版獨立選項、擁有者 GUI 確認及另行公司清理仍未完成，Phase 2D 仍為 PARTIAL。正式 NSIS 0.4.1 的原始反向共存 FAIL 保留。**
+2026-09-30–2026-10-01，依 James「直接轉為本機做」接續 [Draft PR #13](https://github.com/JTKC00/SwiftLocal/pull/13)。**修正版 Full 與真正 Store 的雙向原生移除、資料保留、50 項功能測試及本輪測試材料清理均通過。擁有者確認桌面首頁 PASS，但 PDF「開啟方式」沒有 SwiftLocal，這項 GUI 驗收 FAIL。兩版獨立選項、其餘擁有者 GUI 確認及另行公司清理仍未完成，Phase 2D 仍為 PARTIAL。正式 NSIS 0.4.1 的原始反向共存 FAIL 保留。**
 
 前輪本機週期保留 23 個正常輸出，首次修正版普通週期增加至 28 個；歷史見 [local-cycle.json](local-cycle.json)及 [NSIS 原生重現／修正證據](nsis-openwith-regression.json)。本輪實際共存結束後共 **51 份正常輸出**，原有 28 份逐檔 hash 保留。PDF 預設及 UserChoice hash 均未變，仍為 Acrobat.Document.DC。
+
+## 擁有者桌面 PDF 後續確認（2026-10-01）
+
+James 以 Windows 搜尋啟動保留的桌面版後回覆「有看到首頁」，此單項 PASS；接著回覆「開啟方式／開啟檔案 沒 SwiftLocal」，桌面 PDF 選項 FAIL。代理也觀察同一帳戶的右鍵選單只有 Adobe、Comet、Chrome、LibreOffice、Edge，沒有 SwiftLocal。完整去識別化結果見 [owner-desktop-pdf.json](owner-desktop-pdf.json)。
+
+原自有 ProgID、exe 指令及 merged registration 均在。改用直接原生 ABI、逐項保留 HRESULT 的唯讀診斷後，能列出精確桌面 exe，名稱 SwiftLocal，三個查詢均 S_OK，另有一項未解析 handler 回傳 E_FAIL。這不證明 GUI 選項存在。先前兩次 managed COM 診斷路線沒有重試。
+
+兩輪註冊實驗分別補 capabilities、再補 ProgID application metadata／Explorer FileExts 選項；隔離的實際 NSIS 安裝／移除測試都通過，實際 GUI 卻均 FAIL。依兩振規則停止追加登錄，同步送達 association notification 並開新 Explorer 視窗後仍缺失。所有本輪加入的精確自有值／keys 均已 guarded rollback；獨立比對所有 captured classes、PDF FileExts、UserChoice 及 hash，與實驗前完全相同。未證實的產品／測試修改留在私人 evidence，已從 working tree 撤回，沒有重建或發布新包來宣稱修好。
+
+直接開 PDF 前，再完整核對 **19,730 個安裝檔、110 個 profile 檔、51 份正常輸出**，paths／bytes／hashes 均與材料清理後快照相同；Store 及 SwiftLocal 程序當時為零。其後透過既有 explicit desktop ProgID helper 開啟合成 a.pdf，代理在實際桌面 PDF 工作區看到一頁及「Invoice 12345」，且沒有未存變更。這是直接開啟的 observer PASS，仍未修復 Windows 選單；擁有者 PDF 頁面確認待補。該測試 PDF 的 STORE 字樣是文件內容，執行中的程式是桌面版。此工作區保留開啟供擁有者確認，前述零程序證據明確屬於這次啟動之前。
 
 ## 修正版與真正 Store 共存（2026-10-01）
 
@@ -89,7 +99,7 @@ Computer Use 觀察共存右鍵選單只有一個 SwiftLocal label；選擇程�
 
 **本機管理員清理 PASS。** James 已以管理員執行私人入口 store-evidence/home-2026-09-30/cleanup-local-test.cmd。機器信任於 **23:16:23 +08:00** 移除；原 signing user 的不可匯出金鑰、憑證、兩個 signed copies 及衍生更新封裝／payload 副本於 **23:26:35 +08:00** 清理完成，cleanup receipt 為 PASS。此階段花約十分鐘處理封裝副本及大量檔案；獨立 read-back 確認清理 worker 已結束、三個精確憑證位置與所有測試副本／衍生 payload 目錄均不存在。原始 unsigned baseline SHA-256 仍吻合，23 個正常輸出逐檔 hash 保留，兩個 NSIS profiles 仍在，傳統版 0.4.1 保留，Store package 與 SwiftLocal 程序均為零。
 
-擁有者本輪 GUI 手動驗收、physical／standard-account 確認仍 **UNVERIFIED**；原生測試及代理檢視畫面不替代這些條件。修正版 Full 的普通生命周期、實際 Store 原生功能／資料共存及本輪材料清理已通過，但 PDF 兩版獨立選項仍未完成；公司原 key／trust／copy 的另行清理尚未完成，本機清理不代表公司機器已清理。公司的 [Step 4A PARTIAL](../2026-09-30-store-phase2d/step4a.md)與 Phase 2C owner GUI PASS 均保留原結論。
+擁有者本輪桌面首頁 **PASS**、桌面 PDF 選項 **FAIL**，其餘 GUI 手動驗收及 physical／standard-account 確認仍 **UNVERIFIED**；原生測試及代理檢視畫面不替代這些條件。修正版 Full 的普通生命周期、實際 Store 原生功能／資料共存及本輪材料清理已通過，但 PDF 選單與兩版獨立選項仍未完成；公司原 key／trust／copy 的另行清理尚未完成，本機清理不代表公司機器已清理。公司的 [Step 4A PARTIAL](../2026-09-30-store-phase2d/step4a.md)與 Phase 2C owner GUI PASS 均保留原結論。
 
 ## 歷史準備及私人證據
 

@@ -1,5 +1,5 @@
 {
-  "status": "PARTIAL; NATIVE FUNCTIONAL/DATA COEXISTENCE AND NEW MATERIAL CLEANUP PASS; DISTINCT PDF CHOICES AND OWNER ACCEPTANCE PENDING",
+  "status": "PARTIAL; NATIVE FUNCTIONAL/DATA COEXISTENCE AND MATERIAL CLEANUP PASS; OWNER HOME PASS; DESKTOP PDF CHOICE FAIL",
   "scope": "private Full installer rebuilt from unchanged published payload; normal installed lifecycle observed on home Windows 11; owner GUI remains separate",
   "date": "2026-10-01",
   "sourceCheckpoint": "5f1ec096b36f9558dcb5db02bd90761b253ae0b8",
@@ -255,11 +255,13 @@
       "companyCleanup": "PENDING SEPARATELY"
     }
   },
-  "ownerGui": "UNVERIFIED",
+  "ownerGui": "PARTIAL; owner desktop home PASS, desktop PDF Open With choice FAIL, remaining GUI UNVERIFIED",
+  "ownerDesktopFollowupReceipt": "owner-desktop-pdf.json",
   "companyCleanup": "PENDING SEPARATELY",
   "remaining": [
     "Distinct PDF choices for both installed channels; direct Store shared value absent although registered class and Store-only GUI choice work",
-    "Owner GUI and physical/standard-account confirmation",
+    "Fix actual desktop PDF Open With visibility; owner home PASS, PDF page and remaining GUI unverified",
+    "Physical/standard-account confirmation",
     "Separate company material cleanup"
   ],
   "finalReadback": {

@@ -1,0 +1,84 @@
+{
+  "status": "PARTIAL; OWNER DESKTOP HOME PASS; OWNER PDF OPEN WITH CHOICE FAIL",
+  "date": "2026-10-01",
+  "scope": "owner follow-up on the retained private fixed Full desktop candidate after Store removal and test-material cleanup",
+  "candidateSha256": "b6809f2fa34087d89858ccd19336748d3c5e56f670b117749c8da4b414171e94",
+  "ownerHome": {
+    "status": "PASS",
+    "quote": "有看到首頁",
+    "scope": "Windows search launch and desktop home screen only"
+  },
+  "ownerPdfChoice": {
+    "status": "FAIL",
+    "quote": "開啟方式／開啟檔案 沒 SwiftLocal",
+    "scope": "desktop PDF choice in Windows Open With"
+  },
+  "agentOriginalMenu": {
+    "status": "FAIL",
+    "swiftLocalChoices": 0,
+    "visibleViewers": ["Adobe Acrobat", "Comet", "Google Chrome", "LibreOffice Draw", "Microsoft Edge"],
+    "pickerRecommendedSwiftLocalChoices": 0,
+    "pickerRemainingList": "UNVERIFIED; transient picker not independently targetable"
+  },
+  "nativeOriginalRegistration": {
+    "status": "PASS",
+    "scope": "registration and read-only handler query; does not prove actual menu visibility",
+    "sharedOwnProgId": "SwiftLocal.PDF REG_NONE",
+    "ownClassAndApplication": "present with quoted installed-executable command",
+    "noOpenWith": "absent from inspected own/merged registrations",
+    "nativeHandler": "exact installed desktop executable, UIName SwiftLocal",
+    "nameHresult": "0x00000000",
+    "uiNameHresult": "0x00000000",
+    "recommendedHresult": "0x00000000",
+    "sameUserAsExplorer": "PASS",
+    "enumerationRoute": "direct native ABI pointers with individual HRESULTs; abandoned managed RCW route not retried",
+    "unresolvedOtherHandlerHresults": ["0x80004005"]
+  },
+  "diagnosticAttempts": [
+    {"route": "registered application capabilities", "isolatedNativeTest": "PASS", "actualMenu": "FAIL"},
+    {"route": "capabilities plus ProgID application metadata and Explorer FileExts option", "isolatedNativeTest": "PASS", "actualMenu": "FAIL"}
+  ],
+  "routeChange": "Stopped registration augmentation after two actual GUI failures; delivered association notification synchronously and opened a fresh Explorer window, but the menu still omitted SwiftLocal",
+  "diagnosticRollback": {
+    "status": "PASS",
+    "scope": "guarded removal of only exact fields/keys created by diagnostic attempts; unproven product/test edits archived privately and reverted",
+    "allCapturedClassesAndPdfFileExts": "exactly equal to original pre-experiment snapshot",
+    "pdfDefaultAndUserChoiceHash": "unchanged",
+    "originalNativeHandler": "still present and recommended after rollback",
+    "productCodeFix": "none retained; no rebuilt installer acceptance claimed"
+  },
+  "preservationBeforeDirectPdfLaunch": {
+    "status": "PASS",
+    "at": "2026-10-01T14:06:09.578Z",
+    "installedFiles": 19730,
+    "profileFiles": 110,
+    "normalOutputs": 51,
+    "allCapturedFileHashes": "exactly equal to the post-material-cleanup snapshot",
+    "pdfDefaultAndPeers": "unchanged",
+    "storePackages": 0,
+    "swiftLocalProcesses": 0
+  },
+  "directPdfWorkspaceObserver": {
+    "status": "PASS",
+    "scope": "agent opens synthetic a.pdf through existing explicit desktop ProgID helper and observes the real installed PDF workspace; workaround, not an Open With menu fix",
+    "document": "a.pdf",
+    "pages": 1,
+    "visibleText": ["SWIFTLOCAL STORE PDF", "Invoice 12345"],
+    "fixtureLabel": "synthetic PDF text only; running application is the retained desktop install, not a Store package",
+    "unsavedChanges": false,
+    "pdfDefaultChanged": false,
+    "postLaunchRegistrationReadback": "PASS; captured classes/peer values and UserChoice/hash exactly unchanged",
+    "ownerPdfPageConfirmation": "UNVERIFIED",
+    "endState": "installed desktop PDF workspace left open for owner review; earlier zero-process snapshot is before this launch"
+  },
+  "remaining": [
+    "Fix actual desktop PDF Open With visibility",
+    "Distinct PDF choices while both channels are installed",
+    "Owner PDF-page and remaining GUI acceptance",
+    "Physical/standard-account confirmation",
+    "Separate company material cleanup"
+  ],
+  "privateEvidence": "store-evidence/home-2026-09-30/pdf-visibility-2026-10-01/ (ignored)",
+  "publishedRelease": "unchanged",
+  "storeSubmission": "not performed"
+}
