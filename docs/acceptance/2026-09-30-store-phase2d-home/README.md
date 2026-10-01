@@ -1,8 +1,30 @@
 # Phase 2D 家中電腦接續紀錄
 
-2026-09-30–2026-10-01，依 James「直接轉為本機做」接續 [Draft PR #13](https://github.com/JTKC00/SwiftLocal/pull/13)。**本機 Store 安裝、更新、首次啟動前資料保留與轉換已通過；正式 NSIS 0.4.1 的反向共存發現失敗，私有修正版已通過實際安裝、轉換及解除安裝。真正 Store 與修正版的共存仍待新管理員信任，Phase 2D 仍為 PARTIAL。**
+2026-09-30–2026-10-01，依 James「直接轉為本機做」接續 [Draft PR #13](https://github.com/JTKC00/SwiftLocal/pull/13)。**修正版 Full 與真正 Store 的雙向原生移除、資料保留及 50 項功能測試已通過。PDF「開啟方式」的兩版獨立選項、擁有者 GUI 確認及本輪測試材料清理仍未完成，Phase 2D 仍為 PARTIAL。正式 NSIS 0.4.1 的原始反向共存 FAIL 保留。**
 
-前輪本機週期已移除 Store 並保留傳統版 0.4.1 及 23 個正常輸出；詳細歷史見 [local-cycle.json](local-cycle.json)及 [NSIS 原生重現／修正證據](nsis-openwith-regression.json)。新修正版週期另產生五份輸出，共 28 份，移除前後逐檔 hash 保留。PDF 預設及 UserChoice hash 均未變，仍為 Acrobat.Document.DC。
+前輪本機週期保留 23 個正常輸出，首次修正版普通週期增加至 28 個；歷史見 [local-cycle.json](local-cycle.json)及 [NSIS 原生重現／修正證據](nsis-openwith-regression.json)。本輪實際共存結束後共 **51 份正常輸出**，原有 28 份逐檔 hash 保留。PDF 預設及 UserChoice hash 均未變，仍為 Acrobat.Document.DC。
+
+## 修正版與真正 Store 共存（2026-10-01）
+
+James 完成本輪管理員 trust 後，原生核對精確憑證、SDK／Authenticode 簽章及凍結包 hash，再安裝同一凍結 baseline 的新簽署副本。完整證據見 [fixed-store-coexistence.json](fixed-store-coexistence.json)，私人完整 inventory、程序、失敗軌跡及 GUI observer 留在 ignored evidence。
+
+| 實際驗收 | 結果 |
+| --- | --- |
+| Store 1.0.0.0 安裝、首次啟動前桌面版保留 | 19,688 個 NSIS 檔、110 個 profile 檔、28 個正常輸出 bytes 全部相同；PDF 預設及原 typed peers 未變 |
+| 共存 NSIS / Store 功能 | 分別 10 PASS / 15 PASS；實際轉檔內容、語言資源 hashes、新六工具 probes 和 exact deep-AppData Office 檢查全部通過 |
+| 正常移除修正版 NSIS | exit 0；沒有共享 key 臨時子鍵、保護或手寫登錄修復；110 個 NSIS profile 檔、40 個 Store durable 檔和 40 個輸出 byte-identical；Comet、真實 Store capability/class 及 Start entry 保留 |
+| Store 單獨運作 | 原主題、preset、任務、輸出設定及 hashes 保留，沒有 reseeding；再 15 PASS，六份正常輸出及一份深層輸出內容通過 |
+| 重裝同一 Full candidate | exit 0；19,688 檔，Store durable state、兩個 NSIS profiles、46 個輸出及 PDF 預設 byte-identical |
+| 正常移除 Store | package、Start entry、自有 OS PDF class 消失；19,688 個 NSIS 檔、110 個 profile 檔、46 個輸出、NSIS／Comet 原值及 PDF 預設保留 |
+| Store 資料殘留 | 在任何資料清理前觀察：logical Roaming／Local、package-managed redirected state、共享 scratch 均不存在，零 durable files；未刪除或重置來取得 PASS |
+| 移除 Store 後 NSIS | 10 PASS，五份新輸出內容通過；15 筆原任務完整保留，現在 25 筆；原偏好不變；51 份正常輸出，原有 28 份 hash 全部保留 |
+| 最終原生 read-back | 傳統版 0.4.1 保留；19,688 個重裝基線檔未變，正常 LibreOffice 執行新增 42 個 Python cache，合共 19,730 檔；Store 與 SwiftLocal 程序為零；凍結 baseline hash 未變 |
+
+**PDF 選項限制仍為 PARTIAL。** 原生安裝後，Store 的真實 capability 指向 OS 生成的 AppX PDF class，但共享 .pdf/OpenWithProgids 沒有其直接 value。兩個唯讀 COM 列舉診斷失敗後停止該路線；只做一次精確已安裝 manifest 的原生 registration，操作成功但直接 value 仍缺失。全程沒有人工新增 Store value。實際透過 capability/class 的 PDF shell 開檔在共存及 Store 單獨時均 PASS。
+
+Computer Use 觀察共存右鍵選單只有一個 SwiftLocal label；選擇程式對話框亦可見該 label，但未能區分兩個 channel，也未完整讀取其剩餘清單。移除 NSIS 後，Store 單獨時選單仍顯示 SwiftLocal，屬代理的唯讀 GUI observer。沒有選擇「一律」、改預設或透過 GUI 啟動程式；這不替代擁有者驗收，也不證明兩版各有獨立選項。
+
+本輪不可匯出金鑰、精確 machine／user public trust 及單一 signed copy 仍在，需管理員清理。私人入口 cleanup-fixed-nsis-store-test.cmd 已備妥，只移除此輪精確憑證與副本，保留桌面版、設定、51 份正常輸出及凍結 baseline。前輪清理 PASS 保留；公司材料清理另為 PENDING。
 
 ## 私有修正版 Full Installer 重測（2026-10-01）
 
@@ -17,13 +39,13 @@
 | 實際輸出內容 | 五份內容 PASS：Invoice PDF 文字、Latin／繁體中文 OCR、searchable PDF 文字層、Office PDF 及 MP3 解碼 |
 | 修正版正常解除安裝 | exit 0；共享 key 沒有子鍵、沒有臨時保護或人工復原，Comet REG_SZ 選項保留；自有 PDF value／classes 正常移除；110 個 profile 檔及 28 份正常輸出 bytes 保留 |
 | 同一修正版重裝 | exit 0；110 個 profile 檔與 typed peer values 未變，實際解除安裝器 SHA 與私人 candidate 相同，準備好下一輪 Store 共存測試 |
-| 真正 Store 與修正版雙向共存 | UNVERIFIED；需要信任本輪新簽署的單一凍結 baseline 副本 |
+| 真正 Store 與修正版雙向共存 | 後續原生功能／資料生命周期 PASS；PDF 兩版獨立選項仍 PARTIAL，詳上節新 receipt |
 
 移除已知有問題的舊正式版以切換到新 candidate 時，僅在那個過渡階段加一個自有臨時子鍵保護現有 peers，隨後驗證並移除。這不是舊版 PASS；原始反向共存 FAIL 保留。新 candidate 的解除安裝實測沒有這項保護，沒有新增假 Store registration，也沒有人工恢復登錄來取得 PASS。
 
-同一私人 candidate 已重裝並完成獨立 read-back：10 筆原有 job records 未變，現在共 15 筆，原偏好保留；28 份正常輸出 hash 全部相同，Store package 與 SwiftLocal 程序均為零。
+首次普通 Full 週期收尾時，同一私人 candidate 重裝並完成獨立 read-back：10 筆原有 job records 未變，當時共 15 筆；28 份正常輸出 hash 相同，Store package 與 SwiftLocal 程序均為零。這是實際共存之前的中間快照，新最終結果見上節。
 
-前輪憑證及副本清理 PASS 保留。本輪新五天不可匯出金鑰與單一簽署 baseline 副本分開準備，19,694 個非生成 entries（含 manifest）與凍結 unsigned 原件一致，到期 **2026-10-06 00:02:57 +08:00**；新 machine trust 尚未建立，Store package 尚未安裝。新私人入口 enable-fixed-nsis-store-trust.cmd 只建立精確公用憑證信任並核驗簽章，成功文字為 Fixed NSIS Store test trust ready.，不啟動或安裝程式。此次新材料在共存測試後另需清理。
+前輪憑證及副本清理 PASS 保留。本輪新五天不可匯出金鑰與單一簽署 baseline 副本分開準備，19,694 個非生成 entries（含 manifest）與凍結 unsigned 原件一致，到期 **2026-10-06 00:02:57 +08:00**。新私人入口 enable-fixed-nsis-store-trust.cmd 只建立精確公用憑證信任並核驗簽章，成功文字為 Fixed NSIS Store test trust ready.，不啟動或安裝程式。James 已完成管理員信任，其後原生安裝及測試已完成、Store 已移除；此次新材料另待清理。
 
 ## 凍結包與新本機週期
 
@@ -61,13 +83,13 @@
 
 實際機器只恢復原快照證實缺失的 Store REG_NONE 與 Comet REG_SZ 選項，核對原始資料、存活 class 身分及恢復後快照，才繼續測試。復原不改寫原始失敗結論。私人恢復 helper 曾遇到 PowerShell 空鍵名、dictionary member、原始值型別及大小寫問題；失敗均在修改前停止，依兩振規則改用已核驗 manifest 加原生 Registry API。
 
-相關 JavaScript 回歸 **21 PASS、0 FAIL、0 skip**，並有上述實際 NSIS 編譯／執行證據。之後已另建私有 Full candidate，實際普通安裝／轉換／解除安裝 PASS，真正 Store 共存仍待重測；沒有改動正式 Release 或把原始包標成 PASS。可用 [原生回歸 CLI](../../../scripts/verify-windows-file-association-uninstall.js)的 --help 查看編譯器／輸出參數。
+相關 JavaScript 回歸 **21 PASS、0 FAIL、0 skip**，並有上述實際 NSIS 編譯／執行證據。之後已另建私有 Full candidate，實際普通安裝／轉換／解除安裝及真正 Store 原生功能／資料共存 PASS；PDF 獨立選項限制仍保留。沒有改動正式 Release 或把原始包標成 PASS。可用 [原生回歸 CLI](../../../scripts/verify-windows-file-association-uninstall.js)的 --help 查看編譯器／輸出參數。
 
 ## 收尾與未完成條件
 
 **本機管理員清理 PASS。** James 已以管理員執行私人入口 store-evidence/home-2026-09-30/cleanup-local-test.cmd。機器信任於 **23:16:23 +08:00** 移除；原 signing user 的不可匯出金鑰、憑證、兩個 signed copies 及衍生更新封裝／payload 副本於 **23:26:35 +08:00** 清理完成，cleanup receipt 為 PASS。此階段花約十分鐘處理封裝副本及大量檔案；獨立 read-back 確認清理 worker 已結束、三個精確憑證位置與所有測試副本／衍生 payload 目錄均不存在。原始 unsigned baseline SHA-256 仍吻合，23 個正常輸出逐檔 hash 保留，兩個 NSIS profiles 仍在，傳統版 0.4.1 保留，Store package 與 SwiftLocal 程序均為零。
 
-擁有者本輪 GUI 手動驗收、physical／standard-account 確認仍 **UNVERIFIED**；原生測試及代理檢視 renderer 畫面不替代這些條件。修正版 Full 的普通生命周期已通過，但實際 Store 共存及本輪新材料清理仍未完成；公司原 key／trust／copy 的另行清理尚未完成，前輪本機清理不代表公司機器已清理。公司的 [Step 4A PARTIAL](../2026-09-30-store-phase2d/step4a.md)與 Phase 2C owner GUI PASS 均保留原結論。
+擁有者本輪 GUI 手動驗收、physical／standard-account 確認仍 **UNVERIFIED**；原生測試及代理檢視畫面不替代這些條件。修正版 Full 的普通生命周期及實際 Store 原生功能／資料共存已通過，但 PDF 兩版獨立選項及本輪新材料清理仍未完成；公司原 key／trust／copy 的另行清理尚未完成，前輪本機清理不代表公司機器已清理。公司的 [Step 4A PARTIAL](../2026-09-30-store-phase2d/step4a.md)與 Phase 2C owner GUI PASS 均保留原結論。
 
 ## 歷史準備及私人證據
 

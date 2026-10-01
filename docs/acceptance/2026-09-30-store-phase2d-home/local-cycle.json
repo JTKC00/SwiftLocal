@@ -570,8 +570,9 @@
   "fixedNsisRetest": {
     "receipt": "fixed-nsis-retest.json",
     "normalLifecycle": "PASS",
-    "actualStoreCoexistence": "UNVERIFIED; new administrator trust pending",
+    "actualStoreCoexistence": "PARTIAL; native functional/data lifecycle PASS; distinct PDF channel choices UNVERIFIED",
     "previousCycleCleanup": "PASS retained",
-    "newRetestMaterialCleanup": "PENDING"
+    "newRetestMaterialCleanup": "PENDING",
+    "actualStoreCoexistenceReceipt": "fixed-store-coexistence.json"
   }
 }

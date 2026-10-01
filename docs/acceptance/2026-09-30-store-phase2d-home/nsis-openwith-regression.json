@@ -64,6 +64,7 @@
     "fail": 0,
     "skipped": 0
   },
-  "fullInstallerRetest": "PASS; private fixed Full normal installed lifecycle with real Comet peer; actual Store coexistence still UNVERIFIED",
-  "fullInstallerRetestReceipt": "fixed-nsis-retest.json"
+  "fullInstallerRetest": "PASS; actual normal removal retains Comet and installed Store capability/class, profiles and outputs; direct Store shared value initially absent, distinct GUI choices UNVERIFIED",
+  "fullInstallerRetestReceipt": "fixed-nsis-retest.json",
+  "actualStoreCoexistenceReceipt": "fixed-store-coexistence.json"
 }

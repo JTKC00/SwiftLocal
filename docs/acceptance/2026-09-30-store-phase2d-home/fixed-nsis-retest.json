@@ -1,5 +1,5 @@
 {
-  "status": "PARTIAL; FIXED FULL NORMAL LIFECYCLE PASS; ACTUAL STORE COEXISTENCE AWAITS NEW ADMINISTRATOR TRUST",
+  "status": "PARTIAL; NATIVE FUNCTIONAL/DATA COEXISTENCE PASS; DISTINCT PDF CHOICES AND NEW MATERIAL CLEANUP PENDING",
   "scope": "private Full installer rebuilt from unchanged published payload; normal installed lifecycle observed on home Windows 11; owner GUI remains separate",
   "date": "2026-10-01",
   "sourceCheckpoint": "5f1ec096b36f9558dcb5db02bd90761b253ae0b8",
@@ -189,7 +189,7 @@
     "storeCoexistence": "UNVERIFIED; Store absent"
   },
   "newStoreBaseline": {
-    "status": "PARTIAL; STOPPED BEFORE TRUST AND INSTALL",
+    "status": "PASS; TRUSTED, INSTALLED AND NORMALLY REMOVED; NEW MATERIAL CLEANUP PENDING",
     "frozenUnsignedSha256": "38a1ea9d89e956c1dbcdecb21f85bca673d7ab70301b16e66f68c819d7eed404",
     "payloadComparison": {
       "status": "PASS",
@@ -207,13 +207,13 @@
     "keyExportPolicy": "None",
     "expires": "2026-10-06T00:02:57.0000000+08:00",
     "previousCycleCleanup": "PASS; prior exact certificate and copies stay absent",
-    "newMachineTrust": "UNVERIFIED; absent",
+    "newMachineTrust": "PASS; new exact public certificate still trusted pending cleanup",
     "newSigningKeyAndSingleSignedCopy": "present privately, separate from cleaned previous cycle",
-    "cleanup": "PENDING after actual Store coexistence retest",
+    "cleanup": "PENDING; actual Store test package removed; exact new material cleanup requires administrator",
     "adminReadback": {
       "status": "PASS; READY FOR OWNER ADMINISTRATOR TRUST",
       "at": "2026-10-01T00:26:32.6358260+08:00",
-      "scope": "native read-back of new single-baseline material; previous cycle stays cleaned",
+      "scope": "native read-back of new single-baseline material; previous cycle stays cleaned; historical pre-trust snapshot retained",
       "newSigningKeyPresent": true,
       "keyExportPolicy": "None",
       "publicCertificateOnly": true,
@@ -231,15 +231,14 @@
   "ownerGui": "UNVERIFIED",
   "companyCleanup": "PENDING SEPARATELY",
   "remaining": [
-    "New owner administrator trust for exact single frozen baseline copy",
-    "Actual Store installation and two-way coexistence with fixed candidate",
-    "New retest certificate/key/signed-copy cleanup",
+    "Distinct PDF choices for both installed channels; direct Store shared value absent although registered class and Store-only GUI choice work",
+    "New retest certificate/key/single signed-copy cleanup",
     "Owner GUI and physical/standard-account confirmation",
     "Separate company material cleanup"
   ],
   "finalReadback": {
     "status": "PASS",
-    "scope": "independent final native read-back after fixed installer lifecycle and reinstallation; Store coexistence still pending",
+    "scope": "independent final native read-back after fixed installer lifecycle and reinstallation; Store coexistence still pending; intermediate snapshot before the actual Store coexistence cycle",
     "at": "2026-09-30T16:33:02.847Z",
     "priorJobs": 10,
     "currentJobs": 15,
@@ -259,5 +258,6 @@
     "installedVersion": "0.4.1",
     "newMachineTrust": "UNVERIFIED; absent",
     "ownerGui": "UNVERIFIED"
-  }
+  },
+  "actualStoreCoexistenceReceipt": "fixed-store-coexistence.json"
 }
