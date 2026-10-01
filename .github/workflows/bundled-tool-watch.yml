@@ -44,7 +44,7 @@ jobs:
 
       - name: Open or update maintenance issue
         if: steps.watch.outputs.actionable == 'true'
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         env:
           WATCH_FINGERPRINT: ${{ steps.watch.outputs.fingerprint }}
           WATCH_REPORT_PATH: ${{ steps.watch.outputs.report_path }}
