@@ -79,13 +79,13 @@ jobs:
           npm run pack:win:full:installer
       - name: Retain evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: native-tool-evidence
           path: acceptance-evidence/
           retention-days: 7
       - name: Retain candidate installer
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: windows-full-candidate
           path: |
@@ -131,7 +131,7 @@ jobs:
           ./scripts/accept-windows-fresh-user.ps1 -Candidate $candidate[0].FullName -Baseline (Resolve-Path baseline/SwiftLocal-0.4.0-full-installer-x64.exe) -Fixtures (Resolve-Path candidate/smoke-temp/release-queue-check/input) -Evidence (Join-Path $PWD 'acceptance-evidence/fresh') -Scenario fresh
       - name: Retain fresh-install evidence before the upgrade scenario
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: fresh-install-acceptance-evidence
           path: acceptance-evidence/fresh/
@@ -147,7 +147,7 @@ jobs:
           ./scripts/accept-windows-fresh-user.ps1 -Candidate $candidate[0].FullName -Baseline (Resolve-Path baseline/SwiftLocal-0.4.0-full-installer-x64.exe) -Fixtures (Resolve-Path candidate/smoke-temp/release-queue-check/input) -Evidence (Join-Path $PWD 'acceptance-evidence/upgrade') -Scenario upgrade
       - name: Retain fresh-user evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: fresh-user-acceptance-evidence
           path: acceptance-evidence/
