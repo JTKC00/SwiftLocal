@@ -572,7 +572,7 @@
     "normalLifecycle": "PASS",
     "actualStoreCoexistence": "PARTIAL; native functional/data lifecycle PASS; distinct PDF channel choices UNVERIFIED",
     "previousCycleCleanup": "PASS retained",
-    "newRetestMaterialCleanup": "PENDING",
+    "newRetestMaterialCleanup": "PASS; owner administrator machine-trust action, original-user completion and independent full hash read-back",
     "actualStoreCoexistenceReceipt": "fixed-store-coexistence.json"
   }
 }

@@ -1,5 +1,5 @@
 {
-  "status": "PARTIAL; NATIVE FUNCTIONAL/DATA COEXISTENCE PASS; DISTINCT PDF CHOICES AND NEW MATERIAL CLEANUP PENDING",
+  "status": "PARTIAL; NATIVE FUNCTIONAL/DATA COEXISTENCE AND NEW MATERIAL CLEANUP PASS; DISTINCT PDF CHOICES AND OWNER ACCEPTANCE PENDING",
   "scope": "private Full installer rebuilt from unchanged published payload; normal installed lifecycle observed on home Windows 11; owner GUI remains separate",
   "date": "2026-10-01",
   "sourceCheckpoint": "5f1ec096b36f9558dcb5db02bd90761b253ae0b8",
@@ -189,7 +189,7 @@
     "storeCoexistence": "UNVERIFIED; Store absent"
   },
   "newStoreBaseline": {
-    "status": "PASS; TRUSTED, INSTALLED AND NORMALLY REMOVED; NEW MATERIAL CLEANUP PENDING",
+    "status": "PASS; TRUSTED, INSTALLED, NORMALLY REMOVED AND TEST MATERIAL CLEANED",
     "frozenUnsignedSha256": "38a1ea9d89e956c1dbcdecb21f85bca673d7ab70301b16e66f68c819d7eed404",
     "payloadComparison": {
       "status": "PASS",
@@ -207,9 +207,9 @@
     "keyExportPolicy": "None",
     "expires": "2026-10-06T00:02:57.0000000+08:00",
     "previousCycleCleanup": "PASS; prior exact certificate and copies stay absent",
-    "newMachineTrust": "PASS; new exact public certificate still trusted pending cleanup",
-    "newSigningKeyAndSingleSignedCopy": "present privately, separate from cleaned previous cycle",
-    "cleanup": "PENDING; actual Store test package removed; exact new material cleanup requires administrator",
+    "newMachineTrust": "REMOVED; historical trust/signature PASS",
+    "newSigningKeyAndSingleSignedCopy": "REMOVED; independent exact absence read-back PASS",
+    "cleanup": "PASS; owner administrator machine-trust removal, original signing-user completion and independent read-back",
     "adminReadback": {
       "status": "PASS; READY FOR OWNER ADMINISTRATOR TRUST",
       "at": "2026-10-01T00:26:32.6358260+08:00",
@@ -226,13 +226,39 @@
       "swiftLocalProcesses": 0,
       "currentProcessIsAdministrator": false,
       "expires": "2026-10-06T00:02:57.0000000+08:00"
+    },
+    "cleanupReadback": {
+      "status": "PASS",
+      "at": "2026-10-01T12:31:20.277Z",
+      "scope": "independent post-cleanup native certificate and complete file-hash read-back; owner GUI separate",
+      "machineTrustRemoved": true,
+      "originalSigningUserCertificateAndKeyRemoved": true,
+      "userPublicTrustRemoved": true,
+      "signedTestCopyRemoved": true,
+      "publicCertificateFileRemoved": true,
+      "previousCycleCleanup": "PASS retained",
+      "cleanupReceiptAt": "2026-10-01T20:29:47.9920407+08:00",
+      "frozenBaselineSha256": "PASS; unchanged",
+      "fullNsisProfiles": "byte-identical",
+      "profileFiles": 110,
+      "nsisInstalledFilesUnchanged": 19730,
+      "normalOutputFilesRetained": 51,
+      "normalOutputHashes": "all unchanged",
+      "pdfDefault": "Acrobat.Document.DC and UserChoice hash unchanged",
+      "typedPdfPeers": "NSIS and Comet unchanged",
+      "installedVersion": "0.4.1",
+      "storePackages": 0,
+      "swiftLocalProcesses": 0,
+      "activeCleanupWorkers": 0,
+      "ownerGui": "UNVERIFIED",
+      "distinctPdfChannelChoices": "UNVERIFIED",
+      "companyCleanup": "PENDING SEPARATELY"
     }
   },
   "ownerGui": "UNVERIFIED",
   "companyCleanup": "PENDING SEPARATELY",
   "remaining": [
     "Distinct PDF choices for both installed channels; direct Store shared value absent although registered class and Store-only GUI choice work",
-    "New retest certificate/key/single signed-copy cleanup",
     "Owner GUI and physical/standard-account confirmation",
     "Separate company material cleanup"
   ],

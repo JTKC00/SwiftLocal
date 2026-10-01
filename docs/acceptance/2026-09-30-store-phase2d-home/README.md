@@ -1,6 +1,6 @@
 # Phase 2D 家中電腦接續紀錄
 
-2026-09-30–2026-10-01，依 James「直接轉為本機做」接續 [Draft PR #13](https://github.com/JTKC00/SwiftLocal/pull/13)。**修正版 Full 與真正 Store 的雙向原生移除、資料保留及 50 項功能測試已通過。PDF「開啟方式」的兩版獨立選項、擁有者 GUI 確認及本輪測試材料清理仍未完成，Phase 2D 仍為 PARTIAL。正式 NSIS 0.4.1 的原始反向共存 FAIL 保留。**
+2026-09-30–2026-10-01，依 James「直接轉為本機做」接續 [Draft PR #13](https://github.com/JTKC00/SwiftLocal/pull/13)。**修正版 Full 與真正 Store 的雙向原生移除、資料保留、50 項功能測試及本輪測試材料清理均通過。PDF「開啟方式」的兩版獨立選項、擁有者 GUI 確認及另行公司清理仍未完成，Phase 2D 仍為 PARTIAL。正式 NSIS 0.4.1 的原始反向共存 FAIL 保留。**
 
 前輪本機週期保留 23 個正常輸出，首次修正版普通週期增加至 28 個；歷史見 [local-cycle.json](local-cycle.json)及 [NSIS 原生重現／修正證據](nsis-openwith-regression.json)。本輪實際共存結束後共 **51 份正常輸出**，原有 28 份逐檔 hash 保留。PDF 預設及 UserChoice hash 均未變，仍為 Acrobat.Document.DC。
 
@@ -24,7 +24,7 @@ James 完成本輪管理員 trust 後，原生核對精確憑證、SDK／Authent
 
 Computer Use 觀察共存右鍵選單只有一個 SwiftLocal label；選擇程式對話框亦可見該 label，但未能區分兩個 channel，也未完整讀取其剩餘清單。移除 NSIS 後，Store 單獨時選單仍顯示 SwiftLocal，屬代理的唯讀 GUI observer。沒有選擇「一律」、改預設或透過 GUI 啟動程式；這不替代擁有者驗收，也不證明兩版各有獨立選項。
 
-本輪不可匯出金鑰、精確 machine／user public trust 及單一 signed copy 仍在，需管理員清理。私人入口 cleanup-fixed-nsis-store-test.cmd 已備妥，只移除此輪精確憑證與副本，保留桌面版、設定、51 份正常輸出及凍結 baseline。前輪清理 PASS 保留；公司材料清理另為 PENDING。
+**本輪材料清理 PASS。** James 以管理員執行私人入口 cleanup-fixed-nsis-store-test.cmd，精確 machine trust 於 **20:26:34 +08:00** 移除；使用者憑證與信任也已移除，但 helper 在刪除私人副本前停止。確認原 signing user 相同、沒有清理 worker 後，代理以原使用者完成剩餘已授權清理，於 **20:29:47 +08:00** 產生 PASS receipt。獨立明確 Windows PowerShell 5.1 -File 核對三個精確憑證位置均不存在，public certificate 與單一 signed copy 不存在；完整 19,730 個 NSIS 檔、110 個 profile 檔和 51 個輸出逐檔 hash 全未變，凍結 unsigned baseline hash 相同，Store／SwiftLocal／清理 worker 均為零。詳新 receipt 的 cleanupReadback。前輪清理 PASS 保留；公司材料清理另為 PENDING。
 
 ## 私有修正版 Full Installer 重測（2026-10-01）
 
@@ -45,7 +45,7 @@ Computer Use 觀察共存右鍵選單只有一個 SwiftLocal label；選擇程�
 
 首次普通 Full 週期收尾時，同一私人 candidate 重裝並完成獨立 read-back：10 筆原有 job records 未變，當時共 15 筆；28 份正常輸出 hash 相同，Store package 與 SwiftLocal 程序均為零。這是實際共存之前的中間快照，新最終結果見上節。
 
-前輪憑證及副本清理 PASS 保留。本輪新五天不可匯出金鑰與單一簽署 baseline 副本分開準備，19,694 個非生成 entries（含 manifest）與凍結 unsigned 原件一致，到期 **2026-10-06 00:02:57 +08:00**。新私人入口 enable-fixed-nsis-store-trust.cmd 只建立精確公用憑證信任並核驗簽章，成功文字為 Fixed NSIS Store test trust ready.，不啟動或安裝程式。James 已完成管理員信任，其後原生安裝及測試已完成、Store 已移除；此次新材料另待清理。
+前輪憑證及副本清理 PASS 保留。本輪新五天不可匯出金鑰與單一簽署 baseline 副本分開準備，19,694 個非生成 entries（含 manifest）與凍結 unsigned 原件一致，原到期 **2026-10-06 00:02:57 +08:00**。私人入口 enable-fixed-nsis-store-trust.cmd 只建立精確公用憑證信任並核驗簽章，不啟動或安裝程式。James 完成管理員信任後，原生安裝及測試完成、Store 正常移除；此次新金鑰、信任與副本也已清理並獨立核對 PASS。
 
 ## 凍結包與新本機週期
 
@@ -89,7 +89,7 @@ Computer Use 觀察共存右鍵選單只有一個 SwiftLocal label；選擇程�
 
 **本機管理員清理 PASS。** James 已以管理員執行私人入口 store-evidence/home-2026-09-30/cleanup-local-test.cmd。機器信任於 **23:16:23 +08:00** 移除；原 signing user 的不可匯出金鑰、憑證、兩個 signed copies 及衍生更新封裝／payload 副本於 **23:26:35 +08:00** 清理完成，cleanup receipt 為 PASS。此階段花約十分鐘處理封裝副本及大量檔案；獨立 read-back 確認清理 worker 已結束、三個精確憑證位置與所有測試副本／衍生 payload 目錄均不存在。原始 unsigned baseline SHA-256 仍吻合，23 個正常輸出逐檔 hash 保留，兩個 NSIS profiles 仍在，傳統版 0.4.1 保留，Store package 與 SwiftLocal 程序均為零。
 
-擁有者本輪 GUI 手動驗收、physical／standard-account 確認仍 **UNVERIFIED**；原生測試及代理檢視畫面不替代這些條件。修正版 Full 的普通生命周期及實際 Store 原生功能／資料共存已通過，但 PDF 兩版獨立選項及本輪新材料清理仍未完成；公司原 key／trust／copy 的另行清理尚未完成，前輪本機清理不代表公司機器已清理。公司的 [Step 4A PARTIAL](../2026-09-30-store-phase2d/step4a.md)與 Phase 2C owner GUI PASS 均保留原結論。
+擁有者本輪 GUI 手動驗收、physical／standard-account 確認仍 **UNVERIFIED**；原生測試及代理檢視畫面不替代這些條件。修正版 Full 的普通生命周期、實際 Store 原生功能／資料共存及本輪材料清理已通過，但 PDF 兩版獨立選項仍未完成；公司原 key／trust／copy 的另行清理尚未完成，本機清理不代表公司機器已清理。公司的 [Step 4A PARTIAL](../2026-09-30-store-phase2d/step4a.md)與 Phase 2C owner GUI PASS 均保留原結論。
 
 ## 歷史準備及私人證據
 
