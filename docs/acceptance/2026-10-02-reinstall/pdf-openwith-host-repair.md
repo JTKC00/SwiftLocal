@@ -1,5 +1,7 @@
 # Windows PDF Open With and installed-app listing repair
 
+Latest status, 2026-10-02: **reboot persistence PASS**. The earlier pre-reboot PASS and PENDING plan below are retained as history; the post-reboot result is appended at the end. The successful repair remains a manual Codex registry repair, not a proven installer repair.
+
 2026-10-02: **host repair PASS before reboot; reboot persistence PENDING.** Settings now lists 快轉通 SwiftLocal 0.4.1; Explorer's PDF Open With submenu lists SwiftLocal. Selecting that entry opens the existing one-page `a.pdf` fixture in the installed SwiftLocal PDF workspace. Adobe Acrobat remains the PDF default.
 
 **Actual repair mechanism: Codex manually wrote the missing registry registration through the external Windows host connection. No NSIS installer was executed during this successful repair.** This result does not establish that the fixed NSIS installer automatically restores registration, and does not prove that an old installation state caused the failure.
@@ -62,3 +64,24 @@ The original payload integrity and unrelated Store submission gates retain their
 | Adobe Acrobat remains the default, with the original UserChoice retained | PENDING |
 
 The check uses the existing Windows user account. It must not run an installer or write registry values to obtain a PASS. If any criterion fails, record that failure separately and retain the earlier host repair PASS as history.
+
+## 2026-10-02 post-reboot result: PASS
+
+The owner restarted Windows and logged back into the existing account. The measured Windows boot time advanced from **2026-09-30 19:44:29.500 +08:00** to **2026-10-02 22:04:29.500 +08:00**. Read-only receipts confirm the same machine and user. All four desktop criteria passed after that later boot; the final runtime read-back is dated **2026-10-02 22:25:46 +08:00**.
+
+Private post-reboot evidence is retained separately under ignored `store-evidence/pdf-openwith-2026-10-02/reboot-persistence/`:
+
+| Required post-reboot criterion | Result and direct evidence |
+| --- | --- |
+| Installed apps still lists 快轉通 SwiftLocal | **PASS** — Settings search `SwiftLocal` returned one matching app card, 2.77 GB; `installed-apps-after-reboot.png` |
+| Explorer PDF Open With still lists SwiftLocal | **PASS** — real submenu contains SwiftLocal, menu ID 32005; `pdf-openwith-after-reboot.png`, `pdf-openwith-after-reboot-tree.txt` |
+| Selecting the entry successfully opens the PDF | **PASS** — the installed PDF workspace displays `a.pdf`, one page, `SWIFTLOCAL STORE PDF` / `Invoice 12345`, and the loaded status; `swift-pdf-after-reboot.png`, `swift-pdf-after-reboot-tree.txt` |
+| Adobe Acrobat remains the PDF default | **PASS** — default Explorer double-click opens Adobe before SwiftLocal selection and again after SwiftLocal loads the PDF; `adobe-default-before-swift.png`, `adobe-default-after-swift.png` |
+
+`post-gui-native-readback.json` records the installed SwiftLocal main process launched by Explorer with the fixture path. For the second default-open test, the first test Adobe window was closed; a new Adobe main process was launched by Explorer with the same fixture. This directly verifies that selecting SwiftLocal through Open With did not change the effective default. `gui-post-reboot.json` links the separate observations and records all four PASS results.
+
+The original before-reboot receipt was collected through external Desktop Commander. Its post-reboot request timed out and did not create an after receipt. The check changed to read-only native Windows PowerShell through Codex `exec_command` with `require_escalated`, plus Computer Use observations of the actual Settings, Explorer and viewer windows. `after-verified.json` confirms the later boot, four existing registration roots, the REG_NONE Open With value and the unchanged EXE/ASAR/uninstaller hashes. Native read-back also matches `Acrobat.Document.DC` and the original UserChoice. Because the registry execution paths differ, that comparison is corroborating evidence; the actual default PASS rests on the real Explorer launches and Adobe rendering, rather than treating the native registry view as proof of Explorer's state.
+
+No installer ran, no new user account was created, and no manual registry repair or Capabilities/App Paths experiment was performed during this reboot check. Ordinary viewer launches may update their own caches and recent-file state. All earlier owner FAIL, manual repair PASS, apply-time GUI_PENDING and pre-reboot PENDING receipts remain unchanged.
+
+This result establishes that **the manual host repair persisted through this real Windows reboot**. It still does not establish installer-driven registration recovery, clean-install/upgrade reliability, an old-state-contamination cause, or any additional Store acceptance gate.
