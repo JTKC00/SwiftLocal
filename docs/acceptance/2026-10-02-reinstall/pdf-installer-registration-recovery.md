@@ -1,6 +1,6 @@
 # Installer-driven Windows PDF registration recovery
 
-2026-10-03 status: **C. INCOMPLETE — new reboot pending**. The exact fixed NSIS candidate has now been normally uninstalled and reinstalled. Its registration was automatically recreated, and all four actual desktop checks passed before the new reboot. The required post-reinstall reboot and repeated desktop checks remain unfinished; the desktop PDF registration blocker remains open.
+2026-10-04 status: **C. INCOMPLETE — full Windows restart not yet verified**. The exact fixed NSIS candidate was normally uninstalled and reinstalled; its registration was automatically recreated, and all four desktop checks passed before the reboot attempt. The latest actual-host capture still reports the earlier kernel boot time. The required later full restart and repeated desktop checks remain unfinished; the desktop PDF registration blocker remains open.
 
 The earlier [manual host repair and reboot persistence](pdf-openwith-host-repair.md) remain historical PASS results for a **manual Codex registry repair**. The earlier owner Open With FAIL remains unchanged. None of those results proves installer-driven registration recovery. The cause of the earlier missing registration remains UNVERIFIED.
 
@@ -95,3 +95,30 @@ Raw host snapshots, screenshots, process metadata and output/profile hashes rema
 | `installed-gui-proof.json` | `b17d0072a5f56f0ad1e02ddcc95accffc0d786c37b2412b67798dc8c54015035` |
 
 The current boot is still the earlier manual-repair boot at 22:04:29.500 +08:00. A measured boot later than this reinstall checkpoint, followed by all four actual desktop checks, is required. Until then the verdict is **C. INCOMPLETE**, not A. PR #13 stays Draft; no merge or Store submission occurred.
+
+## 2026-10-04 reported restart: measured full restart INCOMPLETE
+
+The owner reported a restart and relaunched the same existing diagnostic client. `reboot.json` completed on the same machine, SID and actual-host execution route at 00:49:28 +08:00, with 971 registry rows, both profiles (110 files), all 57 outputs and zero capture errors. The candidate SHA-256 still matches. Its stage/filename records the attempted check; it does not establish that a new full restart occurred.
+
+The measured kernel boot remains `2026-10-02T14:04:29.5000000Z`, earlier than the reinstall. A separate read-only cross-check at 00:52:39 +08:00 returned the same CIM boot time and 96,489 seconds of system uptime. System events include a new Kernel-Boot event 27 at 00:31:01 +08:00 with boot type `0x1`; the most recent Kernel-General OS-start event 12 and EventLog service-start event 6005 still belong to 2026-10-02 at 22:04:29 and 22:04:49 +08:00. The event capture had zero read errors.
+
+These observations are consistent with a Fast Startup/resume transition rather than a new kernel boot (inference). Microsoft documents that Fast Startup preserves the kernel session, while choosing Restart performs a full boot cycle. [Microsoft Fast Startup documentation](https://learn.microsoft.com/en-us/troubleshoot/windows-client/setup-upgrade-and-drivers/fast-startup-causes-system-hibernation-shutdown-fail). No power setting or registry value was changed for this diagnosis.
+
+`comparison-reboot.json` therefore remains **VERIFICATION INCOMPLETE**, with the later-boot criterion INCOMPLETE. SwiftLocal-owned registration, Adobe UserChoice/default, installed payload and all 57 frozen user-output hashes are PASS; both profile roots remain. The actual current Installed Apps screen still lists 快轉通 SwiftLocal (`resume-20261004-installed-apps.png`), but this is a current/resume observation, not the required post-full-restart acceptance.
+
+### Later peer-version drift, preserved as a strict FAIL
+
+The strict original-baseline registry comparison also reports **12 unexpected rows / FAIL**. An independent raw review confirms that these are real value changes, not GUI MRU exceptions:
+
+- Eight rows change Edge PDF ApplicationIcon / DefaultIcon version paths across HKCR and HKLM views.
+- Four rows change Edge, Edge Update, Edge WebView and OneDrive Installed Apps version/metadata.
+
+The original before → immediate installed comparison remains exactly zero differences. These later version-shaped changes appear between the installed and current snapshots; their trigger is UNVERIFIED. Adobe, PDF OpenWith/MRU and shell-open-command rows have zero differences. No registry value was restored, no comparison exception was added, and the strict FAIL is retained. A separate current checkpoint may be used to assess what changes across the next full restart; it cannot erase these original-baseline differences or turn the earlier receipt into PASS.
+
+| Attempt receipt | SHA-256 |
+| --- | --- |
+| `reboot.json` | `97acf3019bcaa8d5827316c505e277acacd09d921a44f1c4633212aab8b2f82b` |
+| `comparison-reboot.json` | `a342dfe107cde0c61cc46a6ac9ba8505e1dcc40a17baa48823a6de3b0fcfbdc2` |
+| `boot-crosscheck-20261004.json` | `2be05636fed01158170d1b56ba9064fb0620baad2748a247e5e586059969f1e1` |
+
+The next step is Windows Power → Restart, followed by a measured later kernel boot and the same four actual desktop checks. New receipt filenames will preserve this attempt without overwriting it. The final verdict remains **C. INCOMPLETE**; only A can close the desktop PDF registration blocker. Historical owner FAIL, manual repair/reboot PASS, normal lifecycle evidence and strict profile/peer FAIL receipts remain intact. PR #13 stays Draft, with no merge or Store submission.
