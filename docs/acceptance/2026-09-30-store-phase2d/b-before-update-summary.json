@@ -1,0 +1,339 @@
+{
+  "status": "PASS",
+  "scope": "controlled execution step 3 complete; real Store 1.0.0.0 state seeded and closed-app b-before-update inventory recorded; update not performed",
+  "resumedFrom": "208de189141ed29782b5f46c9ee8bd80faeb7a08",
+  "capturedAt": "2026-09-30T16:05:55.7971402+08:00",
+  "harnessConfig": {
+    "channel": "Store",
+    "stage": "store-baseline",
+    "ignoredLocalPath": "store-evidence/phase2d/store-baseline/store-config.json"
+  },
+  "package": {
+    "name": "JTKC.SwiftLocal",
+    "publisher": "CN=48CB75C0-3F50-44EF-87EB-8203F196B957",
+    "version": "1.0.0.0",
+    "architecture": "x64",
+    "fullName": "JTKC.SwiftLocal_1.0.0.0_x64__j44a9ewx73faj",
+    "pfn": "JTKC.SwiftLocal_j44a9ewx73faj",
+    "applicationId": "SwiftLocal",
+    "aumid": "JTKC.SwiftLocal_j44a9ewx73faj!SwiftLocal"
+  },
+  "profiles": {
+    "logical": "%APPDATA%/SwiftLocal Store",
+    "physical": "%LOCALAPPDATA%/Packages/JTKC.SwiftLocal_j44a9ewx73faj/LocalCache/Roaming/SwiftLocal Store",
+    "rendererPhysical": "%LOCALAPPDATA%/Packages/JTKC.SwiftLocal_j44a9ewx73faj/LocalCache/Roaming/SwiftLocal Store/session",
+    "logicalRoamingAndLocalPresent": [
+      false,
+      false
+    ],
+    "physicalProfileFiles": 28
+  },
+  "settings": {
+    "toolPaths": {},
+    "defaultOutputDir": "%USERPROFILE%/Downloads/SwiftLocal-Phase2D-output"
+  },
+  "rendererStorage": {
+    "swiftlocal-theme": "dark",
+    "swiftlocal-presets": "[{\"id\":\"preset-1790754970948-0847f3\",\"name\":\"Phase 2D Store media preset\",\"description\":\"從「影音轉換」保存的自訂選項。\",\"category\":\"media\",\"badge\":\"影音\",\"panelId\":\"media-panel\",\"settings\":{\"#media-output-extension\":\"mp3\",\"#media-gif-fps\":\"10\"},\"actions\":[],\"custom\":true,\"createdAt\":\"2026-09-30T07:56:10.948Z\"}]",
+    "swiftlocal-workflows": "[]",
+    "swiftlocal.recentPdfs": null,
+    "swiftlocal-accessibility": null
+  },
+  "rendererValueSha256": {
+    "swiftlocal-theme": "e6bb5689beec52c4672bd4df92c3613d128d30cdc2b704f76953fe43d89c4ae8",
+    "swiftlocal-presets": "76694f5f3a4d7997043c1e1fbcafc5b067419e7f244c13bbd31112f4a9f5369a",
+    "swiftlocal-workflows": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "swiftlocal.recentPdfs": null,
+    "swiftlocal-accessibility": null
+  },
+  "savedMediaPreset": {
+    "id": "preset-1790754970948-0847f3",
+    "name": "Phase 2D Store media preset",
+    "description": "從「影音轉換」保存的自訂選項。",
+    "category": "media",
+    "badge": "影音",
+    "panelId": "media-panel",
+    "settings": {
+      "#media-output-extension": "mp3",
+      "#media-gif-fps": "10"
+    },
+    "actions": [],
+    "custom": true,
+    "createdAt": "2026-09-30T07:56:10.948Z"
+  },
+  "job": {
+    "id": "1790754980124-5d1059f7e28d4",
+    "type": "pdf-compress",
+    "status": "done",
+    "inputFixture": "a.pdf",
+    "createdAt": "2026-09-30T07:56:20.124Z",
+    "finishedAt": "2026-09-30T07:56:20.167Z"
+  },
+  "persistedFiles": {
+    "tools.json": {
+      "bytes": 101,
+      "sha256": "b1f2cfa7310f6864f516561b8f706030f014edf9d632272e9cd52c9c3458aa1a"
+    },
+    "jobs-state.json": {
+      "bytes": 886,
+      "sha256": "1a42d9d177fa0468d2175d5d50cda04785daae9734a8b8f06965ee9bb30d08b0"
+    },
+    "session/Preferences": {
+      "bytes": 57,
+      "sha256": "be4b8924ab38e8acf350e6e3b9f1f63a1a94952d8002759acd6946c4d5d0b5de"
+    }
+  },
+  "physicalProfileFileInventory": [
+    {
+      "relativePath": "jobs-state.json",
+      "bytes": 886,
+      "sha256": "1a42d9d177fa0468d2175d5d50cda04785daae9734a8b8f06965ee9bb30d08b0"
+    },
+    {
+      "relativePath": "store-runtime-paths.json",
+      "bytes": 738,
+      "sha256": "30d6b2af7751e1221734861ae8361442bb7c0f412bcf1754035fa5d6e03640b8"
+    },
+    {
+      "relativePath": "tools.json",
+      "bytes": 101,
+      "sha256": "b1f2cfa7310f6864f516561b8f706030f014edf9d632272e9cd52c9c3458aa1a"
+    },
+    {
+      "relativePath": "session/declarative_performance_observer.db",
+      "bytes": 32768,
+      "sha256": "6b77b54313df8d759334819fdad7d879f15dce045017bd11bb557dd94ce52f66"
+    },
+    {
+      "relativePath": "session/declarative_performance_observer.db-journal",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "relativePath": "session/DevToolsActivePort",
+      "bytes": 60,
+      "sha256": "5669d686a7f0139c8cc86a1d3ca377ac25985a5de9da86e06d5f4b4e09871baa"
+    },
+    {
+      "relativePath": "session/DIPS",
+      "bytes": 36864,
+      "sha256": "a3a553c269d765fd9af46a2fc10489d371dddbe5da6b1a420b40a3b0d82e808b"
+    },
+    {
+      "relativePath": "session/Local State",
+      "bytes": 490,
+      "sha256": "11ee127da37fc8c5d26d2f1a0c65df3079f3b77eb4d0b5ab7a01be1f511a0752"
+    },
+    {
+      "relativePath": "session/Preferences",
+      "bytes": 57,
+      "sha256": "be4b8924ab38e8acf350e6e3b9f1f63a1a94952d8002759acd6946c4d5d0b5de"
+    },
+    {
+      "relativePath": "session/Dictionaries/en-US-10-1.bdic",
+      "bytes": 451968,
+      "sha256": "a075b01d9b015c616511a9e87da77da3d9881621db32f584e4606ddabf1c1100"
+    },
+    {
+      "relativePath": "session/Network/Network Persistent State",
+      "bytes": 463,
+      "sha256": "609ff18fe2dd8b4df55f33dd8b56d576fb3b31f77a5c8b8cebb4dcf958ac513a"
+    },
+    {
+      "relativePath": "session/Network/NetworkDataMigrated",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "relativePath": "session/Network/Trust Tokens",
+      "bytes": 36864,
+      "sha256": "48dc8b9acbedb0b7de6579f89e873e9434ca389b8c6ed986f705c86fd2819599"
+    },
+    {
+      "relativePath": "session/Network/Trust Tokens-journal",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "relativePath": "session/Session Storage/000003.log",
+      "bytes": 491,
+      "sha256": "886ef726f2cc3db513f502d3467450e33f62af022540d481734340d7319e4263"
+    },
+    {
+      "relativePath": "session/Session Storage/CURRENT",
+      "bytes": 16,
+      "sha256": "0f1bad70c7bd1e0a69562853ec529355462fcd0423263a3d39d6d0d70b780443"
+    },
+    {
+      "relativePath": "session/Session Storage/LOCK",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "relativePath": "session/Session Storage/LOG",
+      "bytes": 310,
+      "sha256": "175e2ca8ce367eaf4468567605fa4b64141984b107c379891bb8e743b406d3b1"
+    },
+    {
+      "relativePath": "session/Session Storage/LOG.old",
+      "bytes": 310,
+      "sha256": "cb56e9fd24382733e151dfff7af854d46903ad2d21e177b1ccf28210e69b063f"
+    },
+    {
+      "relativePath": "session/Session Storage/MANIFEST-000001",
+      "bytes": 41,
+      "sha256": "f9d31b278e215eb0d0e9cd709edfa037e828f36214ab7906f612160fead4b2b4"
+    },
+    {
+      "relativePath": "session/Shared Dictionary/db",
+      "bytes": 45056,
+      "sha256": "db9734c1e3001f7abd08bcc472a7b4f5daf8076eaee708f04ba98b11bd70131d"
+    },
+    {
+      "relativePath": "session/Shared Dictionary/db-journal",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "relativePath": "session/Local Storage/leveldb/000003.log",
+      "bytes": 952,
+      "sha256": "1469a0d5ed84afdb89b781496900a7cf01048a6eaa80b698040a9c7647e7faf9"
+    },
+    {
+      "relativePath": "session/Local Storage/leveldb/CURRENT",
+      "bytes": 16,
+      "sha256": "0f1bad70c7bd1e0a69562853ec529355462fcd0423263a3d39d6d0d70b780443"
+    },
+    {
+      "relativePath": "session/Local Storage/leveldb/LOCK",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "relativePath": "session/Local Storage/leveldb/LOG",
+      "bytes": 322,
+      "sha256": "f4a82ec7945f67a9345a684d862913317cffd058fcfa96fc09667cb73b1f6a95"
+    },
+    {
+      "relativePath": "session/Local Storage/leveldb/LOG.old",
+      "bytes": 322,
+      "sha256": "e3a31a4698d5a2c746ed3e45e988b0468065f33a3d18c8d44c36f7ce473d733f"
+    },
+    {
+      "relativePath": "session/Local Storage/leveldb/MANIFEST-000001",
+      "bytes": 41,
+      "sha256": "f9d31b278e215eb0d0e9cd709edfa037e828f36214ab7906f612160fead4b2b4"
+    }
+  ],
+  "output": {
+    "path": "%USERPROFILE%/Downloads/SwiftLocal-Phase2D-output/retention-marker/a_compressed.pdf",
+    "bytes": 893,
+    "sha256": "d6ae46c6185fcdf639f1d68a8b195b29ec09545268f70ba33fdbff89a76287a1",
+    "structuralCheck": "PASS",
+    "fixtureContentCheck": "PASS",
+    "extractedText": "SWIFTLOCAL STORE PDF Invoice 12345",
+    "inspectionTool": {
+      "scope": "read-only output check with already extracted byte-identical frozen QPDF payload; not an installed-update native probe",
+      "sha256": "57c003e868fb66cd343fd5afb91be8c2277f56434eea8635762499731bf9f60d",
+      "dependencyFilesMatched": 13
+    },
+    "directWindowsAppsInspectorAttempt": {
+      "status": "PARTIAL",
+      "errorCode": "EPERM",
+      "scope": "unpackaged inspector direct execution; the actual installed Store compression job succeeded through product IPC"
+    }
+  },
+  "existingUserOutputs": {
+    "before": 5,
+    "after": 6,
+    "previousFilesUnchanged": "PASS"
+  },
+  "nsis": {
+    "version": "0.4.1",
+    "installFiles": 19730,
+    "installInventorySha256": "0f71c70112ef6b0a84a1c6d43534d54d73f516e44d328aaf45d2ec899d295630",
+    "installFilesByteIdentical": "PASS",
+    "durableProfileFilesByteIdentical": "PASS",
+    "uninstallRegistrationUnchanged": "PASS",
+    "comparedWith": "both resumed pre-seed inventory and original immediate post-install checkpoint",
+    "state": [
+      {
+        "role": "%APPDATA%/快轉通 SwiftLocal",
+        "exists": true,
+        "files": 29,
+        "sha256OfSortedRelativeFileInventory": "9d9b1e0ca58a2364ce529dce0845adbb9e4d19e2b237d5f0a396e41a7dbc98ff",
+        "settingsAndJobs": {
+          "jobs-state.json": {
+            "bytes": 8346,
+            "sha256": "a60b1fd7120b6ce39aa80ce8904e783b6e2e7738387b7ad7743978b0cc251127"
+          },
+          "tools.json": {
+            "bytes": 84,
+            "sha256": "70dbbb9a7a7faa7c90bdc3258aefdf9bb1bcfb2f537929dcdcc73327f086613d"
+          }
+        }
+      },
+      {
+        "role": "%APPDATA%/SwiftLocal",
+        "exists": true,
+        "files": 24,
+        "sha256OfSortedRelativeFileInventory": "b358936cba698b909eff80701e2a0871bf5be6f31be657ce6698e5e5e0f062f7",
+        "settingsAndJobs": {
+          "jobs-state.json": {
+            "bytes": 73,
+            "sha256": "bd841581f6046f0913f0e3f3d885a1155531223e87338e6ce793615c710bd0db"
+          }
+        }
+      },
+      {
+        "role": "%LOCALAPPDATA%/快轉通 SwiftLocal",
+        "exists": false,
+        "files": 0,
+        "sha256OfSortedRelativeFileInventory": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "settingsAndJobs": {}
+      }
+    ]
+  },
+  "pdfDefault": {
+    "ProgId": "FoxitReader.Document",
+    "Hash": "lNCw115bAok=",
+    "unchanged": "PASS",
+    "priorOwnerObservedReader": "Adobe",
+    "newGuiDoubleClickObservation": "UNVERIFIED; this step records unchanged UserChoice, not a new GUI claim"
+  },
+  "openWith": {
+    "nsis": {
+      "progId": "SwiftLocal.PDF",
+      "registrationUnchanged": "PASS"
+    },
+    "store": {
+      "progId": "AppXnwtdh7rg4t5tbp7ewsmh9rcaxb3cgzrv",
+      "aumid": "JTKC.SwiftLocal_j44a9ewx73faj!SwiftLocal",
+      "registrationUnchanged": "PASS"
+    },
+    "bothRegistered": "PASS",
+    "explorerVisibleLabels": "UNVERIFIED"
+  },
+  "processes": {
+    "bothClosed": "PASS",
+    "swiftLocalProcessCount": 0,
+    "checkedAfterInventoryAt": "2026-09-30T16:05:59.4463906+08:00"
+  },
+  "seedAudit": {
+    "sha256": "075feb87ecb6316aa39048b5b590d6262159b4385a65c60e4f0fe18c827ade8e",
+    "harnessReportedStatus": "PASS",
+    "auditedStatus": "PARTIAL",
+    "reason": "Theme localStorage value was null despite the original seed's PASS status",
+    "preservedPath": "store-seeded-state.initial-theme-unverified.json",
+    "completion": "PASS: only missing theme completed with initialized real product button; original preset/job/output unchanged",
+    "harnessChange": "Test helper now waits for theme initialization and asserts a persisted light/dark value. No product/package changes.",
+    "originalSharedBaselineReceiptSha256": "075feb87ecb6316aa39048b5b590d6262159b4385a65c60e4f0fe18c827ade8e",
+    "completedSharedBaselineReceiptSha256": "a46c9e0e780a1df61c65408779c8d2b8da89d8e09bb0de863e5474dbcedd936f",
+    "readyUiThemeBeforeClick": "light",
+    "readyUiThemeAfterClick": "dark"
+  },
+  "materialRetained": "Both unsigned AppX packages, both developer-signed test copies and temporary certificate/trust remain; no reinstall, rebuild, uninstall, cleanup or package update ran",
+  "guiOwnerConfirmation": "Only explicit earlier observations in manual-observations.md apply. Seed and dark-theme screenshot are automated evidence.",
+  "phase2dVerdict": "INCOMPLETE; stopped at the requested step-3 boundary",
+  "privatePaths": "Raw exact user paths/inventories remain in ignored local evidence"
+}

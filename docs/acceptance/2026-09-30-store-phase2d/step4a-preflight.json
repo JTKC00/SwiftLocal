@@ -1,0 +1,152 @@
+{
+  "status": "PASS",
+  "scope": "Step 4A preflight only; owner GUI update and post-update verdict UNVERIFIED",
+  "resumedFrom": "d9262c5f186976f75b37a8f671b061316ea41d83",
+  "startedAt": "2026-09-30T16:59:02.0964122+08:00",
+  "completedAt": "2026-09-30T17:00:53.4988623+08:00",
+  "installedPackage": {
+    "name": "JTKC.SwiftLocal",
+    "publisher": "CN=48CB75C0-3F50-44EF-87EB-8203F196B957",
+    "version": "1.0.0.0",
+    "fullName": "JTKC.SwiftLocal_1.0.0.0_x64__j44a9ewx73faj",
+    "pfn": "JTKC.SwiftLocal_j44a9ewx73faj",
+    "applicationId": "SwiftLocal",
+    "aumid": "JTKC.SwiftLocal_j44a9ewx73faj!SwiftLocal"
+  },
+  "swiftLocalProcesses": {
+    "before": 0,
+    "after": 0
+  },
+  "certificate": {
+    "thumbprint": "30E81230B7C3CCB8D19D5D6A67F975DDB8D93450",
+    "subject": "CN=48CB75C0-3F50-44EF-87EB-8203F196B957",
+    "machineTrustStore": "LocalMachine/TrustedPeople",
+    "machineTrustPresent": true,
+    "machineHasPrivateKey": false,
+    "userSigningKeyPresent": true,
+    "expires": "2026-10-05T13:31:23.0000000+08:00"
+  },
+  "packages": [
+    {
+      "version": "1.0.0.0",
+      "unsignedSha256": "38a1ea9d89e956c1dbcdecb21f85bca673d7ab70301b16e66f68c819d7eed404",
+      "unsignedBytes": 1115695293,
+      "signedSha256": "a83caad0fff5465af1ec56ce22b15538e9470ad5d8654fb2062e56772fb7653c",
+      "signedBytes": 1115166892,
+      "signature": "PASS",
+      "signerThumbprint": "30E81230B7C3CCB8D19D5D6A67F975DDB8D93450"
+    },
+    {
+      "version": "1.0.1.0",
+      "unsignedSha256": "d737b781d16e0b9b6dd23e876626df1095756816c6527a11945ff30c96fc4e4a",
+      "unsignedBytes": 1115795156,
+      "signedSha256": "84ac4bc3bba6cd2d0f83fc9d8b8678b0b766f55d45e0ffe69d4c044f8a117fc1",
+      "signedBytes": 1115266759,
+      "signature": "PASS",
+      "signerThumbprint": "30E81230B7C3CCB8D19D5D6A67F975DDB8D93450"
+    }
+  ],
+  "deploymentEventBookmarks": [
+    {
+      "channel": "Microsoft-Windows-AppXDeploymentServer/Operational",
+      "enabled": true,
+      "lastRecordId": 426791,
+      "capturedAt": "2026-09-30T17:00:53.3756468+08:00"
+    },
+    {
+      "channel": "Microsoft-Windows-AppxPackaging/Operational",
+      "enabled": true,
+      "lastRecordId": 49003,
+      "capturedAt": "2026-09-30T17:00:53.4370178+08:00"
+    }
+  ],
+  "state": {
+    "result": "PASS",
+    "physicalProfileInventoryDifferences": 0,
+    "theme": "dark",
+    "preset": {
+      "id": "preset-1790754970948-0847f3",
+      "name": "Phase 2D Store media preset",
+      "description": "從「影音轉換」保存的自訂選項。",
+      "category": "media",
+      "badge": "影音",
+      "panelId": "media-panel",
+      "settings": {
+        "#media-output-extension": "mp3",
+        "#media-gif-fps": "10"
+      },
+      "actions": [],
+      "custom": true,
+      "createdAt": "2026-09-30T07:56:10.948Z"
+    },
+    "outputPreference": "%USERPROFILE%/Downloads/SwiftLocal-Phase2D-output",
+    "job": {
+      "id": "1790754980124-5d1059f7e28d4",
+      "type": "pdf-compress",
+      "status": "done",
+      "semanticRecordRetained": "PASS"
+    },
+    "durableFiles": {
+      "tools.json": {
+        "before": {
+          "bytes": 101,
+          "sha256": "b1f2cfa7310f6864f516561b8f706030f014edf9d632272e9cd52c9c3458aa1a"
+        },
+        "after": {
+          "bytes": 101,
+          "sha256": "b1f2cfa7310f6864f516561b8f706030f014edf9d632272e9cd52c9c3458aa1a"
+        },
+        "byteIdentical": "PASS"
+      },
+      "jobs-state.json": {
+        "before": {
+          "bytes": 886,
+          "sha256": "1a42d9d177fa0468d2175d5d50cda04785daae9734a8b8f06965ee9bb30d08b0"
+        },
+        "after": {
+          "bytes": 886,
+          "sha256": "1a42d9d177fa0468d2175d5d50cda04785daae9734a8b8f06965ee9bb30d08b0"
+        },
+        "byteIdentical": "PASS"
+      },
+      "session/Preferences": {
+        "before": {
+          "bytes": 57,
+          "sha256": "be4b8924ab38e8acf350e6e3b9f1f63a1a94952d8002759acd6946c4d5d0b5de"
+        },
+        "after": {
+          "bytes": 57,
+          "sha256": "be4b8924ab38e8acf350e6e3b9f1f63a1a94952d8002759acd6946c4d5d0b5de"
+        },
+        "byteIdentical": "PASS"
+      }
+    },
+    "outputSha256": "d6ae46c6185fcdf639f1d68a8b195b29ec09545268f70ba33fdbff89a76287a1"
+  },
+  "nsis": {
+    "installFiles": 19730,
+    "installByteIntegrity": "PASS",
+    "durableProfileIntegrity": "PASS",
+    "uninstallRegistration": "PASS",
+    "priorUserOutputs": "PASS"
+  },
+  "pdf": {
+    "default": {
+      "ProgId": "FoxitReader.Document",
+      "Hash": "lNCw115bAok="
+    },
+    "defaultUnchanged": "PASS",
+    "nsisProgId": "SwiftLocal.PDF",
+    "storeProgId": "AppXnwtdh7rg4t5tbp7ewsmh9rcaxb3cgzrv",
+    "bothRegistered": "PASS",
+    "explorerGui": "UNVERIFIED; no new GUI observation"
+  },
+  "preparationHistory": {
+    "initialAttempt": "FAIL in optional event-channel lookup after all package/signature/trust checks passed; preserved locally",
+    "error": "Microsoft-Windows-AppxPackagingOM/Operational is not a channel on this PC",
+    "correction": "Use actual enabled Microsoft-Windows-AppxPackaging/Operational; complete read-only preflight PASS",
+    "noPackageOrStateMutation": true
+  },
+  "update": "UNVERIFIED; owner GUI confirmation pending",
+  "cleanup": "UNVERIFIED; temporary trust/key and all copies retained"
+}

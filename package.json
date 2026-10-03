@@ -55,7 +55,8 @@
     "brand:build": "node scripts/build-brand-assets.js",
     "tools:native": "node scripts/ensure-native-tools.js --download",
     "tools:native:full": "node scripts/ensure-native-tools.js --download --full",
-    "tools:native:check": "node scripts/ensure-native-tools.js --check"
+    "tools:native:check": "node scripts/ensure-native-tools.js --check",
+    "pack:win:store": "node scripts/pack-win-store.js"
   },
   "devDependencies": {
     "electron": "44.2.0",

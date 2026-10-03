@@ -1,0 +1,26 @@
+{
+  "status": "PASS",
+  "scope": "read-only published NSIS registration/shortcut checks; owner initial observation and correction retained",
+  "installedVersion": "0.4.1",
+  "uninstallRegistration": "HKCU (per user)",
+  "startMenuShortcut": {
+    "name": "快轉通 SwiftLocal.lnk",
+    "exists": true,
+    "targetExists": true,
+    "targetChannel": "published NSIS installation"
+  },
+  "desktopShortcut": {
+    "exists": true,
+    "targetExists": true
+  },
+  "startApps": [
+    {
+      "name": "快轉通 SwiftLocal",
+      "appId": "com.swiftlocal.converter"
+    }
+  ],
+  "storePackageCount": 0,
+  "ownerInitialObservation": "NSIS installed, can open/use, visible in Settings installed apps, initially could not find Start menu entry",
+  "ownerCorrection": "沒事了，是我看錯",
+  "conclusion": "No missing Start shortcut/registration defect confirmed; user corrected the initial observation. No shortcut or registry repair performed."
+}

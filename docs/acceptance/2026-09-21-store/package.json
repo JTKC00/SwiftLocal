@@ -1,0 +1,13 @@
+{
+  "status": "PASS",
+  "commit": "17a510e4e7b51ebabaef7d7bbdf73f1d8be6d059",
+  "version": "0.4.1",
+  "builder": "26.15.3",
+  "artifact": "SwiftLocal-0.4.1-store-TEST-x64.appx",
+  "bytes": 1115692339,
+  "sha256": "9d94ccaaf4c6ea851ac0d0d10269014efb26d4343dc547be0a33ee756f1cec5f",
+  "files": 19695,
+  "payloadComparison": "all extracted app files byte-identical to verified Full win-unpacked",
+  "identity": "TEST ONLY",
+  "wack": "NOT RUN"
+}

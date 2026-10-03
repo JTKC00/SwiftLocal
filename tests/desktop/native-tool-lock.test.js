@@ -120,5 +120,6 @@ test("Windows installer registers Open With without rewriting the PDF default", 
   assert.match(include, /WriteRegNone SHELL_CONTEXT "Software\\Classes\\\.pdf\\OpenWithProgids" "SwiftLocal\.PDF"/);
   assert.doesNotMatch(include, /WriteRegStr[^\n]*"Software\\Classes\\\.pdf"/);
   assert.match(include, /DeleteRegValue[^\n]*OpenWithProgids/);
+  assert.doesNotMatch(include, /DeleteRegKey[^\n]*OpenWithProgids/);
   assert.match(include, /customUnInstall/);
 });

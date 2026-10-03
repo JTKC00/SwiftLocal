@@ -1,0 +1,16 @@
+{
+  "status": "PASS",
+  "scope": "actual published NSIS installed Full payload preflight; launch/conversion smoke and GUI separate",
+  "productVersion": "0.4.1",
+  "fullTools": {
+    "ytDlp": "tools/yt-dlp/bin/yt-dlp.exe",
+    "deno": "tools/deno/bin/deno.exe",
+    "ffmpeg": "tools/ffmpeg/bin/ffmpeg.exe",
+    "tesseract": "tools/tesseract/tesseract.exe",
+    "qpdf": "tools/qpdf/bin/qpdf.exe",
+    "libreOffice": "tools/libreoffice/program/soffice.com"
+  },
+  "nativeLocksUnchangedFromReleaseTag": true,
+  "searchablePdfAndTessdataLocks": "PASS",
+  "storePackageInstalled": false
+}

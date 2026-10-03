@@ -186,7 +186,8 @@ class BackendService {
       maxPersisted: MAX_PERSISTED_JOBS
     });
     this.jobs = pruned.jobs;
-    const tempDirs = cleanupSwiftLocalTempDirs(this.defaultOutputDir, nowMs);
+    const tempDirs = [this.defaultOutputDir, os.tmpdir(), path.join(os.homedir(), ".swiftlocal-private")]
+      .reduce((removed, root) => removed + cleanupSwiftLocalTempDirs(root, nowMs), 0);
     if (this.jobsStateTrusted) {
       saveJobsState(this.jobsStatePath, this.jobs);
     }
@@ -1949,19 +1950,82 @@ function fitOutputFilename(stem, extension = "", collisionSuffix = "", maxBytes 
   return `${fitted}${marker}${ext}`;
 }
 
-async function runLibreOfficeToUniqueOutput(toolPath, outputDir, inputPath, convertTo, extension, job) {
-  const tempDir = fs.mkdtempSync(path.join(outputDir, ".swiftlocal-office-"));
-  const profileDir = createLibreOfficeProfileDir(tempDir);
+// Profile file URIs of 211 characters crashed LibreOffice 26.2.6.3 with
+// 0xC0000409. A 187-character URI of the same shape passed. Keep headroom.
+const LIBREOFFICE_PROFILE_URI_LIMIT = 180;
+
+function isInsideWindowsApps(directory) {
+  if (process.platform !== "win32") return false;
+  const root = path.resolve(process.env.ProgramFiles || "C:\\Program Files", "WindowsApps");
+  const resolved = path.resolve(directory);
+  const prefix = root.endsWith(path.sep) ? root : `${root}${path.sep}`;
+  const left = resolved.toLowerCase();
+  const right = prefix.toLowerCase();
+  return left === root.toLowerCase() || left.startsWith(right);
+}
+
+function libreOfficeScratchParents() {
+  const parents = [];
+  const push = (directory) => {
+    if (!directory) return;
+    const resolved = path.resolve(directory);
+    if (isInsideWindowsApps(resolved)) return;
+    if (parents.some((item) => item.toLowerCase() === resolved.toLowerCase())) return;
+    parents.push(resolved);
+  };
+  push(os.tmpdir());
+  if (process.platform === "win32") push(path.join(process.env.LOCALAPPDATA || "", "Temp"));
+  push(path.join(os.homedir(), ".swiftlocal-private"));
+  return parents;
+}
+
+function createLibreOfficeScratch() {
+  const failures = [];
+  for (const parent of libreOfficeScratchParents()) {
+    let scratch = "";
+    try {
+      fs.mkdirSync(parent, { recursive: true });
+      scratch = fs.mkdtempSync(path.join(parent, ".swiftlocal-office-"));
+      const profile = createLibreOfficeProfileDir(scratch);
+      const uri = pathToLibreOfficeFileUri(profile);
+      if (uri.length <= LIBREOFFICE_PROFILE_URI_LIMIT) return { scratch, profile, uri };
+      failures.push(`${uri.length} chars under ${parent}`);
+      fs.rmSync(scratch, { recursive: true, force: true });
+      scratch = "";
+    } catch (error) {
+      if (scratch) fs.rmSync(scratch, { recursive: true, force: true });
+      failures.push(error instanceof Error ? error.message : String(error));
+    }
+  }
+  throw new Error(`LibreOffice profile URI exceeds ${LIBREOFFICE_PROFILE_URI_LIMIT} characters (${failures.join("; ")})`);
+}
+
+function publishLibreOfficeOutput(generated, outputPath) {
   try {
-    const before = snapshotOutputDir(tempDir);
-    const args = libreOfficeArgs(tempDir, inputPath, convertTo, profileDir);
-    const result = await runProcess(toolPath, args, job, "LibreOffice");
-    const generated = resolveLibreOfficeOutput(tempDir, inputPath, extension, before);
-    const outputPath = nextAvailablePath(path.join(outputDir, path.basename(generated)));
     fs.renameSync(generated, outputPath);
+  } catch (error) {
+    if (!error || error.code !== "EXDEV") throw error;
+    try {
+      fs.copyFileSync(generated, outputPath);
+    } catch (copyError) {
+      fs.rmSync(outputPath, { force: true });
+      throw copyError;
+    }
+  }
+}
+
+async function runLibreOfficeToUniqueOutput(toolPath, outputDir, inputPath, convertTo, extension, job) {
+  const { scratch, profile } = createLibreOfficeScratch();
+  try {
+    const before = snapshotOutputDir(scratch);
+    const args = libreOfficeArgs(scratch, inputPath, convertTo, profile);
+    const result = await runProcess(toolPath, args, job, "LibreOffice");
+    const generated = resolveLibreOfficeOutput(scratch, inputPath, extension, before);
+    const outputPath = nextAvailablePath(path.join(outputDir, path.basename(generated)));
+    publishLibreOfficeOutput(generated, outputPath);
     return { outputPath, result };
   } finally {
-    fs.rmSync(tempDir, { recursive: true, force: true });
+    fs.rmSync(scratch, { recursive: true, force: true });
   }
 }
 
@@ -3982,6 +4046,9 @@ module.exports = {
   libreOfficeArgs,
   pathToLibreOfficeFileUri,
   createLibreOfficeProfileDir,
+  createLibreOfficeScratch,
+  LIBREOFFICE_PROFILE_URI_LIMIT,
+  isInsideWindowsApps,
   filterSuccessfulToolOutput,
   removeIncompleteOfficeOutput,
   cleanupLoProfile,

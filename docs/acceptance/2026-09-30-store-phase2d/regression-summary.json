@@ -1,0 +1,37 @@
+{
+  "status": "PASS",
+  "scope": "required local unit/syntax/CI metadata checks; installed lifecycle and NSIS Full smoke not yet verified",
+  "npmTest": {
+    "exitCode": 0,
+    "nodeTests": 313,
+    "nodePass": 309,
+    "nodeSkipped": 4,
+    "nodeFail": 0,
+    "pythonTests": 102,
+    "pythonPass": 99,
+    "pythonSkipped": 3,
+    "pythonErrors": 0,
+    "logSha256": "c0eb4ab19433166675a47857d0ea2a88699cd6d6521d3420bb182039f22f11d4"
+  },
+  "typecheck": {
+    "exitCode": 0,
+    "logSha256": "6dd3ddb6f4550902b8e1f2c8bb41fe3a32f2dae1108050bbee59eb23c227348e"
+  },
+  "checkCi": {
+    "exitCode": 0,
+    "logSha256": "209d7198b4c85eec9087d7a6b7b7d6227235182ed8944cb2ee60b4c2005e3161"
+  },
+  "gitDiffCheck": {
+    "exitCode": 0
+  },
+  "nodeVersion": "v24.15.0",
+  "pythonVersion": "Python 3.12.14",
+  "initialEnvironmentFailure": "Python tests had 3 missing-FastAPI errors; original log retained, pinned backend dependencies installed in isolated .venv, npm test rerun passed",
+  "conditionalSkips": "4 Node and 3 Python optional/native/platform tests; installed native/smoke gates still required",
+  "installedStoreSixNativeProbes": "UNVERIFIED",
+  "installedStoreDeepLibreOfficeRegression": "UNVERIFIED; prior Phase 2B PASS preserved",
+  "publishedNsisFullInstalledRegression": "UNVERIFIED",
+  "productCodeChanged": false,
+  "normalStoreFirstVersion": "1.0.0.0",
+  "productVersion": "0.4.1"
+}

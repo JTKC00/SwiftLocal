@@ -1,0 +1,38 @@
+{
+  "status": "PASS",
+  "scope": "both developer-signed payloads match verified unsigned inputs; trust/GUI separate",
+  "packages": [
+    {
+      "version": "1.0.0.0",
+      "unsignedSha256": "38a1ea9d89e956c1dbcdecb21f85bca673d7ab70301b16e66f68c819d7eed404",
+      "signedSha256": "a83caad0fff5465af1ec56ce22b15538e9470ad5d8654fb2062e56772fb7653c",
+      "unsignedBytes": 1115695293,
+      "signedBytes": 1115166892,
+      "identicalOriginalEntriesIncludingManifest": 19694,
+      "addedSigningMetadata": [
+        "AppxMetadata/CodeIntegrity.cat",
+        "AppxSignature.p7x"
+      ]
+    },
+    {
+      "version": "1.0.1.0",
+      "unsignedSha256": "d737b781d16e0b9b6dd23e876626df1095756816c6527a11945ff30c96fc4e4a",
+      "signedSha256": "84ac4bc3bba6cd2d0f83fc9d8b8678b0b766f55d45e0ffe69d4c044f8a117fc1",
+      "unsignedBytes": 1115795156,
+      "signedBytes": 1115266759,
+      "identicalOriginalEntriesIncludingManifest": 19694,
+      "addedSigningMetadata": [
+        "AppxMetadata/CodeIntegrity.cat",
+        "AppxSignature.p7x"
+      ]
+    }
+  ],
+  "certificateThumbprint": "30E81230B7C3CCB8D19D5D6A67F975DDB8D93450",
+  "certificateSubject": "CN=48CB75C0-3F50-44EF-87EB-8203F196B957",
+  "sameCertificate": true,
+  "privateKeyExport": "not performed",
+  "trust": "PASS",
+  "guiAcceptance": "UNVERIFIED",
+  "trustEvidence": "signing-preparation.json",
+  "signatureVerification": "PASS for both copies after public-only machine trust"
+}

@@ -12,7 +12,9 @@
 
 !macro customUnInstall
   DeleteRegValue SHELL_CONTEXT "Software\Classes\.pdf\OpenWithProgids" "SwiftLocal.PDF"
-  DeleteRegKey /ifempty SHELL_CONTEXT "Software\Classes\.pdf\OpenWithProgids"
+  ; This key is shared with Store and other PDF viewers. Legacy NSIS /ifempty
+  ; checks subkeys only, so deleting it also removes their registered values.
+  ; Leave the shared key in place after removing our own value.
   DeleteRegKey SHELL_CONTEXT "Software\Classes\SwiftLocal.PDF"
   DeleteRegKey SHELL_CONTEXT "Software\Classes\Applications\SwiftLocal.exe"
   System::Call 'shell32::SHChangeNotify(i 0x08000000, i 0, p 0, p 0)'

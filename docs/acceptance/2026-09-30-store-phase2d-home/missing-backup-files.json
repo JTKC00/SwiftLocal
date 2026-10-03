@@ -1,0 +1,59 @@
+{
+  "status": "INCOMPLETE",
+  "scope": "Complete accessible Google Drive folder traversal compared by relative path and byte count with the work-PC handoff manifest; available-file contents are not universally hash-verified",
+  "expectedFiles": 208,
+  "matchingPathAndSizeFiles": 198,
+  "missingFiles": [
+    {
+      "relativePath": "store-evidence/phase2d/published-nsis/SwiftLocal-0.4.1-full-installer-x64.exe",
+      "bytes": 684101265,
+      "sha256": "3e930e523f3746e92bc9a05277a208491186c1563dabffd1e07d3c973bc30a40"
+    },
+    {
+      "relativePath": "store-evidence/phase2d/signing/SwiftLocal-0.4.1-store-1.0.0.0.developer-signed-test.appx",
+      "bytes": 1115166892,
+      "sha256": "a83caad0fff5465af1ec56ce22b15538e9470ad5d8654fb2062e56772fb7653c"
+    },
+    {
+      "relativePath": "store-evidence/phase2d/signing/SwiftLocal-0.4.1-store-1.0.1.0.developer-signed-test.appx",
+      "bytes": 1115266759,
+      "sha256": "84ac4bc3bba6cd2d0f83fc9d8b8678b0b766f55d45e0ffe69d4c044f8a117fc1"
+    },
+    {
+      "relativePath": "store-evidence/phase2d/SwiftLocal-0.4.1-store-update-fixture-1.0.1.0-x64.appx",
+      "bytes": 1115795156,
+      "sha256": "d737b781d16e0b9b6dd23e876626df1095756816c6527a11945ff30c96fc4e4a"
+    },
+    {
+      "relativePath": "store-evidence/phase2d/update-fixture-payload-hashes.json",
+      "bytes": 4101024,
+      "sha256": "74227fa0f3be1fe399a436d600d0ec37b24bfd0e3fb1589a1ac31b9fed79dfe0"
+    },
+    {
+      "relativePath": "store-evidence/signing-tools/sdk/bin/10.0.26100.0/x64/appxpackaging.dll",
+      "bytes": 2439592,
+      "sha256": "d6c6db219f91cb4b7e8ed036560b55d60f623e02f98f0b0318b2961649ec9ca0"
+    },
+    {
+      "relativePath": "store-evidence/signing-tools/sdk/bin/10.0.26100.0/x64/midlc.exe",
+      "bytes": 1366464,
+      "sha256": "34293d7bd256f2d43311d197f13bbb8a1ae26c92cc1605d9f35dd3ddfe264b65"
+    },
+    {
+      "relativePath": "store-evidence/signing-tools/sdk/bin/10.0.26100.0/x64/midlrt.exe",
+      "bytes": 2165184,
+      "sha256": "53784e5b1b04290674963f485f9f36da63bfb3dbd0c0621f8af007087cb1b140"
+    },
+    {
+      "relativePath": "store-evidence/signing-tools/sdk/bin/10.0.26100.0/x64/mt.exe",
+      "bytes": 1976744,
+      "sha256": "2a883da2559e0a579793baad51674e712acdac460e22806e654f9ad4bdd04c81"
+    },
+    {
+      "relativePath": "store-evidence/signing-tools/sdk/bin/10.0.26100.0/x64/opcservices.dll",
+      "bytes": 1751480,
+      "sha256": "4b46756e8278b02e3f0c33ee4ed65c15c14ecdea0012bdb570de43eb72172ac9"
+    }
+  ],
+  "sizeMismatches": []
+}

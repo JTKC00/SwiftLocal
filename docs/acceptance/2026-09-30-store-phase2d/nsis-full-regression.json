@@ -1,0 +1,152 @@
+{
+  "status": "PASS",
+  "scope": "actual published v0.4.1 NSIS Full installation; automated regression, not owner GUI observations",
+  "productVersion": "0.4.1",
+  "publishedInstallerSha256": "3e930e523f3746e92bc9a05277a208491186c1563dabffd1e07d3c973bc30a40",
+  "nativeTools": {
+    "ffmpeg": {
+      "status": "PASS",
+      "path": "<NSIS_INSTALL>/resources/tools/ffmpeg/bin/ffmpeg.exe",
+      "exitCode": 0,
+      "sha256": "57c56e369d5b4873b4d93fc1a1d833cb7cd8bc9325c14b05c34ce60b22842d8a",
+      "version": "ffmpeg version 9.0.1-full_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers"
+    },
+    "qpdf": {
+      "status": "PASS",
+      "path": "<NSIS_INSTALL>/resources/tools/qpdf/bin/qpdf.exe",
+      "exitCode": 0,
+      "sha256": "57c003e868fb66cd343fd5afb91be8c2277f56434eea8635762499731bf9f60d",
+      "version": "qpdf version 12.4.1"
+    },
+    "tesseract": {
+      "status": "PASS",
+      "path": "<NSIS_INSTALL>/resources/tools/tesseract/tesseract.exe",
+      "exitCode": 0,
+      "sha256": "c66f0f12ed76f6aa455dac97684bbc86756d6a732380bee09122454cfda3f420",
+      "version": "tesseract v5.5.3.20260724"
+    },
+    "libreOffice": {
+      "status": "PASS",
+      "path": "<NSIS_INSTALL>/resources/tools/libreoffice/program/soffice.com",
+      "exitCode": 0,
+      "sha256": "ff9414529bfdf970ae51d54c6e79cd6aa05b19409adcdb8391d423bd0857a5f2",
+      "version": "LibreOffice 26.2.6.3 8221e31b3ac356a1623c672912a3d2b492f7e3d1"
+    },
+    "ytDlp": {
+      "status": "PASS",
+      "path": "<NSIS_INSTALL>/resources/tools/yt-dlp/bin/yt-dlp.exe",
+      "exitCode": 0,
+      "sha256": "66674953fe251b89f4d08c5f0e35e0728679bd67ab3d7d05c0562af101dd3e7a",
+      "version": "2026.08.19"
+    },
+    "deno": {
+      "status": "PASS",
+      "path": "<NSIS_INSTALL>/resources/tools/deno/bin/deno.exe",
+      "exitCode": 0,
+      "sha256": "2ff9493dfa356be2975f477025ea770088e9e9cb2c83d983236d13561b96b7a6",
+      "version": "deno 2.9.6 (stable, release, x86_64-pc-windows-msvc)"
+    }
+  },
+  "conversions": [
+    {
+      "type": "pdf-compress",
+      "status": "PASS",
+      "files": [
+        {
+          "path": "<DOWNLOADS>/SwiftLocal-Phase2D-output/phase2d/pdf-compress/a_compressed.pdf",
+          "bytes": 893,
+          "sha256": "f40d69bf8abf3655dfe63c226939ce2daff99c21e706882f0d5257bd33a27ba7"
+        }
+      ]
+    },
+    {
+      "type": "ocr-image",
+      "status": "PASS",
+      "files": [
+        {
+          "path": "<DOWNLOADS>/SwiftLocal-Phase2D-output/phase2d/ocr-image/ocr-text_ocr.txt",
+          "bytes": 53,
+          "sha256": "6713ff5accb9b85a2040d0427561a45b16b5976aeca5777be4b91aa333775e2a"
+        }
+      ]
+    },
+    {
+      "type": "pdf-to-searchable-pdf",
+      "status": "PASS",
+      "files": [
+        {
+          "path": "<DOWNLOADS>/SwiftLocal-Phase2D-output/phase2d/pdf-to-searchable-pdf/ocr-scan_ocr_searchable.pdf",
+          "bytes": 38765,
+          "sha256": "2f0ef900261d05e82eaab688f2b4a85e1c1ae98031705188d146ed1c5a9308c6"
+        }
+      ]
+    },
+    {
+      "type": "office-to-pdf",
+      "status": "PASS",
+      "files": [
+        {
+          "path": "<DOWNLOADS>/SwiftLocal-Phase2D-output/phase2d/office-to-pdf/office-smoke.pdf",
+          "bytes": 24900,
+          "sha256": "aa25e4bbfae44d3935cb8f28218ac64fd3ad7c776a29210e4176e808e4000fa4"
+        }
+      ]
+    },
+    {
+      "type": "media-convert",
+      "status": "PASS",
+      "files": [
+        {
+          "path": "<DOWNLOADS>/SwiftLocal-Phase2D-output/phase2d/media-convert/tone.mp3",
+          "bytes": 10412,
+          "sha256": "d001f5281339f199f905e4c5f2c5be6b057307086cc80cfbe37fa97adfbf429d"
+        }
+      ]
+    }
+  ],
+  "bundledBackendTools": "qpdf, tesseract, ffmpeg and LibreOffice resolved through the real installed application",
+  "fullNativeExecutableVersionProbes": "all six executed directly from the registered NSIS installation",
+  "ocr": {
+    "language": "chi_tra+eng",
+    "traineddataHashesPreserved": "PASS",
+    "expectedLatinAndTraditionalChineseText": "PASS"
+  },
+  "pdfContent": {
+    "pdf-compress": {
+      "structuralCheck": "PASS",
+      "extractedExpectedFixtureText": "PASS",
+      "expectedText": "Invoice 12345"
+    },
+    "pdf-to-searchable-pdf": {
+      "structuralCheck": "PASS",
+      "extractedExpectedFixtureText": "PASS",
+      "expectedText": "HONG KONG"
+    },
+    "office-to-pdf": {
+      "structuralCheck": "PASS",
+      "extractedExpectedFixtureText": "PASS",
+      "expectedText": "Invoice 12345"
+    }
+  },
+  "mediaOutputDecode": "PASS",
+  "ownerOutputInspection": "UNVERIFIED",
+  "registeredPdfShellVerb": "PASS",
+  "normalExit": "PASS",
+  "temporaryToolPreferenceRestoration": {
+    "status": "PASS",
+    "scope": "undo temporary NSIS Full smoke preparation before the Store-only lifecycle baseline",
+    "beforeSmokeSha256": "70dbbb9a7a7faa7c90bdc3258aefdf9bb1bcfb2f537929dcdcc73327f086613d",
+    "afterPublicApiRestorationSha256": "61e41432cadfcb8f22964f070eff646862b38851930c8c9fdd46f003e6d0e3a9",
+    "restoredSha256": "70dbbb9a7a7faa7c90bdc3258aefdf9bb1bcfb2f537929dcdcc73327f086613d",
+    "actualToolPreferencesRestoredThroughPublicApi": "PASS",
+    "serializationDifference": "The existing settings loader defaults a missing defaultOutputDir to an empty string; saveConfig persists it. Both resolve to the same Downloads/SwiftLocal default. No configured output preference was changed.",
+    "exactOriginalBytesRestoredWhileAppClosed": "PASS",
+    "applicationProfileDeleted": false,
+    "userOutputDeleted": false
+  },
+  "startupTransportRetries": [
+    "{\"code\":-32000,\"message\":\"Execution context was destroyed.\"}"
+  ],
+  "attempts": "Two pre-conversion preparation failures are retained in nsis-smoke-preconditions.json and ignored local attempt directories",
+  "ownerGuiRows": "only explicit confirmations in manual-observations.md apply"
+}

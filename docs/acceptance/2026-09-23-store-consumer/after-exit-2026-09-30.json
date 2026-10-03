@@ -1,0 +1,6 @@
+{
+  "recordedAt": "2026-09-30T12:44:23.4052429+08:00",
+  "kind": "automated process snapshot after owner-confirmed normal exit",
+  "swiftLocalProcessCount": 0,
+  "ownerConfirmation": "PASS - owner explicitly confirmed normal close and no visible orphan instance on 2026-09-30"
+}

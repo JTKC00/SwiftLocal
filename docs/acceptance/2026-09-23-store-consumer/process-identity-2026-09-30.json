@@ -1,0 +1,23 @@
+{
+  "recordedAt": "2026-09-30T12:39:15.5350450+08:00",
+  "kind": "automated process identity only; no human row inferred",
+  "storePackageProcessCount": 4,
+  "processes": [
+    {
+      "Id": 25424,
+      "Path": "C:\\Program Files\\WindowsApps\\JTKC.SwiftLocal_1.0.0.0_x64__j44a9ewx73faj\\app\\SwiftLocal.exe"
+    },
+    {
+      "Id": 26756,
+      "Path": "C:\\Program Files\\WindowsApps\\JTKC.SwiftLocal_1.0.0.0_x64__j44a9ewx73faj\\app\\SwiftLocal.exe"
+    },
+    {
+      "Id": 27680,
+      "Path": "C:\\Program Files\\WindowsApps\\JTKC.SwiftLocal_1.0.0.0_x64__j44a9ewx73faj\\app\\SwiftLocal.exe"
+    },
+    {
+      "Id": 27852,
+      "Path": "C:\\Program Files\\WindowsApps\\JTKC.SwiftLocal_1.0.0.0_x64__j44a9ewx73faj\\app\\SwiftLocal.exe"
+    }
+  ]
+}

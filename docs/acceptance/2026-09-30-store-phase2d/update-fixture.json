@@ -1,0 +1,38 @@
+{
+  "status": "PASS",
+  "scope": "unsigned package fixture verification, not consumer acceptance",
+  "productVersion": "0.4.1",
+  "firstSubmissionVersion": "1.0.0.0",
+  "baseline": {
+    "filename": "SwiftLocal-0.4.1-store-x64.appx",
+    "bytes": 1115695293,
+    "sha256": "38a1ea9d89e956c1dbcdecb21f85bca673d7ab70301b16e66f68c819d7eed404"
+  },
+  "update": {
+    "filename": "SwiftLocal-0.4.1-store-update-fixture-1.0.1.0-x64.appx",
+    "bytes": 1115795156,
+    "sha256": "d737b781d16e0b9b6dd23e876626df1095756816c6527a11945ff30c96fc4e4a",
+    "identity": {
+      "Name": "JTKC.SwiftLocal",
+      "Publisher": "CN=48CB75C0-3F50-44EF-87EB-8203F196B957",
+      "ProcessorArchitecture": "x64",
+      "Version": "1.0.1.0"
+    }
+  },
+  "packageFamilyName": "JTKC.SwiftLocal_j44a9ewx73faj",
+  "applicationId": "SwiftLocal",
+  "identicalPayloadEntries": 19693,
+  "intentionalDifferences": [
+    "AppxManifest.xml: Identity Version 1.0.0.0 -> 1.0.1.0",
+    "MakeAppx regenerated block map, content types and ZIP encoding"
+  ],
+  "embeddedPartnerCenterIdentity": "unchanged: intended first submission remains 1.0.0.0",
+  "makeappxSha256": "4af1d305419ae4c6b5bbb7a0a2893dd893214dd337131378e8e21f7257d3fd19",
+  "sourceWorkflowRun": "https://github.com/JTKC00/SwiftLocal/actions/runs/35758117387",
+  "sourceBuildCommit": "5b0e2c2eb9150c2142a1057b61c4675832a61878",
+  "phase2bEvidenceCommit": "1c577b7",
+  "phase2dStartingHead": "ad557eed10af198dc2a69156417773d7cf63a5a1",
+  "signing": "UNVERIFIED",
+  "installation": "UNVERIFIED",
+  "storeSubmission": "not run"
+}

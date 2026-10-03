@@ -1,0 +1,20 @@
+﻿{
+    "commit":  "17a510e4e7b51ebabaef7d7bbdf73f1d8be6d059",
+    "os":  "Microsoft Windows Server 2025 Datacenter",
+    "install":  "PASS",
+    "uninstall":  "PASS",
+    "defaultBefore":  "{\"userChoice\":\"MSEdgePDF\",\"userChoiceHash\":\"9UXwKGLkLHI=\",\"extensionDefault\":null}",
+    "wack":  "EXECUTED — inspect wack.xml categories; execution is not PASS",
+    "documentRoot":  "C:\\Users\\runneradmin\\Downloads\\SwiftLocal TEST 中文 ef869d8a",
+    "signedSha256":  "A69164AB1C12FE3954EA500D2E01C5F5DA7A48688B22840CC971FF92F5E0E7D5",
+    "fullName":  "SwiftLocal.StoreSpike.TEST_1.0.0.0_x64__t6bf8bs4kmxeg",
+    "family":  "SwiftLocal.StoreSpike.TEST_t6bf8bs4kmxeg",
+    "installLocation":  "C:\\Program Files\\WindowsApps\\SwiftLocal.StoreSpike.TEST_1.0.0.0_x64__t6bf8bs4kmxeg",
+    "defaultAfterInstall":  "{\"userChoice\":\"MSEdgePDF\",\"userChoiceHash\":\"9UXwKGLkLHI=\",\"extensionDefault\":null}",
+    "pdfProgId":  "AppX93s5vjqrxjz3j2mtatx9ks1qvrc12vqp",
+    "smoke":  "PASS",
+    "installedPayloadUnchanged":  "PASS",
+    "wackExitCode":  0,
+    "defaultAfterUninstall":  "{\"userChoice\":\"MSEdgePDF\",\"userChoiceHash\":\"9UXwKGLkLHI=\",\"extensionDefault\":null}",
+    "pdfDefaultPreserved":  "PASS"
+}

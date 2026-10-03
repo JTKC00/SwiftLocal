@@ -1,0 +1,57 @@
+{
+  "status": "PASS",
+  "scope": "initial read-only machine inventory, no install/update/uninstall verdict",
+  "windows": {
+    "edition": "Core",
+    "version": "25H2",
+    "build": "26200.9550",
+    "architecture": "AMD64"
+  },
+  "physicalOrVm": "physical PC, owner confirmed in Phase 2C",
+  "userType": "standard user, owner confirmed in Phase 2C",
+  "installedStorePackages": [],
+  "nsisUninstallRecordsCount": 0,
+  "pdfUserChoice": {
+    "ProgId": "FoxitReader.Document",
+    "Hash": "lNCw115bAok="
+  },
+  "profiles": [
+    {
+      "category": "A: application-owned logical Roaming profile",
+      "exists": false,
+      "persistedFileCount": 0,
+      "inventoryErrors": 0
+    },
+    {
+      "category": "A: application-owned Local profile if present",
+      "exists": false,
+      "persistedFileCount": 0,
+      "inventoryErrors": 0
+    },
+    {
+      "category": "B: package-managed and redirected state",
+      "exists": false,
+      "persistedFileCount": 0,
+      "inventoryErrors": 0
+    }
+  ],
+  "nsisProfiles": [
+    {
+      "profileFolder": "快轉通 SwiftLocal",
+      "exists": true,
+      "persistedFileCount": 29
+    },
+    {
+      "profileFolder": "SwiftLocal",
+      "exists": true,
+      "persistedFileCount": 24
+    },
+    {
+      "profileFolder": "快轉通 SwiftLocal",
+      "exists": false,
+      "persistedFileCount": 0
+    }
+  ],
+  "personalFileInventory": "retained only in ignored local evidence",
+  "gui": "UNVERIFIED"
+}

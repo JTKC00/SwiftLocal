@@ -1,0 +1,70 @@
+{
+  "status": "PASS; ORIGINAL PUBLISHED UNINSTALL COEXISTENCE FAIL RETAINED",
+  "scope": "Source repair verified by actual NSIS macro compilation and execution in an isolated random HKCU tree; no rebuilt Full installer acceptance inferred",
+  "affectedArtifact": {
+    "version": "0.4.1",
+    "sha256": "3e930e523f3746e92bc9a05277a208491186c1563dabffd1e07d3c973bc30a40"
+  },
+  "observedFailure": {
+    "storePackageRetained": "1.0.1.0",
+    "dataAndNormalOutputs": "PASS",
+    "pdfUserChoice": "Acrobat.Document.DC unchanged",
+    "unexpectedRemovedPeerChoices": [
+      "Store PDF viewer",
+      "Comet PDF viewer"
+    ],
+    "survivingPeerClassKeys": "PASS"
+  },
+  "rootCause": "Legacy NSIS DeleteRegKey /ifempty removed the shared OpenWithProgids key containing peer values but no subkeys",
+  "documentation": "https://nsis.sourceforge.io/Reference/DeleteRegKey",
+  "compiler": {
+    "bundle": "nsis-3.0.4.1",
+    "pinnedArchiveSha256": "9877df902530f96357d13a7a31ae2b9df67f48b11ffc9a1700a7c961574ec5fa",
+    "reportedVersion": "v3.04"
+  },
+  "reproduction": {
+    "status": "FAIL",
+    "sourceSha256": "4ead137508f9154acc783e16326b5a3779162be38484912d8461e46814a5c87d",
+    "peerValuesAfter": {},
+    "cleanup": "PASS"
+  },
+  "fix": {
+    "source": "build/windows-file-associations.nsh",
+    "behavior": "Delete only SwiftLocal.PDF value and owned classes; retain the shared key",
+    "status": "PASS",
+    "sourceSha256": "86e9d9c3bc4c622f8ce27cdccd88c7cc1b06a50455464736deabdc3a309c3261",
+    "actual": {
+      "values": {
+        "OtherPeer.PDF": {
+          "kind": "String",
+          "value": "peer"
+        },
+        "": {
+          "kind": "String",
+          "value": "default-sentinel"
+        },
+        "StorePeer.PDF": {
+          "kind": "None",
+          "value": []
+        }
+      },
+      "ownApplicationExists": false,
+      "userChoice": "preserve",
+      "ownClassExists": false
+    },
+    "cleanup": "PASS"
+  },
+  "localRestoration": {
+    "status": "PASS",
+    "scope": "Restored only observed missing Store REG_NONE and Comet REG_SZ peer values with original data before further tests; original FAIL preserved"
+  },
+  "regression": {
+    "tests": 21,
+    "pass": 21,
+    "fail": 0,
+    "skipped": 0
+  },
+  "fullInstallerRetest": "PASS; actual normal removal retains Comet and installed Store capability/class, profiles and outputs; direct Store shared value initially absent, distinct GUI choices UNVERIFIED",
+  "fullInstallerRetestReceipt": "fixed-nsis-retest.json",
+  "actualStoreCoexistenceReceipt": "fixed-store-coexistence.json"
+}

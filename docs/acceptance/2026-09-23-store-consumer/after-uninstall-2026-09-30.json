@@ -1,0 +1,13 @@
+{
+  "recordedAt": "2026-09-30T12:47:13.3329912+08:00",
+  "kind": "automated state after owner-confirmed Windows Settings uninstall; no GUI row inferred",
+  "packageCount": 0,
+  "startEntryCount": 0,
+  "swiftLocalProcessCount": 0,
+  "storePdfProgIdPresent": false,
+  "pdfUserChoice": "FoxitReader.Document",
+  "pdfUserChoiceHash": "lNCw115bAok=",
+  "ownerH1ThroughH6": "PASS - explicit owner response to GUI-uninstall and output-preservation checklist",
+  "ownerObservedPdfReader": "Adobe - owner confirmed unchanged",
+  "userOutputPreservation": "PASS - owner explicitly confirmed outputs remain; no private output paths published"
+}

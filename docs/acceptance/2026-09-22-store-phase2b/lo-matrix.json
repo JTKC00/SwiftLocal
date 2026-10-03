@@ -1,0 +1,1248 @@
+{
+  "soffice": "C:\\Program Files\\WindowsApps\\JTKC.SwiftLocal_1.0.0.0_x64__j44a9ewx73faj\\app\\resources\\tools\\libreoffice\\program\\soffice.com",
+  "launchContext": "packaged-electron-main",
+  "libreOfficeVersion": "LibreOffice 26.2.6.3 8221e31b3ac356a1623c672912a3d2b492f7e3d1",
+  "fixture": "D:\\a\\SwiftLocal\\SwiftLocal\\smoke-temp\\store-input\\office-smoke.docx",
+  "fixtureBytes": 3409,
+  "fixtureSha256": "0a1f0a615a4d86d887752a0eeae6e82ee9f449f4cd570637fa0838675e9d91c0",
+  "tempLong": "C:\\Users\\runneradmin\\AppData\\Local\\Temp",
+  "tempShort": "C:\\Users\\RUNNER~1\\AppData\\Local\\Temp",
+  "shortPathDiffers": true,
+  "causalRule": "Only a causal:true row may support a cause, and only by comparison with baseline-short-downloads-short-profile. contrastWith pairs isolate the single difference between those two rows.",
+  "fatal": null,
+  "rows": [
+    {
+      "id": "baseline-short-downloads-short-profile",
+      "factors": [
+        "baseline"
+      ],
+      "causal": true,
+      "contrastWith": null,
+      "status": "PASS",
+      "exitCode": 0,
+      "exitHex": "0x0",
+      "crash0xC0000409": false,
+      "timedOut": false,
+      "elapsedMs": 12007,
+      "input": {
+        "path": "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\in\\baseline-short-downloads-short-profile\\office-smoke.docx",
+        "chars": 142,
+        "utf8Bytes": 142
+      },
+      "outdir": {
+        "path": "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\out\\baseline-short-downloads-short-profile",
+        "chars": 125,
+        "utf8Bytes": 125
+      },
+      "profile": {
+        "path": "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\profile\\baseline-short-downloads-short-profile",
+        "chars": 129,
+        "utf8Bytes": 129
+      },
+      "profileUri": "file:///C:/Users/runneradmin/Downloads/sl-lo-matrix-d8bca8897483422046f25993731c8de8/short/profile/baseline-short-downloads-short-profile",
+      "cwd": {
+        "path": "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short",
+        "chars": 82,
+        "utf8Bytes": 82
+      },
+      "temp": {
+        "path": "C:\\Users\\runneradmin\\AppData\\Roaming\\SwiftLocal Store\\temp",
+        "chars": 58,
+        "utf8Bytes": 58
+      },
+      "command": [
+        "C:\\Program Files\\WindowsApps\\JTKC.SwiftLocal_1.0.0.0_x64__j44a9ewx73faj\\app\\resources\\tools\\libreoffice\\program\\soffice.com",
+        "--headless",
+        "--nologo",
+        "--nodefault",
+        "--nofirststartwizard",
+        "--norestore",
+        "--nolockcheck",
+        "-env:UserInstallation=file:///C:/Users/runneradmin/Downloads/sl-lo-matrix-d8bca8897483422046f25993731c8de8/short/profile/baseline-short-downloads-short-profile",
+        "--convert-to",
+        "pdf",
+        "--outdir",
+        "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\out\\baseline-short-downloads-short-profile",
+        "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\in\\baseline-short-downloads-short-profile\\office-smoke.docx"
+      ],
+      "output": {
+        "path": "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\out\\baseline-short-downloads-short-profile\\office-smoke.pdf",
+        "chars": 142,
+        "utf8Bytes": 142
+      },
+      "outputBytes": 24657,
+      "pdfHeader": true,
+      "stdout": "convert C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\in\\baseline-short-downloads-short-profile\\office-smoke.docx as a Writer document -> C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\out\\baseline-short-downloads-short-profile\\office-smoke.pdf using filter : writer_pdf_Export\n",
+      "stderr": "Could not find platform independent libraries <prefix>\r\n",
+      "error": ""
+    },
+    {
+      "id": "input-deep-ascii-downloads",
+      "factors": [
+        "input-depth"
+      ],
+      "causal": true,
+      "contrastWith": null,
+      "status": "PASS",
+      "exitCode": 0,
+      "exitHex": "0x0",
+      "crash0xC0000409": false,
+      "timedOut": false,
+      "elapsedMs": 9162,
+      "input": {
+        "path": "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\SwiftLocalStoreASCIId8bca8897483422046f25993731c8de8\\inputfiles\\office-smoke.docx",
+        "chars": 158,
+        "utf8Bytes": 158
+      },
+      "outdir": {
+        "path": "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\out\\input-deep-ascii-downloads",
+        "chars": 113,
+        "utf8Bytes": 113
+      },
+      "profile": {
+        "path": "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\profile\\input-deep-ascii-downloads",
+        "chars": 117,
+        "utf8Bytes": 117
+      },
+      "profileUri": "file:///C:/Users/runneradmin/Downloads/sl-lo-matrix-d8bca8897483422046f25993731c8de8/short/profile/input-deep-ascii-downloads",
+      "cwd": {
+        "path": "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short",
+        "chars": 82,
+        "utf8Bytes": 82
+      },
+      "temp": {
+        "path": "C:\\Users\\runneradmin\\AppData\\Roaming\\SwiftLocal Store\\temp",
+        "chars": 58,
+        "utf8Bytes": 58
+      },
+      "command": [
+        "C:\\Program Files\\WindowsApps\\JTKC.SwiftLocal_1.0.0.0_x64__j44a9ewx73faj\\app\\resources\\tools\\libreoffice\\program\\soffice.com",
+        "--headless",
+        "--nologo",
+        "--nodefault",
+        "--nofirststartwizard",
+        "--norestore",
+        "--nolockcheck",
+        "-env:UserInstallation=file:///C:/Users/runneradmin/Downloads/sl-lo-matrix-d8bca8897483422046f25993731c8de8/short/profile/input-deep-ascii-downloads",
+        "--convert-to",
+        "pdf",
+        "--outdir",
+        "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\out\\input-deep-ascii-downloads",
+        "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\SwiftLocalStoreASCIId8bca8897483422046f25993731c8de8\\inputfiles\\office-smoke.docx"
+      ],
+      "output": {
+        "path": "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\out\\input-deep-ascii-downloads\\office-smoke.pdf",
+        "chars": 130,
+        "utf8Bytes": 130
+      },
+      "outputBytes": 24657,
+      "pdfHeader": true,
+      "stdout": "convert C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\SwiftLocalStoreASCIId8bca8897483422046f25993731c8de8\\inputfiles\\office-smoke.docx as a Writer document -> C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\out\\input-deep-ascii-downloads\\office-smoke.pdf using filter : writer_pdf_Export\n",
+      "stderr": "Could not find platform independent libraries <prefix>\r\n",
+      "error": ""
+    },
+    {
+      "id": "outdir-deep-ascii-downloads",
+      "factors": [
+        "outdir-depth"
+      ],
+      "causal": true,
+      "contrastWith": null,
+      "status": "PASS",
+      "exitCode": 0,
+      "exitHex": "0x0",
+      "crash0xC0000409": false,
+      "timedOut": false,
+      "elapsedMs": 9286,
+      "input": {
+        "path": "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\in\\outdir-deep-ascii-downloads\\office-smoke.docx",
+        "chars": 131,
+        "utf8Bytes": 131
+      },
+      "outdir": {
+        "path": "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\SwiftLocalStoreASCIId8bca8897483422046f25993731c8de8\\outputfiles\\store\\officetopdf",
+        "chars": 159,
+        "utf8Bytes": 159
+      },
+      "profile": {
+        "path": "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\profile\\outdir-deep-ascii-downloads",
+        "chars": 118,
+        "utf8Bytes": 118
+      },
+      "profileUri": "file:///C:/Users/runneradmin/Downloads/sl-lo-matrix-d8bca8897483422046f25993731c8de8/short/profile/outdir-deep-ascii-downloads",
+      "cwd": {
+        "path": "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short",
+        "chars": 82,
+        "utf8Bytes": 82
+      },
+      "temp": {
+        "path": "C:\\Users\\runneradmin\\AppData\\Roaming\\SwiftLocal Store\\temp",
+        "chars": 58,
+        "utf8Bytes": 58
+      },
+      "command": [
+        "C:\\Program Files\\WindowsApps\\JTKC.SwiftLocal_1.0.0.0_x64__j44a9ewx73faj\\app\\resources\\tools\\libreoffice\\program\\soffice.com",
+        "--headless",
+        "--nologo",
+        "--nodefault",
+        "--nofirststartwizard",
+        "--norestore",
+        "--nolockcheck",
+        "-env:UserInstallation=file:///C:/Users/runneradmin/Downloads/sl-lo-matrix-d8bca8897483422046f25993731c8de8/short/profile/outdir-deep-ascii-downloads",
+        "--convert-to",
+        "pdf",
+        "--outdir",
+        "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\SwiftLocalStoreASCIId8bca8897483422046f25993731c8de8\\outputfiles\\store\\officetopdf",
+        "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\in\\outdir-deep-ascii-downloads\\office-smoke.docx"
+      ],
+      "output": {
+        "path": "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\SwiftLocalStoreASCIId8bca8897483422046f25993731c8de8\\outputfiles\\store\\officetopdf\\office-smoke.pdf",
+        "chars": 176,
+        "utf8Bytes": 176
+      },
+      "outputBytes": 24657,
+      "pdfHeader": true,
+      "stdout": "convert C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\in\\outdir-deep-ascii-downloads\\office-smoke.docx as a Writer document -> C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\SwiftLocalStoreASCIId8bca8897483422046f25993731c8de8\\outputfiles\\store\\officetopdf\\office-smoke.pdf using filter : writer_pdf_Export\n",
+      "stderr": "Could not find platform independent libraries <prefix>\r\n",
+      "error": ""
+    },
+    {
+      "id": "profile-deep-ascii-downloads",
+      "factors": [
+        "profile-depth"
+      ],
+      "causal": true,
+      "contrastWith": null,
+      "status": "FAIL",
+      "exitCode": 3221226505,
+      "exitHex": "0xc0000409",
+      "crash0xC0000409": true,
+      "timedOut": false,
+      "elapsedMs": 4327,
+      "input": {
+        "path": "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\in\\profile-deep-ascii-downloads\\office-smoke.docx",
+        "chars": 132,
+        "utf8Bytes": 132
+      },
+      "outdir": {
+        "path": "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\out\\profile-deep-ascii-downloads",
+        "chars": 115,
+        "utf8Bytes": 115
+      },
+      "profile": {
+        "path": "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\SwiftLocalStoreASCIId8bca8897483422046f25993731c8de8\\outputfiles\\store\\officetopdf\\.swiftlocal-office-0cfe82\\lo-profile-0cfe82",
+        "chars": 203,
+        "utf8Bytes": 203
+      },
+      "profileUri": "file:///C:/Users/runneradmin/Downloads/sl-lo-matrix-d8bca8897483422046f25993731c8de8/SwiftLocalStoreASCIId8bca8897483422046f25993731c8de8/outputfiles/store/officetopdf/.swiftlocal-office-0cfe82/lo-profile-0cfe82",
+      "cwd": {
+        "path": "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short",
+        "chars": 82,
+        "utf8Bytes": 82
+      },
+      "temp": {
+        "path": "C:\\Users\\runneradmin\\AppData\\Roaming\\SwiftLocal Store\\temp",
+        "chars": 58,
+        "utf8Bytes": 58
+      },
+      "command": [
+        "C:\\Program Files\\WindowsApps\\JTKC.SwiftLocal_1.0.0.0_x64__j44a9ewx73faj\\app\\resources\\tools\\libreoffice\\program\\soffice.com",
+        "--headless",
+        "--nologo",
+        "--nodefault",
+        "--nofirststartwizard",
+        "--norestore",
+        "--nolockcheck",
+        "-env:UserInstallation=file:///C:/Users/runneradmin/Downloads/sl-lo-matrix-d8bca8897483422046f25993731c8de8/SwiftLocalStoreASCIId8bca8897483422046f25993731c8de8/outputfiles/store/officetopdf/.swiftlocal-office-0cfe82/lo-profile-0cfe82",
+        "--convert-to",
+        "pdf",
+        "--outdir",
+        "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\out\\profile-deep-ascii-downloads",
+        "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\in\\profile-deep-ascii-downloads\\office-smoke.docx"
+      ],
+      "output": null,
+      "outputBytes": 0,
+      "pdfHeader": false,
+      "stdout": "",
+      "stderr": "",
+      "error": ""
+    },
+    {
+      "id": "cwd-roaming-profile",
+      "factors": [
+        "cwd"
+      ],
+      "causal": true,
+      "contrastWith": null,
+      "status": "PASS",
+      "exitCode": 0,
+      "exitHex": "0x0",
+      "crash0xC0000409": false,
+      "timedOut": false,
+      "elapsedMs": 8828,
+      "input": {
+        "path": "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\in\\cwd-roaming-profile\\office-smoke.docx",
+        "chars": 123,
+        "utf8Bytes": 123
+      },
+      "outdir": {
+        "path": "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\out\\cwd-roaming-profile",
+        "chars": 106,
+        "utf8Bytes": 106
+      },
+      "profile": {
+        "path": "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\profile\\cwd-roaming-profile",
+        "chars": 110,
+        "utf8Bytes": 110
+      },
+      "profileUri": "file:///C:/Users/runneradmin/Downloads/sl-lo-matrix-d8bca8897483422046f25993731c8de8/short/profile/cwd-roaming-profile",
+      "cwd": {
+        "path": "C:\\Users\\runneradmin\\AppData\\Roaming\\SwiftLocal Store TEST",
+        "chars": 58,
+        "utf8Bytes": 58
+      },
+      "temp": {
+        "path": "C:\\Users\\runneradmin\\AppData\\Roaming\\SwiftLocal Store\\temp",
+        "chars": 58,
+        "utf8Bytes": 58
+      },
+      "command": [
+        "C:\\Program Files\\WindowsApps\\JTKC.SwiftLocal_1.0.0.0_x64__j44a9ewx73faj\\app\\resources\\tools\\libreoffice\\program\\soffice.com",
+        "--headless",
+        "--nologo",
+        "--nodefault",
+        "--nofirststartwizard",
+        "--norestore",
+        "--nolockcheck",
+        "-env:UserInstallation=file:///C:/Users/runneradmin/Downloads/sl-lo-matrix-d8bca8897483422046f25993731c8de8/short/profile/cwd-roaming-profile",
+        "--convert-to",
+        "pdf",
+        "--outdir",
+        "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\out\\cwd-roaming-profile",
+        "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\in\\cwd-roaming-profile\\office-smoke.docx"
+      ],
+      "output": {
+        "path": "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\out\\cwd-roaming-profile\\office-smoke.pdf",
+        "chars": 123,
+        "utf8Bytes": 123
+      },
+      "outputBytes": 24657,
+      "pdfHeader": true,
+      "stdout": "convert C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\in\\cwd-roaming-profile\\office-smoke.docx as a Writer document -> C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\out\\cwd-roaming-profile\\office-smoke.pdf using filter : writer_pdf_Export\n",
+      "stderr": "Could not find platform independent libraries <prefix>\r\n",
+      "error": ""
+    },
+    {
+      "id": "temp-roaming-profile",
+      "factors": [
+        "TEMP"
+      ],
+      "causal": true,
+      "contrastWith": null,
+      "status": "PASS",
+      "exitCode": 0,
+      "exitHex": "0x0",
+      "crash0xC0000409": false,
+      "timedOut": false,
+      "elapsedMs": 8563,
+      "input": {
+        "path": "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\in\\temp-roaming-profile\\office-smoke.docx",
+        "chars": 124,
+        "utf8Bytes": 124
+      },
+      "outdir": {
+        "path": "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\out\\temp-roaming-profile",
+        "chars": 107,
+        "utf8Bytes": 107
+      },
+      "profile": {
+        "path": "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\profile\\temp-roaming-profile",
+        "chars": 111,
+        "utf8Bytes": 111
+      },
+      "profileUri": "file:///C:/Users/runneradmin/Downloads/sl-lo-matrix-d8bca8897483422046f25993731c8de8/short/profile/temp-roaming-profile",
+      "cwd": {
+        "path": "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short",
+        "chars": 82,
+        "utf8Bytes": 82
+      },
+      "temp": {
+        "path": "C:\\Users\\runneradmin\\AppData\\Roaming\\SwiftLocal Store TEST\\temp",
+        "chars": 63,
+        "utf8Bytes": 63
+      },
+      "command": [
+        "C:\\Program Files\\WindowsApps\\JTKC.SwiftLocal_1.0.0.0_x64__j44a9ewx73faj\\app\\resources\\tools\\libreoffice\\program\\soffice.com",
+        "--headless",
+        "--nologo",
+        "--nodefault",
+        "--nofirststartwizard",
+        "--norestore",
+        "--nolockcheck",
+        "-env:UserInstallation=file:///C:/Users/runneradmin/Downloads/sl-lo-matrix-d8bca8897483422046f25993731c8de8/short/profile/temp-roaming-profile",
+        "--convert-to",
+        "pdf",
+        "--outdir",
+        "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\out\\temp-roaming-profile",
+        "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\in\\temp-roaming-profile\\office-smoke.docx"
+      ],
+      "output": {
+        "path": "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\out\\temp-roaming-profile\\office-smoke.pdf",
+        "chars": 124,
+        "utf8Bytes": 124
+      },
+      "outputBytes": 24657,
+      "pdfHeader": true,
+      "stdout": "convert C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\in\\temp-roaming-profile\\office-smoke.docx as a Writer document -> C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\out\\temp-roaming-profile\\office-smoke.pdf using filter : writer_pdf_Export\n",
+      "stderr": "Could not find platform independent libraries <prefix>\r\n",
+      "error": ""
+    },
+    {
+      "id": "input-short-appdata",
+      "factors": [
+        "input-location-appdata"
+      ],
+      "causal": true,
+      "contrastWith": null,
+      "status": "PASS",
+      "exitCode": 0,
+      "exitHex": "0x0",
+      "crash0xC0000409": false,
+      "timedOut": false,
+      "elapsedMs": 9767,
+      "input": {
+        "path": "C:\\Users\\runneradmin\\AppData\\Local\\sl-short-d8bca8897483422046f25993731c8de8\\in\\office-smoke.docx",
+        "chars": 97,
+        "utf8Bytes": 97
+      },
+      "outdir": {
+        "path": "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\out\\input-short-appdata",
+        "chars": 106,
+        "utf8Bytes": 106
+      },
+      "profile": {
+        "path": "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\profile\\input-short-appdata",
+        "chars": 110,
+        "utf8Bytes": 110
+      },
+      "profileUri": "file:///C:/Users/runneradmin/Downloads/sl-lo-matrix-d8bca8897483422046f25993731c8de8/short/profile/input-short-appdata",
+      "cwd": {
+        "path": "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short",
+        "chars": 82,
+        "utf8Bytes": 82
+      },
+      "temp": {
+        "path": "C:\\Users\\runneradmin\\AppData\\Roaming\\SwiftLocal Store\\temp",
+        "chars": 58,
+        "utf8Bytes": 58
+      },
+      "command": [
+        "C:\\Program Files\\WindowsApps\\JTKC.SwiftLocal_1.0.0.0_x64__j44a9ewx73faj\\app\\resources\\tools\\libreoffice\\program\\soffice.com",
+        "--headless",
+        "--nologo",
+        "--nodefault",
+        "--nofirststartwizard",
+        "--norestore",
+        "--nolockcheck",
+        "-env:UserInstallation=file:///C:/Users/runneradmin/Downloads/sl-lo-matrix-d8bca8897483422046f25993731c8de8/short/profile/input-short-appdata",
+        "--convert-to",
+        "pdf",
+        "--outdir",
+        "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\out\\input-short-appdata",
+        "C:\\Users\\runneradmin\\AppData\\Local\\sl-short-d8bca8897483422046f25993731c8de8\\in\\office-smoke.docx"
+      ],
+      "output": {
+        "path": "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\out\\input-short-appdata\\office-smoke.pdf",
+        "chars": 123,
+        "utf8Bytes": 123
+      },
+      "outputBytes": 24657,
+      "pdfHeader": true,
+      "stdout": "convert C:\\Users\\runneradmin\\AppData\\Local\\sl-short-d8bca8897483422046f25993731c8de8\\in\\office-smoke.docx as a Writer document -> C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\out\\input-short-appdata\\office-smoke.pdf using filter : writer_pdf_Export\n",
+      "stderr": "Could not find platform independent libraries <prefix>\r\n",
+      "error": ""
+    },
+    {
+      "id": "outdir-short-appdata",
+      "factors": [
+        "outdir-location-appdata"
+      ],
+      "causal": true,
+      "contrastWith": null,
+      "status": "PASS",
+      "exitCode": 0,
+      "exitHex": "0x0",
+      "crash0xC0000409": false,
+      "timedOut": false,
+      "elapsedMs": 9039,
+      "input": {
+        "path": "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\in\\outdir-short-appdata\\office-smoke.docx",
+        "chars": 124,
+        "utf8Bytes": 124
+      },
+      "outdir": {
+        "path": "C:\\Users\\runneradmin\\AppData\\Local\\sl-short-d8bca8897483422046f25993731c8de8\\out",
+        "chars": 80,
+        "utf8Bytes": 80
+      },
+      "profile": {
+        "path": "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\profile\\outdir-short-appdata",
+        "chars": 111,
+        "utf8Bytes": 111
+      },
+      "profileUri": "file:///C:/Users/runneradmin/Downloads/sl-lo-matrix-d8bca8897483422046f25993731c8de8/short/profile/outdir-short-appdata",
+      "cwd": {
+        "path": "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short",
+        "chars": 82,
+        "utf8Bytes": 82
+      },
+      "temp": {
+        "path": "C:\\Users\\runneradmin\\AppData\\Roaming\\SwiftLocal Store\\temp",
+        "chars": 58,
+        "utf8Bytes": 58
+      },
+      "command": [
+        "C:\\Program Files\\WindowsApps\\JTKC.SwiftLocal_1.0.0.0_x64__j44a9ewx73faj\\app\\resources\\tools\\libreoffice\\program\\soffice.com",
+        "--headless",
+        "--nologo",
+        "--nodefault",
+        "--nofirststartwizard",
+        "--norestore",
+        "--nolockcheck",
+        "-env:UserInstallation=file:///C:/Users/runneradmin/Downloads/sl-lo-matrix-d8bca8897483422046f25993731c8de8/short/profile/outdir-short-appdata",
+        "--convert-to",
+        "pdf",
+        "--outdir",
+        "C:\\Users\\runneradmin\\AppData\\Local\\sl-short-d8bca8897483422046f25993731c8de8\\out",
+        "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\in\\outdir-short-appdata\\office-smoke.docx"
+      ],
+      "output": {
+        "path": "C:\\Users\\runneradmin\\AppData\\Local\\sl-short-d8bca8897483422046f25993731c8de8\\out\\office-smoke.pdf",
+        "chars": 97,
+        "utf8Bytes": 97
+      },
+      "outputBytes": 24657,
+      "pdfHeader": true,
+      "stdout": "convert C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\in\\outdir-short-appdata\\office-smoke.docx as a Writer document -> C:\\Users\\runneradmin\\AppData\\Local\\sl-short-d8bca8897483422046f25993731c8de8\\out\\office-smoke.pdf using filter : writer_pdf_Export\n",
+      "stderr": "Could not find platform independent libraries <prefix>\r\n",
+      "error": ""
+    },
+    {
+      "id": "profile-short-appdata",
+      "factors": [
+        "profile-location-appdata"
+      ],
+      "causal": true,
+      "contrastWith": null,
+      "status": "PASS",
+      "exitCode": 0,
+      "exitHex": "0x0",
+      "crash0xC0000409": false,
+      "timedOut": false,
+      "elapsedMs": 8687,
+      "input": {
+        "path": "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\in\\profile-short-appdata\\office-smoke.docx",
+        "chars": 125,
+        "utf8Bytes": 125
+      },
+      "outdir": {
+        "path": "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\out\\profile-short-appdata",
+        "chars": 108,
+        "utf8Bytes": 108
+      },
+      "profile": {
+        "path": "C:\\Users\\runneradmin\\AppData\\Local\\sl-short-d8bca8897483422046f25993731c8de8\\profile",
+        "chars": 84,
+        "utf8Bytes": 84
+      },
+      "profileUri": "file:///C:/Users/runneradmin/AppData/Local/sl-short-d8bca8897483422046f25993731c8de8/profile",
+      "cwd": {
+        "path": "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short",
+        "chars": 82,
+        "utf8Bytes": 82
+      },
+      "temp": {
+        "path": "C:\\Users\\runneradmin\\AppData\\Roaming\\SwiftLocal Store\\temp",
+        "chars": 58,
+        "utf8Bytes": 58
+      },
+      "command": [
+        "C:\\Program Files\\WindowsApps\\JTKC.SwiftLocal_1.0.0.0_x64__j44a9ewx73faj\\app\\resources\\tools\\libreoffice\\program\\soffice.com",
+        "--headless",
+        "--nologo",
+        "--nodefault",
+        "--nofirststartwizard",
+        "--norestore",
+        "--nolockcheck",
+        "-env:UserInstallation=file:///C:/Users/runneradmin/AppData/Local/sl-short-d8bca8897483422046f25993731c8de8/profile",
+        "--convert-to",
+        "pdf",
+        "--outdir",
+        "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\out\\profile-short-appdata",
+        "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\in\\profile-short-appdata\\office-smoke.docx"
+      ],
+      "output": {
+        "path": "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\out\\profile-short-appdata\\office-smoke.pdf",
+        "chars": 125,
+        "utf8Bytes": 125
+      },
+      "outputBytes": 24657,
+      "pdfHeader": true,
+      "stdout": "convert C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\in\\profile-short-appdata\\office-smoke.docx as a Writer document -> C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\out\\profile-short-appdata\\office-smoke.pdf using filter : writer_pdf_Export\n",
+      "stderr": "Could not find platform independent libraries <prefix>\r\n",
+      "error": ""
+    },
+    {
+      "id": "input-unicode-short",
+      "factors": [
+        "input-unicode"
+      ],
+      "causal": true,
+      "contrastWith": null,
+      "status": "PASS",
+      "exitCode": 0,
+      "exitHex": "0x0",
+      "crash0xC0000409": false,
+      "timedOut": false,
+      "elapsedMs": 8584,
+      "input": {
+        "path": "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\輸入\\office-smoke.docx",
+        "chars": 103,
+        "utf8Bytes": 107
+      },
+      "outdir": {
+        "path": "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\out\\input-unicode-short",
+        "chars": 106,
+        "utf8Bytes": 106
+      },
+      "profile": {
+        "path": "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\profile\\input-unicode-short",
+        "chars": 110,
+        "utf8Bytes": 110
+      },
+      "profileUri": "file:///C:/Users/runneradmin/Downloads/sl-lo-matrix-d8bca8897483422046f25993731c8de8/short/profile/input-unicode-short",
+      "cwd": {
+        "path": "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short",
+        "chars": 82,
+        "utf8Bytes": 82
+      },
+      "temp": {
+        "path": "C:\\Users\\runneradmin\\AppData\\Roaming\\SwiftLocal Store\\temp",
+        "chars": 58,
+        "utf8Bytes": 58
+      },
+      "command": [
+        "C:\\Program Files\\WindowsApps\\JTKC.SwiftLocal_1.0.0.0_x64__j44a9ewx73faj\\app\\resources\\tools\\libreoffice\\program\\soffice.com",
+        "--headless",
+        "--nologo",
+        "--nodefault",
+        "--nofirststartwizard",
+        "--norestore",
+        "--nolockcheck",
+        "-env:UserInstallation=file:///C:/Users/runneradmin/Downloads/sl-lo-matrix-d8bca8897483422046f25993731c8de8/short/profile/input-unicode-short",
+        "--convert-to",
+        "pdf",
+        "--outdir",
+        "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\out\\input-unicode-short",
+        "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\輸入\\office-smoke.docx"
+      ],
+      "output": {
+        "path": "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\out\\input-unicode-short\\office-smoke.pdf",
+        "chars": 123,
+        "utf8Bytes": 123
+      },
+      "outputBytes": 24657,
+      "pdfHeader": true,
+      "stdout": "convert C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\??\\office-smoke.docx as a Writer document -> C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\out\\input-unicode-short\\office-smoke.pdf using filter : writer_pdf_Export\n",
+      "stderr": "Could not find platform independent libraries <prefix>\r\n",
+      "error": ""
+    },
+    {
+      "id": "outdir-unicode-short",
+      "factors": [
+        "outdir-unicode"
+      ],
+      "causal": true,
+      "contrastWith": null,
+      "status": "PASS",
+      "exitCode": 0,
+      "exitHex": "0x0",
+      "crash0xC0000409": false,
+      "timedOut": false,
+      "elapsedMs": 8674,
+      "input": {
+        "path": "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\in\\outdir-unicode-short\\office-smoke.docx",
+        "chars": 124,
+        "utf8Bytes": 124
+      },
+      "outdir": {
+        "path": "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\輸出",
+        "chars": 85,
+        "utf8Bytes": 89
+      },
+      "profile": {
+        "path": "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\profile\\outdir-unicode-short",
+        "chars": 111,
+        "utf8Bytes": 111
+      },
+      "profileUri": "file:///C:/Users/runneradmin/Downloads/sl-lo-matrix-d8bca8897483422046f25993731c8de8/short/profile/outdir-unicode-short",
+      "cwd": {
+        "path": "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short",
+        "chars": 82,
+        "utf8Bytes": 82
+      },
+      "temp": {
+        "path": "C:\\Users\\runneradmin\\AppData\\Roaming\\SwiftLocal Store\\temp",
+        "chars": 58,
+        "utf8Bytes": 58
+      },
+      "command": [
+        "C:\\Program Files\\WindowsApps\\JTKC.SwiftLocal_1.0.0.0_x64__j44a9ewx73faj\\app\\resources\\tools\\libreoffice\\program\\soffice.com",
+        "--headless",
+        "--nologo",
+        "--nodefault",
+        "--nofirststartwizard",
+        "--norestore",
+        "--nolockcheck",
+        "-env:UserInstallation=file:///C:/Users/runneradmin/Downloads/sl-lo-matrix-d8bca8897483422046f25993731c8de8/short/profile/outdir-unicode-short",
+        "--convert-to",
+        "pdf",
+        "--outdir",
+        "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\輸出",
+        "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\in\\outdir-unicode-short\\office-smoke.docx"
+      ],
+      "output": {
+        "path": "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\輸出\\office-smoke.pdf",
+        "chars": 102,
+        "utf8Bytes": 106
+      },
+      "outputBytes": 24657,
+      "pdfHeader": true,
+      "stdout": "convert C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\in\\outdir-unicode-short\\office-smoke.docx as a Writer document -> C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\??\\office-smoke.pdf using filter : writer_pdf_Export\n",
+      "stderr": "Could not find platform independent libraries <prefix>\r\n",
+      "error": ""
+    },
+    {
+      "id": "profile-unicode-short",
+      "factors": [
+        "profile-unicode"
+      ],
+      "causal": true,
+      "contrastWith": null,
+      "status": "PASS",
+      "exitCode": 0,
+      "exitHex": "0x0",
+      "crash0xC0000409": false,
+      "timedOut": false,
+      "elapsedMs": 9225,
+      "input": {
+        "path": "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\in\\profile-unicode-short\\office-smoke.docx",
+        "chars": 125,
+        "utf8Bytes": 125
+      },
+      "outdir": {
+        "path": "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\out\\profile-unicode-short",
+        "chars": 108,
+        "utf8Bytes": 108
+      },
+      "profile": {
+        "path": "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\設定",
+        "chars": 85,
+        "utf8Bytes": 89
+      },
+      "profileUri": "file:///C:/Users/runneradmin/Downloads/sl-lo-matrix-d8bca8897483422046f25993731c8de8/short/%E8%A8%AD%E5%AE%9A",
+      "cwd": {
+        "path": "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short",
+        "chars": 82,
+        "utf8Bytes": 82
+      },
+      "temp": {
+        "path": "C:\\Users\\runneradmin\\AppData\\Roaming\\SwiftLocal Store\\temp",
+        "chars": 58,
+        "utf8Bytes": 58
+      },
+      "command": [
+        "C:\\Program Files\\WindowsApps\\JTKC.SwiftLocal_1.0.0.0_x64__j44a9ewx73faj\\app\\resources\\tools\\libreoffice\\program\\soffice.com",
+        "--headless",
+        "--nologo",
+        "--nodefault",
+        "--nofirststartwizard",
+        "--norestore",
+        "--nolockcheck",
+        "-env:UserInstallation=file:///C:/Users/runneradmin/Downloads/sl-lo-matrix-d8bca8897483422046f25993731c8de8/short/%E8%A8%AD%E5%AE%9A",
+        "--convert-to",
+        "pdf",
+        "--outdir",
+        "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\out\\profile-unicode-short",
+        "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\in\\profile-unicode-short\\office-smoke.docx"
+      ],
+      "output": {
+        "path": "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\out\\profile-unicode-short\\office-smoke.pdf",
+        "chars": 125,
+        "utf8Bytes": 125
+      },
+      "outputBytes": 24657,
+      "pdfHeader": true,
+      "stdout": "convert C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\in\\profile-unicode-short\\office-smoke.docx as a Writer document -> C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\out\\profile-unicode-short\\office-smoke.pdf using filter : writer_pdf_Export\n",
+      "stderr": "Could not find platform independent libraries <prefix>\r\n",
+      "error": ""
+    },
+    {
+      "id": "input-spaces-short",
+      "factors": [
+        "input-spaces"
+      ],
+      "causal": true,
+      "contrastWith": null,
+      "status": "PASS",
+      "exitCode": 0,
+      "exitHex": "0x0",
+      "crash0xC0000409": false,
+      "timedOut": false,
+      "elapsedMs": 9144,
+      "input": {
+        "path": "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\input files\\office-smoke.docx",
+        "chars": 112,
+        "utf8Bytes": 112
+      },
+      "outdir": {
+        "path": "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\out\\input-spaces-short",
+        "chars": 105,
+        "utf8Bytes": 105
+      },
+      "profile": {
+        "path": "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\profile\\input-spaces-short",
+        "chars": 109,
+        "utf8Bytes": 109
+      },
+      "profileUri": "file:///C:/Users/runneradmin/Downloads/sl-lo-matrix-d8bca8897483422046f25993731c8de8/short/profile/input-spaces-short",
+      "cwd": {
+        "path": "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short",
+        "chars": 82,
+        "utf8Bytes": 82
+      },
+      "temp": {
+        "path": "C:\\Users\\runneradmin\\AppData\\Roaming\\SwiftLocal Store\\temp",
+        "chars": 58,
+        "utf8Bytes": 58
+      },
+      "command": [
+        "C:\\Program Files\\WindowsApps\\JTKC.SwiftLocal_1.0.0.0_x64__j44a9ewx73faj\\app\\resources\\tools\\libreoffice\\program\\soffice.com",
+        "--headless",
+        "--nologo",
+        "--nodefault",
+        "--nofirststartwizard",
+        "--norestore",
+        "--nolockcheck",
+        "-env:UserInstallation=file:///C:/Users/runneradmin/Downloads/sl-lo-matrix-d8bca8897483422046f25993731c8de8/short/profile/input-spaces-short",
+        "--convert-to",
+        "pdf",
+        "--outdir",
+        "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\out\\input-spaces-short",
+        "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\input files\\office-smoke.docx"
+      ],
+      "output": {
+        "path": "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\out\\input-spaces-short\\office-smoke.pdf",
+        "chars": 122,
+        "utf8Bytes": 122
+      },
+      "outputBytes": 24657,
+      "pdfHeader": true,
+      "stdout": "convert C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\input files\\office-smoke.docx as a Writer document -> C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\out\\input-spaces-short\\office-smoke.pdf using filter : writer_pdf_Export\n",
+      "stderr": "Could not find platform independent libraries <prefix>\r\n",
+      "error": ""
+    },
+    {
+      "id": "short-appdata-short-profile",
+      "factors": [
+        "input-location-appdata",
+        "outdir-location-appdata",
+        "profile-location-appdata",
+        "cwd"
+      ],
+      "causal": false,
+      "contrastWith": null,
+      "status": "PASS",
+      "exitCode": 0,
+      "exitHex": "0x0",
+      "crash0xC0000409": false,
+      "timedOut": false,
+      "elapsedMs": 8703,
+      "input": {
+        "path": "C:\\Users\\runneradmin\\AppData\\Local\\sl-short-d8bca8897483422046f25993731c8de8\\workspace\\in\\office-smoke.docx",
+        "chars": 107,
+        "utf8Bytes": 107
+      },
+      "outdir": {
+        "path": "C:\\Users\\runneradmin\\AppData\\Local\\sl-short-d8bca8897483422046f25993731c8de8\\workspace\\out",
+        "chars": 90,
+        "utf8Bytes": 90
+      },
+      "profile": {
+        "path": "C:\\Users\\runneradmin\\AppData\\Local\\sl-short-d8bca8897483422046f25993731c8de8\\workspace\\profile",
+        "chars": 94,
+        "utf8Bytes": 94
+      },
+      "profileUri": "file:///C:/Users/runneradmin/AppData/Local/sl-short-d8bca8897483422046f25993731c8de8/workspace/profile",
+      "cwd": {
+        "path": "C:\\Users\\runneradmin\\AppData\\Local\\sl-short-d8bca8897483422046f25993731c8de8\\workspace",
+        "chars": 86,
+        "utf8Bytes": 86
+      },
+      "temp": {
+        "path": "C:\\Users\\runneradmin\\AppData\\Roaming\\SwiftLocal Store\\temp",
+        "chars": 58,
+        "utf8Bytes": 58
+      },
+      "command": [
+        "C:\\Program Files\\WindowsApps\\JTKC.SwiftLocal_1.0.0.0_x64__j44a9ewx73faj\\app\\resources\\tools\\libreoffice\\program\\soffice.com",
+        "--headless",
+        "--nologo",
+        "--nodefault",
+        "--nofirststartwizard",
+        "--norestore",
+        "--nolockcheck",
+        "-env:UserInstallation=file:///C:/Users/runneradmin/AppData/Local/sl-short-d8bca8897483422046f25993731c8de8/workspace/profile",
+        "--convert-to",
+        "pdf",
+        "--outdir",
+        "C:\\Users\\runneradmin\\AppData\\Local\\sl-short-d8bca8897483422046f25993731c8de8\\workspace\\out",
+        "C:\\Users\\runneradmin\\AppData\\Local\\sl-short-d8bca8897483422046f25993731c8de8\\workspace\\in\\office-smoke.docx"
+      ],
+      "output": {
+        "path": "C:\\Users\\runneradmin\\AppData\\Local\\sl-short-d8bca8897483422046f25993731c8de8\\workspace\\out\\office-smoke.pdf",
+        "chars": 107,
+        "utf8Bytes": 107
+      },
+      "outputBytes": 24657,
+      "pdfHeader": true,
+      "stdout": "convert C:\\Users\\runneradmin\\AppData\\Local\\sl-short-d8bca8897483422046f25993731c8de8\\workspace\\in\\office-smoke.docx as a Writer document -> C:\\Users\\runneradmin\\AppData\\Local\\sl-short-d8bca8897483422046f25993731c8de8\\workspace\\out\\office-smoke.pdf using filter : writer_pdf_Export\n",
+      "stderr": "Could not find platform independent libraries <prefix>\r\n",
+      "error": ""
+    },
+    {
+      "id": "deep-downloads-short-profile",
+      "factors": [
+        "input-depth",
+        "outdir-depth",
+        "unicode",
+        "spaces"
+      ],
+      "causal": false,
+      "contrastWith": "deep-appdata-short-profile",
+      "status": "PASS",
+      "exitCode": 0,
+      "exitHex": "0x0",
+      "crash0xC0000409": false,
+      "timedOut": false,
+      "elapsedMs": 8821,
+      "input": {
+        "path": "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\SwiftLocal Store 中文 d8bca8897483422046f25993731c8de8\\輸入 文件\\office-smoke.docx",
+        "chars": 153,
+        "utf8Bytes": 165
+      },
+      "outdir": {
+        "path": "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\SwiftLocal Store 中文 d8bca8897483422046f25993731c8de8\\輸出 文件\\store\\office-to-pdf",
+        "chars": 155,
+        "utf8Bytes": 167
+      },
+      "profile": {
+        "path": "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\profile\\deep-downloads-short-profile",
+        "chars": 119,
+        "utf8Bytes": 119
+      },
+      "profileUri": "file:///C:/Users/runneradmin/Downloads/sl-lo-matrix-d8bca8897483422046f25993731c8de8/short/profile/deep-downloads-short-profile",
+      "cwd": {
+        "path": "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short",
+        "chars": 82,
+        "utf8Bytes": 82
+      },
+      "temp": {
+        "path": "C:\\Users\\runneradmin\\AppData\\Roaming\\SwiftLocal Store\\temp",
+        "chars": 58,
+        "utf8Bytes": 58
+      },
+      "command": [
+        "C:\\Program Files\\WindowsApps\\JTKC.SwiftLocal_1.0.0.0_x64__j44a9ewx73faj\\app\\resources\\tools\\libreoffice\\program\\soffice.com",
+        "--headless",
+        "--nologo",
+        "--nodefault",
+        "--nofirststartwizard",
+        "--norestore",
+        "--nolockcheck",
+        "-env:UserInstallation=file:///C:/Users/runneradmin/Downloads/sl-lo-matrix-d8bca8897483422046f25993731c8de8/short/profile/deep-downloads-short-profile",
+        "--convert-to",
+        "pdf",
+        "--outdir",
+        "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\SwiftLocal Store 中文 d8bca8897483422046f25993731c8de8\\輸出 文件\\store\\office-to-pdf",
+        "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\SwiftLocal Store 中文 d8bca8897483422046f25993731c8de8\\輸入 文件\\office-smoke.docx"
+      ],
+      "output": {
+        "path": "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\SwiftLocal Store 中文 d8bca8897483422046f25993731c8de8\\輸出 文件\\store\\office-to-pdf\\office-smoke.pdf",
+        "chars": 172,
+        "utf8Bytes": 184
+      },
+      "outputBytes": 24657,
+      "pdfHeader": true,
+      "stdout": "convert C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\SwiftLocal Store ?? d8bca8897483422046f25993731c8de8\\?? ??\\office-smoke.docx as a Writer document -> C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\SwiftLocal Store ?? d8bca8897483422046f25993731c8de8\\?? ??\\store\\office-to-pdf\\office-smoke.pdf using filter : writer_pdf_Export\n",
+      "stderr": "Could not find platform independent libraries <prefix>\r\n",
+      "error": ""
+    },
+    {
+      "id": "deep-appdata-short-profile",
+      "factors": [
+        "input-depth",
+        "outdir-depth",
+        "unicode",
+        "spaces",
+        "location-appdata"
+      ],
+      "causal": false,
+      "contrastWith": "deep-downloads-short-profile",
+      "status": "PASS",
+      "exitCode": 0,
+      "exitHex": "0x0",
+      "crash0xC0000409": false,
+      "timedOut": false,
+      "elapsedMs": 10149,
+      "input": {
+        "path": "C:\\Users\\runneradmin\\AppData\\Local\\Temp\\SwiftLocal Store 中文 d8bca8897483422046f25993731c8de8\\輸入 文件\\office-smoke.docx",
+        "chars": 116,
+        "utf8Bytes": 128
+      },
+      "outdir": {
+        "path": "C:\\Users\\runneradmin\\AppData\\Local\\Temp\\SwiftLocal Store 中文 d8bca8897483422046f25993731c8de8\\輸出 文件\\store\\office-to-pdf",
+        "chars": 118,
+        "utf8Bytes": 130
+      },
+      "profile": {
+        "path": "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short\\profile\\deep-appdata-short-profile",
+        "chars": 117,
+        "utf8Bytes": 117
+      },
+      "profileUri": "file:///C:/Users/runneradmin/Downloads/sl-lo-matrix-d8bca8897483422046f25993731c8de8/short/profile/deep-appdata-short-profile",
+      "cwd": {
+        "path": "C:\\Users\\runneradmin\\Downloads\\sl-lo-matrix-d8bca8897483422046f25993731c8de8\\short",
+        "chars": 82,
+        "utf8Bytes": 82
+      },
+      "temp": {
+        "path": "C:\\Users\\runneradmin\\AppData\\Roaming\\SwiftLocal Store\\temp",
+        "chars": 58,
+        "utf8Bytes": 58
+      },
+      "command": [
+        "C:\\Program Files\\WindowsApps\\JTKC.SwiftLocal_1.0.0.0_x64__j44a9ewx73faj\\app\\resources\\tools\\libreoffice\\program\\soffice.com",
+        "--headless",
+        "--nologo",
+        "--nodefault",
+        "--nofirststartwizard",
+        "--norestore",
+        "--nolockcheck",
+        "-env:UserInstallation=file:///C:/Users/runneradmin/Downloads/sl-lo-matrix-d8bca8897483422046f25993731c8de8/short/profile/deep-appdata-short-profile",
+        "--convert-to",
+        "pdf",
+        "--outdir",
+        "C:\\Users\\runneradmin\\AppData\\Local\\Temp\\SwiftLocal Store 中文 d8bca8897483422046f25993731c8de8\\輸出 文件\\store\\office-to-pdf",
+        "C:\\Users\\runneradmin\\AppData\\Local\\Temp\\SwiftLocal Store 中文 d8bca8897483422046f25993731c8de8\\輸入 文件\\office-smoke.docx"
+      ],
+      "output": {
+        "path": "C:\\Users\\runneradmin\\AppData\\Local\\Temp\\SwiftLocal Store 中文 d8bca8897483422046f25993731c8de8\\輸出 文件\\store\\office-to-pdf\\office-smoke.pdf",
+        "chars": 135,
+        "utf8Bytes": 147
+      },
+      "outputBytes": 24657,
+      "pdfHeader": true,
+      "stdout": "convert C:\\Users\\runneradmin\\AppData\\Local\\Temp\\SwiftLocal Store ?? d8bca8897483422046f25993731c8de8\\?? ??\\office-smoke.docx as a Writer document -> C:\\Users\\runneradmin\\AppData\\Local\\Temp\\SwiftLocal Store ?? d8bca8897483422046f25993731c8de8\\?? ??\\store\\office-to-pdf\\office-smoke.pdf using filter : writer_pdf_Export\n",
+      "stderr": "Could not find platform independent libraries <prefix>\r\n",
+      "error": ""
+    },
+    {
+      "id": "exact-rejected-shape",
+      "factors": [
+        "reproduction"
+      ],
+      "causal": false,
+      "contrastWith": "exact-rejected-long-temp-root",
+      "status": "FAIL",
+      "exitCode": 3221226505,
+      "exitHex": "0xc0000409",
+      "crash0xC0000409": true,
+      "timedOut": false,
+      "elapsedMs": 3925,
+      "input": {
+        "path": "C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\SwiftLocal Store 中文 d8bca8897483422046f25993731c8de8\\輸入 文件\\office-smoke.docx",
+        "chars": 113,
+        "utf8Bytes": 125
+      },
+      "outdir": {
+        "path": "C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\SwiftLocal Store 中文 d8bca8897483422046f25993731c8de8\\輸出 文件\\store\\office-to-pdf\\.swiftlocal-office-0cfe82",
+        "chars": 141,
+        "utf8Bytes": 153
+      },
+      "profile": {
+        "path": "C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\SwiftLocal Store 中文 d8bca8897483422046f25993731c8de8\\輸出 文件\\store\\office-to-pdf\\.swiftlocal-office-0cfe82\\lo-profile-0cfe82",
+        "chars": 159,
+        "utf8Bytes": 171
+      },
+      "profileUri": "file:///C:/Users/RUNNER%7E1/AppData/Local/Temp/SwiftLocal%20Store%20%E4%B8%AD%E6%96%87%20d8bca8897483422046f25993731c8de8/%E8%BC%B8%E5%87%BA%20%E6%96%87%E4%BB%B6/store/office-to-pdf/.swiftlocal-office-0cfe82/lo-profile-0cfe82",
+      "cwd": {
+        "path": "C:\\Users\\runneradmin\\AppData\\Roaming\\SwiftLocal Store TEST",
+        "chars": 58,
+        "utf8Bytes": 58
+      },
+      "temp": {
+        "path": "C:\\Users\\runneradmin\\AppData\\Roaming\\SwiftLocal Store TEST\\temp",
+        "chars": 63,
+        "utf8Bytes": 63
+      },
+      "command": [
+        "C:\\Program Files\\WindowsApps\\JTKC.SwiftLocal_1.0.0.0_x64__j44a9ewx73faj\\app\\resources\\tools\\libreoffice\\program\\soffice.com",
+        "--headless",
+        "--nologo",
+        "--nodefault",
+        "--nofirststartwizard",
+        "--norestore",
+        "--nolockcheck",
+        "-env:UserInstallation=file:///C:/Users/RUNNER%7E1/AppData/Local/Temp/SwiftLocal%20Store%20%E4%B8%AD%E6%96%87%20d8bca8897483422046f25993731c8de8/%E8%BC%B8%E5%87%BA%20%E6%96%87%E4%BB%B6/store/office-to-pdf/.swiftlocal-office-0cfe82/lo-profile-0cfe82",
+        "--convert-to",
+        "pdf",
+        "--outdir",
+        "C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\SwiftLocal Store 中文 d8bca8897483422046f25993731c8de8\\輸出 文件\\store\\office-to-pdf\\.swiftlocal-office-0cfe82",
+        "C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\SwiftLocal Store 中文 d8bca8897483422046f25993731c8de8\\輸入 文件\\office-smoke.docx"
+      ],
+      "output": null,
+      "outputBytes": 0,
+      "pdfHeader": false,
+      "stdout": "",
+      "stderr": "",
+      "error": ""
+    },
+    {
+      "id": "exact-rejected-long-temp-root",
+      "factors": [
+        "reproduction-long-temp-root"
+      ],
+      "causal": false,
+      "contrastWith": "exact-rejected-shape",
+      "status": "FAIL",
+      "exitCode": 3221226505,
+      "exitHex": "0xc0000409",
+      "crash0xC0000409": true,
+      "timedOut": false,
+      "elapsedMs": 5980,
+      "input": {
+        "path": "C:\\Users\\runneradmin\\AppData\\Local\\Temp\\SwiftLocal Store 中文 d8bca8897483422046f25993731c8de8\\輸入 文件\\office-smoke.docx",
+        "chars": 116,
+        "utf8Bytes": 128
+      },
+      "outdir": {
+        "path": "C:\\Users\\runneradmin\\AppData\\Local\\Temp\\SwiftLocal Store 中文 d8bca8897483422046f25993731c8de8\\輸出 文件\\store\\office-to-pdf\\.swiftlocal-office-0cfe82",
+        "chars": 144,
+        "utf8Bytes": 156
+      },
+      "profile": {
+        "path": "C:\\Users\\runneradmin\\AppData\\Local\\Temp\\SwiftLocal Store 中文 d8bca8897483422046f25993731c8de8\\輸出 文件\\store\\office-to-pdf\\.swiftlocal-office-0cfe82\\lo-profile-0cfe82",
+        "chars": 162,
+        "utf8Bytes": 174
+      },
+      "profileUri": "file:///C:/Users/runneradmin/AppData/Local/Temp/SwiftLocal%20Store%20%E4%B8%AD%E6%96%87%20d8bca8897483422046f25993731c8de8/%E8%BC%B8%E5%87%BA%20%E6%96%87%E4%BB%B6/store/office-to-pdf/.swiftlocal-office-0cfe82/lo-profile-0cfe82",
+      "cwd": {
+        "path": "C:\\Users\\runneradmin\\AppData\\Roaming\\SwiftLocal Store TEST",
+        "chars": 58,
+        "utf8Bytes": 58
+      },
+      "temp": {
+        "path": "C:\\Users\\runneradmin\\AppData\\Roaming\\SwiftLocal Store TEST\\temp",
+        "chars": 63,
+        "utf8Bytes": 63
+      },
+      "command": [
+        "C:\\Program Files\\WindowsApps\\JTKC.SwiftLocal_1.0.0.0_x64__j44a9ewx73faj\\app\\resources\\tools\\libreoffice\\program\\soffice.com",
+        "--headless",
+        "--nologo",
+        "--nodefault",
+        "--nofirststartwizard",
+        "--norestore",
+        "--nolockcheck",
+        "-env:UserInstallation=file:///C:/Users/runneradmin/AppData/Local/Temp/SwiftLocal%20Store%20%E4%B8%AD%E6%96%87%20d8bca8897483422046f25993731c8de8/%E8%BC%B8%E5%87%BA%20%E6%96%87%E4%BB%B6/store/office-to-pdf/.swiftlocal-office-0cfe82/lo-profile-0cfe82",
+        "--convert-to",
+        "pdf",
+        "--outdir",
+        "C:\\Users\\runneradmin\\AppData\\Local\\Temp\\SwiftLocal Store 中文 d8bca8897483422046f25993731c8de8\\輸出 文件\\store\\office-to-pdf\\.swiftlocal-office-0cfe82",
+        "C:\\Users\\runneradmin\\AppData\\Local\\Temp\\SwiftLocal Store 中文 d8bca8897483422046f25993731c8de8\\輸入 文件\\office-smoke.docx"
+      ],
+      "output": null,
+      "outputBytes": 0,
+      "pdfHeader": false,
+      "stdout": "",
+      "stderr": "",
+      "error": ""
+    },
+    {
+      "id": "ascii-equivalent-of-exact",
+      "factors": [
+        "reproduction-ascii"
+      ],
+      "causal": false,
+      "contrastWith": "exact-rejected-shape",
+      "status": "PASS",
+      "exitCode": 0,
+      "exitHex": "0x0",
+      "crash0xC0000409": false,
+      "timedOut": false,
+      "elapsedMs": 15324,
+      "input": {
+        "path": "C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\SwiftLocal Store ASCII d8bca8897483422046f25993731c8de8\\input files\\office-smoke.docx",
+        "chars": 122,
+        "utf8Bytes": 122
+      },
+      "outdir": {
+        "path": "C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\SwiftLocal Store ASCII d8bca8897483422046f25993731c8de8\\output files\\store\\office-to-pdf\\.swiftlocal-office-0cfe82",
+        "chars": 151,
+        "utf8Bytes": 151
+      },
+      "profile": {
+        "path": "C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\SwiftLocal Store ASCII d8bca8897483422046f25993731c8de8\\output files\\store\\office-to-pdf\\.swiftlocal-office-0cfe82\\lo-profile-0cfe82",
+        "chars": 169,
+        "utf8Bytes": 169
+      },
+      "profileUri": "file:///C:/Users/RUNNER%7E1/AppData/Local/Temp/SwiftLocal%20Store%20ASCII%20d8bca8897483422046f25993731c8de8/output%20files/store/office-to-pdf/.swiftlocal-office-0cfe82/lo-profile-0cfe82",
+      "cwd": {
+        "path": "C:\\Users\\runneradmin\\AppData\\Roaming\\SwiftLocal Store TEST",
+        "chars": 58,
+        "utf8Bytes": 58
+      },
+      "temp": {
+        "path": "C:\\Users\\runneradmin\\AppData\\Roaming\\SwiftLocal Store TEST\\temp",
+        "chars": 63,
+        "utf8Bytes": 63
+      },
+      "command": [
+        "C:\\Program Files\\WindowsApps\\JTKC.SwiftLocal_1.0.0.0_x64__j44a9ewx73faj\\app\\resources\\tools\\libreoffice\\program\\soffice.com",
+        "--headless",
+        "--nologo",
+        "--nodefault",
+        "--nofirststartwizard",
+        "--norestore",
+        "--nolockcheck",
+        "-env:UserInstallation=file:///C:/Users/RUNNER%7E1/AppData/Local/Temp/SwiftLocal%20Store%20ASCII%20d8bca8897483422046f25993731c8de8/output%20files/store/office-to-pdf/.swiftlocal-office-0cfe82/lo-profile-0cfe82",
+        "--convert-to",
+        "pdf",
+        "--outdir",
+        "C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\SwiftLocal Store ASCII d8bca8897483422046f25993731c8de8\\output files\\store\\office-to-pdf\\.swiftlocal-office-0cfe82",
+        "C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\SwiftLocal Store ASCII d8bca8897483422046f25993731c8de8\\input files\\office-smoke.docx"
+      ],
+      "output": {
+        "path": "C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\SwiftLocal Store ASCII d8bca8897483422046f25993731c8de8\\output files\\store\\office-to-pdf\\.swiftlocal-office-0cfe82\\office-smoke.pdf",
+        "chars": 168,
+        "utf8Bytes": 168
+      },
+      "outputBytes": 24657,
+      "pdfHeader": true,
+      "stdout": "convert C:\\Users\\runneradmin\\AppData\\Local\\Temp\\SwiftLocal Store ASCII d8bca8897483422046f25993731c8de8\\input files\\office-smoke.docx as a Writer document -> C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\SwiftLocal Store ASCII d8bca8897483422046f25993731c8de8\\output files\\store\\office-to-pdf\\.swiftlocal-office-0cfe82\\office-smoke.pdf using filter : writer_pdf_Export\n",
+      "stderr": "Could not find platform independent libraries <prefix>\r\n",
+      "error": ""
+    }
+  ]
+}

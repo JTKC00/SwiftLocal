@@ -44,7 +44,7 @@ const TRUSTED_RENDERER_URLS = buildTrustedRendererUrls(FRONTEND_DIR);
 // Must run before app ready so Windows Open With / jump lists use product name
 // (not the default Electron host identity).
 app.setName(APP_NAME);
-if (process.platform === "win32") {
+if (process.platform === "win32" && !process.windowsStore) {
   app.setAppUserModelId(APP_USER_MODEL_ID);
 }
 

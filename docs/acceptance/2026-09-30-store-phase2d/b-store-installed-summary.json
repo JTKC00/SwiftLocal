@@ -1,0 +1,97 @@
+{
+  "status": "PASS",
+  "scope": "read-only immediate post-Store-install integrity comparison with NSIS kept closed; later coexistence/update/uninstall remain UNVERIFIED",
+  "capturedAt": "2026-09-30T15:34:02.2265114+08:00",
+  "package": {
+    "Name": "JTKC.SwiftLocal",
+    "Publisher": "CN=48CB75C0-3F50-44EF-87EB-8203F196B957",
+    "Version": "1.0.0.0",
+    "Architecture": 9,
+    "PackageFullName": "JTKC.SwiftLocal_1.0.0.0_x64__j44a9ewx73faj",
+    "PackageFamilyName": "JTKC.SwiftLocal_j44a9ewx73faj",
+    "InstallLocation": "<WINDOWSAPPS>/JTKC.SwiftLocal_1.0.0.0_x64__j44a9ewx73faj",
+    "Status": 0
+  },
+  "ownerGuiInstall": "PASS: owner explicitly confirmed signed Store 1.0.0.0 installation",
+  "nsis": {
+    "version": "0.4.1",
+    "installFiles": 19730,
+    "installInventorySha256": "0f71c70112ef6b0a84a1c6d43534d54d73f516e44d328aaf45d2ec899d295630",
+    "installFilesUnchanged": "PASS",
+    "uninstallRegistrationUnchanged": "PASS",
+    "durableProfileFilesUnchanged": "PASS",
+    "stateInventoryHashes": [
+      "9d9b1e0ca58a2364ce529dce0845adbb9e4d19e2b237d5f0a396e41a7dbc98ff",
+      "b358936cba698b909eff80701e2a0871bf5be6f31be657ce6698e5e5e0f062f7",
+      "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    ]
+  },
+  "userOutputUnchanged": "PASS",
+  "pdfUserChoiceUnchanged": "PASS",
+  "pdfUserChoice": {
+    "ProgId": "FoxitReader.Document",
+    "Hash": "lNCw115bAok="
+  },
+  "associations": {
+    "nsisProgId": "SwiftLocal.PDF",
+    "nsisRegistrationUnchanged": "PASS",
+    "storeProgId": "AppXnwtdh7rg4t5tbp7ewsmh9rcaxb3cgzrv",
+    "storeAumid": "JTKC.SwiftLocal_j44a9ewx73faj!SwiftLocal",
+    "explorerVisibleLabels": "UNVERIFIED"
+  },
+  "startEntries": [
+    {
+      "Name": "SwiftLocal",
+      "AppID": "JTKC.SwiftLocal_j44a9ewx73faj!SwiftLocal"
+    },
+    {
+      "Name": "快轉通 SwiftLocal",
+      "AppID": "com.swiftlocal.converter"
+    }
+  ],
+  "storeState": [
+    {
+      "category": "A: application-owned logical Roaming profile",
+      "exists": false,
+      "files": 0,
+      "errors": 0,
+      "durableFiles": {}
+    },
+    {
+      "category": "A: application-owned Local profile if present",
+      "exists": false,
+      "files": 0,
+      "errors": 0,
+      "durableFiles": {}
+    },
+    {
+      "category": "B: package-managed and redirected state",
+      "exists": true,
+      "files": 32,
+      "errors": 0,
+      "durableFiles": {
+        "LocalCache/Roaming/SwiftLocal Store/jobs-state.json": {
+          "bytes": 73,
+          "sha256": "f9aaaf788f0dafb4fd473e34b19754f158ca119e5a9be33bb1b5960d98b2f67a"
+        },
+        "LocalCache/Roaming/SwiftLocal Store/store-runtime-paths.json": {
+          "bytes": 738,
+          "sha256": "30d6b2af7751e1221734861ae8361442bb7c0f412bcf1754035fa5d6e03640b8"
+        },
+        "LocalCache/Roaming/SwiftLocal Store/session/Local State": {
+          "bytes": 490,
+          "sha256": "11ee127da37fc8c5d26d2f1a0c65df3079f3b77eb4d0b5ab7a01be1f511a0752"
+        },
+        "LocalCache/Roaming/SwiftLocal Store/session/Preferences": {
+          "bytes": 57,
+          "sha256": "be4b8924ab38e8acf350e6e3b9f1f63a1a94952d8002759acd6946c4d5d0b5de"
+        }
+      }
+    }
+  ],
+  "stateMeasurement": "Store may still be open after GUI installation. These files are a live first-install inventory, not the seeded closed-app update-retention baseline.",
+  "computerUse": "Owner requested independent GUI checks, then physically stopped Computer Use with Escape before App Installer capture. No further GUI inputs were issued in that turn.",
+  "nextStep": "Inspect both Open With entries and launch behavior, seed real Store state, close both apps and record the update baseline before the 1.0.1.0 GUI update",
+  "privatePaths": "kept only in ignored local inventories",
+  "cleanup": "UNVERIFIED"
+}
